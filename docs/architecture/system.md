@@ -19,7 +19,7 @@ flowchart TB
   API --> Parsers["Bounded TXT · MD · JSON · OOXML DOCX · text-layer PDF"]
   API --> Domain["Matching · assurance · receipts"]
   API --> Documents["JSON · TXT · DOCX · PDF renderers"]
-  Worker["Optional refresh worker"] -->|"local demo session"| API
+  Worker["Durable refresh worker"] -->|"private loopback cycle"| API
   API -. "fixed public hosts" .-> ATS["Greenhouse · Lever · Ashby"]
   API -. "loopback only" .-> Model["Ollama"]
   API --> Gate["External action state machine"]
@@ -72,7 +72,11 @@ Tenant isolation is enforced in every public repository method and exercised thr
 
 `POST /v1/auth/local` and the explicitly labeled synthetic-demo route are available only on loopback while local mode is enabled and require the high-entropy launch key stored mode `0600`. The local route records the candidate's own name and email. It creates a local tenant, user, membership, and a random 256-bit session token. Only the SHA-256 token hash is stored. The browser receives an HttpOnly, SameSite=Lax cookie.
 
-There is no public hosted sign-up flow in v0.1.0. Invitations, passkeys, managed sessions, production cookie security, and account recovery are hosted-beta gates.
+There is no public hosted sign-up flow. Email-bound, hashed, single-use invitations create isolated local/self-hosted candidate workspaces. Passkeys, managed recovery, production cookie security, and hosted identity remain hosted-beta gates.
+
+## Durable discovery
+
+Candidates can schedule Greenhouse, Lever, and Ashby public-board refreshes from the workbench. Schedules are tenant-owned database records with bounded cadence, a single hashed lease, retry backoff, pause/resume/run-now/cancel controls, and a visible dead-letter state after five consecutive failures. After the network read, each job/match/receipt batch and its recurring-state advance commit in one lease-locked transaction; cancellation before that phase leaves no imported artifacts, and expiry recovery cannot overlap the locked write. A worker cycle claims at most three due schedules through the private bootstrap-authenticated API seam, imports at most 500 roles per source, and publishes deterministic match receipts. Its payload contains provider and board identifiers only; it cannot prepare packets, approve, email, or submit.
 
 ## External actions
 
@@ -88,7 +92,7 @@ The next production seam is not another feature. It is a hosted trust layer:
 - WebAuthn/passkeys, invitation lifecycle, and recovery;
 - encrypted object storage with short-lived artifact URLs;
 - OAuth authorization-code flows with refresh-token protection;
-- durable jobs with leases, expiry, retry budgets, and dead-letter review;
+- hosted queue isolation, operational dashboards, and multi-instance worker capacity beyond the local durable lease loop;
 - audit-log retention, backup/restore drills, and deletion evidence;
 - counsel-reviewed product language and provider terms.
 

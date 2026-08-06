@@ -7,26 +7,35 @@ describe("bounded source worker", () => {
     expect(nextDelay(20)).toBe(15 * 60_000);
   });
 
-  it("performs only a health check when no source is configured", async () => {
+  it("runs one durable schedule cycle through the private worker endpoint", async () => {
     const calls: string[] = [];
     const result = await runCycle({
       apiOrigin: "http://127.0.0.1:4310",
+      bootstrapSecret: "private-key",
       fetcher: (async (url: string | URL | Request) => {
         calls.push(String(url));
+        if (String(url).endsWith("/v1/worker/cycle")) {
+          return new Response(
+            JSON.stringify({ processed: 1, failed: 0, imported: 6, matched: 6 }),
+            { headers: { "content-type": "application/json" } },
+          );
+        }
         return new Response(JSON.stringify({ status: "ok" }), {
           headers: { "content-type": "application/json" },
         });
       }) as typeof fetch,
     });
-    expect(result).toEqual({ status: "healthy", imported: 0 });
-    expect(calls).toEqual(["http://127.0.0.1:4310/health"]);
+    expect(result).toEqual({ processed: 1, failed: 0, imported: 6, matched: 6 });
+    expect(calls).toEqual([
+      "http://127.0.0.1:4310/health",
+      "http://127.0.0.1:4310/v1/worker/cycle",
+    ]);
   });
 
-  it("refuses a configured refresh without the private launch key", async () => {
+  it("refuses a schedule cycle without the private launch key", async () => {
     await expect(
       runCycle({
         apiOrigin: "http://127.0.0.1:4310",
-        source: { provider: "greenhouse", board: "northwind" },
         fetcher: (async () =>
           new Response(JSON.stringify({ status: "ok" }), {
             headers: { "content-type": "application/json" },

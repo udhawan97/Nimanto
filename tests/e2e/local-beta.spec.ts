@@ -58,6 +58,19 @@ test("a candidate starts a private workspace and receives deterministic role exp
   await expect(page.getByRole("heading", { name: "Platform Engineer" })).toBeVisible();
   await expect(page.getByText("Northwind Systems").first()).toBeVisible();
 
+  await page.getByRole("button", { name: "Schedule source" }).click();
+  await page.getByLabel("Scheduled provider").selectOption("greenhouse");
+  await page.getByLabel("Scheduled board identifier").fill("northwind-careers");
+  await page.getByLabel("Refresh cadence").selectOption("360");
+  await page.getByRole("button", { name: "Start schedule" }).click();
+  const schedule = page.locator(".schedule-row").filter({ hasText: "northwind-careers" });
+  await expect(schedule).toContainText("Every 6 hours");
+  await expect(schedule).toContainText("Queued");
+  await schedule.getByRole("button", { name: "Pause schedule" }).click();
+  await expect(schedule).toContainText("Paused");
+  await schedule.getByRole("button", { name: "Resume schedule" }).click();
+  await expect(schedule).toContainText("Queued");
+
   for (const width of [320, 375, 768, 1280]) {
     await page.setViewportSize({ width, height: 900 });
     const overflow = await page.evaluate(

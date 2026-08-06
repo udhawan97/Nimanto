@@ -20,6 +20,24 @@ async function setup(options?: {
     settings: { recursive?: boolean; force?: boolean },
   ) => Promise<void>;
   assuranceModel?: string;
+  providerJobsFetcher?: (request: {
+    provider: "greenhouse" | "lever" | "ashby";
+    board: string;
+  }) => Promise<
+    Array<{
+      source: "greenhouse" | "lever" | "ashby";
+      sourceJobId: string;
+      title: string;
+      company: string;
+      description: string;
+      location: string;
+      workMode: string;
+      url: string;
+      requirements: string[];
+      contentHash: string;
+      sourceMeta: Record<string, unknown>;
+    }>
+  >;
 }): Promise<{
   app: FastifyInstance;
   cookie: string;
@@ -39,6 +57,7 @@ async function setup(options?: {
     host: "127.0.0.1",
     ...(options?.removePath ? { removePath: options.removePath } : {}),
     ...(options?.assuranceModel ? { assuranceModel: options.assuranceModel } : {}),
+    ...(options?.providerJobsFetcher ? { providerJobsFetcher: options.providerJobsFetcher } : {}),
   });
   apps.push(app);
   await app.ready();
@@ -56,6 +75,166 @@ async function setup(options?: {
 }
 
 describe("Nimanto beta API", () => {
+  it("keeps the worker cycle healthy when a running schedule is cancelled", async () => {
+    let markProviderStarted: (() => void) | undefined;
+    let releaseProvider: (() => void) | undefined;
+    const providerStarted = new Promise<void>((resolve) => {
+      markProviderStarted = resolve;
+    });
+    const providerReleased = new Promise<void>((resolve) => {
+      releaseProvider = resolve;
+    });
+    const { app, cookie } = await setup({
+      providerJobsFetcher: async ({ provider, board }) => {
+        markProviderStarted?.();
+        await providerReleased;
+        return [
+          {
+            source: provider,
+            sourceJobId: "cancelled-schedule-role",
+            title: "Platform Engineer",
+            company: board,
+            description: "Build TypeScript services.",
+            location: "Remote",
+            workMode: "remote",
+            url: "https://example.test/jobs/cancelled-schedule-role",
+            requirements: ["TypeScript"],
+            contentHash: "cancelled-schedule-content",
+            sourceMeta: { fixture: true },
+          },
+        ];
+      },
+    });
+    const created = await app.inject({
+      method: "POST",
+      url: "/v1/schedules",
+      headers: { cookie },
+      payload: { provider: "greenhouse", board: "northwind", cadenceMinutes: 60 },
+    });
+
+    const cycleRequest = app.inject({
+      method: "POST",
+      url: "/v1/worker/cycle",
+      headers: { "x-nimanto-bootstrap-secret": bootstrapSecret },
+    });
+    await providerStarted;
+    expect(
+      (
+        await app.inject({
+          method: "DELETE",
+          url: `/v1/schedules/${created.json().id}`,
+          headers: { cookie },
+        })
+      ).statusCode,
+    ).toBe(200);
+    releaseProvider?.();
+
+    const cycle = await cycleRequest;
+    expect(cycle.statusCode).toBe(200);
+    expect(cycle.json()).toEqual({ processed: 1, failed: 1, imported: 0, matched: 0 });
+    const dashboard = (
+      await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } })
+    ).json();
+    expect(
+      dashboard.jobs.some(
+        (job: { sourceJobId: string }) => job.sourceJobId === "cancelled-schedule-role",
+      ),
+    ).toBe(false);
+    expect(dashboard.matches).toEqual([]);
+    expect(dashboard.receipts).toEqual([]);
+  });
+
+  it("runs tenant-owned durable discovery schedules through the private worker seam", async () => {
+    const { app, cookie } = await setup({
+      providerJobsFetcher: async ({ provider, board }) => [
+        {
+          source: provider,
+          sourceJobId: "scheduled-role-1",
+          title: "Senior Platform Engineer",
+          company: board,
+          description: "Build TypeScript and PostgreSQL services.",
+          location: "Chicago",
+          workMode: "hybrid",
+          url: "https://example.test/jobs/scheduled-role-1",
+          requirements: ["TypeScript", "PostgreSQL"],
+          contentHash: "scheduled-role-content-1",
+          sourceMeta: { fixture: true },
+        },
+      ],
+    });
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/v1/schedules",
+      headers: { cookie },
+      payload: { provider: "greenhouse", board: "northwind", cadenceMinutes: 60 },
+    });
+    expect(created.statusCode).toBe(200);
+    expect(created.json()).toMatchObject({
+      provider: "greenhouse",
+      board: "northwind",
+      cadenceMinutes: 60,
+      state: "queued",
+    });
+
+    expect((await app.inject({ method: "POST", url: "/v1/worker/cycle" })).statusCode).toBe(401);
+    const cycle = await app.inject({
+      method: "POST",
+      url: "/v1/worker/cycle",
+      headers: { "x-nimanto-bootstrap-secret": bootstrapSecret },
+    });
+    expect(cycle.statusCode).toBe(200);
+    expect(cycle.json()).toEqual({ processed: 1, failed: 0, imported: 1, matched: 1 });
+
+    const schedules = await app.inject({
+      method: "GET",
+      url: "/v1/schedules",
+      headers: { cookie },
+    });
+    expect(schedules.json().schedules).toEqual([
+      expect.objectContaining({
+        id: created.json().id,
+        state: "queued",
+        attempts: 0,
+        lastResult: { imported: 1, matched: 1 },
+      }),
+    ]);
+    const dashboard = (
+      await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } })
+    ).json();
+    const scheduledJob = dashboard.jobs.find(
+      (job: { sourceJobId: string }) => job.sourceJobId === "scheduled-role-1",
+    );
+    expect(scheduledJob).toBeDefined();
+    expect(
+      dashboard.matches.some((match: { jobId: string }) => match.jobId === scheduledJob.id),
+    ).toBe(true);
+    expect(
+      dashboard.receipts.some(
+        (receipt: { material?: { jobId?: string } }) => receipt.material?.jobId === scheduledJob.id,
+      ),
+    ).toBe(true);
+
+    expect(
+      (
+        await app.inject({
+          method: "POST",
+          url: `/v1/schedules/${created.json().id}/pause`,
+          headers: { cookie },
+        })
+      ).json().state,
+    ).toBe("paused");
+    expect(
+      (
+        await app.inject({
+          method: "POST",
+          url: `/v1/schedules/${created.json().id}/resume`,
+          headers: { cookie },
+        })
+      ).json().state,
+    ).toBe("queued");
+  });
+
   it("runs evidence through match, packet assurance, approval, and the test outbox", async () => {
     const { app, cookie } = await setup();
     const dashboard = await app.inject({

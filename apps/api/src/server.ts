@@ -323,6 +323,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     secureRuntimeDirectory(options.outboxDirectory),
   ]);
   const store = await NimantoStore.open(options.dataDirectory);
+  const providerJobsFetcher = options.providerJobsFetcher ?? fetchProviderJobs;
   const trustedEmployerEvaluation = options.trustedEmployerResolutionEvaluation;
   if (trustedEmployerEvaluation) {
     if (
@@ -356,6 +357,89 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     );
     return store.completeDeletion(run.id);
   };
+  type ScheduleWriteStore = Pick<
+    NimantoStore,
+    "upsertJob" | "listEvidence" | "latestProfileVersion" | "saveMatch" | "saveReceipt"
+  >;
+  const persistProviderSource = async (
+    database: ScheduleWriteStore,
+    tenantId: string,
+    remote: Awaited<ReturnType<typeof providerJobsFetcher>>,
+    scoreImportedJobs: boolean,
+  ): Promise<{
+    imported: number;
+    matched: number;
+    jobs: Awaited<ReturnType<ScheduleWriteStore["upsertJob"]>>[];
+  }> => {
+    const jobs = [];
+    for (const job of remote.slice(0, 500)) {
+      jobs.push(await database.upsertJob(tenantId, { ...job, capability: "deep_link" }));
+    }
+    if (!scoreImportedJobs || jobs.length === 0) return { imported: jobs.length, matched: 0, jobs };
+    const [evidence, profile] = await Promise.all([
+      database.listEvidence(tenantId),
+      database.latestProfileVersion(tenantId),
+    ]);
+    let matched = 0;
+    for (const job of jobs) {
+      const result = matchJob({
+        job: {
+          id: job.id,
+          title: job.title,
+          company: job.company,
+          description: job.description,
+          requirements: job.requirements,
+          location: job.location,
+          workMode: job.workMode,
+        },
+        evidence,
+      });
+      const saved = await database.saveMatch(tenantId, job.id, profile?.id ?? null, result);
+      const receipt = createReceipt({
+        id: randomUUID(),
+        type: "match.published",
+        occurredAt: new Date().toISOString(),
+        input: {
+          jobId: job.id,
+          profileVersionId: profile?.id ?? null,
+          inputHash: saved.inputHash,
+          source: "scheduled_discovery",
+        },
+        artifact: {
+          artifactHash: saved.artifactHash,
+          ruleVersion: saved.ruleVersion,
+          band: result.band,
+        },
+      });
+      await database.saveReceipt(tenantId, receipt, {
+        jobId: job.id,
+        matchRunId: saved.id,
+        evidenceIds: result.requirements.flatMap((requirement) => requirement.evidenceIds),
+      });
+      matched += 1;
+    }
+    return { imported: jobs.length, matched, jobs };
+  };
+  const importProviderSource = async (
+    tenantId: string,
+    provider: "greenhouse" | "lever" | "ashby",
+    board: string,
+    scoreImportedJobs: boolean,
+  ) =>
+    persistProviderSource(
+      store,
+      tenantId,
+      await providerJobsFetcher({ provider, board }),
+      scoreImportedJobs,
+    );
+  const scheduledErrorCode = (error: unknown): string => {
+    const message = error instanceof Error ? error.message : "";
+    return /^(?:PROVIDER_[A-Z0-9_]+|INVALID_BOARD_IDENTIFIER)$/u.test(message)
+      ? message
+      : "PROVIDER_REFRESH_FAILED";
+  };
+  const scheduleLeaseWasLost = (error: unknown): boolean =>
+    error instanceof Error && error.message === "SCHEDULE_LEASE_INVALID";
   let externalActionsEnabled = false;
   const app = Fastify({ logger: false, bodyLimit: 12 * 1024 * 1024, trustProxy: false });
 
@@ -538,6 +622,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
       request.url.startsWith("/v1/auth/local") ||
       request.url.startsWith("/v1/auth/invitations") ||
       request.url.startsWith("/v1/auth/status") ||
+      request.url.startsWith("/v1/worker/") ||
       request.url.startsWith("/v1/meta") ||
       request.url.startsWith("/v1/deletion/status") ||
       request.url.startsWith("/v1/deletion/resume")
@@ -570,6 +655,81 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     return { signedOut: true };
   });
 
+  app.post("/v1/worker/cycle", async (request) => {
+    if (!secretsEqual(request.headers["x-nimanto-bootstrap-secret"], options.bootstrapSecret)) {
+      throw new Error("INVALID_BOOTSTRAP_SECRET");
+    }
+    const totals = { processed: 0, failed: 0, imported: 0, matched: 0 };
+    for (let index = 0; index < 3; index += 1) {
+      const claim = await store.claimDueSourceSchedule();
+      if (!claim) break;
+      totals.processed += 1;
+      try {
+        const remote = await providerJobsFetcher({
+          provider: claim.schedule.provider,
+          board: claim.schedule.board,
+        });
+        const execution = await store.executeSourceSchedule(
+          claim.schedule.id,
+          claim.leaseToken,
+          (transaction) =>
+            persistProviderSource(transaction, claim.schedule.tenantId, remote, true),
+        );
+        const result = execution.result;
+        totals.imported += result.imported;
+        totals.matched += result.matched;
+      } catch (error) {
+        totals.failed += 1;
+        try {
+          await store.failSourceSchedule(
+            claim.schedule.id,
+            claim.leaseToken,
+            scheduledErrorCode(error),
+          );
+        } catch (leaseError) {
+          if (!scheduleLeaseWasLost(leaseError)) throw leaseError;
+        }
+      }
+    }
+    return totals;
+  });
+
+  app.get("/v1/schedules", async (request) => ({
+    schedules: await store.listSourceSchedules(identity(request).tenantId),
+  }));
+  app.post("/v1/schedules", async (request) => {
+    const person = identity(request);
+    const body = object(request.body);
+    const provider = string(body.provider, "provider") as "greenhouse" | "lever" | "ashby";
+    if (!["greenhouse", "lever", "ashby"].includes(provider)) throw new Error("INVALID_PROVIDER");
+    if (typeof body.cadenceMinutes !== "number") throw new Error("INVALID_CADENCE_MINUTES");
+    return store.createSourceSchedule(person.tenantId, {
+      provider,
+      board: string(body.board, "board"),
+      cadenceMinutes: body.cadenceMinutes,
+    });
+  });
+  for (const [pathSuffix, operation] of [
+    ["pause", store.pauseSourceSchedule.bind(store)],
+    ["resume", store.resumeSourceSchedule.bind(store)],
+    ["run-now", store.runSourceScheduleNow.bind(store)],
+  ] as const) {
+    app.post(`/v1/schedules/:id/${pathSuffix}`, async (request) => {
+      const person = identity(request);
+      const id = string((request.params as { id?: unknown }).id, "schedule_id");
+      const schedule = await operation(person.tenantId, id);
+      if (!schedule) throw new Error("SCHEDULE_NOT_FOUND");
+      return schedule;
+    });
+  }
+  app.delete("/v1/schedules/:id", async (request) => {
+    const person = identity(request);
+    const id = string((request.params as { id?: unknown }).id, "schedule_id");
+    const schedule = await store.cancelSourceSchedule(person.tenantId, id);
+    if (!schedule) throw new Error("SCHEDULE_NOT_FOUND");
+    return schedule;
+  });
+
   app.get("/v1/models/status", async () => localModelStatus());
   app.post("/v1/models/draft-summary", async (request) => {
     const person = identity(request);
@@ -591,18 +751,29 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
 
   app.get("/v1/dashboard", async (request) => {
     const person = identity(request);
-    const [evidence, jobs, matches, signals, applications, packets, actions, receipts, profile] =
-      await Promise.all([
-        store.listEvidence(person.tenantId),
-        store.listJobs(person.tenantId),
-        store.listLatestMatches(person.tenantId),
-        store.listH1bSignals(person.tenantId),
-        store.listApplications(person.tenantId),
-        store.listPackets(person.tenantId),
-        store.listExternalActions(person.tenantId),
-        store.listReceipts(person.tenantId),
-        store.latestProfileVersion(person.tenantId),
-      ]);
+    const [
+      evidence,
+      jobs,
+      matches,
+      signals,
+      applications,
+      packets,
+      actions,
+      receipts,
+      profile,
+      schedules,
+    ] = await Promise.all([
+      store.listEvidence(person.tenantId),
+      store.listJobs(person.tenantId),
+      store.listLatestMatches(person.tenantId),
+      store.listH1bSignals(person.tenantId),
+      store.listApplications(person.tenantId),
+      store.listPackets(person.tenantId),
+      store.listExternalActions(person.tenantId),
+      store.listReceipts(person.tenantId),
+      store.latestProfileVersion(person.tenantId),
+      store.listSourceSchedules(person.tenantId),
+    ]);
     return {
       identity: person,
       profile,
@@ -614,6 +785,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
       packets,
       externalActions: actions,
       receipts,
+      schedules,
       personalFunnel: {
         sampleSize: applications.length,
         replies: applications.filter((application) =>
@@ -782,11 +954,13 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     const body = object(request.body);
     const provider = string(body.provider, "provider") as "greenhouse" | "lever" | "ashby";
     if (!["greenhouse", "lever", "ashby"].includes(provider)) throw new Error("INVALID_PROVIDER");
-    const remote = await fetchProviderJobs({ provider, board: string(body.board, "board") });
-    const jobs = [];
-    for (const job of remote.slice(0, 500))
-      jobs.push(await store.upsertJob(person.tenantId, { ...job, capability: "deep_link" }));
-    return { imported: jobs.length, jobs };
+    const result = await importProviderSource(
+      person.tenantId,
+      provider,
+      string(body.board, "board"),
+      false,
+    );
+    return { imported: result.imported, jobs: result.jobs };
   });
 
   app.post("/v1/jobs/url-import", async (request) => {

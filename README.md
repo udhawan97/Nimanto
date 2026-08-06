@@ -80,6 +80,7 @@ Nimanto is a **candidate tool**. It does not screen candidates for employers, es
 ### Discovery and application memory
 
 - Manual job intake and allowlisted Greenhouse, Lever, and Ashby provider adapters.
+- Candidate-controlled hourly through weekly discovery schedules with single leases, run-now/pause/resume/cancel controls, bounded retries, visible dead letters, deduplication, and deterministic match receipts.
 - Redirect refusal, fixed provider hosts, timeouts, and bounded imports.
 - Disabled-by-default, terms-dated exact-host HTTPS intake with pinned public DNS, private-address/redirect rejection, and transient-body deletion.
 - Historical H-1B evidence with source period, confidence, and limitations.
@@ -143,6 +144,7 @@ flowchart LR
   API --> DB["PGlite PostgreSQL store"]
   API --> Parse["Bounded evidence parsers"]
   API --> Match["Deterministic domain rules"]
+  Worker["Durable discovery worker"] -->|"private bounded cycle"| API
   API --> Docs["JSON · TXT · DOCX · PDF"]
   API --> Gate["Assurance + approval state machine"]
   Gate --> Local["Deep link / test outbox"]
@@ -157,7 +159,7 @@ The monorepo keeps the deep seams separate:
 - `packages/documents` — canonical packet rendering.
 - `packages/providers` — job sources, local model, deep-link, and local test-outbox adapters.
 - `apps/api` — authenticated HTTP composition root and OpenAPI surface.
-- `apps/worker` — optional bounded public-board refresh loop.
+- `apps/worker` — durable, leased public-board refresh and deterministic scoring loop.
 - `apps/web` — public website and non-technical local workbench.
 
 Read the [system architecture](docs/architecture/system.md), [trust and security model](docs/planning/trust-and-security.md), or generated [Graphify report](graphify-out/GRAPH_REPORT.md).
@@ -170,7 +172,7 @@ pnpm build
 pnpm test:e2e
 ```
 
-The current suite covers private launch access, tenant isolation, owner-only filesystem modes, deterministic matching and freshness, canonical receipts, parser boundaries, provider allowlists, modern/ATS-safe packet formats, artifact tamper detection, assurance gating, resumable deletion, external-action transitions, API integration, WebKit rendering, and the worker's bounded idle behavior.
+The current suite covers private launch access, tenant isolation, owner-only filesystem modes, deterministic matching and freshness, canonical receipts, parser boundaries, provider allowlists, durable schedule leases/retries/dead letters, modern/ATS-safe packet formats, artifact tamper detection, assurance gating, resumable deletion, external-action transitions, API integration, and WebKit rendering.
 
 ## Beta boundaries
 

@@ -81,15 +81,11 @@ Starting a new local session after deletion creates a fresh labeled synthetic wo
 
 ## Scheduled public-board refresh
 
-The worker stays read-only when no source is configured. To refresh one public board on its bounded loop:
+Open **Role discovery → Schedule source** to add a Greenhouse, Lever, or Ashby public-board identifier and choose an hourly, six-hour, daily, or weekly cadence. The normal `pnpm dev` and macOS launcher start the worker with the API and website.
 
-```bash
-NIMANTO_SOURCE_PROVIDER=greenhouse \
-NIMANTO_SOURCE_BOARD=company-slug \
-pnpm dev:all
-```
+Each schedule can be run now, paused, resumed, or cancelled. A worker cycle claims at most three due schedules, imports at most 500 roles per source, deduplicates by provider job ID, and publishes deterministic explanations. Failures use bounded retry delays and become a visible dead letter after the fifth consecutive failure; **Resume** resets that retry budget.
 
-Valid providers are `greenhouse`, `lever`, and `ashby`. Board identifiers accept only letters, digits, underscore, and hyphen. The worker uses local demo authentication and is not a production job system.
+The queue stores only provider and board identifiers. Scheduled work cannot prepare packets, approve, email, submit, or open any Slice 4 action. `pnpm dev:core` or `pnpm start` intentionally runs only the API and web processes for deterministic testing; `pnpm start:all` includes the worker.
 
 ## Verify
 

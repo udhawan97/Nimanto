@@ -117,6 +117,211 @@ describe("tenant-scoped persistence public seam", () => {
 });
 
 describe("beta workflow persistence", () => {
+  it("rejects a schedule that its provider adapter could never execute", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nimanto-store-"));
+    const store = await NimantoStore.open(join(root, "data"));
+    stores.push(store);
+    const owner = await store.createLocalTenant("invalid-board@example.test", "Owner");
+
+    await expect(
+      store.createSourceSchedule(owner.tenantId, {
+        provider: "greenhouse",
+        board: "not.valid.for-provider",
+        cadenceMinutes: 60,
+      }),
+    ).rejects.toThrow("INVALID_BOARD");
+  });
+
+  it("deduplicates concurrent creation of the same active source schedule", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nimanto-store-"));
+    const store = await NimantoStore.open(join(root, "data"));
+    stores.push(store);
+    const owner = await store.createLocalTenant("duplicate-schedule@example.test", "Owner");
+    const input = {
+      provider: "greenhouse" as const,
+      board: "northwind",
+      cadenceMinutes: 60,
+    };
+
+    const [first, second] = await Promise.all([
+      store.createSourceSchedule(owner.tenantId, input),
+      store.createSourceSchedule(owner.tenantId, input),
+    ]);
+    expect(second.id).toBe(first.id);
+    expect(await store.listSourceSchedules(owner.tenantId)).toHaveLength(1);
+  });
+
+  it("leases each tenant schedule once and returns it to its recurring cadence", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nimanto-store-"));
+    const data = join(root, "data");
+    const store = await NimantoStore.open(data);
+    stores.push(store);
+    const alpha = await store.createLocalTenant("alpha-schedule@example.test", "Alpha");
+    const beta = await store.createLocalTenant("beta-schedule@example.test", "Beta");
+
+    const scheduled = await store.createSourceSchedule(alpha.tenantId, {
+      provider: "greenhouse",
+      board: "northwind",
+      cadenceMinutes: 60,
+      notBefore: "2020-01-01T00:00:00.000Z",
+    });
+    expect(await store.listSourceSchedules(alpha.tenantId)).toEqual([scheduled]);
+    expect(await store.listSourceSchedules(beta.tenantId)).toEqual([]);
+    expect(await store.pauseSourceSchedule(beta.tenantId, scheduled.id)).toBeNull();
+
+    const claimed = await store.claimDueSourceSchedule();
+    expect(claimed).toMatchObject({
+      schedule: { id: scheduled.id, tenantId: alpha.tenantId, state: "running", attempts: 1 },
+    });
+    expect(claimed?.leaseToken).toMatch(/^[A-Za-z0-9_-]{40,}$/u);
+    expect(await store.claimDueSourceSchedule()).toBeNull();
+
+    const completed = await store.completeSourceSchedule(
+      scheduled.id,
+      claimed!.leaseToken,
+      { imported: 12, matched: 12 },
+      "2026-08-05T12:00:00.000Z",
+    );
+    expect(completed).toMatchObject({
+      state: "queued",
+      attempts: 0,
+      lastResult: { imported: 12, matched: 12 },
+      lastRunAt: "2026-08-05T12:00:00.000Z",
+      notBefore: "2026-08-05T13:00:00.000Z",
+    });
+    await store.close();
+    stores.splice(stores.indexOf(store), 1);
+    const reopened = await NimantoStore.open(data);
+    stores.push(reopened);
+    expect(await reopened.listSourceSchedules(alpha.tenantId)).toEqual([completed]);
+    expect((await reopened.exportTenant(alpha.tenantId)).schedules).toEqual([completed]);
+  });
+
+  it("lets the owning tenant recover retries while cancellation remains terminal", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nimanto-store-"));
+    const store = await NimantoStore.open(join(root, "data"));
+    stores.push(store);
+    const owner = await store.createLocalTenant("schedule-owner@example.test", "Owner");
+    const schedule = await store.createSourceSchedule(owner.tenantId, {
+      provider: "lever",
+      board: "northwind",
+      cadenceMinutes: 120,
+      notBefore: "2020-01-01T00:00:00.000Z",
+    });
+
+    expect(await store.pauseSourceSchedule(owner.tenantId, schedule.id)).toMatchObject({
+      state: "paused",
+    });
+    expect(await store.claimDueSourceSchedule()).toBeNull();
+    expect(await store.resumeSourceSchedule(owner.tenantId, schedule.id)).toMatchObject({
+      state: "queued",
+      attempts: 0,
+    });
+
+    for (let attempt = 1; attempt <= 5; attempt += 1) {
+      await store.runSourceScheduleNow(owner.tenantId, schedule.id);
+      const claim = await store.claimDueSourceSchedule();
+      expect(claim?.schedule.attempts).toBe(attempt);
+      const failed = await store.failSourceSchedule(
+        schedule.id,
+        claim!.leaseToken,
+        "PROVIDER_REFRESH_FAILED",
+        "2026-08-05T12:00:00.000Z",
+      );
+      expect(failed.state).toBe(attempt === 5 ? "dead_letter" : "retry_wait");
+    }
+
+    expect(await store.resumeSourceSchedule(owner.tenantId, schedule.id)).toMatchObject({
+      state: "queued",
+      attempts: 0,
+      lastErrorCode: null,
+    });
+    expect(await store.cancelSourceSchedule(owner.tenantId, schedule.id)).toMatchObject({
+      state: "cancelled",
+    });
+    expect(await store.resumeSourceSchedule(owner.tenantId, schedule.id)).toBeNull();
+    expect(await store.claimDueSourceSchedule()).toBeNull();
+  });
+
+  it("recovers an expired lease without allowing a duplicate active claim", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nimanto-store-"));
+    const store = await NimantoStore.open(join(root, "data"));
+    stores.push(store);
+    const owner = await store.createLocalTenant("lease-owner@example.test", "Lease owner");
+    await store.createSourceSchedule(owner.tenantId, {
+      provider: "ashby",
+      board: "northwind",
+      cadenceMinutes: 60,
+      notBefore: "2026-08-05T09:00:00.000Z",
+    });
+
+    const first = await store.claimDueSourceSchedule(30, "2026-08-05T10:00:00.000Z");
+    expect(first?.schedule.attempts).toBe(1);
+    expect(await store.claimDueSourceSchedule(30, "2026-08-05T10:00:20.000Z")).toBeNull();
+    await expect(
+      store.completeSourceSchedule(
+        first!.schedule.id,
+        first!.leaseToken,
+        { imported: 1, matched: 1 },
+        "2026-08-05T10:00:31.000Z",
+      ),
+    ).rejects.toThrow("SCHEDULE_LEASE_INVALID");
+    await expect(
+      store.failSourceSchedule(
+        first!.schedule.id,
+        first!.leaseToken,
+        "PROVIDER_REFRESH_FAILED",
+        "2026-08-05T10:00:31.000Z",
+      ),
+    ).rejects.toThrow("SCHEDULE_LEASE_INVALID");
+    const recovered = await store.claimDueSourceSchedule(30, "2026-08-05T10:00:31.000Z");
+    expect(recovered?.schedule).toMatchObject({
+      id: first?.schedule.id,
+      state: "running",
+      attempts: 2,
+      lastErrorCode: "LEASE_EXPIRED",
+    });
+  });
+
+  it("holds the lease row while scheduled writes commit so an expiry recovery cannot overlap", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nimanto-store-"));
+    const store = await NimantoStore.open(join(root, "data"));
+    stores.push(store);
+    const owner = await store.createLocalTenant("lease-lock@example.test", "Lease lock");
+    const schedule = await store.createSourceSchedule(owner.tenantId, {
+      provider: "greenhouse",
+      board: "northwind",
+      cadenceMinutes: 60,
+      notBefore: "2026-08-05T09:00:00.000Z",
+    });
+    const claim = await store.claimDueSourceSchedule(30, "2026-08-05T10:00:00.000Z");
+    let markWriteStarted: (() => void) | undefined;
+    let releaseWrite: (() => void) | undefined;
+    const writeStarted = new Promise<void>((resolve) => {
+      markWriteStarted = resolve;
+    });
+    const writeReleased = new Promise<void>((resolve) => {
+      releaseWrite = resolve;
+    });
+
+    const execution = store.executeSourceSchedule(
+      schedule.id,
+      claim!.leaseToken,
+      async () => {
+        markWriteStarted?.();
+        await writeReleased;
+        return { imported: 0, matched: 0 };
+      },
+      "2026-08-05T10:00:20.000Z",
+    );
+    await writeStarted;
+    const overlappingClaim = store.claimDueSourceSchedule(30, "2026-08-05T10:00:31.000Z");
+    releaseWrite?.();
+
+    await expect(execution).resolves.toMatchObject({ schedule: { state: "queued" } });
+    await expect(overlappingClaim).resolves.toBeNull();
+  });
+
   it("rejects a receipt whose integrity hash does not match its canonical fields", async () => {
     const root = await mkdtemp(join(tmpdir(), "nimanto-store-"));
     const data = join(root, "data");

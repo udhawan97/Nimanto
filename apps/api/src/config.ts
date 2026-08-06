@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import type { JobProviderRequest, ProviderJob } from "@nimanto/providers";
 
 export interface NimantoApiOptions {
   dataDirectory: string;
@@ -18,6 +19,7 @@ export interface NimantoApiOptions {
     reviewer: string;
     fixtures: Array<{ sourceName: string; expectedId: string | null }>;
   };
+  providerJobsFetcher?: (request: JobProviderRequest) => Promise<ProviderJob[]>;
   removePath?: (target: string, options: { recursive?: boolean; force?: boolean }) => Promise<void>;
   port: number;
   host: string;

@@ -4,6 +4,8 @@ import path from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import {
   canonicalHash,
+  scheduledFailureEvent,
+  scheduledRetryDelayMinutes,
   verifyReceipt,
   type ApplicationStatus,
   type EvidenceClaim,
@@ -13,6 +15,8 @@ import {
   type H1bSignalLabel,
   type MatchResult,
   type OutcomeType,
+  type ScheduledJobState,
+  transitionScheduledJob,
 } from "@nimanto/domain";
 import { schemaSql } from "./schema.js";
 
@@ -156,6 +160,29 @@ export interface ExternalActionRecord {
   result: Record<string, unknown> | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export type SourceScheduleProvider = "greenhouse" | "lever" | "ashby";
+
+export interface SourceScheduleRecord {
+  id: string;
+  provider: SourceScheduleProvider;
+  board: string;
+  cadenceMinutes: number;
+  state: ScheduledJobState;
+  notBefore: string;
+  attempts: number;
+  maxAttempts: number;
+  lastRunAt: string | null;
+  lastResult: { imported: number; matched: number } | null;
+  lastErrorCode: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ClaimedSourceSchedule {
+  schedule: SourceScheduleRecord & { tenantId: string };
+  leaseToken: string;
 }
 
 function sha256(value: string): string {
@@ -394,6 +421,307 @@ export class NimantoStore {
       [rawToken],
     );
     return Boolean(result.rows[0]?.found);
+  }
+
+  async createSourceSchedule(
+    tenantId: string,
+    input: {
+      provider: SourceScheduleProvider;
+      board: string;
+      cadenceMinutes: number;
+      notBefore?: string;
+    },
+  ): Promise<SourceScheduleRecord> {
+    if (!(["greenhouse", "lever", "ashby"] as string[]).includes(input.provider)) {
+      throw new Error("INVALID_PROVIDER");
+    }
+    if (
+      !Number.isInteger(input.cadenceMinutes) ||
+      input.cadenceMinutes < 60 ||
+      input.cadenceMinutes > 10_080
+    ) {
+      throw new Error("INVALID_CADENCE_MINUTES");
+    }
+    const board = input.board.normalize("NFC").trim();
+    if (!/^[A-Za-z0-9_-]{1,80}$/u.test(board)) throw new Error("INVALID_BOARD");
+    const notBefore = input.notBefore ?? new Date().toISOString();
+    if (!Number.isFinite(new Date(notBefore).getTime())) throw new Error("INVALID_NOT_BEFORE");
+    const existing = await this.#db.query<any>(
+      `SELECT id, tenant_id, state, payload, not_before, attempts, max_attempts,
+         last_run_at, last_result, last_error_code, created_at, updated_at
+       FROM scheduled_jobs
+       WHERE tenant_id = $1 AND type = 'source.refresh'
+         AND payload->>'provider' = $2 AND payload->>'board' = $3
+         AND state <> 'cancelled'
+       ORDER BY created_at DESC LIMIT 1`,
+      [tenantId, input.provider, board],
+    );
+    if (existing.rows[0]) return this.#mapSourceSchedule(existing.rows[0]);
+
+    const id = randomUUID();
+    const created = await this.#db.query<any>(
+      `INSERT INTO scheduled_jobs(id, tenant_id, type, state, payload, not_before)
+       SELECT $1,$2,'source.refresh','queued',$3::jsonb,$4
+       WHERE EXISTS (SELECT 1 FROM tenants WHERE id = $2 AND deletion_state = 'active')
+       ON CONFLICT DO NOTHING
+       RETURNING id, tenant_id, state, payload, not_before, attempts, max_attempts,
+         last_run_at, last_result, last_error_code, created_at, updated_at`,
+      [
+        id,
+        tenantId,
+        JSON.stringify({
+          provider: input.provider,
+          board,
+          cadenceMinutes: input.cadenceMinutes,
+        }),
+        notBefore,
+      ],
+    );
+    if (created.rows[0]) return this.#mapSourceSchedule(created.rows[0]);
+    const concurrent = await this.#db.query<any>(
+      `SELECT id, tenant_id, state, payload, not_before, attempts, max_attempts,
+         last_run_at, last_result, last_error_code, created_at, updated_at
+       FROM scheduled_jobs
+       WHERE tenant_id = $1 AND type = 'source.refresh'
+         AND payload->>'provider' = $2 AND payload->>'board' = $3
+         AND state <> 'cancelled'
+       ORDER BY created_at DESC LIMIT 1`,
+      [tenantId, input.provider, board],
+    );
+    if (!concurrent.rows[0]) throw new Error("TENANT_NOT_FOUND");
+    return this.#mapSourceSchedule(concurrent.rows[0]);
+  }
+
+  async listSourceSchedules(tenantId: string): Promise<SourceScheduleRecord[]> {
+    const result = await this.#db.query<any>(
+      `SELECT id, tenant_id, state, payload, not_before, attempts, max_attempts,
+         last_run_at, last_result, last_error_code, created_at, updated_at
+       FROM scheduled_jobs
+       WHERE tenant_id = $1 AND type = 'source.refresh'
+       ORDER BY created_at DESC, id`,
+      [tenantId],
+    );
+    return result.rows.map((row) => this.#mapSourceSchedule(row));
+  }
+
+  async pauseSourceSchedule(tenantId: string, id: string): Promise<SourceScheduleRecord | null> {
+    const result = await this.#db.query<any>(
+      `UPDATE scheduled_jobs SET state = 'paused', updated_at = now()
+       WHERE tenant_id = $1 AND id = $2 AND type = 'source.refresh'
+         AND state IN ('queued','retry_wait')
+       RETURNING id, tenant_id, state, payload, not_before, attempts, max_attempts,
+         last_run_at, last_result, last_error_code, created_at, updated_at`,
+      [tenantId, id],
+    );
+    return result.rows[0] ? this.#mapSourceSchedule(result.rows[0]) : null;
+  }
+
+  async resumeSourceSchedule(tenantId: string, id: string): Promise<SourceScheduleRecord | null> {
+    const result = await this.#db.query<any>(
+      `UPDATE scheduled_jobs SET state = 'queued', not_before = now(), attempts = 0,
+         lease_token_hash = NULL, lease_expires_at = NULL, last_error_code = NULL,
+         updated_at = now()
+       WHERE tenant_id = $1 AND id = $2 AND type = 'source.refresh'
+         AND state IN ('paused','dead_letter')
+       RETURNING id, tenant_id, state, payload, not_before, attempts, max_attempts,
+         last_run_at, last_result, last_error_code, created_at, updated_at`,
+      [tenantId, id],
+    );
+    return result.rows[0] ? this.#mapSourceSchedule(result.rows[0]) : null;
+  }
+
+  async runSourceScheduleNow(tenantId: string, id: string): Promise<SourceScheduleRecord | null> {
+    const result = await this.#db.query<any>(
+      `UPDATE scheduled_jobs SET not_before = now(), updated_at = now()
+       WHERE tenant_id = $1 AND id = $2 AND type = 'source.refresh'
+         AND state IN ('queued','retry_wait')
+       RETURNING id, tenant_id, state, payload, not_before, attempts, max_attempts,
+         last_run_at, last_result, last_error_code, created_at, updated_at`,
+      [tenantId, id],
+    );
+    return result.rows[0] ? this.#mapSourceSchedule(result.rows[0]) : null;
+  }
+
+  async cancelSourceSchedule(tenantId: string, id: string): Promise<SourceScheduleRecord | null> {
+    const result = await this.#db.query<any>(
+      `UPDATE scheduled_jobs SET state = 'cancelled', lease_token_hash = NULL,
+         lease_expires_at = NULL, updated_at = now()
+       WHERE tenant_id = $1 AND id = $2 AND type = 'source.refresh' AND state <> 'cancelled'
+       RETURNING id, tenant_id, state, payload, not_before, attempts, max_attempts,
+         last_run_at, last_result, last_error_code, created_at, updated_at`,
+      [tenantId, id],
+    );
+    return result.rows[0] ? this.#mapSourceSchedule(result.rows[0]) : null;
+  }
+
+  async claimDueSourceSchedule(
+    leaseSeconds = 120,
+    now = new Date().toISOString(),
+  ): Promise<ClaimedSourceSchedule | null> {
+    if (!Number.isInteger(leaseSeconds) || leaseSeconds < 30 || leaseSeconds > 900) {
+      throw new Error("INVALID_LEASE_SECONDS");
+    }
+    if (!Number.isFinite(new Date(now).getTime())) throw new Error("INVALID_CLAIMED_AT");
+    return this.#db.transaction(async (tx) => {
+      await tx.query(
+        `UPDATE scheduled_jobs
+         SET state = CASE WHEN attempts >= max_attempts THEN 'dead_letter' ELSE 'retry_wait' END,
+           not_before = $1, lease_token_hash = NULL, lease_expires_at = NULL,
+           last_error_code = 'LEASE_EXPIRED', updated_at = $1
+         WHERE type = 'source.refresh' AND state = 'running'
+           AND lease_expires_at IS NOT NULL AND lease_expires_at <= $1`,
+        [now],
+      );
+      const selected = await tx.query<any>(
+        `SELECT j.id, j.tenant_id, j.state
+         FROM scheduled_jobs j
+         JOIN tenants t ON t.id = j.tenant_id AND t.deletion_state = 'active'
+         WHERE j.type = 'source.refresh'
+           AND j.state IN ('queued','retry_wait')
+           AND j.not_before <= $1
+           AND (j.expires_at IS NULL OR j.expires_at > $1)
+         ORDER BY j.not_before, j.created_at, j.id
+         FOR UPDATE SKIP LOCKED LIMIT 1`,
+        [now],
+      );
+      const row = selected.rows[0];
+      if (!row) return null;
+      transitionScheduledJob(row.state as ScheduledJobState, "claim");
+      const leaseToken = randomBytes(32).toString("base64url");
+      const leaseExpiresAt = new Date(new Date(now).getTime() + leaseSeconds * 1000).toISOString();
+      const claimed = await tx.query<any>(
+        `UPDATE scheduled_jobs
+         SET state = 'running', attempts = attempts + 1,
+           lease_token_hash = $2, lease_expires_at = $3, updated_at = now()
+         WHERE id = $1 AND state IN ('queued','retry_wait')
+         RETURNING id, tenant_id, state, payload, not_before, attempts, max_attempts,
+           last_run_at, last_result, last_error_code, created_at, updated_at`,
+        [row.id, sha256(leaseToken), leaseExpiresAt],
+      );
+      if (!claimed.rows[0]) return null;
+      return {
+        schedule: {
+          ...this.#mapSourceSchedule(claimed.rows[0]),
+          tenantId: claimed.rows[0].tenant_id,
+        },
+        leaseToken,
+      };
+    });
+  }
+
+  async executeSourceSchedule<T extends { imported: number; matched: number }>(
+    id: string,
+    leaseToken: string,
+    work: (
+      transaction: Pick<
+        NimantoStore,
+        "upsertJob" | "listEvidence" | "latestProfileVersion" | "saveMatch" | "saveReceipt"
+      >,
+    ) => Promise<T>,
+    completedAt = new Date().toISOString(),
+  ): Promise<{ schedule: SourceScheduleRecord; result: T }> {
+    if (!Number.isFinite(new Date(completedAt).getTime())) throw new Error("INVALID_COMPLETED_AT");
+    return this.#db.transaction(async (tx) => {
+      const current = await tx.query<any>(
+        `SELECT id, state, payload FROM scheduled_jobs
+         WHERE id = $1 AND type = 'source.refresh' AND state = 'running'
+           AND lease_token_hash = $2 AND lease_expires_at > $3
+         FOR UPDATE LIMIT 1`,
+        [id, sha256(leaseToken), completedAt],
+      );
+      const row = current.rows[0];
+      if (!row) throw new Error("SCHEDULE_LEASE_INVALID");
+      transitionScheduledJob(row.state as ScheduledJobState, "succeed");
+      const transactionalStore = new NimantoStore(tx as unknown as PGlite);
+      const result = await work(transactionalStore);
+      const cadenceMinutes = Number(row.payload.cadenceMinutes);
+      const notBefore = new Date(
+        new Date(completedAt).getTime() + cadenceMinutes * 60_000,
+      ).toISOString();
+      const updated = await tx.query<any>(
+        `UPDATE scheduled_jobs SET state = 'queued', not_before = $3, attempts = 0,
+           lease_token_hash = NULL, lease_expires_at = NULL, last_run_at = $4,
+           last_result = $5::jsonb, last_error_code = NULL, updated_at = now()
+         WHERE id = $1 AND state = 'running' AND lease_token_hash = $2
+         RETURNING id, tenant_id, state, payload, not_before, attempts, max_attempts,
+           last_run_at, last_result, last_error_code, created_at, updated_at`,
+        [id, sha256(leaseToken), notBefore, completedAt, JSON.stringify(result)],
+      );
+      if (!updated.rows[0]) throw new Error("SCHEDULE_LEASE_INVALID");
+      return { schedule: this.#mapSourceSchedule(updated.rows[0]), result };
+    });
+  }
+
+  async completeSourceSchedule(
+    id: string,
+    leaseToken: string,
+    result: { imported: number; matched: number },
+    completedAt = new Date().toISOString(),
+  ): Promise<SourceScheduleRecord> {
+    return (await this.executeSourceSchedule(id, leaseToken, async () => result, completedAt))
+      .schedule;
+  }
+
+  async failSourceSchedule(
+    id: string,
+    leaseToken: string,
+    errorCode: string,
+    failedAt = new Date().toISOString(),
+  ): Promise<SourceScheduleRecord> {
+    if (!/^[A-Z0-9_]{1,80}$/u.test(errorCode)) throw new Error("INVALID_SCHEDULE_ERROR_CODE");
+    if (!Number.isFinite(new Date(failedAt).getTime())) throw new Error("INVALID_FAILED_AT");
+    const current = await this.#db.query<any>(
+      `SELECT id, state, attempts, max_attempts FROM scheduled_jobs
+       WHERE id = $1 AND type = 'source.refresh' AND lease_token_hash = $2
+         AND lease_expires_at > $3 LIMIT 1`,
+      [id, sha256(leaseToken), failedAt],
+    );
+    const row = current.rows[0];
+    if (!row) throw new Error("SCHEDULE_LEASE_INVALID");
+    const event = scheduledFailureEvent(Number(row.attempts), Number(row.max_attempts));
+    const state = transitionScheduledJob(row.state as ScheduledJobState, event);
+    const notBefore =
+      state === "retry_wait"
+        ? new Date(
+            new Date(failedAt).getTime() +
+              scheduledRetryDelayMinutes(Number(row.attempts)) * 60_000,
+          ).toISOString()
+        : failedAt;
+    const updated = await this.#db.query<any>(
+      `UPDATE scheduled_jobs SET state = $3, not_before = $4,
+         lease_token_hash = NULL, lease_expires_at = NULL, last_run_at = $5,
+         last_error_code = $6, updated_at = now()
+       WHERE id = $1 AND state = 'running' AND lease_token_hash = $2
+         AND lease_expires_at > $5
+       RETURNING id, tenant_id, state, payload, not_before, attempts, max_attempts,
+         last_run_at, last_result, last_error_code, created_at, updated_at`,
+      [id, sha256(leaseToken), state, notBefore, failedAt, errorCode],
+    );
+    if (!updated.rows[0]) throw new Error("SCHEDULE_LEASE_INVALID");
+    return this.#mapSourceSchedule(updated.rows[0]);
+  }
+
+  #mapSourceSchedule(row: any): SourceScheduleRecord {
+    return {
+      id: row.id,
+      provider: row.payload.provider,
+      board: row.payload.board,
+      cadenceMinutes: Number(row.payload.cadenceMinutes),
+      state: row.state,
+      notBefore: iso(row.not_before)!,
+      attempts: Number(row.attempts),
+      maxAttempts: Number(row.max_attempts),
+      lastRunAt: iso(row.last_run_at),
+      lastResult: row.last_result
+        ? {
+            imported: Number(row.last_result.imported),
+            matched: Number(row.last_result.matched),
+          }
+        : null,
+      lastErrorCode: row.last_error_code,
+      createdAt: iso(row.created_at)!,
+      updatedAt: iso(row.updated_at)!,
+    };
   }
 
   async createEvidence(
@@ -1139,18 +1467,29 @@ export class NimantoStore {
   }
 
   async exportTenant(tenantId: string): Promise<Record<string, unknown>> {
-    const [evidence, profile, jobs, matches, signals, applications, packets, actions, receipts] =
-      await Promise.all([
-        this.listEvidence(tenantId),
-        this.latestProfileVersion(tenantId),
-        this.listJobs(tenantId),
-        this.listLatestMatches(tenantId),
-        this.listH1bSignals(tenantId),
-        this.listApplications(tenantId),
-        this.listPackets(tenantId),
-        this.listExternalActions(tenantId),
-        this.listReceipts(tenantId),
-      ]);
+    const [
+      evidence,
+      profile,
+      jobs,
+      matches,
+      signals,
+      applications,
+      packets,
+      actions,
+      receipts,
+      schedules,
+    ] = await Promise.all([
+      this.listEvidence(tenantId),
+      this.latestProfileVersion(tenantId),
+      this.listJobs(tenantId),
+      this.listLatestMatches(tenantId),
+      this.listH1bSignals(tenantId),
+      this.listApplications(tenantId),
+      this.listPackets(tenantId),
+      this.listExternalActions(tenantId),
+      this.listReceipts(tenantId),
+      this.listSourceSchedules(tenantId),
+    ]);
     return {
       schemaVersion: "nimanto_export_v1",
       exportedAt: new Date().toISOString(),
@@ -1163,6 +1502,7 @@ export class NimantoStore {
       packets,
       externalActions: actions,
       receipts,
+      schedules,
     };
   }
 

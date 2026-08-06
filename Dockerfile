@@ -23,4 +23,4 @@ USER node
 VOLUME ["/data"]
 EXPOSE 4300 4310
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 CMD ["node", "-e", "fetch('http://127.0.0.1:4310/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
-CMD ["pnpm", "start"]
+CMD ["pnpm", "start:all"]

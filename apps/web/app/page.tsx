@@ -35,13 +35,12 @@ export default function Home() {
             <p className="eyebrow">
               <span /> Local-first beta · candidate controlled
             </p>
-            <div
-              className="cultural-line"
-              aria-label="From evidence to action; from evidence to progress"
-            >
-              <span lang="ja">証拠から、行動へ。</span>
+            <div className="design-line" aria-label="Evidence, decision, and approval">
+              <span>Evidence</span>
               <i aria-hidden="true" />
-              <span lang="hi">प्रमाण से, प्रगति तक।</span>
+              <span>Decision</span>
+              <i aria-hidden="true" />
+              <span>Approval</span>
             </div>
             <h1>
               Evidence first.
@@ -67,9 +66,7 @@ export default function Home() {
           </div>
 
           <div className="evidence-rail" aria-label="Synthetic example of a live evidence trail">
-            <span className="evidence-seal" lang="ja" aria-hidden="true">
-              証
-            </span>
+            <span className="evidence-seal" aria-hidden="true" />
             <svg className="jaali-ornament" viewBox="0 0 82 18" aria-hidden="true">
               <path d="m1 9 8-8 8 8-8 8Zm16 0 8-8 8 8-8 8Zm16 0 8-8 8 8-8 8Zm16 0 8-8 8 8-8 8Zm16 0 8-8 8 8-8 8Z" />
               <circle cx="41" cy="9" r="2.2" />
@@ -115,9 +112,7 @@ export default function Home() {
         <section id="evidence" className="method shell" aria-labelledby="method-title">
           <div className="method-intro">
             <div className="section-number">01 / Method</div>
-            <p className="jp-caption" lang="ja">
-              記録を確かめる
-            </p>
+            <p className="design-caption">Inspect the record</p>
             <h2 id="method-title">A career record you can inspect.</h2>
             <p>
               Nimanto keeps source, claim, role requirement, and output connected. Nothing becomes
@@ -176,9 +171,7 @@ export default function Home() {
               <p className="eyebrow inverted">
                 <span /> Product boundary
               </p>
-              <p className="jp-caption inverted" lang="ja">
-                候補者のための道具
-              </p>
+              <p className="design-caption inverted">Built for candidates</p>
               <h2>Built for the candidate’s side of the table.</h2>
             </div>
             <div className="trust-points">
@@ -227,11 +220,7 @@ export default function Home() {
         <Brand />
         <p>
           Your career record stays yours.
-          <small>
-            <span lang="ja">記録は、あなたのもの。</span>
-            <i aria-hidden="true">·</i>
-            <span lang="hi">रिकॉर्ड आपका है।</span>
-          </small>
+          <small>Private by default. Candidate controlled.</small>
         </p>
         <div>
           <a href="https://github.com/udhawan97/Nimanto">Source</a>

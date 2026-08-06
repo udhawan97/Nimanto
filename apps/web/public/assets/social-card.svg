@@ -7,7 +7,8 @@
   <text x="132" y="290" fill="#202633" font-family="sans-serif" font-weight="700" font-size="70">Evidence first.</text>
   <text x="132" y="370" fill="#202633" font-family="sans-serif" font-weight="700" font-size="70">Applications second.</text>
   <text x="132" y="442" fill="#596273" font-family="sans-serif" font-size="30">Private, candidate-controlled job search for H-1B professionals.</text>
-  <text x="132" y="490" fill="#a34038" font-family="sans-serif" font-size="24" letter-spacing="5">証拠から、行動へ。</text>
-  <text x="450" y="490" fill="#b66a3d" font-family="sans-serif" font-size="24" letter-spacing="2">प्रमाण से, प्रगति तक।</text>
+  <path d="M132 483h32l9-9 9 9h32" fill="none" stroke="#a34038" stroke-width="2"/>
+  <circle cx="173" cy="483" r="4" fill="#e2a626"/>
+  <text x="238" y="490" fill="#a34038" font-family="sans-serif" font-size="20" letter-spacing="5">EVIDENCE · DECISION · APPROVAL</text>
   <text x="132" y="540" fill="#3157d5" font-family="monospace" font-size="24">NIMANTO · LOCAL-FIRST BETA</text>
 </svg>

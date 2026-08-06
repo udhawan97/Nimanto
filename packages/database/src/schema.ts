@@ -211,10 +211,26 @@ CREATE TABLE IF NOT EXISTS scheduled_jobs (
   not_before timestamptz NOT NULL,
   expires_at timestamptz,
   attempts integer NOT NULL DEFAULT 0,
+  max_attempts integer NOT NULL DEFAULT 5,
+  lease_token_hash text,
+  lease_expires_at timestamptz,
+  last_run_at timestamptz,
+  last_result jsonb,
   last_error_code text,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+CREATE INDEX IF NOT EXISTS scheduled_jobs_due_idx
+  ON scheduled_jobs(state, not_before, created_at);
+CREATE UNIQUE INDEX IF NOT EXISTS scheduled_jobs_active_source_idx
+  ON scheduled_jobs(tenant_id, type, (payload->>'provider'), (payload->>'board'))
+  WHERE type = 'source.refresh' AND state <> 'cancelled';
+
+ALTER TABLE scheduled_jobs ADD COLUMN IF NOT EXISTS max_attempts integer NOT NULL DEFAULT 5;
+ALTER TABLE scheduled_jobs ADD COLUMN IF NOT EXISTS lease_token_hash text;
+ALTER TABLE scheduled_jobs ADD COLUMN IF NOT EXISTS lease_expires_at timestamptz;
+ALTER TABLE scheduled_jobs ADD COLUMN IF NOT EXISTS last_run_at timestamptz;
+ALTER TABLE scheduled_jobs ADD COLUMN IF NOT EXISTS last_result jsonb;
 
 CREATE TABLE IF NOT EXISTS deletion_runs (
   id text PRIMARY KEY,
@@ -232,4 +248,5 @@ ALTER TABLE deletion_runs ADD COLUMN IF NOT EXISTS cleanup_inventory jsonb NOT N
 ALTER TABLE deletion_runs ADD COLUMN IF NOT EXISTS last_error_code text;
 
 INSERT INTO schema_versions(version) VALUES (1) ON CONFLICT (version) DO NOTHING;
+INSERT INTO schema_versions(version) VALUES (2) ON CONFLICT (version) DO NOTHING;
 `;

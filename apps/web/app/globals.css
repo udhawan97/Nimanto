@@ -288,8 +288,8 @@ svg {
   background: currentColor;
 }
 
-.cultural-line,
-.jp-caption {
+.design-line,
+.design-caption {
   margin: 0;
   color: var(--color-seal);
   font-family: var(--font-body);
@@ -298,44 +298,44 @@ svg {
   letter-spacing: 0.18em;
 }
 
-.cultural-line {
+.design-line {
   display: flex;
   gap: var(--space-sm);
   align-items: center;
   margin: calc(var(--space-md) * -1) 0 var(--space-lg);
 }
 
-.cultural-line::before {
+.design-line::before {
   width: 1.8rem;
   height: 1px;
   content: "";
   background: var(--color-seal);
 }
 
-.cultural-line > i {
+.design-line > i {
   width: 0.28rem;
   height: 0.28rem;
   background: var(--color-marigold);
   border-radius: 50%;
 }
 
-.cultural-line > span:last-child {
+.design-line > span:last-child {
   color: var(--color-terracotta);
   letter-spacing: 0.06em;
 }
 
-.cultural-line.compact {
+.design-line.compact {
   flex-wrap: wrap;
   margin: var(--space-xl) 0 calc(var(--space-md) * -1);
   font-size: var(--text-xs);
 }
 
-.jp-caption {
+.design-caption {
   margin-bottom: var(--space-sm);
   font-size: var(--text-xs);
 }
 
-.jp-caption.inverted {
+.design-caption.inverted {
   color: color-mix(in oklch, var(--color-seal), var(--color-paper) 30%);
 }
 
@@ -462,6 +462,26 @@ svg {
   font-weight: 650;
   place-items: center;
   transform: rotate(-2deg);
+}
+
+.evidence-seal::before,
+.evidence-seal::after {
+  position: absolute;
+  content: "";
+}
+
+.evidence-seal::before {
+  width: 0.78rem;
+  height: 0.78rem;
+  border: 1px solid currentColor;
+  transform: rotate(45deg);
+}
+
+.evidence-seal::after {
+  width: 0.28rem;
+  height: 0.28rem;
+  background: var(--color-marigold);
+  border-radius: 50%;
 }
 
 .jaali-ornament {
@@ -759,17 +779,6 @@ svg {
   letter-spacing: 0.12em;
 }
 
-.site-footer p small i {
-  padding-inline: var(--space-xs);
-  color: var(--color-marigold);
-  font-style: normal;
-}
-
-.site-footer p small span:last-child {
-  color: var(--color-terracotta);
-  letter-spacing: 0.06em;
-}
-
 .site-footer > div {
   display: flex;
   gap: var(--space-lg);
@@ -824,20 +833,20 @@ svg {
   letter-spacing: 0.15em;
 }
 
-.workspace-cultural {
+.workspace-principles {
   display: grid !important;
   grid-template-columns: auto 1fr;
   gap: var(--space-2xs) var(--space-xs);
   align-items: center;
 }
 
-.workspace-cultural > span:last-child {
+.workspace-principles > span:last-child {
   color: color-mix(in oklch, var(--color-marigold), var(--color-paper) 16%);
   letter-spacing: 0.04em;
 }
 
-.workspace-cultural > i {
-  grid-row: 1 / span 2;
+.workspace-principles > i {
+  grid-row: 1 / span 3;
   width: 1px;
   height: 100%;
   background: color-mix(in oklch, var(--color-marigold), transparent 55%);
@@ -1417,6 +1426,193 @@ textarea:disabled {
   gap: var(--space-md);
 }
 
+.schedule-board {
+  position: relative;
+  overflow: hidden;
+  margin-bottom: var(--space-xl);
+  background: var(--color-paper);
+  border: 1px solid var(--color-rule-2);
+}
+
+.schedule-board::before {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  content: "";
+  background: linear-gradient(
+    90deg,
+    var(--color-accent) 0 46%,
+    var(--color-marigold) 46% 73%,
+    var(--color-terracotta) 73%
+  );
+}
+
+.schedule-heading {
+  display: flex;
+  gap: var(--space-lg);
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: var(--space-lg);
+  background:
+    radial-gradient(
+      circle at 92% 20%,
+      transparent 0 13px,
+      var(--color-rule) 13px 14px,
+      transparent 14px
+    ),
+    radial-gradient(
+      circle at 88% 65%,
+      transparent 0 8px,
+      var(--color-rule) 8px 9px,
+      transparent 9px
+    ),
+    var(--color-paper-2);
+  border-bottom: 1px solid var(--color-rule);
+}
+
+.schedule-heading > div {
+  min-width: 0;
+}
+
+.schedule-heading > div > span {
+  color: var(--color-terracotta);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 680;
+  letter-spacing: 0.14em;
+}
+
+.schedule-heading h2,
+.schedule-heading p {
+  margin: 0;
+}
+
+.schedule-heading h2 {
+  margin-top: var(--space-2xs);
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  letter-spacing: -0.035em;
+}
+
+.schedule-heading p {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+
+.schedule-heading > svg {
+  color: var(--color-accent);
+}
+
+.schedule-list {
+  display: grid;
+}
+
+.schedule-row {
+  display: grid;
+  grid-template-columns: auto minmax(180px, 1fr) minmax(180px, 0.65fr) minmax(110px, auto) auto;
+  gap: var(--space-lg);
+  align-items: center;
+  padding: var(--space-lg);
+  border-bottom: 1px solid var(--color-rule);
+}
+
+.schedule-row:last-child {
+  border-bottom: 0;
+}
+
+.schedule-knot {
+  position: relative;
+  display: grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid var(--color-marigold);
+  place-items: center;
+  transform: rotate(45deg);
+}
+
+.schedule-knot::before,
+.schedule-knot::after {
+  position: absolute;
+  content: "";
+  background: var(--color-paper);
+  border: 1px solid color-mix(in oklch, var(--color-marigold), var(--color-rule) 45%);
+}
+
+.schedule-knot::before {
+  inset: 5px -5px;
+}
+
+.schedule-knot::after {
+  inset: -5px 5px;
+}
+
+.schedule-knot i {
+  z-index: 1;
+  width: 0.38rem;
+  height: 0.38rem;
+  background: var(--color-terracotta);
+  border-radius: 50%;
+}
+
+.schedule-source,
+.schedule-cadence span,
+.schedule-state {
+  display: grid;
+  min-width: 0;
+}
+
+.schedule-source > span {
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 650;
+  text-transform: uppercase;
+}
+
+.schedule-source code {
+  overflow: hidden;
+  margin-block: 0.1rem;
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 620;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.schedule-source small,
+.schedule-cadence small,
+.schedule-state small {
+  color: var(--color-muted);
+}
+
+.schedule-cadence {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: flex-start;
+}
+
+.schedule-cadence > svg {
+  margin-top: 0.2rem;
+  color: var(--color-terracotta);
+}
+
+.schedule-cadence strong {
+  font-size: var(--text-sm);
+}
+
+.schedule-state {
+  gap: var(--space-2xs);
+  justify-items: start;
+}
+
+.schedule-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  align-items: center;
+  justify-content: flex-end;
+}
+
 .job-list,
 .packet-list,
 .action-list {
@@ -1881,6 +2077,19 @@ textarea:disabled {
     grid-template-columns: minmax(0, 1fr) auto;
   }
 
+  .schedule-row {
+    grid-template-columns: auto minmax(0, 1fr) minmax(170px, 0.6fr);
+  }
+
+  .schedule-state,
+  .schedule-actions {
+    grid-column: 2 / -1;
+  }
+
+  .schedule-actions {
+    justify-content: flex-start;
+  }
+
   .job-actions {
     grid-column: 1 / -1;
   }
@@ -2130,6 +2339,21 @@ textarea:disabled {
 
   .job-row {
     grid-template-columns: 1fr;
+  }
+
+  .schedule-row {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: var(--space-md);
+  }
+
+  .schedule-cadence,
+  .schedule-state,
+  .schedule-actions {
+    grid-column: 2;
+  }
+
+  .schedule-actions .button {
+    flex: 1 1 auto;
   }
 
   .job-match,

@@ -5,8 +5,10 @@ import {
   ArrowLeft,
   ArrowRight,
   BriefcaseBusiness,
+  CalendarClock,
   Check,
   CircleAlert,
+  Clock3,
   Database,
   Download,
   FileCheck2,
@@ -15,9 +17,11 @@ import {
   LogOut,
   MailCheck,
   Menu,
+  Pause,
   Play,
   Plus,
   RefreshCw,
+  RotateCcw,
   Send,
   ShieldCheck,
   SlidersHorizontal,
@@ -107,6 +111,19 @@ type Signal = {
   confidence: string;
   limitations: string;
 };
+type SourceSchedule = {
+  id: string;
+  provider: "greenhouse" | "lever" | "ashby";
+  board: string;
+  cadenceMinutes: number;
+  state: "queued" | "running" | "retry_wait" | "paused" | "dead_letter" | "cancelled";
+  notBefore: string;
+  attempts: number;
+  maxAttempts: number;
+  lastRunAt: string | null;
+  lastResult: { imported: number; matched: number } | null;
+  lastErrorCode: string | null;
+};
 type Dashboard = {
   identity: { displayName: string; email: string };
   profile: { authorizationWording: string } | null;
@@ -118,6 +135,7 @@ type Dashboard = {
   packets: Packet[];
   externalActions: Action[];
   receipts: unknown[];
+  schedules: SourceSchedule[];
   personalFunnel: {
     sampleSize: number;
     replies: number;
@@ -176,6 +194,23 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 
 function human(value: string): string {
   return value.replaceAll("_", " ").replace(/^\w/, (letter) => letter.toUpperCase());
+}
+
+function cadenceLabel(minutes: number): string {
+  if (minutes === 60) return "Every hour";
+  if (minutes < 1_440) return `Every ${minutes / 60} hours`;
+  if (minutes === 1_440) return "Every day";
+  if (minutes === 10_080) return "Every week";
+  return `Every ${minutes / 1_440} days`;
+}
+
+function localDateTime(value: string): string {
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(value));
 }
 
 function fileBase64(file: File): Promise<string> {
@@ -378,10 +413,11 @@ export function Workspace() {
         </div>
         <p className="workspace-label">
           Private workbench
-          <span className="workspace-cultural">
-            <span lang="ja">証拠・判断・承認</span>
+          <span className="workspace-principles">
+            <span>Evidence</span>
             <i aria-hidden="true" />
-            <span lang="hi">प्रमाण · निर्णय · स्वीकृति</span>
+            <span>Decision</span>
+            <span>Approval</span>
           </span>
         </p>
         <nav aria-label="Workbench">
@@ -540,13 +576,12 @@ function WorkspaceStart({
       </a>
       <form className="start-panel" onSubmit={submit}>
         <Brand />
-        <div
-          className="cultural-line compact"
-          aria-label="From evidence to action; from evidence to progress"
-        >
-          <span lang="ja">証拠から、行動へ。</span>
+        <div className="design-line compact" aria-label="Evidence, decision, and approval">
+          <span>Evidence</span>
           <i aria-hidden="true" />
-          <span lang="hi">प्रमाण से, प्रगति तक।</span>
+          <span>Decision</span>
+          <i aria-hidden="true" />
+          <span>Approval</span>
         </div>
         <p className="eyebrow">
           <span /> {inviteMode ? "Private invitation" : "Local-first beta"}
@@ -1133,6 +1168,7 @@ function Jobs({
 }) {
   const [adding, setAdding] = useState(false);
   const [sourceOpen, setSourceOpen] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
   const latest = useMemo(
     () => new Map(dashboard.matches.map((match) => [match.jobId, match])),
     [dashboard.matches],
@@ -1185,6 +1221,22 @@ function Jobs({
       "Allowlisted source refreshed.",
     ).then(() => setSourceOpen(false));
   };
+  const createSchedule = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    void onAct(
+      () =>
+        api("/v1/schedules", {
+          method: "POST",
+          body: JSON.stringify({
+            provider: data.get("provider"),
+            board: data.get("board"),
+            cadenceMinutes: Number(data.get("cadenceMinutes")),
+          }),
+        }),
+      "Discovery schedule started.",
+    ).then(() => setScheduleOpen(false));
+  };
   return (
     <>
       <PageIntro
@@ -1193,6 +1245,13 @@ function Jobs({
         copy="Nimanto explains required qualifications, accomplishments, role-level alignment, skills overlap, coverage, and explicit sponsorship blockers."
         action={
           <div className="button-group">
+            <button
+              className="button quiet"
+              type="button"
+              onClick={() => setScheduleOpen((value) => !value)}
+            >
+              <CalendarClock size={16} /> Schedule source
+            </button>
             <button
               className="button quiet"
               type="button"
@@ -1210,7 +1269,7 @@ function Jobs({
           </div>
         }
       />
-      {(adding || sourceOpen) && (
+      {(adding || sourceOpen || scheduleOpen) && (
         <div className="inline-form-row">
           {adding && (
             <form className="work-panel form-panel" onSubmit={addJob}>
@@ -1303,7 +1362,12 @@ function Jobs({
               </label>
               <label>
                 Public board identifier
-                <input name="board" required pattern="[A-Za-z0-9_-]+" placeholder="company-slug" />
+                <input
+                  name="board"
+                  required
+                  pattern="(?:[A-Za-z0-9_]|-){1,80}"
+                  placeholder="company-slug"
+                />
               </label>
               <p className="field-note">
                 Nimanto contacts only the selected provider API and rejects redirects.
@@ -1313,7 +1377,170 @@ function Jobs({
               </button>
             </form>
           )}
+          {scheduleOpen && (
+            <form className="work-panel form-panel compact-form" onSubmit={createSchedule}>
+              <div className="panel-heading">
+                <div>
+                  <span>Candidate-controlled rhythm</span>
+                  <h2>Schedule a public board</h2>
+                </div>
+              </div>
+              <label>
+                Scheduled provider
+                <select name="provider">
+                  <option value="greenhouse">Greenhouse</option>
+                  <option value="lever">Lever</option>
+                  <option value="ashby">Ashby</option>
+                </select>
+              </label>
+              <label>
+                Scheduled board identifier
+                <input
+                  name="board"
+                  required
+                  pattern="(?:[A-Za-z0-9_]|-){1,80}"
+                  placeholder="company-slug"
+                />
+              </label>
+              <label>
+                Refresh cadence
+                <select name="cadenceMinutes" defaultValue="1440">
+                  <option value="60">Every hour</option>
+                  <option value="360">Every 6 hours</option>
+                  <option value="1440">Every day</option>
+                  <option value="10080">Every week</option>
+                </select>
+              </label>
+              <p className="field-note">
+                Imports, deduplicates, and explains roles. It never applies or sends messages.
+              </p>
+              <button className="button primary" disabled={busy}>
+                <CalendarClock size={16} /> Start schedule
+              </button>
+            </form>
+          )}
         </div>
+      )}
+      {dashboard.schedules.length > 0 && (
+        <section className="schedule-board" aria-labelledby="schedule-board-title">
+          <div className="schedule-heading">
+            <div>
+              <span>Source cadence</span>
+              <h2 id="schedule-board-title">Discovery rhythm</h2>
+              <p>Durable source refreshes with visible pauses, retries, and limits.</p>
+            </div>
+            <CalendarClock aria-hidden="true" />
+          </div>
+          <div className="schedule-list">
+            {dashboard.schedules.map((schedule) => {
+              const tone =
+                schedule.state === "dead_letter"
+                  ? "danger"
+                  : schedule.state === "retry_wait"
+                    ? "warning"
+                    : schedule.state === "queued" || schedule.state === "running"
+                      ? "supported"
+                      : "muted";
+              return (
+                <article className="schedule-row" key={schedule.id}>
+                  <span className="schedule-knot" aria-hidden="true">
+                    <i />
+                  </span>
+                  <div className="schedule-source">
+                    <span>{human(schedule.provider)}</span>
+                    <code>{schedule.board}</code>
+                    <small>
+                      {schedule.lastResult
+                        ? `${schedule.lastResult.imported} imported · ${schedule.lastResult.matched} explained`
+                        : "No completed run yet"}
+                    </small>
+                  </div>
+                  <div className="schedule-cadence">
+                    <Clock3 size={15} aria-hidden="true" />
+                    <span>
+                      <strong>{cadenceLabel(schedule.cadenceMinutes)}</strong>
+                      <small>
+                        {schedule.state === "paused" || schedule.state === "cancelled"
+                          ? "No run is queued"
+                          : `Next ${localDateTime(schedule.notBefore)}`}
+                      </small>
+                    </span>
+                  </div>
+                  <div className="schedule-state">
+                    <span className={`state ${tone}`}>{human(schedule.state)}</span>
+                    {schedule.lastErrorCode && <small>{human(schedule.lastErrorCode)}</small>}
+                  </div>
+                  <div className="schedule-actions">
+                    {(schedule.state === "queued" || schedule.state === "retry_wait") && (
+                      <>
+                        <button
+                          className="button mini quiet"
+                          type="button"
+                          aria-label="Run schedule now"
+                          disabled={busy}
+                          onClick={() =>
+                            onAct(
+                              () => api(`/v1/schedules/${schedule.id}/run-now`, { method: "POST" }),
+                              `${schedule.board} is queued now.`,
+                            )
+                          }
+                        >
+                          <Play size={14} /> Run now
+                        </button>
+                        <button
+                          className="icon-button"
+                          type="button"
+                          aria-label="Pause schedule"
+                          disabled={busy}
+                          onClick={() =>
+                            onAct(
+                              () => api(`/v1/schedules/${schedule.id}/pause`, { method: "POST" }),
+                              `${schedule.board} is paused.`,
+                            )
+                          }
+                        >
+                          <Pause size={15} />
+                        </button>
+                      </>
+                    )}
+                    {(schedule.state === "paused" || schedule.state === "dead_letter") && (
+                      <button
+                        className="button mini quiet"
+                        type="button"
+                        aria-label="Resume schedule"
+                        disabled={busy}
+                        onClick={() =>
+                          onAct(
+                            () => api(`/v1/schedules/${schedule.id}/resume`, { method: "POST" }),
+                            `${schedule.board} is queued again.`,
+                          )
+                        }
+                      >
+                        <RotateCcw size={14} /> Resume
+                      </button>
+                    )}
+                    {schedule.state !== "cancelled" && (
+                      <button
+                        className="icon-button"
+                        type="button"
+                        aria-label="Cancel schedule"
+                        disabled={busy}
+                        onClick={() =>
+                          onAct(
+                            () => api(`/v1/schedules/${schedule.id}`, { method: "DELETE" }),
+                            `${schedule.board} schedule was cancelled.`,
+                          )
+                        }
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
       )}
       <div className="job-list">
         {dashboard.jobs.map((job) => {
