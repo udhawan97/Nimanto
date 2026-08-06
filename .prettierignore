@@ -4,11 +4,17 @@ apps/web/public/
 docs/planning/
 LICENSE
 
-# Local working state, never repository content. The ignore paths above are
-# anchored at the root, so a git worktree checked out under .claude/ presents a
-# second copy of every excluded file and `pnpm check` fails on directories that
-# are not part of the tree being checked.
-.claude/
+# Local working state, never repository content.
+#
+# A git worktree checked out under .claude/worktrees/ presents a second copy of
+# every file the rules above exclude, at a path those root-anchored rules do not
+# match — so `pnpm check` failed on directories that are not part of the tree
+# being checked. Scoped to worktrees/ rather than all of .claude/, so a tracked
+# .claude/settings.json or agent definition is still formatted.
+#
+# .remember/ is separate: it is agent session state that no ignore file covers,
+# so Prettier walked it too.
+.claude/worktrees/
 .remember/
 
 # Vendored brand artifact — kept byte-identical to what was supplied.
