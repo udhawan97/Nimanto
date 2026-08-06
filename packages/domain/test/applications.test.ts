@@ -60,8 +60,9 @@ describe("application status transitions", () => {
 
   it("requires confirmation for every status that records a consequential fact", () => {
     expect(applicationTransitionNeedsConfirmation("prepared", "approved_for_export")).toBe(true);
-    expect(applicationTransitionNeedsConfirmation("approved_for_export", "submitted_externally"))
-      .toBe(true);
+    expect(
+      applicationTransitionNeedsConfirmation("approved_for_export", "submitted_externally"),
+    ).toBe(true);
     expect(applicationTransitionNeedsConfirmation("tracked", "withdrawn")).toBe(true);
   });
 

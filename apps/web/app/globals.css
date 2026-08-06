@@ -1840,11 +1840,22 @@ textarea {
     width: min(300px, 86vw);
     border-inline-end: 1px solid var(--edge);
     transform: translateX(-100%);
-    transition: transform var(--dur-short) var(--ease-out);
+    /* visibility, not just transform: a drawer that is merely translated
+     * off-screen is still focusable and still reachable by assistive tech, and
+     * the e2e journey rightly asserts the closed drawer is hidden. Delaying it
+     * until the slide finishes keeps the animation. */
+    visibility: hidden;
+    transition:
+      transform var(--dur-short) var(--ease-out),
+      visibility 0s linear var(--dur-short);
     overflow-y: auto;
   }
   .workspace-shell[data-nav="open"] .workspace-sidebar {
     transform: none;
+    visibility: visible;
+    transition:
+      transform var(--dur-short) var(--ease-out),
+      visibility 0s;
   }
   .workspace-shell[data-nav="open"] .nav-scrim {
     display: block;

@@ -122,7 +122,14 @@ describe("follow-up observation", () => {
     // observation about record-keeping, not a status.
     const note = followUpNote(app({ createdAt: daysAgo(60) }), NOW)!;
     expect(note).toMatch(/^Nothing recorded since /);
-    for (const forbidden of [/stale/i, /cold/i, /ignored/i, /rejected/i, /likely/i, /no response/i]) {
+    for (const forbidden of [
+      /stale/i,
+      /cold/i,
+      /ignored/i,
+      /rejected/i,
+      /likely/i,
+      /no response/i,
+    ]) {
       expect(note).not.toMatch(forbidden);
     }
   });

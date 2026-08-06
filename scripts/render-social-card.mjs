@@ -25,7 +25,11 @@ const modules = path.join(root, "apps/web/node_modules");
 
 const faces = [
   ["Archivo", "@fontsource-variable/archivo/files/archivo-latin-wght-normal.woff2", 400],
-  ["Instrument Serif", "@fontsource/instrument-serif/files/instrument-serif-latin-400-normal.woff2", 400],
+  [
+    "Instrument Serif",
+    "@fontsource/instrument-serif/files/instrument-serif-latin-400-normal.woff2",
+    400,
+  ],
   ["IBM Plex Mono", "@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-400-normal.woff2", 400],
 ];
 
@@ -43,7 +47,10 @@ async function fontCss() {
 
 const svg = await readFile(path.join(assets, "social-card.svg"), "utf8");
 const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 1200, height: 630 }, deviceScaleFactor: 1 });
+const page = await browser.newPage({
+  viewport: { width: 1200, height: 630 },
+  deviceScaleFactor: 1,
+});
 await page.setContent(
   `<style>${await fontCss()}html,body{margin:0;background:#0A0908}svg{display:block}</style>${svg}`,
   { waitUntil: "load" },

@@ -4,10 +4,7 @@ import { Component, type ReactNode } from "react";
 
 /* Without this, one render throw anywhere in the workbench blanks the page and
  * the candidate is left with a white screen and no way back. */
-export class ErrorBoundary extends Component<
-  { children: ReactNode },
-  { error: Error | null }
-> {
+export class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   override state: { error: Error | null } = { error: null };
 
   static getDerivedStateFromError(error: Error) {

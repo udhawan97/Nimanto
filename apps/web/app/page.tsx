@@ -234,8 +234,9 @@ export default function Home() {
               <CopyLine command="cd Nimanto && corepack enable" />
               <CopyLine command="pnpm install --frozen-lockfile && pnpm dev" />
               <p className="run-note">
-                On macOS you can instead double-click <code>START-NIMANTO.command</code>. It installs
-                the locked dependencies, starts the local services, and opens the workbench.
+                On macOS you can instead double-click <code>START-NIMANTO.command</code>. It
+                installs the locked dependencies, starts the local services, and opens the
+                workbench.
               </p>
               <a className="text-link" href="https://github.com/udhawan97/Nimanto#beta-boundaries">
                 Read the beta boundaries <ArrowRight size={15} />

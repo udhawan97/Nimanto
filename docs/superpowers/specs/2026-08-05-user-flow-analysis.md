@@ -94,8 +94,8 @@ conversion history — the most motivating data in the product — is the least 
 ### S5 — Silence is indistinguishable from nothing-happened
 
 An application submitted eight weeks ago with no recorded outcome looks exactly like one
-submitted yesterday. The product correctly refuses to *infer* an outcome from silence,
-but it also refuses to *surface* the silence, which is a different thing and is not
+submitted yesterday. The product correctly refuses to _infer_ an outcome from silence,
+but it also refuses to _surface_ the silence, which is a different thing and is not
 required by the contract.
 
 **Cost:** follow-ups get forgotten; the tool that was supposed to hold the thread drops it.
@@ -122,18 +122,18 @@ half is healthy is worse than being told nothing.
 
 ## 3. Cross-cutting failure modes
 
-| # | Mode | Evidence | Fix |
-| --- | --- | --- | --- |
-| X1 | One render throw blanks the workbench | No error boundary, no `app/error.tsx` | R1 |
-| X2 | Zero unit tests in `apps/web` | `vitest run --passWithNoTests` | R3 |
-| X3 | Failed mutations have no rollback path | `onAct` sets a notice; optimistic UI would desync | F1 error policy |
-| X4 | No keyboard path for any new interaction | Repo already asserts focus order in e2e | F1/F3 keyboard specs |
+| #   | Mode                                     | Evidence                                          | Fix                  |
+| --- | ---------------------------------------- | ------------------------------------------------- | -------------------- |
+| X1  | One render throw blanks the workbench    | No error boundary, no `app/error.tsx`             | R1                   |
+| X2  | Zero unit tests in `apps/web`            | `vitest run --passWithNoTests`                    | R3                   |
+| X3  | Failed mutations have no rollback path   | `onAct` sets a notice; optimistic UI would desync | F1 error policy      |
+| X4  | No keyboard path for any new interaction | Repo already asserts focus order in e2e           | F1/F3 keyboard specs |
 
 ## 4. Constraints the fixes must respect
 
 These come from the product contract and trust model, and they bound the features above.
 
-1. **F1 may not become an approval surface.** `PUT /v1/applications/:id/status` has *no*
+1. **F1 may not become an approval surface.** `PUT /v1/applications/:id/status` has _no_
    transition guard today (`server.ts:1149` validates union membership only), and
    `store.ts` stamps `submitted_at` on entry to `submitted_externally` and never clears
    it. A drag-to-commit board would let one mis-drop write a false submission record
@@ -143,13 +143,13 @@ These come from the product contract and trust model, and they bound the feature
    "not a hiring probability" and the source ledger states no hiring-probability claim is
    supportable. Counts and the caveat string only.
 3. **F6 may not read as a status.** The Applications page promises "Nimanto never infers
-   an outcome from silence." F6 must say *"nothing recorded since <date>"* — an
+   an outcome from silence." F6 must say _"nothing recorded since <date>"_ — an
    observation about the candidate's own record-keeping — never "stale", "cold", or
    "likely rejected".
 4. **F3 may not execute anything gated.** Palette entries carry a navigation target
    only, structurally — never a callback — so no future edit can smuggle an approval,
    execution, runtime-switch, or deletion call into it.
-5. **F4 may not launder provenance.** Prefill the claim *value* from the requirement
+5. **F4 may not launder provenance.** Prefill the claim _value_ from the requirement
    text. Never populate `sourceName`/`sourceLocator` from job-posting content: that would
    attribute a candidate's claim to an employer's ad. The created claim stays `pending`.
 

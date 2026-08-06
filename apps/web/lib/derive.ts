@@ -132,7 +132,9 @@ export function lastRecordedAt(application: ApplicationLike): string | null {
     ...(application.outcomes ?? []).map((outcome) => outcome.occurredAt),
   ].filter((value): value is string => typeof value === "string" && value.length > 0);
   if (stamps.length === 0) return null;
-  return stamps.reduce((latest, value) => (Date.parse(value) > Date.parse(latest) ? value : latest));
+  return stamps.reduce((latest, value) =>
+    Date.parse(value) > Date.parse(latest) ? value : latest,
+  );
 }
 
 export function daysSinceLastRecord(application: ApplicationLike, now: Date): number | null {
@@ -207,11 +209,10 @@ export function needsConfirmation(from: ApplicationStatus, to: ApplicationStatus
   return consequential.includes(to);
 }
 
-export function confirmationPrompt(
-  to: ApplicationStatus,
-  application: ApplicationLike,
-): string {
-  const role = application.job ? `${application.job.title} at ${application.job.company}` : "this application";
+export function confirmationPrompt(to: ApplicationStatus, application: ApplicationLike): string {
+  const role = application.job
+    ? `${application.job.title} at ${application.job.company}`
+    : "this application";
   if (to === "submitted_externally") {
     return `Record that you submitted ${role} externally? Nimanto does not submit anything for you — this only records that you did.`;
   }

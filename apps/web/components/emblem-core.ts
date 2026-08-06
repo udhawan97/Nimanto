@@ -514,7 +514,8 @@ export class NimantoEmblem {
     const flapEase = instant ? 1 : outBack(clamp((t - d * 0.48) / (d * 0.52), 0, 1));
     const rest = Math.PI * 0.94;
     const flapBreath = Math.sin(drift * 0.34) * 0.05 * breath;
-    this.#flap.rotation.x = (rest + flapBreath - this.#hover * 0.07) * flapEase * (1 - swell * 0.97);
+    this.#flap.rotation.x =
+      (rest + flapBreath - this.#hover * 0.07) * flapEase * (1 - swell * 0.97);
 
     const glow = (0.22 + this.#hover * 0.7 + swell * 0.35) * progress;
     this.#materials.accent.opacity = clamp(glow * 0.15, 0, 1);

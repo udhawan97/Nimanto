@@ -47,16 +47,14 @@ export function CommandPalette({
   const [active, setActive] = useState(0);
   const [open, setOpen] = useState(false);
 
-  const commands: PaletteEntry[] =
-    entries ??
-    [
-      {
-        label: hosted ? "Run the local beta" : "Open the workbench",
-        detail: hosted ? "Read the private setup guide" : "Run the private local beta",
-        href: hosted ? "https://github.com/udhawan97/Nimanto#run-the-local-beta" : "./workspace/",
-      },
-      ...siteCommands,
-    ];
+  const commands: PaletteEntry[] = entries ?? [
+    {
+      label: hosted ? "Run the local beta" : "Open the workbench",
+      detail: hosted ? "Read the private setup guide" : "Run the private local beta",
+      href: hosted ? "https://github.com/udhawan97/Nimanto#run-the-local-beta" : "./workspace/",
+    },
+    ...siteCommands,
+  ];
 
   const filtered = commands.filter((item) =>
     `${item.label} ${item.detail}`

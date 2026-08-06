@@ -259,6 +259,10 @@ export function Workspace() {
   const [notice, setNotice] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const [mobileNav, setMobileNav] = useState(false);
   const [apiReachable, setApiReachable] = useState(true);
+  // Declared with the other hooks: the component returns early for the auth and
+  // loading states, so a hook below those returns changes the hook count
+  // between renders.
+  const connection = useConnection(apiReachable);
   const [bootstrapSecret, setBootstrapSecret] = useState("");
   const [inviteToken, setInviteToken] = useState("");
   const menuButton = useRef<HTMLButtonElement>(null);
@@ -411,7 +415,6 @@ export function Workspace() {
     );
 
   const selected = navigation.find((item) => item.id === section)!;
-  const connection = useConnection(apiReachable);
   const goToSection = (id: string) => {
     setSection(id as Section);
     setMobileNav(false);
@@ -1869,7 +1872,10 @@ function Applications({
    * — this only decides which moves to offer. */
   const move = (application: Application, to: ApplicationStatus) => {
     if (!canMove(application.status, to)) return;
-    if (needsConfirmation(application.status, to) && !window.confirm(confirmationPrompt(to, application)))
+    if (
+      needsConfirmation(application.status, to) &&
+      !window.confirm(confirmationPrompt(to, application))
+    )
       return;
     void onAct(
       () =>
@@ -1928,7 +1934,8 @@ function Applications({
                       <span className="board-move-label">Move to</span>
                       {BOARD_COLUMNS.filter(
                         (target) =>
-                          target.id !== application.status && canMove(application.status, target.id),
+                          target.id !== application.status &&
+                          canMove(application.status, target.id),
                       ).map((target) => (
                         <button
                           key={target.id}

@@ -15,13 +15,13 @@
 The user asked for feature inspiration from free, open-source, already-used GitHub
 projects. Surveyed:
 
-| Project | What it does that Nimanto did not | Taken? |
-| --- | --- | --- |
-| [Gsync/jobsync](https://github.com/Gsync/jobsync) — self-hosted tracker + career assistant, Next.js | Application **analytics/funnel** view; **task/activity log**; Greenhouse & Lever board polling | Funnel → **F5**. Board polling already exists in Nimanto (schedules). |
-| [kaylaehman/jobtrail](https://github.com/kaylaehman/jobtrail) — self-hosted tracker, JobSpy discovery | Discovery pipeline separated from tracking | Already covered by `apps/worker` |
-| [JobTrac](https://github.com/topics/job-application-tracker) — React/Firebase "command center" | Single **command center** entry point rather than section-first navigation | → **F2**, **F3** |
-| [Resume Matcher](https://resumematcher.fyi/) — open-source ATS matcher | Keyword/requirement **gap → what to add** feedback loop | → **F4** |
-| Common to nearly every tracker in the `job-application-tracker` topic | **Kanban pipeline board** over application status | → **F1** |
+| Project                                                                                               | What it does that Nimanto did not                                                              | Taken?                                                                |
+| ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| [Gsync/jobsync](https://github.com/Gsync/jobsync) — self-hosted tracker + career assistant, Next.js   | Application **analytics/funnel** view; **task/activity log**; Greenhouse & Lever board polling | Funnel → **F5**. Board polling already exists in Nimanto (schedules). |
+| [kaylaehman/jobtrail](https://github.com/kaylaehman/jobtrail) — self-hosted tracker, JobSpy discovery | Discovery pipeline separated from tracking                                                     | Already covered by `apps/worker`                                      |
+| [JobTrac](https://github.com/topics/job-application-tracker) — React/Firebase "command center"        | Single **command center** entry point rather than section-first navigation                     | → **F2**, **F3**                                                      |
+| [Resume Matcher](https://resumematcher.fyi/) — open-source ATS matcher                                | Keyword/requirement **gap → what to add** feedback loop                                        | → **F4**                                                              |
+| Common to nearly every tracker in the `job-application-tracker` topic                                 | **Kanban pipeline board** over application status                                              | → **F1**                                                              |
 
 Two patterns were surveyed and **rejected**: AI resume rewriting (Nimanto deliberately
 labels model output "unverified local draft" and never auto-edits a packet), and email
@@ -44,7 +44,7 @@ Three concrete costs:
    corner folds back over a vermilion light — the product thesis as an object.
 2. **The palette encodes product meaning the UI throws away.** Emerald is "one confirmed
    state, small". Vermilion is "live state, alerts, one link at a time". Nimanto's whole
-   product is *confirmed vs pending vs live*. The palette is a state vocabulary.
+   product is _confirmed vs pending vs live_. The palette is a state vocabulary.
 3. **The workbench dead-ends** — seven stalls, catalogued in the
    [flow analysis](2026-08-05-user-flow-analysis.md).
 
@@ -56,43 +56,43 @@ optimistic and two claimed AAA at sub-7.0 ratios.**
 
 ### Ground
 
-| Token | Hex | Role |
-| --- | --- | --- |
-| Ink | `#0A0908` | The gallery. Every surface the mark sits on. |
-| Lacquer | `#101013` | Raised surfaces, cards, sheets. **1.05:1 vs ink — a field, never a boundary.** |
+| Token      | Hex       | Role                                                                              |
+| ---------- | --------- | --------------------------------------------------------------------------------- |
+| Ink        | `#0A0908` | The gallery. Every surface the mark sits on.                                      |
+| Lacquer    | `#101013` | Raised surfaces, cards, sheets. **1.05:1 vs ink — a field, never a boundary.**    |
 | Umber glow | `#241C14` | Atmosphere only. Radial washes behind the mark. **Never a fill, never a border.** |
 
 ### Materials
 
-| Token | Hex | Role |
-| --- | --- | --- |
-| Ivory stone | `#D5CCB9` | The only large light field. |
-| Aged brass | `#B8935A` | Fold edges, hub ring. A line weight, never a fill. |
-| Inlay brass | `#9D7C4A` | Recessed rules and hairlines. |
-| Deep emerald | `#16543F` | The seed. **Fill only — 2.25:1, never carries text or a glyph.** |
-| Vermilion | `#D6472C` | The light behind the mark. Live state, alerts, one link at a time. |
+| Token        | Hex       | Role                                                               |
+| ------------ | --------- | ------------------------------------------------------------------ |
+| Ivory stone  | `#D5CCB9` | The only large light field.                                        |
+| Aged brass   | `#B8935A` | Fold edges, hub ring. A line weight, never a fill.                 |
+| Inlay brass  | `#9D7C4A` | Recessed rules and hairlines.                                      |
+| Deep emerald | `#16543F` | The seed. **Fill only — 2.25:1, never carries text or a glyph.**   |
+| Vermilion    | `#D6472C` | The light behind the mark. Live state, alerts, one link at a time. |
 
 ### Ramps
 
-| Ramp | 100 | 200 | 300 | 400 | 500 | 600 | 700 |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| Brass | `#2E2415` | `#57431F` | `#7C6134` | `#9D7C4A` | `#B8935A` | `#D0AF7E` | `#E4CDA6` |
-| Stone | `#1C1A17` | `#3A362F` | `#6E665C` | `#8B8175` | `#B3AA9C` | `#D5CCB9` | `#E8E1D4` |
-| Vermilion | `#3E1610` | `#6B2519` | `#B33A24` | `#D6472C` | `#E8785F` | — | — |
-| Emerald | `#0A231B` | `#113E2F` | `#16543F` | `#1F7358` | `#63B69B` | — | — |
+| Ramp      | 100       | 200       | 300       | 400       | 500       | 600       | 700       |
+| --------- | --------- | --------- | --------- | --------- | --------- | --------- | --------- |
+| Brass     | `#2E2415` | `#57431F` | `#7C6134` | `#9D7C4A` | `#B8935A` | `#D0AF7E` | `#E4CDA6` |
+| Stone     | `#1C1A17` | `#3A362F` | `#6E665C` | `#8B8175` | `#B3AA9C` | `#D5CCB9` | `#E8E1D4` |
+| Vermilion | `#3E1610` | `#6B2519` | `#B33A24` | `#D6472C` | `#E8785F` | —         | —         |
+| Emerald   | `#0A231B` | `#113E2F` | `#16543F` | `#1F7358` | `#63B69B` | —         | —         |
 
 ### ⚑ Type on ink — computed
 
-| Token | Hex | Computed | Level | Use |
-| --- | --- | --- | --- | --- |
-| Bone | `#E8E1D4` | **15.30:1** | AAA | Headlines, wordmark, primary reading |
-| Ivory stone | `#D5CCB9` | **12.47:1** | AAA | Display type only, never body copy |
-| Stone | `#B3AA9C` | **8.67:1** | AAA | Body copy, long-form paragraphs |
-| Muted | `#8B8175` | **5.21:1** | AA | Placards, labels, metadata — **never below 14px** |
-| Brass | `#B8935A` | **6.97:1** | **AA (not AAA)** | Links, quiet emphasis |
-| Vermilion 500 | `#E8785F` | **6.90:1** | **AA (not AAA)** | The only red allowed on text |
-| Brass 600 | `#D0AF7E` | **9.58:1** | AAA | ⚑ Use where brass must reach AAA |
-| Emerald 500 | `#63B69B` | **8.24:1** | AAA | ⚑ The only emerald allowed on text |
+| Token         | Hex       | Computed    | Level            | Use                                               |
+| ------------- | --------- | ----------- | ---------------- | ------------------------------------------------- |
+| Bone          | `#E8E1D4` | **15.30:1** | AAA              | Headlines, wordmark, primary reading              |
+| Ivory stone   | `#D5CCB9` | **12.47:1** | AAA              | Display type only, never body copy                |
+| Stone         | `#B3AA9C` | **8.67:1**  | AAA              | Body copy, long-form paragraphs                   |
+| Muted         | `#8B8175` | **5.21:1**  | AA               | Placards, labels, metadata — **never below 14px** |
+| Brass         | `#B8935A` | **6.97:1**  | **AA (not AAA)** | Links, quiet emphasis                             |
+| Vermilion 500 | `#E8785F` | **6.90:1**  | **AA (not AAA)** | The only red allowed on text                      |
+| Brass 600     | `#D0AF7E` | **9.58:1**  | AAA              | ⚑ Use where brass must reach AAA                  |
+| Emerald 500   | `#63B69B` | **8.24:1**  | AAA              | ⚑ The only emerald allowed on text                |
 
 ### ⚑ Non-text contrast (WCAG 1.4.11 — borders, chips, focus rings need ≥3:1)
 
@@ -100,12 +100,12 @@ Structural strokes must be **brass-300 `#7C6134` (3.43:1) or lighter**.
 brass-100 (1.31:1) and brass-200 (2.11:1) are **decorative fills only** — a
 brass-100 panel border is invisible and was in revision 1.
 
-| Purpose | Token | vs ink |
-| --- | --- | --- |
-| Panel / card border | brass-300 `#7C6134` | 3.43:1 |
-| Emphasised border, focus ring | brass-400 `#9D7C4A` | 5.13:1 |
+| Purpose                                          | Token               | vs ink                                                             |
+| ------------------------------------------------ | ------------------- | ------------------------------------------------------------------ |
+| Panel / card border                              | brass-300 `#7C6134` | 3.43:1                                                             |
+| Emphasised border, focus ring                    | brass-400 `#9D7C4A` | 5.13:1                                                             |
 | Table hairline (decorative, paired with spacing) | brass-200 `#57431F` | 2.11:1 — allowed **only** where the row is also separated by ≥12px |
-| Divider on lacquer | stone-300 `#6E665C` | 3.52:1 |
+| Divider on lacquer                               | stone-300 `#6E665C` | 3.52:1                                                             |
 
 ### Proportion — the governing rule
 
@@ -127,13 +127,13 @@ requests preserved. All OFL-1.1.
 
 ### ⚑ Type scale (revision 1 shipped a font list with no system)
 
-| Token | Size | Line-height | Tracking | Face |
-| --- | --- | --- | --- | --- |
-| `--text-display` | `clamp(3rem, 7vw, 6.5rem)` | 1.02 | −0.03em | Instrument Serif |
-| `--text-display-s` | `clamp(2.25rem, 4.5vw, 3.5rem)` | 1.08 | −0.02em | Instrument Serif |
-| `--text-3xl` … `--text-lg` | 2.49 / 2.07 / 1.73 / 1.44 rem | 1.2 → 1.35 | −0.01em | Archivo 500/600 |
-| `--text-base` / `--text-sm` | 1 / 0.875 rem | 1.65 | 0 | Archivo 400 |
-| `--text-mono` / `--text-placard` | 0.8125 / 0.6875 rem | 1.7 / 2.0 | 0.02em / 0.18em | IBM Plex Mono |
+| Token                            | Size                            | Line-height | Tracking        | Face             |
+| -------------------------------- | ------------------------------- | ----------- | --------------- | ---------------- |
+| `--text-display`                 | `clamp(3rem, 7vw, 6.5rem)`      | 1.02        | −0.03em         | Instrument Serif |
+| `--text-display-s`               | `clamp(2.25rem, 4.5vw, 3.5rem)` | 1.08        | −0.02em         | Instrument Serif |
+| `--text-3xl` … `--text-lg`       | 2.49 / 2.07 / 1.73 / 1.44 rem   | 1.2 → 1.35  | −0.01em         | Archivo 500/600  |
+| `--text-base` / `--text-sm`      | 1 / 0.875 rem                   | 1.65        | 0               | Archivo 400      |
+| `--text-mono` / `--text-placard` | 0.8125 / 0.6875 rem             | 1.7 / 2.0   | 0.02em / 0.18em | IBM Plex Mono    |
 
 **Instrument Serif appears at `--text-display-s` and above only.** It never sets body
 copy, never sets a label, never appears in the workbench outside the wordmark. That rule
@@ -197,13 +197,13 @@ third-party runtime dependency and gets a row in the
 
 ### 4.2 Surfaces
 
-| Surface | Form | File |
-| --- | --- | --- |
-| Website hero | WebGL, live | `emblem.tsx` + `emblem-core.ts` |
-| README | Animated SVG, SMIL, transparent ground | `public/assets/emblem-animated.svg` |
-| App icon / favicon / PWA | Static SVG | `public/assets/icon.svg` |
-| Workbench chrome | Static SVG, 20px | `components/brand.tsx` |
-| Social card | Static SVG **and** committed PNG | `public/assets/social-card.{svg,png}` |
+| Surface                  | Form                                   | File                                  |
+| ------------------------ | -------------------------------------- | ------------------------------------- |
+| Website hero             | WebGL, live                            | `emblem.tsx` + `emblem-core.ts`       |
+| README                   | Animated SVG, SMIL, transparent ground | `public/assets/emblem-animated.svg`   |
+| App icon / favicon / PWA | Static SVG                             | `public/assets/icon.svg`              |
+| Workbench chrome         | Static SVG, 20px                       | `components/brand.tsx`                |
+| Social card              | Static SVG **and** committed PNG       | `public/assets/social-card.{svg,png}` |
 
 ⚑ The PNG is what `layout.tsx` OpenGraph actually points at. No rasterizer is in
 `devDependencies` and D4 rules out adding one — the PNG is produced with the Playwright
@@ -263,26 +263,26 @@ tokens, applied to `/` and `/workspace/`, verified by the Playwright check in §
 
 **Vertical**
 
-| Relationship | Minimum |
-| --- | --- |
-| Section band block padding | `clamp(88px, 11vh, 168px)` |
-| Heading → its own body copy | **20px**, never collapsed |
-| Eyebrow / placard → heading | 14px |
-| Panel heading → panel body | 18px |
-| Card internal padding | 20px (24px ≥768px) |
-| List item → list item | 12px |
-| Label → input | 8px; input → field note | 6px |
+| Relationship                          | Minimum                       |
+| ------------------------------------- | ----------------------------- | --- |
+| Section band block padding            | `clamp(88px, 11vh, 168px)`    |
+| Heading → its own body copy           | **20px**, never collapsed     |
+| Eyebrow / placard → heading           | 14px                          |
+| Panel heading → panel body            | 18px                          |
+| Card internal padding                 | 20px (24px ≥768px)            |
+| List item → list item                 | 12px                          |
+| Label → input                         | 8px; input → field note       | 6px |
 | Any two text elements sharing an edge | ≥16px, or a rule between them |
-| Two headings adjacent | forbidden |
+| Two headings adjacent                 | forbidden                     |
 
 **Horizontal**
 
-| Relationship | Minimum |
-| --- | --- |
-| Table cell padding | 14px inline |
+| Relationship          | Minimum                          |
+| --------------------- | -------------------------------- |
+| Table cell padding    | 14px inline                      |
 | Chip internal padding | 10px inline; chip → chip gap 8px |
-| Sidebar nav item | 12px inline, 10px block |
-| Body measure | ≤68ch; display measure ≤20ch |
+| Sidebar nav item      | 12px inline, 10px block          |
+| Body measure          | ≤68ch; display measure ≤20ch     |
 
 **Mechanism:** a single `.flow > * + *` owner applying `margin-block-start`, so the rule
 is not re-invented per file. Line-height floors: 1.5 body, 1.02–1.08 display, 1.7 mono.
@@ -314,12 +314,12 @@ different colours. Added:
 
 **State vocabulary — ⚑ exact ramp steps, all ≥3:1 or ≥4.5:1 as required**
 
-| State | Fill | Text / glyph | Border |
-| --- | --- | --- | --- |
-| Confirmed / supported | emerald-100 `#0A231B` | **emerald-500 `#63B69B`** (8.24:1) | emerald-400 |
-| Live / blocker / needs you | vermilion-100 `#3E1610` | **vermilion-500 `#E8785F`** (6.90:1) | vermilion-300 |
-| Pending / neutral | stone-100 `#1C1A17` | stone-500 `#B3AA9C` (8.67:1) | stone-300 |
-| Structure | — | — | brass-300 `#7C6134` (3.43:1) |
+| State                      | Fill                    | Text / glyph                         | Border                       |
+| -------------------------- | ----------------------- | ------------------------------------ | ---------------------------- |
+| Confirmed / supported      | emerald-100 `#0A231B`   | **emerald-500 `#63B69B`** (8.24:1)   | emerald-400                  |
+| Live / blocker / needs you | vermilion-100 `#3E1610` | **vermilion-500 `#E8785F`** (6.90:1) | vermilion-300                |
+| Pending / neutral          | stone-100 `#1C1A17`     | stone-500 `#B3AA9C` (8.67:1)         | stone-300                    |
+| Structure                  | —                       | —                                    | brass-300 `#7C6134` (3.43:1) |
 
 ⚑ Deep emerald `#16543F` (2.25:1) is a **fill only** and never carries a glyph. Status is
 never colour-alone — every chip keeps its text label (trust model requirement, and the
@@ -393,24 +393,24 @@ and `occurredAt` is caller-supplied and unvalidated. ⚑ Requires widening the w
 - **R2 — Connection state.** ⚑ The hardcoded `"Local service connected"` indicator at
   `workspace.tsx:447` is **deleted**, not left beside the real one — it currently claims
   "connected" whether or not anything is. Distinguishes browser-offline from
-  API-unreachable. ⚑ `sw.js` falls back to `caches.match("./")` — serving the *landing
-  page* for a failed `/workspace/` navigation — which must be fixed or R2 never renders.
+  API-unreachable. ⚑ `sw.js` falls back to `caches.match("./")` — serving the _landing
+  page_ for a failed `/workspace/` navigation — which must be fixed or R2 never renders.
 - **R3 — First web tests, landing first (D6).** `apps/web` has zero. Needs a vitest
   config with `happy-dom`. Covers derived logic: next-step precedence, staleness
   baseline, board column mapping, transition legality.
 - **R4 — E2E extension** for the board (including keyboard move), the palette, the
   reduced-motion hero, and the API-down state.
 
-## 7. Deferred — and what will *not* change ⚑
+## 7. Deferred — and what will _not_ change ⚑
 
-| Candidate | Why not |
-| --- | --- |
-| Follow-up reminders with dates | Needs schema + endpoint. F6 gets most of it from derived data. |
-| Saved views / filters | No client persistence layer. |
-| Light theme | See D1. |
-| Pre-rendered WebP logo from the 3D scene | Needs ffmpeg in CI. D4 covers it. |
-| AI resume rewriting, inbox scraping | Surveyed and rejected — see §0. |
-| Desktop packaging, signing | Unchanged release gate in the product contract. |
+| Candidate                                | Why not                                                        |
+| ---------------------------------------- | -------------------------------------------------------------- |
+| Follow-up reminders with dates           | Needs schema + endpoint. F6 gets most of it from derived data. |
+| Saved views / filters                    | No client persistence layer.                                   |
+| Light theme                              | See D1.                                                        |
+| Pre-rendered WebP logo from the 3D scene | Needs ffmpeg in CI. D4 covers it.                              |
+| AI resume rewriting, inbox scraping      | Surveyed and rejected — see §0.                                |
+| Desktop packaging, signing               | Unchanged release gate in the product contract.                |
 
 **Unchanged and visible:** the README mermaid diagram keeps GitHub's default colours
 (not themeable). `packages/documents` PDF/DOCX packet branding stays neutral — ATS-safe
@@ -422,6 +422,7 @@ with no opt-out.
 Revision 1 missed thirteen files that would have shipped the old brand or a false claim.
 
 **Design system & web**
+
 ```
 tokens.css                                   rewritten (stale Hallmark header removed)
 apps/web/app/globals.css                     rewritten — ink, spacing contract, color-scheme, forced-colors
@@ -440,6 +441,7 @@ apps/web/test/derive.test.ts                 NEW (R3)
 ```
 
 **Domain / API (F1 guard)**
+
 ```
 packages/domain/src/applications.ts          NEW  transitionApplication()
 packages/domain/test/applications.test.ts    NEW
@@ -448,6 +450,7 @@ apps/api/src/server.ts                       enforce guard; version strings 0.1.
 ```
 
 **⚑ Brand surfaces revision 1 missed**
+
 ```
 apps/web/public/assets/icon.svg              redrawn
 apps/web/public/assets/emblem-animated.svg   NEW (D4)
@@ -461,6 +464,7 @@ scripts/render-social-card.mjs               NEW  Playwright Chromium rasterizer
 ```
 
 **⚑ Release integrity revision 1 missed**
+
 ```
 README.md                                    rewritten; badges off #3157d5; v0.1.0 sweep
 THIRD_PARTY_NOTICES.md                       remove 3 dead fonts, add three + 3 fonts
@@ -487,7 +491,7 @@ Revision 1 listed five checks; three could not execute. Corrected:
 
 `pnpm check` · `pnpm build` · `pnpm test:e2e`, plus:
 
-1. **Contrast audit** — script over the token file asserting §2's *computed* values,
+1. **Contrast audit** — script over the token file asserting §2's _computed_ values,
    including the **non-text 3:1** rule revision 1 omitted. Runs in vitest.
 2. **Spacing audit** — ⚑ **Playwright, not vitest** (vitest has no layout engine;
    `getBoundingClientRect` returns zeros). Walks a named selector list on `/` and
@@ -498,7 +502,7 @@ Revision 1 listed five checks; three could not execute. Corrected:
 4. **Reduced motion** — hero renders one frame, no loop. E2E.
 5. **API-down** — workbench shows R2's state, not a spinner. E2E, warm SW cache.
 6. **WebGL hero** — ⚑ CI runs WebKit only, which has no hardware WebGL, so the e2e
-   exercises the §4.3 *fallback*, not the hero. Stated plainly: **the live WebGL hero is
+   exercises the §4.3 _fallback_, not the hero. Stated plainly: **the live WebGL hero is
    manually verified.** The fallback ladder is what CI proves.
 7. ⚑ **Console assertion** — the existing e2e asserts `consoleProblems == []` including
    warnings. New landing-page coverage must scope its allowlist narrowly (Three.js emits

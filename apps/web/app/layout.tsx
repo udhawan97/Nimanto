@@ -18,7 +18,10 @@ export const metadata: Metadata = {
   applicationName: "Nimanto",
   referrer: "no-referrer",
   manifest: `${publicBase}/manifest.webmanifest`,
-  icons: { icon: `${publicBase}/assets/icon.svg` },
+  /* No hand-written `icons` entry. The tab icon comes from app/icon.svg via the
+   * Next file convention, which emits a basePath-correct href on its own — the
+   * previous literal "/assets/icon.svg" was root-absolute, so under the
+   * /Nimanto/ base path it 404'd and browsers fell back to their default mark. */
   openGraph: {
     title: "Nimanto — evidence-first job search",
     description:
