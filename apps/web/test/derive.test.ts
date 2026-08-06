@@ -269,9 +269,17 @@ describe("legal targets", () => {
     ]);
   });
 
-  it("never offers a move canMove would reject", () => {
-    for (const from of BOARD_COLUMNS.map((column) => column.id)) {
-      for (const to of legalTargets(from)) expect(canMove(from, to)).toBe(true);
+  // legalTargets is defined in terms of canMove, so asserting the two agree
+  // proves nothing. What is worth pinning is that the offer set is exactly the
+  // domain's own answer — the table in apps/web is a copy, and this is the
+  // check that catches it drifting.
+  it("offers exactly what the domain allows, for every status", () => {
+    for (const from of APPLICATION_STATUSES) {
+      const offered = legalTargets(from as ApplicationStatus).filter((to) => to !== from);
+      const allowed = APPLICATION_STATUSES.filter(
+        (to) => to !== from && isApplicationTransitionLegal(from, to),
+      );
+      expect([from, offered.toSorted()]).toEqual([from, allowed.toSorted()]);
     }
   });
 });

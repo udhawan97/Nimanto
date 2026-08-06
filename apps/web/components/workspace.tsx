@@ -324,6 +324,16 @@ export function Workspace() {
   useEffect(() => {
     if (!routeReady) return;
     const onHashChange = () => {
+      /* A credential can arrive after mount — pasting an invite link into a tab
+       * that already has the workbench open never re-runs the effect above.
+       * Scrub it here too, or it sits in the address bar and the back stack. */
+      if (window.location.hash.includes("=")) {
+        window.history.replaceState(
+          null,
+          "",
+          `${window.location.pathname}${window.location.search}`,
+        );
+      }
       const opened = sectionFromHash(window.location.hash);
       setSection(opened ?? "overview");
       setNotice(null);
@@ -337,6 +347,15 @@ export function Workspace() {
     setBootstrapSecret("");
     setInviteToken("");
   }, []);
+
+  /* Opening a workspace also retires the previous one's deletion receipt.
+   * Signing out does not reload the page, so without this the next visit to the
+   * sign-in screen would re-announce "Workspace deleted" and a dead token for a
+   * workspace that now exists. */
+  const startFresh = useCallback(() => {
+    clearBootstrapSecret();
+    setDeletionReceipt(null);
+  }, [clearBootstrapSecret]);
 
   const closeMobileNavigation = useCallback(() => {
     setMobileNav(false);
@@ -430,6 +449,11 @@ export function Workspace() {
       await refresh();
       setNotice({ kind: "ok", text: success });
     } catch (error) {
+      // A transport failure has no notice of its own — the connection banner
+      // says it better. But the banner only appears once `apiReachable` knows,
+      // so record it here rather than leaving the candidate with no feedback at
+      // all until the next health probe.
+      if (error instanceof TypeError) setApiReachable(false);
       const text = describeFailure(error);
       if (text) setNotice({ kind: "error", text });
     } finally {
@@ -455,7 +479,7 @@ export function Workspace() {
                     headers: { "x-nimanto-bootstrap-secret": bootstrapSecret },
                   }),
             "Your private beta workspace is ready.",
-            clearBootstrapSecret,
+            startFresh,
           )
         }
         onDemo={() =>
@@ -467,7 +491,7 @@ export function Workspace() {
                 headers: { "x-nimanto-bootstrap-secret": bootstrapSecret },
               }),
             "The synthetic Priya Shah workspace is ready.",
-            clearBootstrapSecret,
+            startFresh,
           )
         }
         bootstrapSecret={bootstrapSecret}
@@ -770,7 +794,11 @@ function WorkspaceStart({
               ? "start-panel receipt"
               : "start-panel receipt is-pending"
           }
-          role="alert"
+          /* Polite, not assertive: an assertive region makes a screen reader
+           * interrupt to spell out a 32-character token. The heading carries
+           * the outcome; the token is there to be copied, not recited. */
+          role="status"
+          aria-label="Deletion receipt"
         >
           <h2>
             {deletionReceipt.state === "completed"
@@ -2088,6 +2116,13 @@ function Applications({
       !window.confirm(confirmationPrompt(to, application))
     )
       return;
+    /* The card unmounts into another column, so focus has to be put back on it
+     * where it landed rather than left to fall to the top of the document.
+     * Both signals are needed: `onSuccess` fires only when the move was
+     * accepted but runs before the dashboard reloads, and the settled promise
+     * runs after the reload but also resolves on failure — where stealing
+     * focus would pull the candidate off the error they need to read. */
+    let moved = false;
     void onAct(
       () =>
         api(`/v1/applications/${application.id}/status`, {
@@ -2095,13 +2130,15 @@ function Applications({
           body: JSON.stringify({ status: to }),
         }),
       "Application status updated.",
-      // The card unmounts into another column; put focus on it where it landed
-      // rather than dropping the candidate back at the top of the document.
-    ).then(() =>
+      () => {
+        moved = true;
+      },
+    ).then(() => {
+      if (!moved) return;
       window.requestAnimationFrame(() =>
         document.getElementById(`board-card-${application.id}`)?.focus(),
-      ),
-    );
+      );
+    });
   };
 
   return (
@@ -2157,23 +2194,24 @@ function Applications({
                     {/* Keyboard-operable by construction: buttons, not drag. */}
                     <div className="board-move">
                       <span className="board-move-label">Move to</span>
-                      {BOARD_COLUMNS.filter(
-                        (target) =>
-                          target.id !== application.status &&
-                          canMove(application.status, target.id),
-                      ).map((target) => (
-                        <button
-                          key={target.id}
-                          type="button"
-                          disabled={busy}
-                          // Visually the column name is enough; heard on its own
-                          // in a list of twenty cards, "Prepared" is not.
-                          aria-label={`Move ${role} to ${target.label}`}
-                          onClick={() => move(application, target.id)}
-                        >
-                          {target.label}
-                        </button>
-                      ))}
+                      {/* Same source as the row list's options, so the two
+                       * controls cannot drift into offering different moves. */}
+                      {legalTargets(application.status)
+                        .filter((id) => id !== application.status)
+                        .map((id) => BOARD_COLUMNS.find((column) => column.id === id)!)
+                        .map((target) => (
+                          <button
+                            key={target.id}
+                            type="button"
+                            disabled={busy}
+                            // Visually the column name is enough; heard on its own
+                            // in a list of twenty cards, "Prepared" is not.
+                            aria-label={`Move ${role} to ${target.label}`}
+                            onClick={() => move(application, target.id)}
+                          >
+                            {target.label}
+                          </button>
+                        ))}
                     </div>
                   </article>
                 );
@@ -2696,7 +2734,11 @@ function DataControls({
             onClick={() =>
               onAct(
                 () => api("/v1/data", { method: "DELETE", body: JSON.stringify({ confirmation }) }),
-                "Deletion finished. Keep the status token.",
+                // Outcome-neutral on purpose: the server decides whether file
+                // cleanup finished, and the receipt below states which. A fixed
+                // "deleted" here would contradict a cleanup_pending receipt
+                // sitting directly beside it.
+                "Deletion recorded. Keep the status token.",
                 // Deletion clears the session, so this panel unmounts moments
                 // later. The receipt is handed upward to outlive it.
                 (result) => onDeleted(result as DeletionReceipt),

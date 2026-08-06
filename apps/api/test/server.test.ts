@@ -664,7 +664,11 @@ describe("Nimanto beta API", () => {
     expect(preview.statusCode).toBe(200);
     const body = preview.json();
     expect(body.claimCount).toBeGreaterThan(0);
+    // The count describes the list, not the parse: preview and import slice the
+    // same bounded array, so a count above the list length would promise claims
+    // the import then drops.
     expect(body.claims).toHaveLength(body.claimCount);
+    expect(body.claimCount).toBeLessThanOrEqual(body.parsedCount);
     expect(body.claims.map((claim: { value: string }) => claim.value).join(" ")).toContain(
       "TypeScript",
     );

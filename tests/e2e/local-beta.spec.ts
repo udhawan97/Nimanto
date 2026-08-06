@@ -182,7 +182,56 @@ test("one guarded control owns every status change, and the two views are exclus
   await status.selectOption("submitted_externally");
   await expect(status).toHaveValue("submitted_externally");
   expect(prompts).toHaveLength(2);
+  expect(prompts[0]).toContain("approved for export");
   expect(prompts[1]).toContain("Nimanto does not submit anything for you");
+});
+
+test("deletion hands back a receipt that outlives the session, and does not outlive the next one", async ({
+  page,
+}) => {
+  await page.goto(`/workspace/#bootstrap=${bootstrapSecret}`);
+  await page.getByLabel("Your name").fill("Erase Me");
+  await page.getByLabel("Your email").fill("erase@example.test");
+  await page.getByRole("button", { name: "Start private workspace" }).click();
+  await page.getByRole("button", { name: "Data controls" }).click();
+
+  await page
+    .getByRole("textbox", { name: /DELETE MY NIMANTO DATA/ })
+    .fill("DELETE MY NIMANTO DATA");
+  await page.getByRole("button", { name: "Delete all data" }).click();
+
+  /* Deletion clears the session, so the panel that requested it unmounts. The
+   * receipt has to survive that or the seven-day token — the only way to check
+   * or resume the deletion — is gone before it can be read. */
+  const receipt = page.locator(".receipt");
+  await expect(receipt).toBeVisible();
+  await expect(receipt.getByRole("heading")).toContainText("deleted");
+  await expect(receipt.getByRole("button", { name: /Copy/ })).toBeVisible();
+  await expect(receipt).toContainText("/v1/deletion/resume");
+  const token = await receipt.locator("code").first().textContent();
+  expect(token?.trim().length).toBeGreaterThan(16);
+
+  // The success notice must not contradict the receipt beside it: the server
+  // decides whether file cleanup finished, so this copy stays outcome-neutral.
+  await expect(page.locator(".notice.ok")).not.toContainText("deleted");
+
+  /* A new workspace retires the old receipt. Signing out does not reload the
+   * page, so a stale one would re-announce a dead token over a live workspace.
+   * Deliberately without navigating: a reload would clear the receipt anyway
+   * and prove nothing. Deletion also cleared the launch key, so it is entered
+   * again here rather than arriving in the URL. */
+  await page.getByLabel("Private launch key").fill(bootstrapSecret);
+  await page.getByLabel("Your name").fill("Someone Else");
+  await page.getByLabel("Your email").fill("someone@example.test");
+  await page.getByRole("button", { name: "Start private workspace" }).click();
+  // Section-agnostic on purpose: the hash still reads #data from before the
+  // deletion, and restoring that section is the routing fix working.
+  await expect(page.locator(".workspace-shell")).toBeVisible();
+  await expect(page.getByText("someone@example.test")).toBeVisible();
+
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await expect(page.getByRole("heading", { name: "Your evidence stays with you." })).toBeVisible();
+  await expect(page.locator(".receipt")).toHaveCount(0);
 });
 
 test("the match band is never covered, and the section survives back and reload", async ({

@@ -132,15 +132,19 @@ issue a hashed, expiring, single-use invitation.
   Raw uploads are discarded after extraction.
 - Every extracted claim stays **pending** until you confirm it. Confirmation is
   required before a claim can support a match or a packet. The import preview
-  lists the exact claims a file would create before anything is stored.
+  lists the claims a file would create — up to the 500 an import stores —
+  before anything is written.
 - Immutable profile versions carrying candidate-approved authorization wording.
 - Deterministic `scoring_rules_v1` matching across four documented dimensions,
   with sponsorship, citizenship, clearance and location blockers left visible.
 - An unmet requirement offers to add evidence for itself. Only the requirement
   wording is carried into the claim form — never the posting's source name or
   locator — and the claim it creates is pending and user-attested like any other.
-- Evidence Strength counts a requirement as source-linked only when a claim
-  behind it carries a source rather than your own attestation.
+- Evidence Strength — an API-level ordinal, not yet surfaced in the workbench —
+  counts a requirement as source-linked only when a claim behind it is **not**
+  marked as your own attestation. Manually entered claims are always attested,
+  so a workspace built from them reports `source_limited`, and that includes the
+  synthetic starter data.
 - The free-text scoring projection removes pronouns, standalone year cues and a
   conventional name prefix. It is **not** comprehensive de-identification —
   sensitive identity details should not be imported as scoring evidence.

@@ -46,6 +46,9 @@ import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest }
 import type { NimantoApiOptions } from "./config.js";
 
 const SESSION_COOKIE = "nimanto_session";
+/* Preview and import must slice the same bounded array, or the preview promises
+ * claims the import silently drops. */
+const EVIDENCE_IMPORT_LIMIT = 500;
 const H1B_LABELS: H1bSignalLabel[] = [
   "current_role_transfer_support",
   "current_company_policy_support",
@@ -849,13 +852,16 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
   app.post("/v1/evidence/preview", async (request) => {
     identity(request);
     const upload = await parseEvidenceUpload(request.body);
+    // The contract promises a preview of every accepted field before ingestion.
+    // A count is not that: for anything but a LinkedIn archive it asked the
+    // candidate to accept claims they could not read. This is the same bounded
+    // slice the import will create, so the count has to be the slice's length —
+    // reporting the parsed total would promise claims the import then drops.
+    const claims = upload.parsed.claims.slice(0, EVIDENCE_IMPORT_LIMIT);
     return {
-      claimCount: upload.parsed.claims.length,
-      // The contract promises a preview of every accepted field before
-      // ingestion. A count is not that: for anything but a LinkedIn archive it
-      // asked the candidate to accept claims they could not read. Nothing is
-      // stored by this route — the same bounded slice the import will create.
-      claims: upload.parsed.claims.slice(0, 500).map((claim) => ({
+      claimCount: claims.length,
+      parsedCount: upload.parsed.claims.length,
+      claims: claims.map((claim) => ({
         kind: claim.kind,
         value: claim.value,
         sourceName: claim.sourceName,
@@ -877,7 +883,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
       throw new Error("EVIDENCE_PREVIEW_CHANGED");
     }
     const claims = [];
-    for (const claim of upload.parsed.claims.slice(0, 500))
+    for (const claim of upload.parsed.claims.slice(0, EVIDENCE_IMPORT_LIMIT))
       claims.push(await store.createEvidence(person.tenantId, claim));
     return {
       claims,
