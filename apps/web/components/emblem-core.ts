@@ -1,8 +1,9 @@
-/* The Nimanto emblem — the invitation fold.
+/* The Nimanto emblem — the fold lotus.
  *
- * A notched, jaali-pierced card whose corner peels back on a hinge to reveal
- * the vermilion light behind it. That is the product thesis as an object: an
- * invitation you open yourself, nothing sent on your behalf.
+ * Five brass-edged petals opening about a single axis: two ivory outer, three
+ * lacquer inner, an emerald seed at the centre with the vermilion light behind
+ * it. That is the product thesis as an object — something that opens because
+ * you opened it, nothing sent on your behalf.
  *
  * Adapted from the first-party brand source vendored at
  * docs/superpowers/specs/assets/nimanto-emblem.source.js. Two deliberate
@@ -12,8 +13,8 @@
  *      Nimanto makes no external requests, and the workbench has to run offline.
  *      Imports are named rather than a namespace so the bundler can drop the
  *      large majority of three this scene never touches.
- *   2. Only the fold ships. The source also carries an "MA seal" and a "fold
- *      lotus"; they are real code, but dead code in a bundle is still bytes.
+ *   2. Only the lotus ships. The source also carries an "MA seal" and an
+ *      "invitation fold"; they are real code, but dead code is still bytes.
  *
  * Every colour here is a token from tokens.css, not an invention. */
 
@@ -26,6 +27,7 @@ import {
   Color,
   DirectionalLight,
   DoubleSide,
+  CircleGeometry,
   ExtrudeGeometry,
   Group,
   Mesh,
@@ -41,13 +43,15 @@ import {
   Scene,
   Shape,
   ShadowMaterial,
+  TorusGeometry,
   WebGLRenderer,
 } from "three";
 
 const INK = 0x0a0908;
 const IVORY = 0xd5ccb9;
 const BRASS = 0xb8935a;
-const INLAY = 0x9d7c4a;
+const LACQUER = 0x101013;
+const EMERALD = 0x16543f;
 const VERMILION = "#D6472C";
 
 const DEG = Math.PI / 180;
@@ -64,40 +68,16 @@ const outBack = (t: number) => {
 
 /* ── shapes ─────────────────────────────────────────────────────────────── */
 
-function diamond(cx: number, cy: number, r: number): Path {
-  const p = new Path();
-  p.moveTo(cx, cy - r);
-  p.lineTo(cx + r, cy);
-  p.lineTo(cx, cy + r);
-  p.lineTo(cx - r, cy);
-  p.closePath();
-  return p;
-}
-
-/** The card outline: a square with one corner cut away, inset by `d`. */
-function notchPoly(s: number, c: number, d: number): [number, number][] {
-  const k = 2 * s - c - d * Math.SQRT2;
-  return [
-    [-s + d, -s + d],
-    [s - d, -s + d],
-    [s - d, k - (s - d)],
-    [k - (s - d), s - d],
-    [-s + d, s - d],
-  ];
-}
-
-function polyShape(points: [number, number][]): Shape {
+/** Half a petal, mirrored by `sign`. Two of these back to back make one petal,
+ *  which is what gives the brass seam down its spine. */
+function petalShape(w: number, h: number, sign: number): Shape {
   const shape = new Shape();
-  points.forEach((p, i) => (i ? shape.lineTo(p[0], p[1]) : shape.moveTo(p[0], p[1])));
-  shape.closePath();
+  const x = (v: number) => v * sign;
+  shape.moveTo(0, 0);
+  shape.lineTo(0, h);
+  shape.quadraticCurveTo(x(w * 0.98), h * 0.7, x(w * 0.66), h * 0.3);
+  shape.quadraticCurveTo(x(w * 0.4), h * 0.055, 0, 0);
   return shape;
-}
-
-function polyPath(points: [number, number][]): Path {
-  const path = new Path();
-  points.forEach((p, i) => (i ? path.lineTo(p[0], p[1]) : path.moveTo(p[0], p[1])));
-  path.closePath();
-  return path;
 }
 
 function glowTexture(): HTMLCanvasElement {
@@ -162,18 +142,17 @@ export class NimantoEmblem {
   #scene = new Scene();
   #camera = new PerspectiveCamera(26, 1, 0.1, 60);
   #root = new Group();
-  #card = new Group();
-  #flap = new Group();
-  #spark!: Mesh;
+  #petals: Group[] = [];
+  #glow!: Mesh;
   #halo!: Mesh;
   #glowLight!: PointLight;
   #key!: DirectionalLight;
   #rim!: DirectionalLight;
   #materials!: {
     ivory: MeshPhysicalMaterial;
+    lacquer: MeshPhysicalMaterial;
     brass: MeshPhysicalMaterial;
-    inlay: MeshPhysicalMaterial;
-    vermilion: MeshPhysicalMaterial;
+    emerald: MeshPhysicalMaterial;
     accent: MeshBasicMaterial;
   };
 
@@ -287,19 +266,20 @@ export class NimantoEmblem {
         metalness: 1,
         envMapIntensity: 1.45,
       }),
-      inlay: new MeshPhysicalMaterial({
-        color: INLAY,
-        roughness: 0.44,
-        metalness: 1,
-        envMapIntensity: 0.85,
-      }),
-      vermilion: new MeshPhysicalMaterial({
-        color: new Color(VERMILION).multiplyScalar(0.72),
-        roughness: 0.3,
-        metalness: 0.06,
+      lacquer: new MeshPhysicalMaterial({
+        color: LACQUER,
+        roughness: 0.36,
+        metalness: 0.04,
         clearcoat: 1,
-        clearcoatRoughness: 0.18,
-        envMapIntensity: 0.5,
+        clearcoatRoughness: 0.24,
+        envMapIntensity: 0.55,
+      }),
+      emerald: new MeshPhysicalMaterial({
+        color: EMERALD,
+        roughness: 0.22,
+        metalness: 0.1,
+        clearcoat: 1,
+        clearcoatRoughness: 0.1,
       }),
       accent: new MeshBasicMaterial({
         color: new Color(VERMILION),
@@ -327,80 +307,67 @@ export class NimantoEmblem {
     this.#scene.add(this.#halo);
 
     this.#scene.add(this.#root);
-    this.#root.add(this.#buildFold());
+    this.#root.add(this.#buildLotus());
   }
 
-  #buildFold(): Group {
+  /* Five petals fanned about a single axis: two ivory outer, three lacquer
+   * inner, every edge caught in brass. At the axis sits the emerald seed — the
+   * palette reserves emerald for exactly one confirmed thing, and this is it —
+   * with the vermilion light behind. */
+  #buildLotus(): Group {
     const group = new Group();
-    const s = 0.775;
-    const c = 0.62;
+    const spec = [
+      { angle: -64, w: 0.33, h: 1.1, material: "ivory" as const },
+      { angle: -33, w: 0.4, h: 1.44, material: "lacquer" as const },
+      { angle: -3, w: 0.45, h: 1.66, material: "lacquer" as const },
+      { angle: 27, w: 0.38, h: 1.38, material: "lacquer" as const },
+      { angle: 56, w: 0.31, h: 1.02, material: "ivory" as const },
+    ];
+    const axis = -0.62;
 
-    const card = polyShape(notchPoly(s, c, 0));
-    // Three jaali piercings stepping along the diagonal toward the notch.
-    for (let i = 0; i < 3; i++) {
-      const u = (i + 0.5) / 3;
-      const l = 0.5;
-      card.holes.push(diamond(-s + l * u + 0.27, -s + l * (1 - u) + 0.27, 0.058));
-    }
-    const cardGeometry = new ExtrudeGeometry(card, {
-      depth: 0.16,
-      bevelEnabled: true,
-      bevelThickness: 0.016,
-      bevelSize: 0.016,
-      bevelSegments: 2,
-      curveSegments: 3,
+    spec.forEach((petal, index) => {
+      const holder = new Group();
+      for (const sign of [1, -1]) {
+        const geometry = new ExtrudeGeometry(petalShape(petal.w, petal.h, sign), {
+          depth: 0.045,
+          bevelEnabled: true,
+          bevelThickness: 0.012,
+          bevelSize: 0.012,
+          bevelSegments: 2,
+          curveSegments: 10,
+        });
+        geometry.translate(0, 0, -0.022);
+        const half = new Mesh(geometry, [this.#materials[petal.material], this.#materials.brass]);
+        half.castShadow = true;
+        half.receiveShadow = true;
+        half.userData.sign = sign;
+        holder.add(half);
+      }
+      const radians = petal.angle * DEG;
+      const radius = 0.12;
+      holder.userData.rest = {
+        rz: radians,
+        x: -Math.sin(radians) * radius,
+        y: Math.cos(radians) * radius + axis,
+        z: (index - 2) * 0.016,
+        fold: 8 * DEG,
+      };
+      group.add(holder);
+      this.#petals.push(holder);
     });
-    cardGeometry.translate(0, 0, -0.08);
-    const cardMesh = new Mesh(cardGeometry, [this.#materials.ivory, this.#materials.brass]);
-    cardMesh.castShadow = true;
-    cardMesh.receiveShadow = true;
 
-    // A recessed brass rule tracking the card outline one step inside it.
-    const rule = polyShape(notchPoly(s, c, 0.125));
-    rule.holes.push(polyPath(notchPoly(s, c, 0.149)));
-    const ruleGeometry = new ExtrudeGeometry(rule, {
-      depth: 0.014,
-      bevelEnabled: false,
-      curveSegments: 2,
-    });
-    ruleGeometry.translate(0, 0, 0.082);
+    const hub = new Mesh(new TorusGeometry(0.155, 0.032, 10, 44), this.#materials.brass);
+    hub.position.y = axis;
+    hub.castShadow = true;
+    group.add(hub);
 
-    this.#card.add(cardMesh);
-    this.#card.add(new Mesh(ruleGeometry, this.#materials.inlay));
-    group.add(this.#card);
+    const seed = new Mesh(new CircleGeometry(0.115, 32), this.#materials.emerald);
+    seed.position.set(0, axis, 0.01);
+    group.add(seed);
 
-    this.#spark = new Mesh(new PlaneGeometry(0.88, 0.28), this.#materials.accent.clone());
-    this.#spark.position.set(-0.255, -0.255, -0.115);
-    this.#spark.rotation.z = -Math.PI / 4;
-    this.#card.add(this.#spark);
-
-    // The flap: the cut corner, hinged so it turns back over the light.
-    const angle = Math.PI * 0.75;
-    const mx = s - c / 2;
-    const my = s - c / 2;
-    const triangle = new Shape();
-    triangle.moveTo(s, s - c);
-    triangle.lineTo(s, s);
-    triangle.lineTo(s - c, s);
-    triangle.closePath();
-    const flapGeometry = new ExtrudeGeometry(triangle, {
-      depth: 0.1,
-      bevelEnabled: true,
-      bevelThickness: 0.012,
-      bevelSize: 0.012,
-      bevelSegments: 2,
-      curveSegments: 2,
-    });
-    flapGeometry.translate(-mx, -my, -0.105);
-    flapGeometry.rotateZ(-angle);
-    const flapMesh = new Mesh(flapGeometry, [this.#materials.vermilion, this.#materials.brass]);
-    flapMesh.castShadow = true;
-    this.#flap.add(flapMesh);
-    const pivot = new Group();
-    pivot.position.set(mx, my, 0.08);
-    pivot.rotation.z = angle;
-    pivot.add(this.#flap);
-    this.#card.add(pivot);
+    this.#glow = new Mesh(new CircleGeometry(0.34, 40), this.#materials.accent.clone());
+    this.#glow.position.set(0, axis, -0.09);
+    group.add(this.#glow);
 
     return group;
   }
@@ -454,10 +421,10 @@ export class NimantoEmblem {
     const height = this.#host.clientHeight || 1;
     this.#renderer.setSize(width, height, false);
     this.#camera.aspect = width / height;
-    const subject = 2.72;
+    const subject = 3.05;
     // Fraction of the frame the mark should occupy. It is the page's one
     // subject, so it fills most of its box rather than floating in it.
-    const need = subject / (height < 620 ? 0.68 : 0.78);
+    const need = subject / (height < 620 ? 0.78 : 0.9);
     this.#camera.position.z =
       need / (2 * Math.tan((this.#camera.fov / 2) * DEG) * Math.min(1, this.#camera.aspect));
     this.#camera.updateProjectionMatrix();
@@ -497,29 +464,43 @@ export class NimantoEmblem {
     const targetX = -this.#py * 0.15 + Math.sin(drift * 0.19) * 0.035 * breath;
     root.rotation.y = instant ? targetY : lerp(root.rotation.y, targetY, 0.08);
     root.rotation.x = instant ? targetX : lerp(root.rotation.x, targetX, 0.08);
-    root.rotation.z = Math.sin(drift * 0.13) * 0.018 * breath;
+    root.rotation.z = Math.sin(drift * 0.13) * 0.018 * breath + Math.PI * 2 * turn;
     // Scroll drifts the mark up and settles it to 0.88 as the thesis arrives.
-    root.position.y = 0.46 + Math.sin(drift * 0.37) * 0.022 * breath - this.#scroll * 0.15;
+    root.position.y = 0.18 + Math.sin(drift * 0.37) * 0.022 * breath - this.#scroll * 0.15;
     const breathScale = 1 + Math.sin(drift * 0.5) * 0.005 * breath;
     root.scale.setScalar(breathScale * (1 - this.#scroll * 0.12));
 
     const progress = instant ? 1 : clamp(t / d, 0, 1);
-    const entry = instant ? 1 : outQuint(clamp(t / (d * 0.62), 0, 1));
-    const card = this.#card;
-    card.rotation.y = (1 - entry) * -2.15 + swell * 0.44;
-    card.rotation.z = Math.sin(drift * 0.16) * 0.022 * breath + (1 - entry) * 0.22;
-    card.position.set(0, (1 - entry) * -0.55, (1 - entry) * -2.2 + swell * 0.28);
-    card.scale.setScalar(0.74 + 0.26 * entry);
+    // Petals open in sequence rather than together, so the mark assembles.
+    const stagger = (index: number) => {
+      const begin = (index / 5) * d * 0.42;
+      return clamp((t - begin) / (d * 0.58), 0, 1);
+    };
 
-    const flapEase = instant ? 1 : outBack(clamp((t - d * 0.48) / (d * 0.52), 0, 1));
-    const rest = Math.PI * 0.94;
-    const flapBreath = Math.sin(drift * 0.34) * 0.05 * breath;
-    this.#flap.rotation.x =
-      (rest + flapBreath - this.#hover * 0.07) * flapEase * (1 - swell * 0.97);
+    this.#petals.forEach((petal, index) => {
+      const eased = instant ? 1 : outQuint(stagger(index));
+      const rest = petal.userData.rest as {
+        rz: number;
+        x: number;
+        y: number;
+        z: number;
+        fold: number;
+      };
+      // The ceremony closes the lotus and lets it open again.
+      const open = eased * (1 - swell * 0.92) * (1 + Math.sin(drift * 0.17) * 0.07 * breath);
+      petal.rotation.z = rest.rz * open;
+      petal.position.set(rest.x * eased, rest.y, rest.z + (1 - eased) * -1.4 + swell * 0.1);
+      petal.scale.setScalar(0.55 + 0.45 * eased);
+      const fold =
+        rest.fold * eased * (1 + swell * 0.9) + Math.sin(drift * 0.42 + index) * 0.012 * breath;
+      for (const half of petal.children) {
+        if (half.userData.sign) half.rotation.y = fold * (half.userData.sign as number);
+      }
+    });
 
     const glow = (0.22 + this.#hover * 0.7 + swell * 0.35) * progress;
     this.#materials.accent.opacity = clamp(glow * 0.15, 0, 1);
-    (this.#spark.material as MeshBasicMaterial).opacity = clamp(glow * 0.75, 0, 1);
+    (this.#glow.material as MeshBasicMaterial).opacity = clamp(glow * 0.26, 0, 1);
     (this.#halo.material as MeshBasicMaterial).opacity = clamp(0.09 + glow * 0.26, 0, 1);
     this.#glowLight.intensity = 0.12 + glow * 1.3;
     this.#materials.brass.envMapIntensity = 1.38 + this.#hover * 0.4;

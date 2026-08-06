@@ -1,10 +1,48 @@
-/* The flat mark: the same invitation fold as the 3D emblem, drawn once.
+/* The flat mark: the same fold lotus as the 3D emblem, drawn once.
  *
  * Every coordinate is projected from the emblem's own geometry rather than
- * redrawn by eye — the card outline is notchPoly(0.775, 0.62, 0) mapped into a
- * 64-unit box, the three jaali piercings sit where the extruded holes sit, and
- * the flap is the cut triangle reflected across its hinge. That is why the mark
- * and the hero read as the same object rather than as a logo and a render. */
+ * redrawn by eye — each petal is petalShape(w, h) from the brand source, placed
+ * at the angle and root offset the 3D scene uses, mapped into a 64-unit box.
+ * That is why the mark and the hero read as the same object rather than as a
+ * logo and a render. */
+
+const PETALS = [
+  {
+    key: "outer-right",
+    material: "ivory",
+    at: "translate(34.70 48.68) rotate(64)",
+    d: "M0 -27.50 Q8.08 -19.25 5.45 -8.25 Q3.30 -1.51 0 0 Q-3.30 -1.51 -5.45 -8.25 Q-8.08 -19.25 0 -27.50 Z",
+    vein: "M0 0 L0 -27.50",
+  },
+  {
+    key: "inner-right",
+    material: "lacquer",
+    at: "translate(33.63 47.48) rotate(33)",
+    d: "M0 -36.00 Q9.80 -25.20 6.60 -10.80 Q4.00 -1.98 0 0 Q-4.00 -1.98 -6.60 -10.80 Q-9.80 -25.20 0 -36.00 Z",
+    vein: "M0 0 L0 -36.00",
+  },
+  {
+    key: "inner-left",
+    material: "lacquer",
+    at: "translate(30.64 47.33) rotate(-27)",
+    d: "M0 -34.50 Q9.31 -24.15 6.27 -10.35 Q3.80 -1.90 0 0 Q-3.80 -1.90 -6.27 -10.35 Q-9.31 -24.15 0 -34.50 Z",
+    vein: "M0 0 L0 -34.50",
+  },
+  {
+    key: "crown",
+    material: "lacquer",
+    at: "translate(32.16 47.00) rotate(3)",
+    d: "M0 -41.50 Q11.03 -29.05 7.43 -12.45 Q4.50 -2.28 0 0 Q-4.50 -2.28 -7.43 -12.45 Q-11.03 -29.05 0 -41.50 Z",
+    vein: "M0 0 L0 -41.50",
+  },
+  {
+    key: "outer-left",
+    material: "ivory",
+    at: "translate(29.51 48.32) rotate(-56)",
+    d: "M0 -25.50 Q7.59 -17.85 5.12 -7.65 Q3.10 -1.40 0 0 Q-3.10 -1.40 -5.12 -7.65 Q-7.59 -17.85 0 -25.50 Z",
+    vein: "M0 0 L0 -25.50",
+  },
+];
 
 export function Mark({ size = 40, title }: { size?: number; title?: string }) {
   return (
@@ -18,29 +56,19 @@ export function Mark({ size = 40, title }: { size?: number; title?: string }) {
       aria-hidden={title ? undefined : true}
       focusable="false"
     >
-      {/* the light, behind the screen */}
-      <circle cx="23.4" cy="40.6" r="15" className="mark-glow" />
-      {/* card — ivory face, notched at the top right. evenodd turns the three
-          jaali diamonds into real piercings so the light comes through them
-          rather than being painted on top. */}
-      <path
-        className="mark-card"
-        fillRule="evenodd"
-        d="M6 58 L58 58 L58 26.8 L37.2 6 L6 6 Z
-           M17.85 32.65 l2.3 2.3 -2.3 2.3 -2.3 -2.3 Z
-           M23.44 38.25 l2.3 2.3 -2.3 2.3 -2.3 -2.3 Z
-           M29.04 43.85 l2.3 2.3 -2.3 2.3 -2.3 -2.3 Z"
-      />
-      {/* recessed brass rule, one step inside the outline */}
-      <path
-        d="M11 53 L53 53 L53 28.9 L35.1 11 L11 11 Z"
-        className="mark-rule"
-        fill="none"
-        strokeWidth="1.4"
-      />
-      {/* the corner, turned back */}
-      <path d="M58 26.8 L37.2 6 L37.2 26.8 Z" className="mark-flap" />
-      <path d="M58 26.8 L37.2 6" className="mark-hinge" fill="none" strokeWidth="1.3" />
+      {/* the light behind the seed */}
+      <circle cx="32" cy="50" r="9" className="mark-glow" />
+      {/* five petals: two ivory outer, three lacquer inner, brass at every edge.
+          Lacquer first so the ivory pair reads in front, as it does in 3D. */}
+      {PETALS.map((petal) => (
+        <g key={petal.key} transform={petal.at}>
+          <path className={`mark-petal is-${petal.material}`} d={petal.d} strokeWidth="0.5" />
+          <path className="mark-vein" d={petal.vein} fill="none" strokeWidth="0.4" />
+        </g>
+      ))}
+      {/* the seed at the axis, in its brass hub */}
+      <circle cx="32" cy="50" r="3.1" className="mark-seed" />
+      <circle cx="32" cy="50" r="4.2" className="mark-hub" fill="none" strokeWidth="1.5" />
     </svg>
   );
 }

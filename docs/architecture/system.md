@@ -82,7 +82,7 @@ Candidates can schedule Greenhouse, Lever, and Ashby public-board refreshes from
 
 The database state machine and domain state machine must agree. The API refuses execution unless the action is `approved` and the in-memory runtime switch is on. The switch has no environment override and resets to off with every API restart.
 
-Version 0.1.0 has no connected-account provider. Verification uses only a user-opened deep link and the local test outbox. Gmail, Outlook, form submission, and desktop delivery remain behind the separately approved Slice 4 boundary.
+Version 0.2.0 has no connected-account provider. Verification uses only a user-opened deep link and the local test outbox. Gmail, Outlook, form submission, and desktop delivery remain behind the separately approved Slice 4 boundary.
 
 ## Scaling path
 

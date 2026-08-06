@@ -406,21 +406,27 @@ svg {
   color: inherit;
 }
 
-.mark .mark-card {
+.mark .mark-petal {
+  stroke: var(--brass-500);
+}
+.mark .mark-petal.is-ivory {
   fill: var(--stone-600);
 }
-.mark .mark-rule {
+.mark .mark-petal.is-lacquer {
+  fill: var(--lacquer);
+}
+.mark .mark-vein {
   stroke: var(--brass-400);
 }
-.mark .mark-flap {
-  fill: var(--live-core);
+.mark .mark-seed {
+  fill: var(--ok-seed);
 }
-.mark .mark-hinge {
+.mark .mark-hub {
   stroke: var(--brass-500);
 }
 .mark .mark-glow {
   fill: var(--live-core);
-  opacity: 0.55;
+  opacity: 0.5;
 }
 
 .site-header nav {

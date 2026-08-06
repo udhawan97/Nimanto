@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" role="img" aria-label="The Nimanto invitation fold: a notched card whose corner turns back over a vermilion light">
-  <title>Nimanto — the invitation fold</title>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" role="img" aria-label="The Nimanto fold lotus: five brass-edged petals opening around an emerald seed">
+  <title>Nimanto — the fold lotus</title>
   <!--
-    The mark, assembling once and settling.
+    The mark, opening once and settling.
 
     SMIL rather than CSS keyframes: GitHub serves README images through a proxy
     that renders them as images, where CSS animation support is inconsistent and
@@ -11,100 +11,107 @@
     five-second threshold in WCAG 2.2.2 — which matters because a README gives
     the reader no pause control.
 
-    The fold is a real 180-degree rotation about the hinge, projected: the free
-    apex travels in a straight line from its flat position to its turned-back
-    one, and the triangle passes through zero area at the halfway point exactly
-    as a physical corner does.
+    Petals open in the same staggered order, and to the same rest angles, that
+    the WebGL emblem uses, so the two read as one object.
   -->
   <defs>
-    <radialGradient id="ground" cx="50%" cy="44%" r="66%">
+    <radialGradient id="ground" cx="50%" cy="50%" r="66%">
       <stop offset="0" stop-color="#241C14"/>
       <stop offset="1" stop-color="#0A0908"/>
     </radialGradient>
     <radialGradient id="bloom" cx="50%" cy="50%" r="50%">
       <stop offset="0" stop-color="#E8785F"/>
-      <stop offset=".45" stop-color="#D6472C"/>
+      <stop offset=".4" stop-color="#D6472C" stop-opacity=".75"/>
       <stop offset="1" stop-color="#D6472C" stop-opacity="0"/>
     </radialGradient>
   </defs>
 
   <rect width="200" height="200" rx="40" fill="url(#ground)"/>
 
-  <g transform="translate(36 36) scale(2)">
-    <!-- the light behind the screen, blooming as the corner lifts -->
-    <circle cx="23.4" cy="40.6" r="17" fill="url(#bloom)" opacity="0">
-      <animate attributeName="opacity" values="0;0;1;.72" keyTimes="0;.34;.62;1"
+  <g transform="translate(36 34) scale(2.05)" stroke-linejoin="round">
+    <!-- the light behind the seed -->
+    <circle cx="32" cy="50" r="11" fill="url(#bloom)" opacity="0">
+      <animate attributeName="opacity" values="0;0;1;.72" keyTimes="0;.3;.68;1"
                dur="4.4s" begin="0s" repeatCount="1" fill="freeze"/>
     </circle>
 
+      <g transform="translate(33.63 47.48)">
+        <g transform="rotate(0) scale(.55)" opacity="0">
+          <animateTransform attributeName="transform" type="rotate" values="0;33"
+                            keyTimes="0.084;0.664" dur="4.4s" begin="0s" repeatCount="1"
+                            fill="freeze" calcMode="spline" keySplines="0 .55 .25 1" additive="sum"/>
+          <animateTransform attributeName="transform" type="scale" values=".55;1"
+                            keyTimes="0.084;0.664" dur="4.4s" begin="0s" repeatCount="1"
+                            fill="freeze" calcMode="spline" keySplines="0 .55 .25 1" additive="sum"/>
+          <animate attributeName="opacity" values="0;1" keyTimes="0.084;0.664"
+                   dur="4.4s" begin="0s" repeatCount="1" fill="freeze"/>
+          <path d="M0 -36.00 Q9.80 -25.20 6.60 -10.80 Q4.00 -1.98 0 0 Q-4.00 -1.98 -6.60 -10.80 Q-9.80 -25.20 0 -36.00 Z" fill="#101013" stroke="#B8935A" stroke-width=".5"/>
+          <path d="M0 0 L0 -36.00" stroke="#9D7C4A" stroke-width=".4" fill="none"/>
+        </g>
+      </g>
+      <g transform="translate(30.64 47.33)">
+        <g transform="rotate(0) scale(.55)" opacity="0">
+          <animateTransform attributeName="transform" type="rotate" values="0;-27"
+                            keyTimes="0.252;0.832" dur="4.4s" begin="0s" repeatCount="1"
+                            fill="freeze" calcMode="spline" keySplines="0 .55 .25 1" additive="sum"/>
+          <animateTransform attributeName="transform" type="scale" values=".55;1"
+                            keyTimes="0.252;0.832" dur="4.4s" begin="0s" repeatCount="1"
+                            fill="freeze" calcMode="spline" keySplines="0 .55 .25 1" additive="sum"/>
+          <animate attributeName="opacity" values="0;1" keyTimes="0.252;0.832"
+                   dur="4.4s" begin="0s" repeatCount="1" fill="freeze"/>
+          <path d="M0 -34.50 Q9.31 -24.15 6.27 -10.35 Q3.80 -1.90 0 0 Q-3.80 -1.90 -6.27 -10.35 Q-9.31 -24.15 0 -34.50 Z" fill="#101013" stroke="#B8935A" stroke-width=".5"/>
+          <path d="M0 0 L0 -34.50" stroke="#9D7C4A" stroke-width=".4" fill="none"/>
+        </g>
+      </g>
+      <g transform="translate(32.16 47.00)">
+        <g transform="rotate(0) scale(.55)" opacity="0">
+          <animateTransform attributeName="transform" type="rotate" values="0;3"
+                            keyTimes="0.168;0.748" dur="4.4s" begin="0s" repeatCount="1"
+                            fill="freeze" calcMode="spline" keySplines="0 .55 .25 1" additive="sum"/>
+          <animateTransform attributeName="transform" type="scale" values=".55;1"
+                            keyTimes="0.168;0.748" dur="4.4s" begin="0s" repeatCount="1"
+                            fill="freeze" calcMode="spline" keySplines="0 .55 .25 1" additive="sum"/>
+          <animate attributeName="opacity" values="0;1" keyTimes="0.168;0.748"
+                   dur="4.4s" begin="0s" repeatCount="1" fill="freeze"/>
+          <path d="M0 -41.50 Q11.03 -29.05 7.43 -12.45 Q4.50 -2.28 0 0 Q-4.50 -2.28 -7.43 -12.45 Q-11.03 -29.05 0 -41.50 Z" fill="#161613" stroke="#B8935A" stroke-width=".5"/>
+          <path d="M0 0 L0 -41.50" stroke="#9D7C4A" stroke-width=".4" fill="none"/>
+        </g>
+      </g>
+      <g transform="translate(34.70 48.68)">
+        <g transform="rotate(0) scale(.55)" opacity="0">
+          <animateTransform attributeName="transform" type="rotate" values="0;64"
+                            keyTimes="0.0;0.58" dur="4.4s" begin="0s" repeatCount="1"
+                            fill="freeze" calcMode="spline" keySplines="0 .55 .25 1" additive="sum"/>
+          <animateTransform attributeName="transform" type="scale" values=".55;1"
+                            keyTimes="0.0;0.58" dur="4.4s" begin="0s" repeatCount="1"
+                            fill="freeze" calcMode="spline" keySplines="0 .55 .25 1" additive="sum"/>
+          <animate attributeName="opacity" values="0;1" keyTimes="0.0;0.58"
+                   dur="4.4s" begin="0s" repeatCount="1" fill="freeze"/>
+          <path d="M0 -27.50 Q8.08 -19.25 5.45 -8.25 Q3.30 -1.51 0 0 Q-3.30 -1.51 -5.45 -8.25 Q-8.08 -19.25 0 -27.50 Z" fill="#D5CCB9" stroke="#B8935A" stroke-width=".5"/>
+          <path d="M0 0 L0 -27.50" stroke="#9D7C4A" stroke-width=".4" fill="none"/>
+        </g>
+      </g>
+      <g transform="translate(29.51 48.32)">
+        <g transform="rotate(0) scale(.55)" opacity="0">
+          <animateTransform attributeName="transform" type="rotate" values="0;-56"
+                            keyTimes="0.336;0.916" dur="4.4s" begin="0s" repeatCount="1"
+                            fill="freeze" calcMode="spline" keySplines="0 .55 .25 1" additive="sum"/>
+          <animateTransform attributeName="transform" type="scale" values=".55;1"
+                            keyTimes="0.336;0.916" dur="4.4s" begin="0s" repeatCount="1"
+                            fill="freeze" calcMode="spline" keySplines="0 .55 .25 1" additive="sum"/>
+          <animate attributeName="opacity" values="0;1" keyTimes="0.336;0.916"
+                   dur="4.4s" begin="0s" repeatCount="1" fill="freeze"/>
+          <path d="M0 -25.50 Q7.59 -17.85 5.12 -7.65 Q3.10 -1.40 0 0 Q-3.10 -1.40 -5.12 -7.65 Q-7.59 -17.85 0 -25.50 Z" fill="#D5CCB9" stroke="#B8935A" stroke-width=".5"/>
+          <path d="M0 0 L0 -25.50" stroke="#9D7C4A" stroke-width=".4" fill="none"/>
+        </g>
+      </g>
+
+    <!-- the seed at the axis, in its brass hub -->
     <g opacity="0">
-      <animate attributeName="opacity" values="0;1" keyTimes="0;.22" dur="4.4s"
+      <animate attributeName="opacity" values="0;1" keyTimes="0;.2" dur="4.4s"
                begin="0s" repeatCount="1" fill="freeze"/>
-      <animateTransform attributeName="transform" type="scale" values=".82;1"
-                        keyTimes="0;.3" dur="4.4s" begin="0s" repeatCount="1"
-                        fill="freeze" additive="sum"/>
-
-      <!-- card, pierced. The jaali are cut with evenodd rather than painted, so
-           the bloom above reads as light coming THROUGH the screen. They open
-           in sequence toward the notch as the rule completes. -->
-      <path fill="#D5CCB9" fill-rule="evenodd"
-            d="M6 58 L58 58 L58 26.8 L37.2 6 L6 6 Z
-               M17.85 34.95 l0 0 0 0 0 0 Z
-               M23.44 40.55 l0 0 0 0 0 0 Z
-               M29.04 46.15 l0 0 0 0 0 0 Z">
-        <animate attributeName="d"
-                 values="M6 58 L58 58 L58 26.8 L37.2 6 L6 6 Z
-                         M17.85 34.95 l0 0 0 0 0 0 Z
-                         M23.44 40.55 l0 0 0 0 0 0 Z
-                         M29.04 46.15 l0 0 0 0 0 0 Z;
-                         M6 58 L58 58 L58 26.8 L37.2 6 L6 6 Z
-                         M17.85 32.65 l2.3 2.3 -2.3 2.3 -2.3 -2.3 Z
-                         M23.44 40.55 l0 0 0 0 0 0 Z
-                         M29.04 46.15 l0 0 0 0 0 0 Z;
-                         M6 58 L58 58 L58 26.8 L37.2 6 L6 6 Z
-                         M17.85 32.65 l2.3 2.3 -2.3 2.3 -2.3 -2.3 Z
-                         M23.44 38.25 l2.3 2.3 -2.3 2.3 -2.3 -2.3 Z
-                         M29.04 46.15 l0 0 0 0 0 0 Z;
-                         M6 58 L58 58 L58 26.8 L37.2 6 L6 6 Z
-                         M17.85 32.65 l2.3 2.3 -2.3 2.3 -2.3 -2.3 Z
-                         M23.44 38.25 l2.3 2.3 -2.3 2.3 -2.3 -2.3 Z
-                         M29.04 43.85 l2.3 2.3 -2.3 2.3 -2.3 -2.3 Z;
-                         M6 58 L58 58 L58 26.8 L37.2 6 L6 6 Z
-                         M17.85 32.65 l2.3 2.3 -2.3 2.3 -2.3 -2.3 Z
-                         M23.44 38.25 l2.3 2.3 -2.3 2.3 -2.3 -2.3 Z
-                         M29.04 43.85 l2.3 2.3 -2.3 2.3 -2.3 -2.3 Z"
-                 keyTimes="0;.40;.46;.52;1"
-                 dur="4.4s" begin="0s" repeatCount="1" fill="freeze"/>
-      </path>
-
-      <!-- recessed brass rule, drawing itself one step inside the outline -->
-      <path d="M11 53 L53 53 L53 28.9 L35.1 11 L11 11 Z" fill="none"
-            stroke="#9D7C4A" stroke-width="1.4"
-            stroke-dasharray="160" stroke-dashoffset="160">
-        <animate attributeName="stroke-dashoffset" values="160;0" keyTimes="0;.5"
-                 dur="4.4s" begin="0s" repeatCount="1" fill="freeze"/>
-      </path>
-
-      <!-- the corner turning back: flat -> edge-on -> turned -->
-      <path d="M58 26.8 L37.2 6 L58 6 Z" fill="#D6472C">
-        <animate attributeName="d"
-                 values="M58 26.8 L37.2 6 L58 6 Z;
-                         M58 26.8 L37.2 6 L58 6 Z;
-                         M58 26.8 L37.2 6 L47.6 16.4 Z;
-                         M58 26.8 L37.2 6 L37.2 26.8 Z;
-                         M58 26.8 L37.2 6 L37.2 26.8 Z"
-                 keyTimes="0;.34;.5;.72;1"
-                 calcMode="spline"
-                 keySplines=".4 0 .6 1;.4 0 .6 1;.16 1 .3 1;0 0 1 1"
-                 dur="4.4s" begin="0s" repeatCount="1" fill="freeze"/>
-      </path>
-
-      <!-- the hinge itself, catching the light -->
-      <path d="M58 26.8 L37.2 6" stroke="#B8935A" stroke-width="1.2" fill="none"
-            stroke-dasharray="30" stroke-dashoffset="30">
-        <animate attributeName="stroke-dashoffset" values="30;0" keyTimes="0;.36"
-                 dur="4.4s" begin="0s" repeatCount="1" fill="freeze"/>
-      </path>
+      <circle cx="32" cy="50" r="3.1" fill="#16543F"/>
+      <circle cx="32" cy="50" r="4.2" stroke="#B8935A" stroke-width="1.5" fill="none"/>
     </g>
   </g>
 </svg>

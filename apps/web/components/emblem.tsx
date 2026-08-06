@@ -60,7 +60,7 @@ export function Emblem() {
       <div className="emblem-stage" ref={host} aria-hidden="true" />
       {stage !== "live" && (
         <div className="emblem-fallback" data-visible={stage === "fallback"}>
-          <Mark size={280} title="The Nimanto invitation fold" />
+          <Mark size={280} title="The Nimanto fold lotus" />
         </div>
       )}
     </div>
