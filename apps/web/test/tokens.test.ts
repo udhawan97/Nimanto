@@ -17,12 +17,11 @@ const css = readFileSync(path.resolve(process.cwd(), "../../tokens.css"), "utf8"
 function token(name: string, seen: string[] = []): string {
   if (seen.includes(name)) throw new Error(`token --${name} is circular: ${seen.join(" -> ")}`);
   const match = css.match(new RegExp(`--${name}:\\s*([^;]+);`));
-  if (!match) throw new Error(`token --${name} is not defined in tokens.css`);
+  if (!match?.[1]) throw new Error(`token --${name} is not defined in tokens.css`);
   const value = match[1].trim();
-  const hex = value.match(/^#[0-9a-fA-F]{6}$/);
-  if (hex) return value.toLowerCase();
+  if (/^#[0-9a-fA-F]{6}$/.test(value)) return value.toLowerCase();
   const indirect = value.match(/^var\(\s*--([\w-]+)\s*\)$/);
-  if (indirect) return token(indirect[1], [...seen, name]);
+  if (indirect?.[1]) return token(indirect[1], [...seen, name]);
   throw new Error(`token --${name} is neither a hex nor a var(): ${value}`);
 }
 
@@ -31,7 +30,9 @@ function channel(value: number): number {
 }
 
 function luminance(hex: string): number {
-  const [r, g, b] = [1, 3, 5].map((i) => channel(parseInt(hex.slice(i, i + 2), 16) / 255));
+  const [r = 0, g = 0, b = 0] = [1, 3, 5].map((i) =>
+    channel(parseInt(hex.slice(i, i + 2), 16) / 255),
+  );
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 

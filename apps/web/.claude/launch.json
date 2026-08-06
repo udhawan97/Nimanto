@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "nimanto-site",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@nimanto/web", "exec", "serve", "out", "-l", "4321", "--no-clipboard"],
+      "port": 4321
+    }
+  ]
+}

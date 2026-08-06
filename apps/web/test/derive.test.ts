@@ -37,8 +37,8 @@ describe("next-step rail", () => {
       evidence: [{ status: "pending" }],
       packets: Array.from({ length: 10 }, () => ({ status: "draft" })),
     });
-    expect(steps[0].id).toBe("confirm-evidence");
-    expect(steps[1].id).toBe("assure-packets");
+    expect(steps[0]?.id).toBe("confirm-evidence");
+    expect(steps[1]?.id).toBe("assure-packets");
   });
 
   it("orders the whole flow from earliest blockage to latest", () => {
@@ -65,7 +65,7 @@ describe("next-step rail", () => {
       matches: [{ job: { id: "a" }, result: { blockers: [] } }],
     });
     expect(steps).toHaveLength(1);
-    expect(steps[0].title).toContain("1 role");
+    expect(steps[0]?.title).toContain("1 role");
   });
 
   it("marks only the steps that are waiting on the candidate as live", () => {
@@ -89,7 +89,7 @@ describe("next-step rail", () => {
 
   it("singularises exactly one item", () => {
     const steps = nextSteps({ ...empty, evidence: [{ status: "pending" }] });
-    expect(steps[0].title).toBe("Confirm 1 imported claim");
+    expect(steps[0]?.title).toBe("Confirm 1 imported claim");
   });
 });
 

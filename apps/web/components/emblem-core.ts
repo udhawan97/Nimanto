@@ -31,7 +31,7 @@ import {
   Mesh,
   MeshBasicMaterial,
   MeshPhysicalMaterial,
-  PCFSoftShadowMap,
+  PCFShadowMap,
   Path,
   PerspectiveCamera,
   PlaneGeometry,
@@ -113,20 +113,6 @@ function glowTexture(): HTMLCanvasElement {
   return canvas;
 }
 
-/** The umber wash behind the mark — atmosphere, never a fill. */
-function wallTexture(): HTMLCanvasElement {
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = 512;
-  const ctx = canvas.getContext("2d")!;
-  const gradient = ctx.createRadialGradient(256, 210, 20, 256, 240, 330);
-  gradient.addColorStop(0, "#241C14");
-  gradient.addColorStop(0.55, "#14110d");
-  gradient.addColorStop(1, "#060505");
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, 512, 512);
-  return canvas;
-}
-
 /* A five-panel studio rig baked to an environment map. This is what puts a
  * believable specular roll across the brass edge; without it the metal reads
  * as flat orange plastic. */
@@ -180,7 +166,6 @@ export class NimantoEmblem {
   #flap = new Group();
   #spark!: Mesh;
   #halo!: Mesh;
-  #wall!: Mesh;
   #glowLight!: PointLight;
   #key!: DirectionalLight;
   #rim!: DirectionalLight;
@@ -226,7 +211,10 @@ export class NimantoEmblem {
     this.#renderer.toneMappingExposure = 1.02;
     this.#renderer.outputColorSpace = SRGBColorSpace;
     this.#renderer.shadowMap.enabled = true;
-    this.#renderer.shadowMap.type = PCFSoftShadowMap;
+    // PCFSoftShadowMap was deprecated between the r160 the scene was tuned
+    // against and the r185 we bundle; it now silently falls back and warns, and
+    // the e2e journey asserts a clean console.
+    this.#renderer.shadowMap.type = PCFShadowMap;
     this.#renderer.domElement.style.cssText =
       "position:absolute;inset:0;width:100%;height:100%;display:block";
     host.appendChild(this.#renderer.domElement);
@@ -247,12 +235,11 @@ export class NimantoEmblem {
     this.#scene.environment = studioEnvironment(this.#renderer);
     this.#camera.position.set(0, 0.06, 6.6);
 
-    const wallMap = new CanvasTexture(wallTexture());
-    wallMap.colorSpace = SRGBColorSpace;
-    this.#wall = new Mesh(new PlaneGeometry(34, 22), new MeshBasicMaterial({ map: wallMap }));
-    this.#wall.position.set(0, 0.6, -5.4);
-    this.#scene.add(this.#wall);
-
+    /* No wall mesh. The original drew a lit backdrop plane, which on an ink page
+     * paints a visible rectangle exactly the size of the canvas — the mark ends
+     * up sitting in a box instead of in the page. The umber atmosphere is a CSS
+     * radial wash behind the canvas instead, and the canvas itself is
+     * transparent. */
     const floor = new Mesh(new PlaneGeometry(30, 30), new ShadowMaterial({ opacity: 0.46 }));
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = -1.62;
@@ -468,7 +455,9 @@ export class NimantoEmblem {
     this.#renderer.setSize(width, height, false);
     this.#camera.aspect = width / height;
     const subject = 2.72;
-    const need = subject / (height < 620 ? 0.5 : 0.56);
+    // Fraction of the frame the mark should occupy. It is the page's one
+    // subject, so it fills most of its box rather than floating in it.
+    const need = subject / (height < 620 ? 0.68 : 0.78);
     this.#camera.position.z =
       need / (2 * Math.tan((this.#camera.fov / 2) * DEG) * Math.min(1, this.#camera.aspect));
     this.#camera.updateProjectionMatrix();
@@ -545,7 +534,6 @@ export class NimantoEmblem {
     this.#camera.position.x = lerp(this.#camera.position.x, this.#px * 0.16, 0.06);
     this.#camera.position.y = lerp(this.#camera.position.y, 0.06 - this.#py * 0.1, 0.06);
     this.#camera.lookAt(0, 0, 0);
-    this.#wall.position.x = -this.#px * 0.22;
     this.#renderer.render(this.#scene, this.#camera);
   }
 
