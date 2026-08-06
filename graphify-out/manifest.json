@@ -100,8 +100,8 @@
     "semantic_hash": ""
   },
   "apps/web/components/workspace.tsx": {
-    "mtime": 1785976883.958592,
-    "ast_hash": "05e112b85c81a94582fe044a88992284",
+    "mtime": 1785977361.138815,
+    "ast_hash": "36f78a80d19028d3f44d3a67ca3f72c9",
     "semantic_hash": ""
   },
   "apps/web/next-env.d.ts": {

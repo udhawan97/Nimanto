@@ -208,6 +208,7 @@ export function Workspace() {
   const [inviteToken, setInviteToken] = useState("");
   const menuButton = useRef<HTMLButtonElement>(null);
   const closeNavigationButton = useRef<HTMLButtonElement>(null);
+  const firstNavigationButton = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const fragment = new URLSearchParams(window.location.hash.slice(1));
@@ -363,6 +364,12 @@ export function Workspace() {
             className="icon-button mobile-close"
             type="button"
             onClick={closeMobileNavigation}
+            onKeyDown={(event) => {
+              if (event.key === "Tab" && !event.shiftKey) {
+                event.preventDefault();
+                firstNavigationButton.current?.focus();
+              }
+            }}
             aria-label="Close navigation"
           >
             <X />
@@ -382,6 +389,7 @@ export function Workspace() {
             return (
               <button
                 key={item.id}
+                ref={item.id === "overview" ? firstNavigationButton : undefined}
                 type="button"
                 className={
                   section === item.id ? "workspace-nav-item is-active" : "workspace-nav-item"
