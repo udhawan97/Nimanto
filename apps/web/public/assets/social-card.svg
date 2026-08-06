@@ -1,14 +1,43 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
-  <rect width="1200" height="630" fill="#f4f7fc"/>
-  <rect x="72" y="72" width="8" height="486" fill="#3157d5"/>
-  <path d="M132 192V98h24l55 65V98h24v94h-24l-55-65v65h-24Z" fill="#202633"/>
-  <rect x="219" y="91" width="22" height="22" fill="#e2a626"/>
-  <circle cx="230" cy="102" r="5" fill="#a34038"/>
-  <text x="132" y="290" fill="#202633" font-family="sans-serif" font-weight="700" font-size="70">Evidence first.</text>
-  <text x="132" y="370" fill="#202633" font-family="sans-serif" font-weight="700" font-size="70">Applications second.</text>
-  <text x="132" y="442" fill="#596273" font-family="sans-serif" font-size="30">Private, candidate-controlled job search for H-1B professionals.</text>
-  <path d="M132 483h32l9-9 9 9h32" fill="none" stroke="#a34038" stroke-width="2"/>
-  <circle cx="173" cy="483" r="4" fill="#e2a626"/>
-  <text x="238" y="490" fill="#a34038" font-family="sans-serif" font-size="20" letter-spacing="5">EVIDENCE · DECISION · APPROVAL</text>
-  <text x="132" y="540" fill="#3157d5" font-family="monospace" font-size="24">NIMANTO · LOCAL-FIRST BETA</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630" role="img" aria-label="Nimanto — evidence first, applications second">
+  <defs>
+    <radialGradient id="umber" cx="26%" cy="46%" r="64%">
+      <stop offset="0" stop-color="#241C14"/>
+      <stop offset="1" stop-color="#0A0908"/>
+    </radialGradient>
+    <radialGradient id="light" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#E8785F"/>
+      <stop offset=".45" stop-color="#D6472C"/>
+      <stop offset="1" stop-color="#D6472C" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="#0A0908"/>
+  <rect width="1200" height="630" fill="url(#umber)"/>
+
+  <g transform="translate(96 155) scale(5)">
+    <circle cx="23.4" cy="40.6" r="17" fill="url(#light)"/>
+    <path fill="#D5CCB9" fill-rule="evenodd" d="M6 58 L58 58 L58 26.8 L37.2 6 L6 6 Z
+      M17.85 32.65 l2.3 2.3 -2.3 2.3 -2.3 -2.3 Z
+      M23.44 38.25 l2.3 2.3 -2.3 2.3 -2.3 -2.3 Z
+      M29.04 43.85 l2.3 2.3 -2.3 2.3 -2.3 -2.3 Z"/>
+    <path d="M11 53 L53 53 L53 28.9 L35.1 11 L11 11 Z" fill="none" stroke="#9D7C4A" stroke-width="1.4"/>
+    <path d="M58 26.8 L37.2 6 L37.2 26.8 Z" fill="#D6472C"/>
+    <path d="M58 26.8 L37.2 6" stroke="#B8935A" stroke-width="1.3" fill="none"/>
+  </g>
+
+  <g transform="translate(470 0)">
+    <text x="0" y="236" font-family="Instrument Serif, Georgia, serif" font-size="94"
+          fill="#E8E1D4" letter-spacing="-2">Nimanto</text>
+    <path d="M0 274 H236" stroke="#7C6134" stroke-width="1"/>
+    <text x="0" y="336" font-family="Archivo, system-ui, sans-serif" font-size="35"
+          font-weight="500" fill="#D5CCB9">Evidence first.</text>
+    <text x="0" y="382" font-family="Archivo, system-ui, sans-serif" font-size="35"
+          font-weight="500" fill="#D5CCB9">Applications second.</text>
+    <text x="0" y="446" font-family="Archivo, system-ui, sans-serif" font-size="21"
+          fill="#B3AA9C">A private, candidate-controlled job search and</text>
+    <text x="0" y="476" font-family="Archivo, system-ui, sans-serif" font-size="21"
+          fill="#B3AA9C">application workbench for H-1B professionals.</text>
+    <text x="0" y="540" font-family="IBM Plex Mono, ui-monospace, monospace" font-size="15"
+          fill="#8B8175" letter-spacing="3.2">LOCAL-FIRST  ·  EXPLAINABLE  ·  NO SILENT SEND</text>
+  </g>
 </svg>

@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import "@fontsource-variable/ibm-plex-sans";
-import "@fontsource-variable/jetbrains-mono";
-import "@fontsource-variable/space-grotesk";
+import "@fontsource-variable/archivo";
+import "@fontsource/ibm-plex-mono/400.css";
+import "@fontsource/ibm-plex-mono/500.css";
+import "@fontsource/instrument-serif/400.css";
+import "@fontsource/instrument-serif/400-italic.css";
 import "./globals.css";
 import { ServiceWorker } from "../components/service-worker.js";
 
@@ -27,13 +29,18 @@ export const metadata: Metadata = {
         url: "https://udhawan97.github.io/Nimanto/assets/social-card.png",
         width: 1200,
         height: 630,
-        alt: "Nimanto evidence-first job search",
+        alt: "Nimanto — the invitation fold, beside the words evidence first, applications second",
       },
     ],
   },
 };
 
-export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#f4f7fc" };
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  // Ink. The browser chrome should not be the one bright thing on the screen.
+  themeColor: "#0A0908",
+};
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (

@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" role="img" aria-label="The Nimanto invitation fold: a notched card whose corner turns back over a vermilion light">
+  <title>Nimanto — the invitation fold</title>
+  <!--
+    The mark, assembling once and settling.
+
+    SMIL rather than CSS keyframes: GitHub serves README images through a proxy
+    that renders them as images, where CSS animation support is inconsistent and
+    SMIL is not.
+
+    The whole sequence is 4.4s with repeatCount="1", so nothing moves past the
+    five-second threshold in WCAG 2.2.2 — which matters because a README gives
+    the reader no pause control.
+
+    The fold is a real 180-degree rotation about the hinge, projected: the free
+    apex travels in a straight line from its flat position to its turned-back
+    one, and the triangle passes through zero area at the halfway point exactly
+    as a physical corner does.
+  -->
+  <defs>
+    <radialGradient id="ground" cx="50%" cy="44%" r="66%">
+      <stop offset="0" stop-color="#241C14"/>
+      <stop offset="1" stop-color="#0A0908"/>
+    </radialGradient>
+    <radialGradient id="bloom" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#E8785F"/>
+      <stop offset=".45" stop-color="#D6472C"/>
+      <stop offset="1" stop-color="#D6472C" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="200" height="200" rx="40" fill="url(#ground)"/>
+
+  <g transform="translate(36 36) scale(2)">
+    <!-- the light behind the screen, blooming as the corner lifts -->
+    <circle cx="23.4" cy="40.6" r="17" fill="url(#bloom)" opacity="0">
+      <animate attributeName="opacity" values="0;0;1;.72" keyTimes="0;.34;.62;1"
+               dur="4.4s" begin="0s" repeatCount="1" fill="freeze"/>
+    </circle>
+
+    <g opacity="0">
+      <animate attributeName="opacity" values="0;1" keyTimes="0;.22" dur="4.4s"
+               begin="0s" repeatCount="1" fill="freeze"/>
+      <animateTransform attributeName="transform" type="scale" values=".82;1"
+                        keyTimes="0;.3" dur="4.4s" begin="0s" repeatCount="1"
+                        fill="freeze" additive="sum"/>
+
+      <!-- card, pierced. The jaali are cut with evenodd rather than painted, so
+           the bloom above reads as light coming THROUGH the screen. They open
+           in sequence toward the notch as the rule completes. -->
+      <path fill="#D5CCB9" fill-rule="evenodd"
+            d="M6 58 L58 58 L58 26.8 L37.2 6 L6 6 Z
+               M17.85 34.95 l0 0 0 0 0 0 Z
+               M23.44 40.55 l0 0 0 0 0 0 Z
+               M29.04 46.15 l0 0 0 0 0 0 Z">
+        <animate attributeName="d"
+                 values="M6 58 L58 58 L58 26.8 L37.2 6 L6 6 Z
+                         M17.85 34.95 l0 0 0 0 0 0 Z
+                         M23.44 40.55 l0 0 0 0 0 0 Z
+                         M29.04 46.15 l0 0 0 0 0 0 Z;
+                         M6 58 L58 58 L58 26.8 L37.2 6 L6 6 Z
+                         M17.85 32.65 l2.3 2.3 -2.3 2.3 -2.3 -2.3 Z
+                         M23.44 40.55 l0 0 0 0 0 0 Z
+                         M29.04 46.15 l0 0 0 0 0 0 Z;
+                         M6 58 L58 58 L58 26.8 L37.2 6 L6 6 Z
+                         M17.85 32.65 l2.3 2.3 -2.3 2.3 -2.3 -2.3 Z
+                         M23.44 38.25 l2.3 2.3 -2.3 2.3 -2.3 -2.3 Z
+                         M29.04 46.15 l0 0 0 0 0 0 Z;
+                         M6 58 L58 58 L58 26.8 L37.2 6 L6 6 Z
+                         M17.85 32.65 l2.3 2.3 -2.3 2.3 -2.3 -2.3 Z
+                         M23.44 38.25 l2.3 2.3 -2.3 2.3 -2.3 -2.3 Z
+                         M29.04 43.85 l2.3 2.3 -2.3 2.3 -2.3 -2.3 Z;
+                         M6 58 L58 58 L58 26.8 L37.2 6 L6 6 Z
+                         M17.85 32.65 l2.3 2.3 -2.3 2.3 -2.3 -2.3 Z
+                         M23.44 38.25 l2.3 2.3 -2.3 2.3 -2.3 -2.3 Z
+                         M29.04 43.85 l2.3 2.3 -2.3 2.3 -2.3 -2.3 Z"
+                 keyTimes="0;.40;.46;.52;1"
+                 dur="4.4s" begin="0s" repeatCount="1" fill="freeze"/>
+      </path>
+
+      <!-- recessed brass rule, drawing itself one step inside the outline -->
+      <path d="M11 53 L53 53 L53 28.9 L35.1 11 L11 11 Z" fill="none"
+            stroke="#9D7C4A" stroke-width="1.4"
+            stroke-dasharray="160" stroke-dashoffset="160">
+        <animate attributeName="stroke-dashoffset" values="160;0" keyTimes="0;.5"
+                 dur="4.4s" begin="0s" repeatCount="1" fill="freeze"/>
+      </path>
+
+      <!-- the corner turning back: flat -> edge-on -> turned -->
+      <path d="M58 26.8 L37.2 6 L58 6 Z" fill="#D6472C">
+        <animate attributeName="d"
+                 values="M58 26.8 L37.2 6 L58 6 Z;
+                         M58 26.8 L37.2 6 L58 6 Z;
+                         M58 26.8 L37.2 6 L47.6 16.4 Z;
+                         M58 26.8 L37.2 6 L37.2 26.8 Z;
+                         M58 26.8 L37.2 6 L37.2 26.8 Z"
+                 keyTimes="0;.34;.5;.72;1"
+                 calcMode="spline"
+                 keySplines=".4 0 .6 1;.4 0 .6 1;.16 1 .3 1;0 0 1 1"
+                 dur="4.4s" begin="0s" repeatCount="1" fill="freeze"/>
+      </path>
+
+      <!-- the hinge itself, catching the light -->
+      <path d="M58 26.8 L37.2 6" stroke="#B8935A" stroke-width="1.2" fill="none"
+            stroke-dasharray="30" stroke-dashoffset="30">
+        <animate attributeName="stroke-dashoffset" values="30;0" keyTimes="0;.36"
+                 dur="4.4s" begin="0s" repeatCount="1" fill="freeze"/>
+      </path>
+    </g>
+  </g>
+</svg>
