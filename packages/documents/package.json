@@ -23,7 +23,7 @@
     "pdfjs-dist": "6.2.108"
   },
   "devDependencies": {
-    "@types/node": "^24.10.1",
+    "@types/node": "^26.1.2",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   }
