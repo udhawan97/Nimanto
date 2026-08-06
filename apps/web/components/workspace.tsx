@@ -182,12 +182,19 @@ type ActionRunner = (
 ) => Promise<void>;
 /* `state` is "completed" or "cleanup_pending"; the token is a bearer capability
  * that reaches the deletion status and resume routes without a session. */
-type DeletionReceipt = { token: string; state: string; message: string };
+type DeletionReceipt = {
+  token: string;
+  state: "completed" | "cleanup_pending";
+  message: string;
+};
 type EvidenceImportPreview = {
   filename: string;
   mimeType: string;
   contentBase64: string;
   claimCount: number;
+  // What the file parsed to, before the import limit. Only differs when a file
+  // is large enough for the cap to bite, and the candidate is told when it does.
+  parsedCount: number;
   claims: Array<{ kind: string; value: string; sourceName: string; locator: string }>;
   warnings: string[];
   preview: {
@@ -295,28 +302,45 @@ export function Workspace() {
   const refreshButton = useRef<HTMLButtonElement>(null);
   const contentHeading = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  /* Consume the hash, then scrub it — in that order, and never one without the
+   * other. A credential can arrive on load or long after it, by pasting an
+   * invitation link into a tab that already has the workbench open, so both
+   * entry points run this. Scrubbing without consuming would wipe the token out
+   * of the address bar and the back stack before anything read it, leaving the
+   * candidate with an invitation they can no longer accept. */
+  const readHash = useCallback(() => {
     const fragment = new URLSearchParams(window.location.hash.slice(1));
     const invitation = fragment.get("invite") ?? "";
     const value = fragment.get("bootstrap") ?? "";
+    const scrub = () =>
+      window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+
     if (invitation) {
       setInviteToken(invitation);
-      window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
-      setRouteReady(true);
+      scrub();
       return;
     }
     if (value) {
       window.sessionStorage.setItem("nimanto_bootstrap", value);
-      window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
       setBootstrapSecret(value);
-    } else {
-      setBootstrapSecret(window.sessionStorage.getItem("nimanto_bootstrap") ?? "");
-      // Only a bare, known section name is honoured — never a hash carrying "=".
-      const opened = sectionFromHash(window.location.hash);
-      if (opened) setSection(opened);
+      scrub();
+      return;
     }
-    setRouteReady(true);
+    // Any other hash carrying "=" is not ours; drop it rather than display it.
+    if (window.location.hash.includes("=")) {
+      scrub();
+      return;
+    }
+    // Only a bare, known section name is honoured.
+    const opened = sectionFromHash(window.location.hash);
+    if (opened) setSection(opened);
   }, []);
+
+  useEffect(() => {
+    setBootstrapSecret(window.sessionStorage.getItem("nimanto_bootstrap") ?? "");
+    readHash();
+    setRouteReady(true);
+  }, [readHash]);
 
   /* Back, forward and a pasted link all arrive here. Without it the section
    * lived only in React state, so Back left the workbench entirely and a reload
@@ -324,23 +348,16 @@ export function Workspace() {
   useEffect(() => {
     if (!routeReady) return;
     const onHashChange = () => {
-      /* A credential can arrive after mount — pasting an invite link into a tab
-       * that already has the workbench open never re-runs the effect above.
-       * Scrub it here too, or it sits in the address bar and the back stack. */
-      if (window.location.hash.includes("=")) {
-        window.history.replaceState(
-          null,
-          "",
-          `${window.location.pathname}${window.location.search}`,
-        );
-      }
-      const opened = sectionFromHash(window.location.hash);
-      setSection(opened ?? "overview");
+      const wasCredential = window.location.hash.includes("=");
+      readHash();
+      // A scrubbed credential is not a route change; leave the section alone.
+      if (wasCredential) return;
+      setSection(sectionFromHash(window.location.hash) ?? "overview");
       setNotice(null);
     };
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
-  }, [routeReady]);
+  }, [readHash, routeReady]);
 
   const clearBootstrapSecret = useCallback(() => {
     window.sessionStorage.removeItem("nimanto_bootstrap");
@@ -348,13 +365,14 @@ export function Workspace() {
     setInviteToken("");
   }, []);
 
-  /* Opening a workspace also retires the previous one's deletion receipt.
-   * Signing out does not reload the page, so without this the next visit to the
-   * sign-in screen would re-announce "Workspace deleted" and a dead token for a
-   * workspace that now exists. */
+  /* Opening a workspace retires a *finished* deletion receipt. Signing out does
+   * not reload the page, so without this the next visit to the sign-in screen
+   * would re-announce "Workspace deleted" and a spent token over a workspace
+   * that now exists. A cleanup_pending receipt is kept: its token is the only
+   * handle on an unfinished cleanup, and nothing else in the app holds it. */
   const startFresh = useCallback(() => {
     clearBootstrapSecret();
-    setDeletionReceipt(null);
+    setDeletionReceipt((receipt) => (receipt?.state === "completed" ? null : receipt));
   }, [clearBootstrapSecret]);
 
   const closeMobileNavigation = useCallback(() => {
@@ -772,6 +790,10 @@ function WorkspaceStart({
   onBootstrapSecret: (value: string) => void;
   deletionReceipt?: DeletionReceipt | null;
 }) {
+  const receiptHeading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (deletionReceipt) receiptHeading.current?.focus();
+  }, [deletionReceipt]);
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -800,7 +822,10 @@ function WorkspaceStart({
           role="status"
           aria-label="Deletion receipt"
         >
-          <h2>
+          {/* Focused on mount: a polite region added with its content already
+           * inside is routinely missed by assistive technology, and this is the
+           * one screen carrying a token the candidate cannot get back. */}
+          <h2 ref={receiptHeading} tabIndex={-1}>
             {deletionReceipt.state === "completed"
               ? "Workspace deleted"
               : "Database records removed — local file cleanup is still pending"}
@@ -1232,6 +1257,15 @@ function EvidenceVault({
                 <p>
                   {importPreview.claimCount} pending claim
                   {importPreview.claimCount === 1 ? "" : "s"} will enter your private review queue.
+                  {/* Truncation was silent: the file parsed to more than an
+                   * import stores, and nothing said which ones were dropped. */}
+                  {importPreview.parsedCount > importPreview.claimCount && (
+                    <>
+                      {" "}
+                      This file parsed to {importPreview.parsedCount}; only the first{" "}
+                      {importPreview.claimCount} shown here are imported.
+                    </>
+                  )}
                 </p>
               </div>
               {/* A count is not a preview. For anything but a LinkedIn archive

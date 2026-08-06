@@ -79,6 +79,8 @@ Use **Data controls → Delete all data** and type the exact confirmation phrase
 
 Deletion signs you out, so the receipt appears on the sign-in screen that follows. It states which outcome was reached and shows a seven-day status token with a copy control. Keep the token: it is the only way to check or resume this deletion, and it works without a session, so treat it like a password.
 
+Copy it before you leave that screen. Nimanto deliberately stores nothing after deleting your workspace, so the token is held in the page only — reloading or closing the tab loses it. Keep it out of shell history too; the status route takes it as a query parameter.
+
 Two outcomes are possible, and the receipt distinguishes them:
 
 | Receipt                                                            | Meaning                                                                                 | What to do                   |

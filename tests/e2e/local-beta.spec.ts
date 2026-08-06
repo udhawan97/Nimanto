@@ -184,6 +184,21 @@ test("one guarded control owns every status change, and the two views are exclus
   expect(prompts).toHaveLength(2);
   expect(prompts[0]).toContain("approved for export");
   expect(prompts[1]).toContain("Nimanto does not submit anything for you");
+
+  /* Declining has to leave the record alone — and leave the control showing the
+   * status the record still has. The select's snap-back is React restoring a
+   * controlled value with no re-render behind it, which is exactly the kind of
+   * thing that holds until someone changes the component and no test notices. */
+  page.removeAllListeners("dialog");
+  page.on("dialog", (dialog) => void dialog.dismiss());
+  const writes: string[] = [];
+  page.on("request", (request) => {
+    if (request.method() === "PUT" && request.url().includes("/status")) writes.push(request.url());
+  });
+  await status.selectOption("withdrawn");
+  await expect(status).toHaveValue("submitted_externally");
+  await page.waitForTimeout(250);
+  expect(writes, "a declined confirmation must not write").toEqual([]);
 });
 
 test("deletion hands back a receipt that outlives the session, and does not outlive the next one", async ({
@@ -211,9 +226,11 @@ test("deletion hands back a receipt that outlives the session, and does not outl
   const token = await receipt.locator("code").first().textContent();
   expect(token?.trim().length).toBeGreaterThan(16);
 
-  // The success notice must not contradict the receipt beside it: the server
-  // decides whether file cleanup finished, so this copy stays outcome-neutral.
-  await expect(page.locator(".notice.ok")).not.toContainText("deleted");
+  /* The success notice must not contradict the receipt beside it: the server
+   * decides whether file cleanup finished, so this copy stays outcome-neutral.
+   * Asserted positively — a `not.toContainText` would also pass while the
+   * notice simply had not rendered yet. */
+  await expect(page.locator(".notice.ok")).toContainText("Deletion recorded");
 
   /* A new workspace retires the old receipt. Signing out does not reload the
    * page, so a stale one would re-announce a dead token over a live workspace.
