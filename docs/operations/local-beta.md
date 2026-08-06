@@ -75,7 +75,30 @@ Stop the API before copying `.nimanto-data/`. Restore by replacing the entire di
 
 ## Reset the synthetic workspace
 
-Use **Data controls → Delete all data**, type the exact confirmation phrase, and keep the returned seven-day status token. The deletion path removes database tenant rows, packet artifacts, local outbox files, and the session.
+Use **Data controls → Delete all data** and type the exact confirmation phrase. The deletion path removes database tenant rows, packet artifacts, local outbox files, and the session.
+
+Deletion signs you out, so the receipt appears on the sign-in screen that follows. It states which outcome was reached and shows a seven-day status token with a copy control. Keep the token: it is the only way to check or resume this deletion, and it works without a session, so treat it like a password.
+
+Two outcomes are possible, and the receipt distinguishes them:
+
+| Receipt                                                            | Meaning                                                                                 | What to do                   |
+| ------------------------------------------------------------------ | --------------------------------------------------------------------------------------- | ---------------------------- |
+| **Workspace deleted**                                              | Database records and local files are gone.                                              | Nothing.                     |
+| **Database records removed — local file cleanup is still pending** | Tenant rows and your session are gone; packet or outbox files could not be removed yet. | Resume with the token below. |
+
+```bash
+curl --fail-with-body --silent --show-error \
+  "http://127.0.0.1:4310/v1/deletion/status?token=YOUR_STATUS_TOKEN"
+```
+
+```bash
+curl --fail-with-body --silent --show-error \
+  -H "content-type: application/json" \
+  -d '{"token":"YOUR_STATUS_TOKEN"}' \
+  http://127.0.0.1:4310/v1/deletion/resume
+```
+
+Both routes are deliberately reachable without a session, because deletion has already removed yours.
 
 Starting a new local session after deletion creates a fresh labeled synthetic workspace.
 

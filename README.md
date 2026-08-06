@@ -131,10 +131,16 @@ issue a hashed, expiring, single-use invitation.
   archives, scans with no text layer, files over 8 MiB, and PDFs over 50 pages.
   Raw uploads are discarded after extraction.
 - Every extracted claim stays **pending** until you confirm it. Confirmation is
-  required before a claim can support a match or a packet.
+  required before a claim can support a match or a packet. The import preview
+  lists the exact claims a file would create before anything is stored.
 - Immutable profile versions carrying candidate-approved authorization wording.
 - Deterministic `scoring_rules_v1` matching across four documented dimensions,
   with sponsorship, citizenship, clearance and location blockers left visible.
+- An unmet requirement offers to add evidence for itself. Only the requirement
+  wording is carried into the claim form — never the posting's source name or
+  locator — and the claim it creates is pending and user-attested like any other.
+- Evidence Strength counts a requirement as source-linked only when a claim
+  behind it carries a source rather than your own attestation.
 - The free-text scoring projection removes pronouns, standalone year cues and a
   conventional name prefix. It is **not** comprehensive de-identification —
   sensitive identity details should not be imported as scoring evidence.
@@ -155,8 +161,9 @@ issue a hashed, expiring, single-use invitation.
   bound; the report also exposes recall, abstention, false positives and
   denominators.
 - A five-stage application pipeline with candidate-recorded replies, screens,
-  interviews, offers, rejections and withdrawals. Moving an application into a
-  consequential state asks first, and the transition is enforced server-side.
+  interviews, offers, rejections and withdrawals. Every status control — board
+  card or row list — offers only the moves the domain allows, asks before a
+  consequential one, and the transition is enforced server-side regardless.
 
 ### Grounded packets
 
@@ -257,6 +264,12 @@ Version `0.2.0` is a **local beta**:
 - Exports are portable workspace JSON with identity, provenance, hashes and
   artifact manifests. Generated packet files download separately. Local deletion
   removes tenant rows, packet artifacts, outbox messages and the session.
+- Deletion hands back a seven-day status token and says which outcome it
+  reached. If local file cleanup could not finish, it says so rather than
+  reporting success, and the token resumes it. The token is a bearer
+  capability — it reaches the status and resume routes without a session.
+- The workbench re-checks the local API on its own, so the connection indicator
+  cannot keep reporting "connected" after the service stops.
 
 Report a vulnerability through
 [GitHub private vulnerability reporting](https://github.com/udhawan97/Nimanto/security/advisories/new),
