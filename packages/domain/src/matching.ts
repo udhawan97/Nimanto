@@ -152,10 +152,25 @@ function bandFromValue(value: number): MatchBand {
   return "weak_evidence";
 }
 
-function evidenceStrength(explanations: RequirementExplanation[]): EvidenceStrength {
+/* The contract defines this as the share of supported requirements backed by
+ * source-linked evidence "rather than only user_attested evidence". Counting
+ * `evidenceIds.length > 0` measured nothing: a requirement is only `supported`
+ * when it has matches, so that ratio was always 1 and source_mixed was
+ * unreachable. A requirement counts as sourced when at least one of the claims
+ * behind it carries a source rather than the candidate's own attestation. */
+function evidenceStrength(
+  explanations: RequirementExplanation[],
+  evidence: EvidenceClaim[],
+): EvidenceStrength {
   const supported = explanations.filter((item) => item.state === "supported");
   if (supported.length === 0) return "source_limited";
-  const linked = supported.filter((item) => item.evidenceIds.length > 0).length / supported.length;
+  const attested = new Set(
+    evidence.filter((claim) => claim.userAttested === true).map((claim) => claim.id),
+  );
+  const sourced = supported.filter((item) =>
+    item.evidenceIds.some((id) => !attested.has(id)),
+  ).length;
+  const linked = sourced / supported.length;
   if (linked >= 0.8) return "source_strong";
   if (linked >= 0.5) return "source_mixed";
   return "source_limited";
@@ -239,7 +254,7 @@ export function matchJob(input: { evidence: EvidenceClaim[]; job: JobForMatching
     ruleVersion: "scoring_rules_v1",
     band: coverageValue < 0.6 ? "not_scored" : bandFromValue(score),
     coverage: coverageValue < 0.6 ? "coverage_low" : "coverage_sufficient",
-    evidenceStrength: evidenceStrength(requirements),
+    evidenceStrength: evidenceStrength(requirements, evidence),
     requirements,
     dimensions,
     blockers: [...blockerText(input.job.description), ...locationBlockers(input.job, evidence)],

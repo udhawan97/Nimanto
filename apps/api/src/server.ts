@@ -212,6 +212,18 @@ function messageForError(error: Error): { code: string; status: number; message:
     };
   if (code.endsWith("_NOT_FOUND"))
     return { code, status: 404, message: "The requested record was not found in this workspace." };
+  /* Specific codes first. `startsWith("INVALID_")` below is a catch-all, so
+   * anything more precise has to be tested before it or it can never fire —
+   * INVALID_TRANSITION's own 409 was unreachable for exactly that reason. */
+  if (code === "INVALID_TRANSITION")
+    return { code, status: 409, message: "That action is no longer in the required state." };
+  if (code === "INVALID_APPLICATION_TRANSITION")
+    return {
+      code,
+      status: 409,
+      message:
+        "An application moves Tracked to Prepared to Approved for export to Submitted externally. Move it to the next stage first, or withdraw it.",
+    };
   if (
     code.includes("REQUIRED") ||
     code.startsWith("INVALID_") ||
@@ -233,8 +245,6 @@ function messageForError(error: Error): { code: string; status: number; message:
       status: 409,
       message: "Turn on the external-action runtime switch before execution.",
     };
-  if (code === "INVALID_TRANSITION")
-    return { code, status: 409, message: "That action is no longer in the required state." };
   if (code === "EVIDENCE_PREVIEW_CHANGED")
     return { code, status: 409, message: "Review the file preview again before importing it." };
   if (code === "ARTIFACT_INTEGRITY_FAILED")
@@ -841,6 +851,16 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     const upload = await parseEvidenceUpload(request.body);
     return {
       claimCount: upload.parsed.claims.length,
+      // The contract promises a preview of every accepted field before
+      // ingestion. A count is not that: for anything but a LinkedIn archive it
+      // asked the candidate to accept claims they could not read. Nothing is
+      // stored by this route — the same bounded slice the import will create.
+      claims: upload.parsed.claims.slice(0, 500).map((claim) => ({
+        kind: claim.kind,
+        value: claim.value,
+        sourceName: claim.sourceName,
+        locator: claim.locator,
+      })),
       warnings: upload.parsed.warnings,
       preview: upload.parsed.preview ?? null,
       previewHash: evidencePreviewHash(upload),

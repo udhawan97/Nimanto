@@ -50,9 +50,20 @@ test("a candidate starts a private workspace and receives deterministic role exp
   await expect(
     page.getByText("Basic_LinkedInDataExport/Messages.csv", { exact: true }),
   ).toBeVisible();
-  await expect(page.getByText("TypeScript", { exact: true })).toHaveCount(0);
+  // The preview lists the claims it would create — a count alone asked the
+  // candidate to accept material they could not read. The invariant is
+  // narrower than "the word is absent from the page": nothing reaches the
+  // vault until they confirm.
+  await expect(
+    page.locator(".import-claims").getByText("TypeScript", { exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".evidence-list").getByText("TypeScript", { exact: true })).toHaveCount(
+    0,
+  );
   await page.getByRole("button", { name: "Confirm import" }).click();
-  await expect(page.getByText("TypeScript", { exact: true })).toBeVisible();
+  await expect(
+    page.locator(".evidence-list").getByText("TypeScript", { exact: true }),
+  ).toBeVisible();
 
   await page.getByRole("button", { name: "Role discovery" }).click();
   await expect(page.getByRole("heading", { name: "Platform Engineer" })).toBeVisible();
@@ -123,4 +134,112 @@ test("an email-bound invitation creates a separate empty candidate workspace", a
     "0",
   );
   await expect.poll(() => page.evaluate(() => location.hash)).toBe("");
+});
+
+test("one guarded control owns every status change, and the two views are exclusive", async ({
+  page,
+}) => {
+  await page.goto(`/workspace/#bootstrap=${bootstrapSecret}`);
+  await page.getByLabel("Your name").fill("Guard Check");
+  await page.getByLabel("Your email").fill("guard@example.test");
+  await page.getByRole("button", { name: "Start private workspace" }).click();
+  await page.getByRole("button", { name: "Run starter matches" }).click();
+  await page.getByRole("button", { name: "Role discovery" }).click();
+  await page.getByRole("button", { name: "Track", exact: true }).first().click();
+  await page.getByRole("button", { name: "Applications" }).click();
+
+  // Board view used to render the row list underneath it, because `hidden` lost
+  // to a shared `display: grid` rule — which is what kept the unguarded status
+  // control permanently on screen.
+  await expect(page.locator(".board")).toBeVisible();
+  await expect(page.locator(".application-table")).toBeHidden();
+  await page.getByRole("button", { name: "Table view" }).click();
+  await expect(page.locator(".board")).toHaveCount(0);
+  await expect(page.locator(".application-table")).toBeVisible();
+
+  // A control may only offer moves the domain allows. Listing all five taught
+  // the candidate about illegal transitions by way of a rejected request.
+  const status = page.locator(".application-table .table-row select").first();
+  await expect(status).toHaveValue("tracked");
+  expect(await status.locator("option").evaluateAll((nodes) => nodes.map((n) => n.value))).toEqual([
+    "tracked",
+    "prepared",
+    "withdrawn",
+  ]);
+
+  // Every route to a consequential status asks first, from either surface.
+  const prompts: string[] = [];
+  page.on("dialog", (dialog) => {
+    prompts.push(dialog.message());
+    void dialog.accept();
+  });
+  await status.selectOption("prepared");
+  await expect(status).toHaveValue("prepared");
+  expect(prompts, "moving to a preparatory stage should not interrogate the candidate").toEqual([]);
+
+  await status.selectOption("approved_for_export");
+  await expect(status).toHaveValue("approved_for_export");
+  await status.selectOption("submitted_externally");
+  await expect(status).toHaveValue("submitted_externally");
+  expect(prompts).toHaveLength(2);
+  expect(prompts[1]).toContain("Nimanto does not submit anything for you");
+});
+
+test("the match band is never covered, and the section survives back and reload", async ({
+  page,
+}) => {
+  await page.goto(`/workspace/#bootstrap=${bootstrapSecret}`);
+  await page.getByLabel("Your name").fill("Layout Check");
+  await page.getByLabel("Your email").fill("layout@example.test");
+  await page.getByRole("button", { name: "Start private workspace" }).click();
+  await page.getByRole("button", { name: "Run starter matches" }).click();
+  await page.getByRole("button", { name: "Role discovery" }).click();
+  await page.locator(".match-detail summary").first().click();
+
+  /* Document overflow stayed at 0 through all of this, which is why the sweep
+   * above never caught it: the band chip was overlapped by the button beside
+   * it between roughly 560 and 1100px. Collision, not overflow, is the test. */
+  for (const width of [320, 375, 560, 768, 900, 1024, 1100, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    const overlap = await page.evaluate(() => {
+      const card = document.querySelector(".job-row");
+      if (!card) return "no card";
+      const band = card.querySelector(".state");
+      const buttons = [...card.querySelectorAll("button")];
+      if (!band || buttons.length === 0) return "no band";
+      const a = band.getBoundingClientRect();
+      return buttons
+        .filter((button) => {
+          const b = button.getBoundingClientRect();
+          return !(
+            a.right <= b.left ||
+            b.right <= a.left ||
+            a.bottom <= b.top ||
+            b.bottom <= a.top
+          );
+        })
+        .map((button) => button.textContent?.trim());
+    });
+    expect(overlap, `match band overlapped at ${width}px`).toEqual([]);
+  }
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  /* The section lived only in React state: Back left the workbench entirely and
+   * a reload always dropped the candidate back on Overview. The test arrived
+   * here via Role discovery, so Back belongs there — inside the app. */
+  await expect(page).toHaveURL(/#jobs$/);
+  await page.getByRole("button", { name: "Applications" }).click();
+  await expect(page).toHaveURL(/#applications$/);
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Track the real process." })).toBeVisible();
+
+  await page.goBack();
+  await expect(page).toHaveURL(/#jobs$/);
+  await expect(page.getByRole("heading", { name: /Compare roles to evidence/ })).toBeVisible();
+  await page.goForward();
+  await expect(page.getByRole("heading", { name: "Track the real process." })).toBeVisible();
+
+  // A deep link opens on its section rather than on Overview.
+  await page.goto("/workspace/#packets");
+  await expect(page.getByRole("heading", { name: /Generate once/ })).toBeVisible();
 });

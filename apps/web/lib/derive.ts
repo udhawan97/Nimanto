@@ -18,12 +18,13 @@ type MatchLike = { job: { id: string }; result: { blockers: unknown[] } };
 type OutcomeLike = { occurredAt: string };
 type ApplicationLike = {
   id: string;
+  jobId?: string;
   status: ApplicationStatus;
   createdAt?: string;
   outcomes?: OutcomeLike[];
   job?: { title: string; company: string };
 };
-type PacketLike = { status: string };
+type PacketLike = { status: string; applicationId?: string };
 type ActionLike = { state: string };
 
 /* ── F2 · next-step rail ─────────────────────────────────────────────────── */
@@ -44,6 +45,7 @@ export function nextSteps(input: {
   evidence: EvidenceLike[];
   jobs: JobLike[];
   matches: MatchLike[];
+  applications: ApplicationLike[];
   packets: PacketLike[];
   externalActions: ActionLike[];
 }): NextStep[] {
@@ -78,6 +80,42 @@ export function nextSteps(input: {
       title: `Review ${blocked} role${blocked === 1 ? "" : "s"} with blockers`,
       detail: "Sponsorship, citizenship, clearance, or location constraints are visible.",
       section: "jobs",
+      tone: "idle",
+    });
+  }
+
+  /* The two steps below close the gap between "the app explained a role" and
+   * "the app has something to prepare". Without them the rail rendered its
+   * all-clear at exactly the points where the candidate's next move is obvious
+   * to them and unprompted by us. Both read from applications, which is why
+   * nextSteps takes them at all. */
+  // Withdrawn counts as decided: the candidate already answered this role, and
+  // re-suggesting it would be the rail arguing with them.
+  const applied = new Set(input.applications.map((application) => application.jobId));
+  const untracked = input.matches.filter((match) => !applied.has(match.job.id)).length;
+  if (untracked > 0) {
+    steps.push({
+      id: "track-roles",
+      title: `Track ${untracked} explained role${untracked === 1 ? "" : "s"}`,
+      detail: "Tracking a role starts the application record. It sends nothing to the employer.",
+      section: "jobs",
+      tone: "idle",
+    });
+  }
+
+  const packeted = new Set(input.packets.map((packet) => packet.applicationId));
+  const unprepared = input.applications.filter(
+    (application) =>
+      (application.status === "tracked" || application.status === "prepared") &&
+      !packeted.has(application.id),
+  ).length;
+  if (unprepared > 0) {
+    steps.push({
+      id: "prepare-packets",
+      title: `Prepare ${unprepared} packet${unprepared === 1 ? "" : "s"}`,
+      detail:
+        "Packets are assembled from confirmed evidence and your locked authorization wording.",
+      section: "packets",
       tone: "idle",
     });
   }
@@ -199,6 +237,15 @@ export function needsConfirmation(from: ApplicationStatus, to: ApplicationStatus
   return consequential.includes(to);
 }
 
+/* Every status control offers this list and nothing else. Derived from the same
+ * table `canMove` reads, so a control cannot drift into proposing a move the
+ * domain forbids — the candidate should never learn about an illegal transition
+ * from a rejected request. The status already held is included so a `<select>`
+ * can render its own current value. */
+export function legalTargets(from: ApplicationStatus): ApplicationStatus[] {
+  return BOARD_COLUMNS.map((column) => column.id).filter((to) => canMove(from, to));
+}
+
 export function confirmationPrompt(to: ApplicationStatus, application: ApplicationLike): string {
   const role = application.job
     ? `${application.job.title} at ${application.job.company}`
@@ -208,6 +255,68 @@ export function confirmationPrompt(to: ApplicationStatus, application: Applicati
   }
   if (to === "withdrawn") return `Mark ${role} as withdrawn?`;
   return `Mark ${role} as approved for export?`;
+}
+
+/* ── Failure copy ────────────────────────────────────────────────────────── */
+
+/* The API returns a specific `code` alongside a deliberately generic message,
+ * because one sentence has to serve every validation failure it has. The client
+ * holds the code and is the only place that knows which screen the candidate is
+ * looking at, so this is where a rejection becomes something to act on. */
+const FAILURE_COPY: Record<string, string> = {
+  INVALID_APPLICATION_TRANSITION:
+    "An application moves Tracked → Prepared → Approved for export → Submitted externally. Move it to the next stage first, or withdraw it.",
+  INVALID_CONFIRMATION: "Type the confirmation phrase exactly as shown, including capitals.",
+  EVIDENCE_PREVIEW_CHANGED: "The file changed since you previewed it. Review the preview again.",
+  PROHIBITED_DOCUMENT_CONTENT:
+    "That file looks like an immigration or identity document. Nimanto refuses those — remove it and import career evidence only.",
+  UNSUPPORTED_FILE_TYPE:
+    "Nimanto reads TXT, Markdown, JSON, DOCX, a text-layer PDF, or an approved LinkedIn archive.",
+  FILE_TOO_LARGE: "That file is above the import size limit. Split it or import a smaller export.",
+  EXTERNAL_ACTIONS_DISABLED:
+    "Turn on the execution runtime switch first. It always starts off after the service restarts.",
+};
+
+/** `null` means "say nothing" — the caller already has a better surface for it.
+ *  A transport failure is exactly that case: the connection banner names which
+ *  half is down and how to restart it, so repeating the browser's own
+ *  "Failed to fetch" underneath adds noise and no information. */
+export function failureMessage(input: {
+  code?: string | null;
+  message?: string | null;
+  transport?: boolean;
+}): string | null {
+  if (input.transport) return null;
+  const improved = input.code ? FAILURE_COPY[input.code] : undefined;
+  return improved || input.message || "Nimanto could not complete that request.";
+}
+
+/* ── Section routing ─────────────────────────────────────────────────────── */
+
+export const SECTIONS: readonly Section[] = [
+  "overview",
+  "evidence",
+  "jobs",
+  "applications",
+  "packets",
+  "actions",
+  "data",
+];
+
+export function sectionHash(section: Section): string {
+  return `#${section}`;
+}
+
+/* The hash is already load-bearing: `#bootstrap=` and `#invite=` carry a
+ * credential that the workbench scrubs out of the address bar on arrival. This
+ * reads a section only from a bare, known name — so a credential hash can never
+ * be mistaken for a route, and a section can never be written on top of one. No
+ * application, role, packet or action id belongs here: the URL is history, and
+ * this product's identifiers are employer-shaped. */
+export function sectionFromHash(hash: string): Section | null {
+  const value = hash.replace(/^#/, "");
+  if (!value || value.includes("=")) return null;
+  return (SECTIONS as readonly string[]).includes(value) ? (value as Section) : null;
 }
 
 /* ── F5 · funnel ─────────────────────────────────────────────────────────── */

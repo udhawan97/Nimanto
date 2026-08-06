@@ -16,6 +16,15 @@
   box-sizing: border-box;
 }
 
+/* The user-agent `[hidden] { display: none }` loses to any author `display`
+ * rule — same specificity, and author origin wins regardless. Several shared
+ * row grammars below set `display: grid`, which silently disabled the attribute
+ * and left a "hidden" panel fully rendered. Declared once, `!important`, so it
+ * cannot be re-broken by a later grouped selector. */
+[hidden] {
+  display: none !important;
+}
+
 html {
   scroll-behavior: smooth;
   /* Load-bearing: the e2e journey asserts no horizontal overflow at four
@@ -1215,6 +1224,12 @@ svg {
 .signal-list article {
   display: flex;
   align-items: center;
+  /* Wrap at every width, not only below 520px. A non-wrapping row cannot
+   * shrink a nowrap chip below its content, so between roughly 560 and 1100px
+   * the match band was overlapped by the button beside it — the one output the
+   * product exists to explain, covered by an opaque control. Above the point
+   * where everything fits, wrapping changes nothing. */
+  flex-wrap: wrap;
   gap: var(--space-lg);
   padding: var(--space-lg) var(--pad-cell-inline);
   border: 1px solid var(--brass-100);
@@ -1353,12 +1368,64 @@ svg {
   color: var(--text-muted);
   font-size: var(--text-sm);
 }
-.action-reference,
 .evidence-kind,
 .schedule-cadence {
   font-family: var(--font-mono);
   font-size: var(--text-placard);
   letter-spacing: 0.05em;
+}
+
+/* The blocker label and the employer's quoted wording are two different
+ * statements. Run together they read as one sentence: "No sponsorship of any
+ * kindNo sponsor". */
+.blocker-source {
+  display: block;
+  margin-block-start: var(--space-3xs);
+}
+
+/* A preview has to show what it is previewing. */
+.import-claims {
+  display: grid;
+  gap: var(--space-xs);
+  margin: var(--space-md) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.import-claims li {
+  display: grid;
+  gap: var(--space-3xs);
+  padding: var(--space-md) var(--pad-cell-inline);
+  border: 1px solid var(--brass-100);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  min-width: 0;
+}
+.import-claims strong {
+  color: var(--text);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+/* Deletion clears the session, so its receipt appears on the start screen. It
+ * carries a bearer token: give it the weight of the thing it is. */
+.receipt {
+  display: grid;
+  gap: var(--space-md);
+  align-content: start;
+  border-inline-start: 2px solid var(--ok-edge);
+}
+.receipt.is-pending {
+  border-inline-start-color: var(--live-core);
+}
+.receipt h2 {
+  margin: 0;
+}
+
+.action-reference {
+  display: grid;
+  gap: var(--space-2xs);
+  min-width: 0;
+  width: 100%;
 }
 
 .empty {
@@ -1932,17 +1999,8 @@ textarea {
   .connection-banner {
     margin-inline: var(--space-lg);
   }
-  .match-row,
-  .table-row,
-  .job-row,
-  .packet-row,
-  .action-row,
-  .evidence-item,
-  .requirement,
-  .schedule-row,
-  .signal-list article {
-    flex-wrap: wrap;
-  }
+  /* flex-wrap now lives in the base row grammar; only the auto margin that
+   * pushes the state chip to the far end needs releasing at this width. */
   .match-row .state,
   .job-row .state,
   .packet-row .state,

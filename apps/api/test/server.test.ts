@@ -615,4 +615,67 @@ describe("Nimanto beta API", () => {
     expect(resumed.statusCode).toBe(200);
     expect(resumed.json().state).toBe("completed");
   });
+  it("names the required order when a transition skips a stage", async () => {
+    // The generic 400 ("The request needs attention...") is the right default
+    // for validation, but it left the candidate with no way to know an
+    // application has to pass through Prepared. The specific code has to be
+    // tested before the INVALID_ catch-all or it can never fire.
+    const { app, cookie } = await setup();
+    const dashboard = await app.inject({
+      method: "GET",
+      url: "/v1/dashboard",
+      headers: { cookie },
+    });
+    const jobId = dashboard.json().jobs[0].id as string;
+    const tracked = await app.inject({
+      method: "POST",
+      url: "/v1/applications",
+      headers: { cookie },
+      payload: { jobId },
+    });
+    expect(tracked.statusCode).toBe(200);
+
+    const skipped = await app.inject({
+      method: "PUT",
+      url: `/v1/applications/${tracked.json().id}/status`,
+      headers: { cookie },
+      payload: { status: "submitted_externally" },
+    });
+    expect(skipped.statusCode).toBe(409);
+    expect(skipped.json().error.code).toBe("INVALID_APPLICATION_TRANSITION");
+    expect(skipped.json().error.message).toContain("Prepared");
+  });
+
+  it("previews the claims an import would create, not just how many", async () => {
+    // The contract promises a preview of every accepted field before ingestion.
+    const { app, cookie } = await setup();
+    const preview = await app.inject({
+      method: "POST",
+      url: "/v1/evidence/preview",
+      headers: { cookie },
+      payload: {
+        filename: "career-notes.txt",
+        mimeType: "text/plain",
+        contentBase64: Buffer.from(
+          "Skill: TypeScript and API design\nProject: Shipped a versioned public API\n",
+        ).toString("base64"),
+      },
+    });
+    expect(preview.statusCode).toBe(200);
+    const body = preview.json();
+    expect(body.claimCount).toBeGreaterThan(0);
+    expect(body.claims).toHaveLength(body.claimCount);
+    expect(body.claims.map((claim: { value: string }) => claim.value).join(" ")).toContain(
+      "TypeScript",
+    );
+    for (const claim of body.claims) {
+      expect(Object.keys(claim).sort()).toEqual(["kind", "locator", "sourceName", "value"]);
+    }
+
+    // Preview stores nothing.
+    const after = await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } });
+    expect(
+      after.json().evidence.some((claim: { value: string }) => claim.value.includes("versioned")),
+    ).toBe(false);
+  });
 });

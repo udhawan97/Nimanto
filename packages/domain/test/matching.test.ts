@@ -146,3 +146,58 @@ describe("evidence-to-match public seam", () => {
     expect(priya).toEqual(miguel);
   });
 });
+
+describe("evidence strength distinguishes attestation from source", () => {
+  /* The contract defines Evidence Strength as the share of requirements
+   * supported by source-linked evidence "rather than only user_attested
+   * evidence". Before this, the denominator and numerator were the same set —
+   * every supported requirement has evidence ids by construction — so the
+   * measure could only ever return source_strong, and source_mixed was
+   * unreachable. */
+  const claim = (over: Partial<EvidenceClaim>): EvidenceClaim => ({
+    id: "ev",
+    kind: "skill",
+    value: "TypeScript",
+    status: "confirmed",
+    confidence: "high",
+    sourceName: "Synthetic resume",
+    locator: "Skills, line 1",
+    ...over,
+  });
+  const job = (requirements: string[]) => ({
+    id: "job-1",
+    title: "Engineer",
+    company: "Northwind",
+    description: "Engineering role.",
+    requirements,
+  });
+
+  it("does not call a self-attested claim source-linked", () => {
+    const result = matchJob({
+      evidence: [claim({ id: "a", value: "TypeScript", userAttested: true })],
+      job: job(["TypeScript"]),
+    });
+    expect(result.requirements[0]?.state).toBe("supported");
+    expect(result.evidenceStrength).toBe("source_limited");
+  });
+
+  it("still reports source_strong when the support is sourced", () => {
+    const result = matchJob({
+      evidence: [claim({ id: "a", value: "TypeScript" })],
+      job: job(["TypeScript"]),
+    });
+    expect(result.evidenceStrength).toBe("source_strong");
+  });
+
+  it("can reach the middle band it previously could not", () => {
+    const result = matchJob({
+      evidence: [
+        claim({ id: "a", value: "TypeScript" }),
+        claim({ id: "b", value: "Kubernetes", userAttested: true }),
+      ],
+      job: job(["TypeScript", "Kubernetes"]),
+    });
+    expect(result.requirements.every((item) => item.state === "supported")).toBe(true);
+    expect(result.evidenceStrength).toBe("source_mixed");
+  });
+});

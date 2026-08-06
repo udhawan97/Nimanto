@@ -35,19 +35,29 @@ import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } fro
 import { Brand } from "./brand.js";
 import { CommandPalette, type PaletteEntry } from "./command-palette.js";
 import { ConnectionBanner, ConnectionIndicator, useConnection } from "./connection.js";
+import { CopyLine } from "./copy-line.js";
 import {
   BOARD_COLUMNS,
   boardColumns,
   canMove,
   confirmationPrompt,
+  failureMessage,
   followUpNote,
   funnelStages,
+  legalTargets,
   needsConfirmation,
   nextSteps,
+  sectionFromHash,
+  sectionHash,
   type ApplicationStatus,
 } from "../lib/derive.js";
 
 const API = process.env.NEXT_PUBLIC_NIMANTO_API_ORIGIN ?? "http://127.0.0.1:4310";
+
+/* Often enough that a candidate staring at the workbench learns the API died
+ * before they try to use it; rarely enough to stay invisible on a laptop
+ * battery. The probe writes `apiReachable` and nothing else. */
+const HEALTH_PROBE_MS = 15_000;
 
 type Section = "overview" | "evidence" | "jobs" | "applications" | "packets" | "actions" | "data";
 type Evidence = {
@@ -170,11 +180,15 @@ type ActionRunner = (
   success: string,
   onSuccess?: (result: unknown) => void,
 ) => Promise<void>;
+/* `state` is "completed" or "cleanup_pending"; the token is a bearer capability
+ * that reaches the deletion status and resume routes without a session. */
+type DeletionReceipt = { token: string; state: string; message: string };
 type EvidenceImportPreview = {
   filename: string;
   mimeType: string;
   contentBase64: string;
   claimCount: number;
+  claims: Array<{ kind: string; value: string; sourceName: string; locator: string }>;
   warnings: string[];
   preview: {
     acceptedFiles: string[];
@@ -265,10 +279,21 @@ export function Workspace() {
   const connection = useConnection(apiReachable);
   const [bootstrapSecret, setBootstrapSecret] = useState("");
   const [inviteToken, setInviteToken] = useState("");
+  // Section routing may not touch the hash until the credential handshake below
+  // has scrubbed it, or a secret freezes into the back stack.
+  const [routeReady, setRouteReady] = useState(false);
+  // Carries only the requirement wording from a blocked match to the claim
+  // form. Never a source name or locator — see the note in EvidenceVault.
+  const [draftClaim, setDraftClaim] = useState<string | null>(null);
+  const clearDraftClaim = useCallback(() => setDraftClaim(null), []);
+  // Held here, not in Data controls: deleting the workspace clears the session,
+  // so that panel unmounts before the candidate could copy the token.
+  const [deletionReceipt, setDeletionReceipt] = useState<DeletionReceipt | null>(null);
   const menuButton = useRef<HTMLButtonElement>(null);
   const closeNavigationButton = useRef<HTMLButtonElement>(null);
   const firstNavigationButton = useRef<HTMLButtonElement>(null);
   const refreshButton = useRef<HTMLButtonElement>(null);
+  const contentHeading = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fragment = new URLSearchParams(window.location.hash.slice(1));
@@ -277,6 +302,7 @@ export function Workspace() {
     if (invitation) {
       setInviteToken(invitation);
       window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+      setRouteReady(true);
       return;
     }
     if (value) {
@@ -285,8 +311,26 @@ export function Workspace() {
       setBootstrapSecret(value);
     } else {
       setBootstrapSecret(window.sessionStorage.getItem("nimanto_bootstrap") ?? "");
+      // Only a bare, known section name is honoured — never a hash carrying "=".
+      const opened = sectionFromHash(window.location.hash);
+      if (opened) setSection(opened);
     }
+    setRouteReady(true);
   }, []);
+
+  /* Back, forward and a pasted link all arrive here. Without it the section
+   * lived only in React state, so Back left the workbench entirely and a reload
+   * always dropped the candidate back on Overview. */
+  useEffect(() => {
+    if (!routeReady) return;
+    const onHashChange = () => {
+      const opened = sectionFromHash(window.location.hash);
+      setSection(opened ?? "overview");
+      setNotice(null);
+    };
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, [routeReady]);
 
   const clearBootstrapSecret = useCallback(() => {
     window.sessionStorage.removeItem("nimanto_bootstrap");
@@ -309,6 +353,18 @@ export function Workspace() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [closeMobileNavigation, mobileNav]);
 
+  /* The API returns a precise `code` behind a deliberately generic message.
+   * Only the client knows which screen the candidate is on, so this is where a
+   * rejection becomes something to act on — and where a raw `TypeError` is
+   * swallowed, because the connection banner already explains that failure
+   * better than "Failed to fetch" ever could. */
+  const describeFailure = (error: unknown): string | null =>
+    failureMessage({
+      code: error instanceof ApiError ? error.code : null,
+      message: error instanceof Error ? error.message : null,
+      transport: error instanceof TypeError,
+    });
+
   const refresh = useCallback(async () => {
     try {
       const status = await api<{ authenticated: boolean }>("/v1/auth/status");
@@ -329,10 +385,8 @@ export function Workspace() {
       } else {
         // A transport failure means the local half is not answering at all.
         setApiReachable(!(error instanceof TypeError));
-        setNotice({
-          kind: "error",
-          text: error instanceof Error ? error.message : "The local service is unavailable.",
-        });
+        const text = describeFailure(error);
+        if (text) setNotice({ kind: "error", text });
       }
     }
   }, []);
@@ -340,6 +394,32 @@ export function Workspace() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  /* `apiReachable` used to change only when the candidate did something, so the
+   * indicator kept reporting "connected" indefinitely after the API stopped.
+   * This is deliberately not `refresh()` on a timer: that reloads the whole
+   * workspace and would clobber in-flight edits. */
+  useEffect(() => {
+    let cancelled = false;
+    const probe = async () => {
+      try {
+        const response = await fetch(`${API}/health`, { cache: "no-store" });
+        if (!cancelled) setApiReachable(response.ok);
+      } catch {
+        if (!cancelled) setApiReachable(false);
+      }
+    };
+    const timer = window.setInterval(() => void probe(), HEALTH_PROBE_MS);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void probe();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, []);
 
   const act: ActionRunner = async (work, success, onSuccess) => {
     setBusy(true);
@@ -350,10 +430,8 @@ export function Workspace() {
       await refresh();
       setNotice({ kind: "ok", text: success });
     } catch (error) {
-      setNotice({
-        kind: "error",
-        text: error instanceof Error ? error.message : "Nimanto could not complete that request.",
-      });
+      const text = describeFailure(error);
+      if (text) setNotice({ kind: "error", text });
     } finally {
       setBusy(false);
     }
@@ -397,6 +475,7 @@ export function Workspace() {
         onBootstrapSecret={setBootstrapSecret}
         busy={busy}
         notice={notice}
+        deletionReceipt={deletionReceipt}
       />
     );
   }
@@ -411,13 +490,24 @@ export function Workspace() {
         bootstrapSecret={bootstrapSecret}
         inviteMode={false}
         onBootstrapSecret={setBootstrapSecret}
+        deletionReceipt={deletionReceipt}
       />
     );
 
   const selected = navigation.find((item) => item.id === section)!;
+  /* One door for every section change: clears the previous screen's message so
+   * it cannot follow the candidate somewhere it no longer describes, writes the
+   * section to the hash so Back and reload work, and moves focus to the new
+   * heading so a keyboard or screen-reader user is told where they landed. */
   const goToSection = (id: string) => {
-    setSection(id as Section);
+    const next = id as Section;
+    setSection(next);
+    setNotice(null);
     setMobileNav(false);
+    if (routeReady && sectionFromHash(window.location.hash) !== next) {
+      window.location.hash = sectionHash(next);
+    }
+    window.requestAnimationFrame(() => contentHeading.current?.focus());
   };
   // Sections plus whatever the candidate is actually working on. Every entry is
   // a destination; none can carry an action.
@@ -488,10 +578,7 @@ export function Workspace() {
                   section === item.id ? "workspace-nav-item is-active" : "workspace-nav-item"
                 }
                 aria-current={section === item.id ? "page" : undefined}
-                onClick={() => {
-                  setSection(item.id);
-                  closeMobileNavigation();
-                }}
+                onClick={() => goToSection(item.id)}
               >
                 <Icon size={18} />
                 <span>{item.label}</span>
@@ -554,7 +641,7 @@ export function Workspace() {
             <Menu />
           </button>
           <div>
-            <p>{selected.label}</p>
+            <p id="workspace-section-name">{selected.label}</p>
             <span>{dashboard.identity.email}</span>
           </div>
           <button
@@ -569,7 +656,14 @@ export function Workspace() {
         </header>
         <ConnectionBanner state={connection} onRetry={() => void refresh()} />
         {notice && (
-          <div className={`notice ${notice.kind}`} role="status" aria-live="polite">
+          // A failure announced politely waits behind whatever the screen
+          // reader is already saying. The sign-in screen already made this
+          // distinction; the workbench did not.
+          <div
+            className={`notice ${notice.kind}`}
+            role={notice.kind === "error" ? "alert" : "status"}
+            aria-live={notice.kind === "error" ? "assertive" : "polite"}
+          >
             {notice.kind === "ok" ? <Check size={17} /> : <CircleAlert size={17} />}
             <span>{notice.text}</span>
             <button
@@ -582,20 +676,51 @@ export function Workspace() {
             </button>
           </div>
         )}
-        <div className="workspace-content">
+        {/* Focus target for every section change. Without it, choosing a
+         * destination — from the sidebar or from quick navigation — dropped
+         * focus to <body> and a keyboard user restarted from the top. */}
+        <div
+          className="workspace-content"
+          ref={contentHeading}
+          tabIndex={-1}
+          aria-labelledby="workspace-section-name"
+        >
           {section === "overview" && (
-            <Overview dashboard={dashboard} onGo={setSection} onAct={act} busy={busy} />
+            <Overview dashboard={dashboard} onGo={goToSection} onAct={act} busy={busy} />
           )}
           {section === "evidence" && (
-            <EvidenceVault dashboard={dashboard} onAct={act} busy={busy} />
+            <EvidenceVault
+              dashboard={dashboard}
+              onAct={act}
+              busy={busy}
+              draftClaim={draftClaim}
+              onDraftUsed={clearDraftClaim}
+            />
           )}
-          {section === "jobs" && <Jobs dashboard={dashboard} onAct={act} busy={busy} />}
+          {section === "jobs" && (
+            <Jobs
+              dashboard={dashboard}
+              onAct={act}
+              busy={busy}
+              onAddEvidence={(requirement) => {
+                setDraftClaim(requirement);
+                goToSection("evidence");
+              }}
+            />
+          )}
           {section === "applications" && (
-            <Applications dashboard={dashboard} onAct={act} busy={busy} onGo={setSection} />
+            <Applications dashboard={dashboard} onAct={act} busy={busy} onGo={goToSection} />
           )}
           {section === "packets" && <Packets dashboard={dashboard} onAct={act} busy={busy} />}
           {section === "actions" && <Actions dashboard={dashboard} onAct={act} busy={busy} />}
-          {section === "data" && <DataControls dashboard={dashboard} onAct={act} busy={busy} />}
+          {section === "data" && (
+            <DataControls
+              dashboard={dashboard}
+              onAct={act}
+              busy={busy}
+              onDeleted={setDeletionReceipt}
+            />
+          )}
         </div>
       </main>
     </div>
@@ -611,6 +736,7 @@ function WorkspaceStart({
   inviteMode,
   onBootstrapSecret,
   onDemo,
+  deletionReceipt,
 }: {
   unavailable: boolean;
   onStart: (identity: { displayName: string; email: string }) => void;
@@ -620,6 +746,7 @@ function WorkspaceStart({
   bootstrapSecret: string;
   inviteMode: boolean;
   onBootstrapSecret: (value: string) => void;
+  deletionReceipt?: DeletionReceipt | null;
 }) {
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -634,6 +761,34 @@ function WorkspaceStart({
       <a className="back-link" href="../">
         <ArrowLeft size={16} /> Back to Nimanto
       </a>
+      {/* Deletion signs the candidate out, so this is the only screen left that
+       * can hand them the receipt for what they just did. */}
+      {deletionReceipt && (
+        <section
+          className={
+            deletionReceipt.state === "completed"
+              ? "start-panel receipt"
+              : "start-panel receipt is-pending"
+          }
+          role="alert"
+        >
+          <h2>
+            {deletionReceipt.state === "completed"
+              ? "Workspace deleted"
+              : "Database records removed — local file cleanup is still pending"}
+          </h2>
+          <p>{deletionReceipt.message}</p>
+          <p className="field-note">
+            This token is the only way to check or resume the deletion, and it works without a
+            session — treat it like a password.
+          </p>
+          <CopyLine command={deletionReceipt.token} />
+          <p className="field-note">
+            Check it with <code>GET /v1/deletion/status?token=…</code>; finish an interrupted
+            cleanup with <code>POST /v1/deletion/resume</code>.
+          </p>
+        </section>
+      )}
       <form className="start-panel" onSubmit={submit}>
         <Brand />
         <div className="design-line compact" aria-label="Evidence, decision, and approval">
@@ -955,15 +1110,35 @@ function EvidenceVault({
   dashboard,
   onAct,
   busy,
+  draftClaim,
+  onDraftUsed,
 }: {
   dashboard: Dashboard;
   onAct: ActionRunner;
   busy: boolean;
+  draftClaim?: string | null;
+  onDraftUsed?: () => void;
 }) {
   const [kind, setKind] = useState("skill");
   const [value, setValue] = useState("");
   const [authorization, setAuthorization] = useState(dashboard.profile?.authorizationWording ?? "");
   const [importPreview, setImportPreview] = useState<EvidenceImportPreview | null>(null);
+  const claimField = useRef<HTMLTextAreaElement>(null);
+
+  /* Arrived here from an unmet requirement. Only the wording the candidate has
+   * to answer is carried across — never the posting's source name or locator,
+   * which would attribute a candidate's own claim to an employer's ad. The API
+   * files it as pending and user-attested regardless. */
+  useEffect(() => {
+    if (!draftClaim) return;
+    setValue(draftClaim);
+    onDraftUsed?.();
+    window.requestAnimationFrame(() => {
+      claimField.current?.focus();
+      claimField.current?.setSelectionRange(draftClaim.length, draftClaim.length);
+    });
+  }, [draftClaim, onDraftUsed]);
+
   const submit = (event: FormEvent) => {
     event.preventDefault();
     void onAct(
@@ -1031,6 +1206,18 @@ function EvidenceVault({
                   {importPreview.claimCount === 1 ? "" : "s"} will enter your private review queue.
                 </p>
               </div>
+              {/* A count is not a preview. For anything but a LinkedIn archive
+               * this asked the candidate to accept claims they could not read. */}
+              {importPreview.claims.length > 0 && (
+                <ul className="import-claims">
+                  {importPreview.claims.map((claim, index) => (
+                    <li key={`${claim.kind}-${index}`}>
+                      <span className="evidence-kind">{human(claim.kind)}</span>
+                      <strong>{claim.value}</strong>
+                    </li>
+                  ))}
+                </ul>
+              )}
               {importPreview.preview && (
                 <div className="import-preview-grid">
                   <div>
@@ -1176,6 +1363,7 @@ function EvidenceVault({
             <label>
               Exact claim
               <textarea
+                ref={claimField}
                 required
                 value={value}
                 onChange={(event) => setValue(event.target.value)}
@@ -1231,10 +1419,12 @@ function Jobs({
   dashboard,
   onAct,
   busy,
+  onAddEvidence,
 }: {
   dashboard: Dashboard;
   onAct: ActionRunner;
   busy: boolean;
+  onAddEvidence: (requirement: string) => void;
 }) {
   const [adding, setAdding] = useState(false);
   const [sourceOpen, setSourceOpen] = useState(false);
@@ -1691,7 +1881,9 @@ function Jobs({
                         <CircleAlert size={15} />
                         <span>
                           <strong>{human(blocker.code)}</strong>
-                          {blocker.sourceText}
+                          {/* Without a separator the label ran straight into the
+                           * quoted source: "No sponsorship of any kindNo sponsor". */}
+                          <span className="blocker-source">{blocker.sourceText}</span>
                         </span>
                       </p>
                     ))}
@@ -1706,6 +1898,20 @@ function Jobs({
                           {requirement.evidenceIds.length} link
                           {requirement.evidenceIds.length === 1 ? "" : "s"}
                         </code>
+                        {/* The loop the product is built on. Stating that a
+                         * requirement is unmet and stopping made the candidate
+                         * memorise the wording and retype it in another section. */}
+                        {requirement.state !== "supported" && (
+                          <button
+                            type="button"
+                            className="button mini quiet"
+                            disabled={busy}
+                            aria-label={`Add evidence for ${requirement.requirement}`}
+                            onClick={() => onAddEvidence(requirement.requirement)}
+                          >
+                            <Plus size={14} /> Add evidence
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -1869,9 +2075,14 @@ function Applications({
 
   /* Moving a card is a claim about what the candidate did in the world, so the
    * consequential columns ask first. The server enforces legality independently
-   * — this only decides which moves to offer. */
+   * — this only decides which moves to offer.
+   *
+   * Every status control routes through here. It used to guard the board only,
+   * while the row list wrote the same endpoint through a bare <select> with no
+   * legality filter and no confirmation, so the strongest gate in the product
+   * could be walked around without leaving the screen. */
   const move = (application: Application, to: ApplicationStatus) => {
-    if (!canMove(application.status, to)) return;
+    if (to === application.status || !canMove(application.status, to)) return;
     if (
       needsConfirmation(application.status, to) &&
       !window.confirm(confirmationPrompt(to, application))
@@ -1884,6 +2095,12 @@ function Applications({
           body: JSON.stringify({ status: to }),
         }),
       "Application status updated.",
+      // The card unmounts into another column; put focus on it where it landed
+      // rather than dropping the candidate back at the top of the document.
+    ).then(() =>
+      window.requestAnimationFrame(() =>
+        document.getElementById(`board-card-${application.id}`)?.focus(),
+      ),
     );
   };
 
@@ -1920,8 +2137,16 @@ function Applications({
               </header>
               {column.items.map((application) => {
                 const note = followUpNote(application, now);
+                const role = application.job
+                  ? `${application.job.title} at ${application.job.company}`
+                  : "this application";
                 return (
-                  <article className="board-card" key={application.id}>
+                  <article
+                    className="board-card"
+                    key={application.id}
+                    id={`board-card-${application.id}`}
+                    tabIndex={-1}
+                  >
                     <strong>{application.job?.title ?? "Unknown role"}</strong>
                     <span>{application.job?.company}</span>
                     {note && (
@@ -1941,6 +2166,9 @@ function Applications({
                           key={target.id}
                           type="button"
                           disabled={busy}
+                          // Visually the column name is enough; heard on its own
+                          // in a list of twenty cards, "Prepared" is not.
+                          aria-label={`Move ${role} to ${target.label}`}
                           onClick={() => move(application, target.id)}
                         >
                           {target.label}
@@ -1975,25 +2203,20 @@ function Applications({
             </div>
             <label>
               <span className="sr-only">Status for {application.job?.title}</span>
+              {/* Same guard as the board, and only the moves the domain allows.
+               * Listing all five taught the candidate about illegal transitions
+               * by way of a rejected request. On a declined confirmation the
+               * value prop restores itself on the next render. */}
               <select
                 value={application.status}
                 disabled={busy}
-                onChange={(event) =>
-                  onAct(
-                    () =>
-                      api(`/v1/applications/${application.id}/status`, {
-                        method: "PUT",
-                        body: JSON.stringify({ status: event.target.value }),
-                      }),
-                    "Application status updated.",
-                  )
-                }
+                onChange={(event) => move(application, event.target.value as ApplicationStatus)}
               >
-                <option value="tracked">Tracked</option>
-                <option value="prepared">Prepared</option>
-                <option value="approved_for_export">Approved for export</option>
-                <option value="submitted_externally">Submitted externally</option>
-                <option value="withdrawn">Withdrawn</option>
+                {legalTargets(application.status).map((target) => (
+                  <option key={target} value={target}>
+                    {BOARD_COLUMNS.find((column) => column.id === target)!.label}
+                  </option>
+                ))}
               </select>
             </label>
             <div className="outcome-chips">
@@ -2177,6 +2400,14 @@ function Actions({
   busy: boolean;
 }) {
   const approvedPackets = dashboard.packets.filter((packet) => packet.status === "approved");
+  /* This control decides what leaves the machine. Naming it "a9c20e42" asked
+   * the candidate to map opaque hex to a role at the most consequential step in
+   * the product; the identifier stays, as secondary detail. */
+  const packetLabel = (packetId: string) => {
+    const packet = dashboard.packets.find((item) => item.id === packetId);
+    const job = dashboard.applications.find((item) => item.id === packet?.applicationId)?.job;
+    return job ? `${job.title} · ${job.company}` : `Packet ${packetId.slice(0, 8)}`;
+  };
   const [open, setOpen] = useState(false);
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -2263,7 +2494,7 @@ function Actions({
               <select name="packetId">
                 {approvedPackets.map((packet) => (
                   <option key={packet.id} value={packet.id}>
-                    {packet.id.slice(0, 8)}
+                    {packetLabel(packet.id)} ({packet.id.slice(0, 8)})
                   </option>
                 ))}
               </select>
@@ -2308,7 +2539,7 @@ function Actions({
               <span>{human(action.provider)}</span>
               <strong>{action.payload.subject}</strong>
               <small>
-                To: {action.target.to} · packet {action.packetId.slice(0, 8)}
+                To: {action.target.to} · {packetLabel(action.packetId)}
               </small>
               <p className="action-message">{action.payload.body}</p>
             </div>
@@ -2367,7 +2598,18 @@ function Actions({
               )}
             </div>
             {action.result?.providerReference && (
-              <code className="action-reference">{action.result.providerReference}</code>
+              /* The last step of the two-key gate handed back 130 characters of
+               * percent-encoded URL as inert text. Copy, deliberately not an
+               * anchor: opening the mail client on one click would blur the
+               * "prepared" versus "sent" line the provider layer maintains. */
+              <div className="action-reference">
+                <CopyLine command={action.result.providerReference} />
+                {action.provider === "deep_link" && (
+                  <small className="field-note">
+                    Copy this into your own mail client. Nimanto prepared it; it has not been sent.
+                  </small>
+                )}
+              </div>
             )}
           </article>
         ))}
@@ -2387,10 +2629,12 @@ function DataControls({
   dashboard,
   onAct,
   busy,
+  onDeleted,
 }: {
   dashboard: Dashboard;
   onAct: ActionRunner;
   busy: boolean;
+  onDeleted: (receipt: DeletionReceipt) => void;
 }) {
   const [confirmation, setConfirmation] = useState("");
   const download = async () => {
@@ -2452,7 +2696,10 @@ function DataControls({
             onClick={() =>
               onAct(
                 () => api("/v1/data", { method: "DELETE", body: JSON.stringify({ confirmation }) }),
-                "Workspace deleted.",
+                "Deletion finished. Keep the status token.",
+                // Deletion clears the session, so this panel unmounts moments
+                // later. The receipt is handed upward to outlive it.
+                (result) => onDeleted(result as DeletionReceipt),
               )
             }
           >
