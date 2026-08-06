@@ -209,6 +209,7 @@ export function Workspace() {
   const menuButton = useRef<HTMLButtonElement>(null);
   const closeNavigationButton = useRef<HTMLButtonElement>(null);
   const firstNavigationButton = useRef<HTMLButtonElement>(null);
+  const refreshButton = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const fragment = new URLSearchParams(window.location.hash.slice(1));
@@ -445,6 +446,12 @@ export function Workspace() {
             className="icon-button menu-button"
             type="button"
             onClick={() => setMobileNav(true)}
+            onKeyDown={(event) => {
+              if (event.key === "Tab" && !event.shiftKey && !mobileNav && !busy) {
+                event.preventDefault();
+                refreshButton.current?.focus();
+              }
+            }}
             aria-label="Open navigation"
             aria-controls="workspace-navigation"
             aria-expanded={mobileNav}
@@ -456,6 +463,7 @@ export function Workspace() {
             <span>{dashboard.identity.email}</span>
           </div>
           <button
+            ref={refreshButton}
             className="button mini quiet"
             type="button"
             disabled={busy}
