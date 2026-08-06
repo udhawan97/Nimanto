@@ -4,5 +4,12 @@ apps/web/public/
 docs/planning/
 LICENSE
 
+# Local working state, never repository content. The ignore paths above are
+# anchored at the root, so a git worktree checked out under .claude/ presents a
+# second copy of every excluded file and `pnpm check` fails on directories that
+# are not part of the tree being checked.
+.claude/
+.remember/
+
 # Vendored brand artifact — kept byte-identical to what was supplied.
 docs/superpowers/specs/assets/nimanto-emblem.source.js
