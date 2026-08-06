@@ -1,0 +1,12 @@
+.git
+.github
+.nimanto-data
+apps/desktop
+coverage
+dist
+graphify-out
+node_modules
+out
+playwright-report
+test-results
+*.log

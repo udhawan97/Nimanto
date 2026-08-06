@@ -1,0 +1,10 @@
+Nimanto
+Copyright 2026 Umang Dhawan
+
+This product includes third-party open-source software. The generated dependency
+inventory and licenses are distributed with releases under THIRD_PARTY_NOTICES.md.
+
+O*NET data, when imported by a user, is licensed under CC BY 4.0 and must retain
+the exact edition attribution required by the O*NET Resource Center. Nimanto does
+not bundle O*NET, DOL, USCIS, BLS, employer, or job-board datasets in the source
+repository or release artifacts.

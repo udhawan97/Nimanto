@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <style>
+    :root { --paper: #eef3fb; --ink: #202633; --marigold: #e2a626; --seal: #a34038; }
+  </style>
+  <rect width="512" height="512" rx="104" fill="var(--paper)"/>
+  <path d="M100 388V124h67l154 182V124h67v264h-66L167 204v184h-67Z" fill="var(--ink)"/>
+  <path d="M343 106h60v60h-60z" fill="var(--marigold)"/>
+  <circle cx="373" cy="136" r="14" fill="var(--seal)"/>
+</svg>

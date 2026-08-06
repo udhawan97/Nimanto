@@ -1,0 +1,39 @@
+name: Bug report
+description: Report a reproducible Nimanto beta problem without personal candidate data.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Do not attach resumes, access tokens, email addresses, or real application materials. Security reports belong in private vulnerability reporting.
+  - type: textarea
+    id: observed
+    attributes:
+      label: What happened?
+      description: Include the screen, action, and safe error code.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Nimanto version
+      placeholder: v0.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Surface
+      options:
+        - Local web workbench
+        - API
+        - Local worker
+        - Public website
+    validations:
+      required: true

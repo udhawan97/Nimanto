@@ -1,0 +1,5 @@
+graphify-out/
+pnpm-lock.yaml
+apps/web/public/
+docs/planning/
+LICENSE

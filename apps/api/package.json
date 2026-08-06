@@ -1,0 +1,33 @@
+{
+  "name": "@nimanto/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "node --conditions=development --import tsx --watch src/main.ts",
+    "start": "node dist/main.js",
+    "test": "vitest run --coverage.enabled=false",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.1.2",
+    "@fastify/cors": "^11.3.0",
+    "@fastify/helmet": "^13.1.0",
+    "@fastify/rate-limit": "^11.2.0",
+    "@fastify/swagger": "^9.8.1",
+    "@fastify/swagger-ui": "^6.1.1",
+    "@nimanto/database": "workspace:*",
+    "@nimanto/documents": "workspace:*",
+    "@nimanto/domain": "workspace:*",
+    "@nimanto/parsers": "workspace:*",
+    "@nimanto/providers": "workspace:*",
+    "fastify": "^5.11.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "tsx": "^4.21.0",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
+  }
+}

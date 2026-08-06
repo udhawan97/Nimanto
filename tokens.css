@@ -1,0 +1,80 @@
+/* Hallmark · pre-emit critique: P5 H5 E5 S5 R5 V5
+ * genre: modern-minimal · macrostructure: Workbench · theme: Cobalt with Japanese restraint and Indian modernism
+ * tone: calm technical · anchor hue: indigo · enrichment: live evidence rail · knob delta: bilingual microtype and jaali proof ornament
+ * contrast: pass (40–41) · nav: N13 · footer: Ft5 · slop: pass (42–45)
+ * honest: pass (46) · chrome: pass (47) · tokens: pass (48) · responsive: pass (49) · icons: pass (30)
+ * mobile: pass (34, 49, 50–57) · slop test: pass (58 gates)
+ */
+:root {
+  --color-paper: oklch(98.5% 0.004 250);
+  --color-paper-2: oklch(96% 0.008 250);
+  --color-paper-3: oklch(92% 0.012 250);
+  --color-ink: oklch(24% 0.02 258);
+  --color-ink-2: oklch(34% 0.018 257);
+  --color-muted: oklch(47% 0.018 257);
+  --color-rule: oklch(84% 0.012 252);
+  --color-rule-2: oklch(68% 0.025 254);
+  --color-accent: oklch(50% 0.2 256);
+  --color-accent-hover: oklch(43% 0.19 256);
+  --color-accent-ink: oklch(98% 0.004 250);
+  --color-seal: oklch(52% 0.17 35);
+  --color-indigo: oklch(31% 0.09 262);
+  --color-marigold: oklch(72% 0.15 78);
+  --color-terracotta: oklch(55% 0.14 42);
+  --color-focus: oklch(62% 0.22 256);
+  --color-success: oklch(43% 0.12 155);
+  --color-warning: oklch(52% 0.12 75);
+  --color-error: oklch(49% 0.18 25);
+  --color-graphite: oklch(21% 0.016 260);
+  --color-graphite-2: oklch(27% 0.02 260);
+  --color-graphite-ink: oklch(94% 0.008 250);
+  --color-overlay: oklch(16% 0.02 258 / 0.58);
+  --color-shadow: oklch(24% 0.02 258 / 0.08);
+
+  --font-display: "Space Grotesk Variable", "Space Grotesk", sans-serif;
+  --font-body: "IBM Plex Sans Variable", "IBM Plex Sans", sans-serif;
+  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", monospace;
+
+  --space-3xs: 0.125rem;
+  --space-2xs: 0.25rem;
+  --space-xs: 0.5rem;
+  --space-sm: 0.75rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2.5rem;
+  --space-2xl: 4rem;
+  --space-3xl: 6rem;
+  --space-4xl: 9rem;
+
+  --text-xs: 0.72rem;
+  --text-sm: 0.82rem;
+  --text-base: 1rem;
+  --text-md: 1.2rem;
+  --text-lg: 1.44rem;
+  --text-xl: 1.728rem;
+  --text-2xl: 2.074rem;
+  --text-3xl: 2.488rem;
+  --text-4xl: 2.986rem;
+  --text-display-s: clamp(2.4rem, 5vw, 4rem);
+  --text-display: clamp(2.75rem, 5vw + 1rem, 5.25rem);
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-micro: 120ms;
+  --dur-short: 220ms;
+  --dur-long: 420ms;
+
+  --rule-hair: 1px;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 1rem;
+
+  --z-base: 1;
+  --z-raised: 10;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-modal: 400;
+  --z-toast: 500;
+  --z-tooltip: 600;
+}

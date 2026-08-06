@@ -1,0 +1,25 @@
+services:
+  nimanto:
+    build:
+      context: .
+    image: nimanto:0.1.0
+    ports:
+      - "127.0.0.1:4300:4300"
+      - "127.0.0.1:4310:4310"
+    environment:
+      NIMANTO_API_HOST: 0.0.0.0
+      NIMANTO_API_PORT: 4310
+      NIMANTO_WEB_ORIGIN: http://127.0.0.1:4300
+      NIMANTO_DATA_DIR: /data
+      NIMANTO_DEMO_MODE: "off"
+    volumes:
+      - nimanto-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+volumes:
+  nimanto-data:

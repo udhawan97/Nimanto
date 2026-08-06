@@ -1,0 +1,439 @@
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
+import type { FastifyInstance } from "fastify";
+import { canonicalHash } from "@nimanto/domain";
+import { buildServer } from "../src/server.js";
+
+const apps: FastifyInstance[] = [];
+
+afterEach(async () => {
+  await Promise.all(apps.splice(0).map((app) => app.close()));
+});
+
+const bootstrapSecret = "test-bootstrap-secret-with-at-least-32-characters";
+
+async function setup(options?: {
+  removePath?: (
+    target: string,
+    settings: { recursive?: boolean; force?: boolean },
+  ) => Promise<void>;
+  assuranceModel?: string;
+}): Promise<{
+  app: FastifyInstance;
+  cookie: string;
+  root: string;
+  tenantId: string;
+}> {
+  const root = await mkdtemp(path.join(tmpdir(), "nimanto-api-"));
+  const app = await buildServer({
+    dataDirectory: path.join(root, "database"),
+    artifactDirectory: path.join(root, "artifacts"),
+    outboxDirectory: path.join(root, "outbox"),
+    webOrigin: "http://127.0.0.1:4300",
+    demoMode: true,
+    bootstrapSecret,
+    urlAllowlist: [],
+    port: 4310,
+    host: "127.0.0.1",
+    ...(options?.removePath ? { removePath: options.removePath } : {}),
+    ...(options?.assuranceModel ? { assuranceModel: options.assuranceModel } : {}),
+  });
+  apps.push(app);
+  await app.ready();
+  const login = await app.inject({
+    method: "POST",
+    url: "/v1/auth/demo",
+    headers: { "x-nimanto-bootstrap-secret": bootstrapSecret },
+    payload: {},
+  });
+  expect(login.statusCode).toBe(200);
+  const header = login.headers["set-cookie"];
+  const cookie = (Array.isArray(header) ? header[0] : header)?.split(";")[0] ?? "";
+  expect(cookie).toContain("nimanto_session=");
+  return { app, cookie, root, tenantId: login.json().identity.tenantId as string };
+}
+
+describe("Nimanto beta API", () => {
+  it("runs evidence through match, packet assurance, approval, and the test outbox", async () => {
+    const { app, cookie } = await setup();
+    const dashboard = await app.inject({
+      method: "GET",
+      url: "/v1/dashboard",
+      headers: { cookie },
+    });
+    expect(dashboard.statusCode).toBe(200);
+    expect(dashboard.headers["cache-control"]).toBe("no-store");
+    const initial = dashboard.json();
+    expect(initial.evidence).toHaveLength(4);
+    expect(initial.jobs).toHaveLength(2);
+
+    const governmentRows = [
+      {
+        company: "Northwind Systems, Inc.",
+        label: "recent_positive_history",
+        sourcePeriod: "FY2026 Q2",
+        observedAt: "2026-07-15T00:00:00.000Z",
+      },
+    ];
+    const untrustedEvaluation = await app.inject({
+      method: "POST",
+      url: "/v1/h1b-signals/government-import",
+      headers: { cookie },
+      payload: {
+        sourceType: "dol_oflc_bulk",
+        sourceEdition: "synthetic-fixture-fy2026q2",
+        checksum: canonicalHash(governmentRows),
+        rows: governmentRows,
+        resolutionEvaluation: Array.from({ length: 100 }, () => ({
+          sourceName: "Northwind Systems, Inc.",
+          expectedId: "Northwind Systems",
+        })),
+      },
+    });
+    expect(untrustedEvaluation.statusCode).toBe(400);
+    expect(untrustedEvaluation.json().error.code).toBe("UNTRUSTED_RESOLUTION_EVALUATION");
+
+    const governmentImport = await app.inject({
+      method: "POST",
+      url: "/v1/h1b-signals/government-import",
+      headers: { cookie },
+      payload: {
+        sourceType: "dol_oflc_bulk",
+        sourceEdition: "synthetic-fixture-fy2026q2",
+        checksum: canonicalHash(governmentRows),
+        rows: governmentRows,
+      },
+    });
+    expect(governmentImport.statusCode).toBe(200);
+    expect(governmentImport.json()).toMatchObject({
+      imported: 1,
+      resolutionEvaluation: { enabled: false, precision: 0, sampleSize: 0 },
+      resolutionEvaluationProvenance: null,
+      signals: [{ label: "possible", confidence: "low" }],
+    });
+
+    const evidencePayload = {
+      filename: "resume.txt",
+      mimeType: "text/plain",
+      contentBase64: Buffer.from("Certification: AWS Solutions Architect", "utf8").toString(
+        "base64",
+      ),
+    };
+    const preview = await app.inject({
+      method: "POST",
+      url: "/v1/evidence/preview",
+      headers: { cookie },
+      payload: evidencePayload,
+    });
+    expect(preview.statusCode).toBe(200);
+    expect(preview.json()).toMatchObject({ claimCount: 1, preview: null });
+
+    const imported = await app.inject({
+      method: "POST",
+      url: "/v1/evidence/import",
+      headers: { cookie },
+      payload: { ...evidencePayload, confirmedPreviewHash: preview.json().previewHash },
+    });
+    expect(imported.statusCode).toBe(200);
+    expect(imported.json().claims[0].status).toBe("pending");
+
+    const jobId = initial.jobs[0].id as string;
+    const match = await app.inject({
+      method: "POST",
+      url: `/v1/jobs/${jobId}/match`,
+      headers: { cookie },
+    });
+    expect(match.statusCode).toBe(200);
+    expect(match.json().result.ruleVersion).toBe("scoring_rules_v1");
+
+    const tracked = await app.inject({
+      method: "POST",
+      url: "/v1/applications",
+      headers: { cookie },
+      payload: { jobId },
+    });
+    expect(tracked.statusCode).toBe(200);
+    const applicationId = tracked.json().id as string;
+
+    const createdPacket = await app.inject({
+      method: "POST",
+      url: "/v1/packets",
+      headers: { cookie },
+      payload: { applicationId, contactEmail: "jobs@example.test" },
+    });
+    expect(createdPacket.statusCode).toBe(200);
+    const packetId = createdPacket.json().id as string;
+
+    const assurance = await app.inject({
+      method: "POST",
+      url: `/v1/packets/${packetId}/assure`,
+      headers: { cookie },
+    });
+    expect(assurance.json()).toMatchObject({ status: "passed", findings: [] });
+    const approval = await app.inject({
+      method: "POST",
+      url: `/v1/packets/${packetId}/approve`,
+      headers: { cookie },
+    });
+    expect(approval.json().status).toBe("approved");
+
+    const action = await app.inject({
+      method: "POST",
+      url: "/v1/actions",
+      headers: { cookie },
+      payload: {
+        packetId,
+        provider: "test_outbox",
+        to: "jobs@example.test",
+        subject: "Application",
+        body: "Please find my reviewed packet attached separately.",
+      },
+    });
+    expect(action.json().state).toBe("pending_approval");
+    const actionId = action.json().id as string;
+    expect(
+      (
+        await app.inject({
+          method: "POST",
+          url: `/v1/actions/${actionId}/approve`,
+          headers: { cookie },
+        })
+      ).json().state,
+    ).toBe("approved");
+    expect(
+      (
+        await app.inject({
+          method: "POST",
+          url: `/v1/actions/${actionId}/execute`,
+          headers: { cookie },
+        })
+      ).statusCode,
+    ).toBe(409);
+
+    await app.inject({
+      method: "PUT",
+      url: "/v1/actions/runtime",
+      headers: { cookie },
+      payload: { enabled: true },
+    });
+    const executed = await app.inject({
+      method: "POST",
+      url: `/v1/actions/${actionId}/execute`,
+      headers: { cookie },
+    });
+    expect(executed.statusCode).toBe(200);
+    expect(executed.json().state).toBe("succeeded");
+    const reference = executed.json().result.providerReference as string;
+    expect(JSON.parse(await readFile(reference, "utf8"))).toMatchObject({
+      provider: "test_outbox",
+      to: "jobs@example.test",
+      subject: "Application",
+      body: "Please find my reviewed packet attached separately.",
+    });
+
+    const exported = await app.inject({
+      method: "GET",
+      url: "/v1/export",
+      headers: { cookie },
+    });
+    expect(exported.statusCode).toBe(200);
+    expect(exported.json()).toMatchObject({
+      exportVersion: "nimanto-local-beta-v1",
+      identity: { displayName: "Priya Shah", email: "priya@example.test" },
+      workspace: { schemaVersion: "nimanto_export_v1" },
+    });
+    expect(exported.json().artifactNote).toContain("individually downloadable");
+
+    const deleted = await app.inject({
+      method: "DELETE",
+      url: "/v1/data",
+      headers: { cookie },
+      payload: { confirmation: "DELETE MY NIMANTO DATA" },
+    });
+    expect(deleted.statusCode).toBe(200);
+    expect(deleted.json()).toMatchObject({ message: expect.stringContaining("was deleted") });
+    expect(typeof deleted.json().token).toBe("string");
+    expect(
+      (await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } })).statusCode,
+    ).toBe(401);
+    await expect(readFile(reference, "utf8")).rejects.toMatchObject({ code: "ENOENT" });
+  }, 20_000);
+
+  it("enforces session and tenant boundaries", async () => {
+    const { app, cookie } = await setup();
+    expect((await app.inject({ method: "GET", url: "/v1/dashboard" })).statusCode).toBe(401);
+    const first = (
+      await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } })
+    ).json();
+    const otherLogin = await app.inject({
+      method: "POST",
+      url: "/v1/auth/local",
+      headers: { "x-nimanto-bootstrap-secret": bootstrapSecret },
+      payload: { email: "other@example.test", displayName: "Other" },
+    });
+    const header = otherLogin.headers["set-cookie"];
+    const otherCookie = (Array.isArray(header) ? header[0] : header)?.split(";")[0] ?? "";
+    const foreign = await app.inject({
+      method: "POST",
+      url: `/v1/jobs/${first.jobs[0].id}/match`,
+      headers: { cookie: otherCookie },
+    });
+    expect(foreign.statusCode).toBe(404);
+  });
+
+  it("does not let a second client resume a workspace without the private launch key", async () => {
+    const { app } = await setup();
+    const attempted = await app.inject({ method: "POST", url: "/v1/auth/demo", payload: {} });
+    expect(attempted.statusCode).toBe(401);
+    expect(attempted.json().error.code).toBe("INVALID_BOOTSTRAP_SECRET");
+  });
+
+  it("issues, accepts, and consumes a private invitation without public signup", async () => {
+    const { app } = await setup();
+    const denied = await app.inject({
+      method: "POST",
+      url: "/v1/auth/invitations",
+      payload: { email: "invitee@example.test" },
+    });
+    expect(denied.statusCode).toBe(401);
+
+    const issued = await app.inject({
+      method: "POST",
+      url: "/v1/auth/invitations",
+      headers: { "x-nimanto-bootstrap-secret": bootstrapSecret },
+      payload: { email: "invitee@example.test" },
+    });
+    expect(issued.statusCode).toBe(200);
+    const accepted = await app.inject({
+      method: "POST",
+      url: "/v1/auth/invitations/accept",
+      payload: {
+        token: issued.json().token,
+        email: "invitee@example.test",
+        displayName: "Invitee",
+      },
+    });
+    expect(accepted.statusCode).toBe(200);
+    expect(accepted.json().identity).toMatchObject({ email: "invitee@example.test" });
+    expect(accepted.headers["set-cookie"]).toBeDefined();
+
+    const reused = await app.inject({
+      method: "POST",
+      url: "/v1/auth/invitations/accept",
+      payload: {
+        token: issued.json().token,
+        email: "invitee@example.test",
+        displayName: "Invitee",
+      },
+    });
+    expect(reused.statusCode).toBe(409);
+  });
+
+  it("fails packet approval and download closed after artifact tampering", async () => {
+    const { app, cookie, root, tenantId } = await setup();
+    const dashboard = (
+      await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } })
+    ).json();
+    const tracked = await app.inject({
+      method: "POST",
+      url: "/v1/applications",
+      headers: { cookie },
+      payload: { jobId: dashboard.jobs[0].id },
+    });
+    const packetResponse = await app.inject({
+      method: "POST",
+      url: "/v1/packets",
+      headers: { cookie },
+      payload: { applicationId: tracked.json().id },
+    });
+    const packet = packetResponse.json();
+    await app.inject({
+      method: "POST",
+      url: `/v1/packets/${packet.id}/assure`,
+      headers: { cookie },
+    });
+    const artifact = packet.artifactManifest.artifacts[0];
+    await writeFile(
+      path.join(root, "artifacts", tenantId, packet.id, artifact.filename),
+      "changed",
+    );
+
+    const approval = await app.inject({
+      method: "POST",
+      url: `/v1/packets/${packet.id}/approve`,
+      headers: { cookie },
+    });
+    expect(approval.statusCode).toBe(409);
+    expect(approval.json().error.code).toBe("ARTIFACT_INTEGRITY_FAILED");
+    const download = await app.inject({
+      method: "GET",
+      url: `/v1/packets/${packet.id}/artifacts/${artifact.format}`,
+      headers: { cookie },
+    });
+    expect(download.statusCode).toBe(409);
+  });
+
+  it("blocks assurance when a configured exact local reviewer is unavailable", async () => {
+    const { app, cookie } = await setup({ assuranceModel: "gemma4:12b" });
+    const dashboard = (
+      await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } })
+    ).json();
+    const tracked = await app.inject({
+      method: "POST",
+      url: "/v1/applications",
+      headers: { cookie },
+      payload: { jobId: dashboard.jobs[0].id },
+    });
+    const packet = await app.inject({
+      method: "POST",
+      url: "/v1/packets",
+      headers: { cookie },
+      payload: { applicationId: tracked.json().id },
+    });
+    const assurance = await app.inject({
+      method: "POST",
+      url: `/v1/packets/${packet.json().id}/assure`,
+      headers: { cookie },
+    });
+    expect(assurance.statusCode).toBe(200);
+    expect(assurance.json()).toMatchObject({
+      status: "blocked",
+      findings: [
+        expect.objectContaining({ code: "MODEL_REVIEW_BLOCKED_UNAVAILABLE", severity: "required" }),
+      ],
+    });
+  });
+
+  it("keeps deletion resumable when filesystem cleanup fails", async () => {
+    let attempts = 0;
+    const { app, cookie } = await setup({
+      removePath: async (target, settings) => {
+        attempts += 1;
+        if (attempts === 1) throw new Error("synthetic cleanup fault");
+        await rm(target, settings);
+      },
+    });
+    const first = await app.inject({
+      method: "DELETE",
+      url: "/v1/data",
+      headers: { cookie },
+      payload: { confirmation: "DELETE MY NIMANTO DATA" },
+    });
+    expect(first.statusCode).toBe(202);
+    expect(first.json()).toMatchObject({ state: "cleanup_pending" });
+    expect(first.json().message).not.toContain("All workspace data was deleted");
+    const token = first.json().token as string;
+    const pending = await app.inject({ method: "GET", url: `/v1/deletion/status?token=${token}` });
+    expect(pending.json().state).toBe("cleanup_pending");
+
+    const resumed = await app.inject({
+      method: "POST",
+      url: "/v1/deletion/resume",
+      payload: { token },
+    });
+    expect(resumed.statusCode).toBe(200);
+    expect(resumed.json().state).toBe("completed");
+  });
+});

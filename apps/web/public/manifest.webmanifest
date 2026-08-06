@@ -1,0 +1,12 @@
+{
+  "name": "Nimanto",
+  "short_name": "Nimanto",
+  "description": "A private, evidence-first job search and application workbench.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f4f7fc",
+  "theme_color": "#3157d5",
+  "icons": [
+    { "src": "assets/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

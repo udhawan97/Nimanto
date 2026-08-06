@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#f4f7fc"/>
+  <rect x="72" y="72" width="8" height="486" fill="#3157d5"/>
+  <path d="M132 192V98h24l55 65V98h24v94h-24l-55-65v65h-24Z" fill="#202633"/>
+  <rect x="219" y="91" width="22" height="22" fill="#e2a626"/>
+  <circle cx="230" cy="102" r="5" fill="#a34038"/>
+  <text x="132" y="290" fill="#202633" font-family="sans-serif" font-weight="700" font-size="70">Evidence first.</text>
+  <text x="132" y="370" fill="#202633" font-family="sans-serif" font-weight="700" font-size="70">Applications second.</text>
+  <text x="132" y="442" fill="#596273" font-family="sans-serif" font-size="30">Private, candidate-controlled job search for H-1B professionals.</text>
+  <text x="132" y="490" fill="#a34038" font-family="sans-serif" font-size="24" letter-spacing="5">証拠から、行動へ。</text>
+  <text x="450" y="490" fill="#b66a3d" font-family="sans-serif" font-size="24" letter-spacing="2">प्रमाण से, प्रगति तक।</text>
+  <text x="132" y="540" fill="#3157d5" font-family="monospace" font-size="24">NIMANTO · LOCAL-FIRST BETA</text>
+</svg>

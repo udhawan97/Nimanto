@@ -1,0 +1,17 @@
+packages:
+  - apps/api
+  - apps/web
+  - apps/worker
+  - packages/*
+
+allowBuilds:
+  "@next/swc-darwin-arm64": true
+  "@next/swc-linux-x64-gnu": true
+  esbuild: true
+  sharp: true
+
+onlyBuiltDependencies:
+  - "@next/swc-darwin-arm64"
+  - "@next/swc-linux-x64-gnu"
+  - esbuild
+  - sharp
