@@ -415,6 +415,11 @@ svg {
 .mark .mark-petal.is-lacquer {
   fill: var(--lacquer);
 }
+/* The crown sits in front of its neighbours, so it lifts one step to keep the
+   overlap readable at 24px. */
+.mark .mark-petal.is-crown {
+  fill: #161613;
+}
 .mark .mark-vein {
   stroke: var(--brass-400);
 }
