@@ -31,7 +31,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 4.1.10
-        version: 4.1.10(@types/node@24.10.1)(vite@8.2.0(@types/node@24.10.1)(esbuild@0.28.1)(tsx@4.23.5)(yaml@2.9.0))
+        version: 4.1.10(@types/node@24.10.1)(happy-dom@20.11.1)(vite@8.2.0(@types/node@24.10.1)(esbuild@0.28.1)(tsx@4.23.5)(yaml@2.9.0))
 
   apps/api:
     dependencies:
@@ -83,17 +83,17 @@ importers:
         version: 7.0.2
       vitest:
         specifier: ^4.1.10
-        version: 4.1.10(@types/node@24.10.1)(vite@8.2.0(@types/node@24.10.1)(esbuild@0.28.1)(tsx@4.23.5)(yaml@2.9.0))
+        version: 4.1.10(@types/node@24.10.1)(happy-dom@20.11.1)(vite@8.2.0(@types/node@24.10.1)(esbuild@0.28.1)(tsx@4.23.5)(yaml@2.9.0))
 
   apps/web:
     dependencies:
-      '@fontsource-variable/ibm-plex-sans':
+      '@fontsource-variable/archivo':
         specifier: ^5.3.0
         version: 5.3.0
-      '@fontsource-variable/jetbrains-mono':
+      '@fontsource/ibm-plex-mono':
         specifier: ^5.3.0
         version: 5.3.0
-      '@fontsource-variable/space-grotesk':
+      '@fontsource/instrument-serif':
         specifier: ^5.3.0
         version: 5.3.0
       lucide-react:
@@ -111,7 +111,13 @@ importers:
       serve:
         specifier: ^14.2.5
         version: 14.2.6(supports-color@8.1.1)
+      three:
+        specifier: ^0.185.1
+        version: 0.185.1
     devDependencies:
+      '@nimanto/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       '@types/node':
         specifier: ^24.10.1
         version: 24.10.1
@@ -121,12 +127,18 @@ importers:
       '@types/react-dom':
         specifier: ^19.2.3
         version: 19.2.4(@types/react@19.2.18)
+      '@types/three':
+        specifier: ^0.185.4
+        version: 0.185.4
+      happy-dom:
+        specifier: ^20.0.0
+        version: 20.11.1
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
       vitest:
         specifier: ^4.1.10
-        version: 4.1.10(@types/node@24.10.1)(vite@8.2.0(@types/node@24.10.1)(esbuild@0.28.1)(tsx@4.23.5)(yaml@2.9.0))
+        version: 4.1.10(@types/node@24.10.1)(happy-dom@20.11.1)(vite@8.2.0(@types/node@24.10.1)(esbuild@0.28.1)(tsx@4.23.5)(yaml@2.9.0))
 
   apps/worker:
     devDependencies:
@@ -141,7 +153,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: ^4.1.10
-        version: 4.1.10(@types/node@24.10.1)(vite@8.2.0(@types/node@24.10.1)(esbuild@0.28.1)(tsx@4.23.5)(yaml@2.9.0))
+        version: 4.1.10(@types/node@24.10.1)(happy-dom@20.11.1)(vite@8.2.0(@types/node@24.10.1)(esbuild@0.28.1)(tsx@4.23.5)(yaml@2.9.0))
 
   packages/database:
     dependencies:
@@ -160,7 +172,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 4.1.10
-        version: 4.1.10(@types/node@24.10.1)(vite@8.2.0(@types/node@24.10.1)(esbuild@0.28.1)(tsx@4.23.5)(yaml@2.9.0))
+        version: 4.1.10(@types/node@24.10.1)(happy-dom@20.11.1)(vite@8.2.0(@types/node@24.10.1)(esbuild@0.28.1)(tsx@4.23.5)(yaml@2.9.0))
 
   packages/documents:
     dependencies:
@@ -188,7 +200,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: ^4.1.10
-        version: 4.1.10(@types/node@24.10.1)(vite@8.2.0(@types/node@24.10.1)(esbuild@0.28.1)(tsx@4.23.5)(yaml@2.9.0))
+        version: 4.1.10(@types/node@24.10.1)(happy-dom@20.11.1)(vite@8.2.0(@types/node@24.10.1)(esbuild@0.28.1)(tsx@4.23.5)(yaml@2.9.0))
 
   packages/domain:
     devDependencies:
@@ -200,7 +212,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 4.1.10
-        version: 4.1.10(@types/node@24.10.1)(vite@8.2.0(@types/node@24.10.1)(esbuild@0.28.1)(tsx@4.23.5)(yaml@2.9.0))
+        version: 4.1.10(@types/node@24.10.1)(happy-dom@20.11.1)(vite@8.2.0(@types/node@24.10.1)(esbuild@0.28.1)(tsx@4.23.5)(yaml@2.9.0))
 
   packages/parsers:
     dependencies:
@@ -228,7 +240,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: ^4.1.10
-        version: 4.1.10(@types/node@24.10.1)(vite@8.2.0(@types/node@24.10.1)(esbuild@0.28.1)(tsx@4.23.5)(yaml@2.9.0))
+        version: 4.1.10(@types/node@24.10.1)(happy-dom@20.11.1)(vite@8.2.0(@types/node@24.10.1)(esbuild@0.28.1)(tsx@4.23.5)(yaml@2.9.0))
 
   packages/providers:
     dependencies:
@@ -244,7 +256,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: ^4.1.10
-        version: 4.1.10(@types/node@24.10.1)(vite@8.2.0(@types/node@24.10.1)(esbuild@0.28.1)(tsx@4.23.5)(yaml@2.9.0))
+        version: 4.1.10(@types/node@24.10.1)(happy-dom@20.11.1)(vite@8.2.0(@types/node@24.10.1)(esbuild@0.28.1)(tsx@4.23.5)(yaml@2.9.0))
 
 packages:
 
@@ -637,6 +649,9 @@ packages:
     engines: {node: ^20 || ^22 || ^24 || ^25 || ^26, pnpm: '>=10'}
     hasBin: true
 
+  '@dimforge/rapier3d-compat@0.12.0':
+    resolution: {integrity: sha512-uekIGetywIgopfD97oDL5PfeezkFpNhwlzlaEYNOA0N6ghdsOvh/HYjSMek5Q2O1PYvRSDFcqFVJl4r4ZBwOow==}
+
   '@electric-sql/pglite@0.5.4':
     resolution: {integrity: sha512-yYZUyyXrHU7tPlCjwZQJ6hIG9DscdCCn7Uk0mYKwC1FeHX286AbcmFveMiRBEak8e9iPupjsoVImN3yJZVed2g==}
 
@@ -844,14 +859,14 @@ packages:
   '@fastify/swagger@9.8.1':
     resolution: {integrity: sha512-VpHMnqZTY8iBZYJE8WWkbKPrXIYWy2rDfIf5qLr6DzZSpQYZ+KxQVcJFiq/AMlvNwI4gCBd66++iUlxXXGT0IQ==}
 
-  '@fontsource-variable/ibm-plex-sans@5.3.0':
-    resolution: {integrity: sha512-agG8tXFEo0hD9+J7npa4vbbWult52eMLVaQ6WQRlhs/iCAojrMAoejru85W9HTVXHfyUj96KM7gp/KGAS87XaQ==}
+  '@fontsource-variable/archivo@5.3.0':
+    resolution: {integrity: sha512-HogK8FJelrD1o7TlZlkIVtHgc20bO5PZRWE7mUeUTdMN055alznQV6/00J00IBeu8FQAH4s3zW9UJNvKExXf+g==}
 
-  '@fontsource-variable/jetbrains-mono@5.3.0':
-    resolution: {integrity: sha512-F32xpS2NsGYoQi2ADSkKTgpJj7ozajsGgDJ8woTnqjmIB+dxDIqImjl4pXZVEExu8UFZ2ndhmX18EBS/hdz3Lw==}
+  '@fontsource/ibm-plex-mono@5.3.0':
+    resolution: {integrity: sha512-eTgnZjZEGk1QtD3ZstF+Vclo2HLAni8YMy34/DxllwZvyz1lR/1RF/xTiAquOBO7MvqBx8D2Ig2WCPMVfdZu7Q==}
 
-  '@fontsource-variable/space-grotesk@5.3.0':
-    resolution: {integrity: sha512-2IxmvfB08i9vnGB3Ym/AXvhRE+8XOjWMXIyDum03c+tPwH0FUoMNQfGpU8NXPxjbws0Vvss3AH0Zqt4oJBBAdw==}
+  '@fontsource/instrument-serif@5.3.0':
+    resolution: {integrity: sha512-mDiaIg0u67sYV59fie92Wz4sM8UiVlbL7fLxnFPCKkX15DMASEnQTREbaP5S5/3DCcsoAOcQ0sV9E4AeY4QqYQ==}
 
   '@gar/promise-retry@1.0.3':
     resolution: {integrity: sha512-GmzA9ckNokPypTg10pgpeHNQe7ph+iIKKmhKu3Ob9ANkswreCx7R3cKmY781K8QK3AqVL3xVh9A42JvIAbkkSA==}
@@ -1316,6 +1331,9 @@ packages:
   '@swc/helpers@0.5.15':
     resolution: {integrity: sha512-JQ5TuMi45Owi4/BIMAJBoSQoOJu12oOk/gADqlcUL9JEdHB8vyjUSsxqeNXnmXHjYKMi2WcYtezGEEhqUI/E2g==}
 
+  '@tweenjs/tween.js@23.1.3':
+    resolution: {integrity: sha512-vJmvvwFxYuGnF2axRtPYocag6Clbb5YS7kLL+SO/TeVFzHqDIWrNKYtcsPMibjDx9O+bu+psAy9NKfWklassUA==}
+
   '@types/chai@5.2.3':
     resolution: {integrity: sha512-Mw558oeA9fFbv65/y4mHtXDs9bPnFMZAL/jxdPFUpOHHIXX91mcgEHbS5Lahr+pwZFR8A7GQleRWeI6cGFC2UA==}
 
@@ -1338,6 +1356,21 @@ packages:
 
   '@types/react@19.2.18':
     resolution: {integrity: sha512-AnzbBERsrLKtk2XSfTbYRLjQPdy116Sty4q+T+Bp3IC4l6jNBvreVPAHmpq9qhXQM7CXZPjLVmGMw9sy+hxQ3w==}
+
+  '@types/stats.js@0.17.4':
+    resolution: {integrity: sha512-jIBvWWShCvlBqBNIZt0KAshWpvSjhkwkEu4ZUcASoAvhmrgAUI2t1dXrjSL4xXVLB4FznPrIsX3nKXFl/Dt4vA==}
+
+  '@types/three@0.185.4':
+    resolution: {integrity: sha512-gAsBIC07NIFrxjbf7tH2t71c38uulFfk/RFoC7FNBSjMRAQ8J1x/RBvusX0N5PJouaYFJawXQqfCQ0RKUx/1nA==}
+
+  '@types/webxr@0.5.24':
+    resolution: {integrity: sha512-h8fgEd/DpoS9CBrjEQXR+dIDraopAEfu4wYVNY2tEPwk60stPWhvZMf4Foo5FakuQ7HFZoa8WceaWFervK2Ovg==}
+
+  '@types/whatwg-mimetype@3.0.2':
+    resolution: {integrity: sha512-c2AKvDT8ToxLIOUlN51gTiHXflsfIFisS4pO7pDPoKouJCESkhZnEy623gwP9laCy5lnLDAw1vAzu2vM2YLOrA==}
+
+  '@types/ws@8.18.1':
+    resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
 
   '@typescript/typescript-aix-ppc64@7.0.2':
     resolution: {integrity: sha512-MTKKkWB7p/0E9xi1d1tHtZ5PiLkGEMIq88pK2CubZjOsLtYTLqhgIgi6zepFa+9GHZ6h05NMCkQxGKiPXMxXtQ==}
@@ -1576,6 +1609,10 @@ packages:
   brace-expansion@5.0.9:
     resolution: {integrity: sha512-ScQ4IuvIEF1TMlP7Zt+vjJ//9zlPb2SDcxWxM3bk8s6t6GGdJ7KO1dCcTidOPJKePW30LE/2cT7wCyPho9/Wxg==}
     engines: {node: 20 || >=22}
+
+  buffer-image-size@0.6.4:
+    resolution: {integrity: sha512-nEh+kZOPY1w+gcCMobZ6ETUp9WfibndnosbpwB1iJk/8Gt5ZF2bhS6+B6bPYz424KtwsR6Rflc3tCz1/ghX2dQ==}
+    engines: {node: '>=4.0'}
 
   bytes@3.0.0:
     resolution: {integrity: sha512-pMhOfFDPiv9t5jjIXkHosWmkSyQbvsgEVNkz0ERHbuLh2T/7j4Mqqpz523Fe8MVY89KC6Sh/QfS2sM+SjgFDcw==}
@@ -2018,6 +2055,10 @@ packages:
     resolution: {integrity: sha512-ZUKRh6/kUFoAiTAtTYPZJ3hw9wNxx+BIBOijnlG9PnrJsCcSjs1wyyD6vJpaYtgnzDrKYRSqf3OO6Rfa93xsRg==}
     engines: {node: '>= 0.4'}
 
+  happy-dom@20.11.1:
+    resolution: {integrity: sha512-XSt8tMzbW9ymE7687xztkO1ckR7qJNQ3LywY9vlYGhGi3zXrGBHuUo2Cl1ztZaICW+1eAGdkLbj6iwVqDT33kg==}
+    engines: {node: '>=20.0.0'}
+
   has-flag@4.0.0:
     resolution: {integrity: sha512-EykJT/Q1KjTWctppgIAgfSO0tKVuZUjhgMr17kqTumMl6Afv3EISleU7qZUzoXDFTAHTDC4NOoG/ZxU3EvlMPQ==}
     engines: {node: '>=8'}
@@ -2269,6 +2310,9 @@ packages:
 
   merge-stream@2.0.0:
     resolution: {integrity: sha512-abv/qOcuPfk3URPfDzmZU1LKmuw8kT+0nIHvKrKgFrwifol/doWcdA4ZqsWQ8ENrFKkd67Mfpo/LovbIUsbt3w==}
+
+  meshoptimizer@1.1.1:
+    resolution: {integrity: sha512-oRFNWJRDA/WTrVj7NWvqa5HqE1t9MYDj2VaWirQCzCCrAd2GHrqR/sQezCxiWATPNlKTcRaPRHPJwIRoPBAp5g==}
 
   mime-db@1.33.0:
     resolution: {integrity: sha512-BHJ/EKruNIqJf/QahvxwQZXKygOQ256myeN/Ew+THcAa5q+PjyTTMMeNQC4DZw5AwfvelsUrA6B67NKMqXDbzQ==}
@@ -2793,6 +2837,9 @@ packages:
     resolution: {integrity: sha512-e2zZ96wSChazBsbENf/Pcm/4swHt2cEKQ92rhUjkL9GCKiTDJIaTBenjE/m9DXi0QBmTMDkFDdOomUy20A1tDQ==}
     engines: {node: '>=20'}
 
+  three@0.185.1:
+    resolution: {integrity: sha512-5aojFCXKwnjBRZvUnt3WFfEcvUJgkN5LlijRFN95hMy8WVkG4I0QNcJE+OuWvuJ0bOdStrbfXn0pkd6/QyiAlg==}
+
   tinybench@2.9.0:
     resolution: {integrity: sha512-0+DUvqWMValLmha6lr4kD8iAMK1HzV0/aKnCtWb9v9641TnP/MFb7Pc2bxoxQjTXAErryXVgUOfv2YqNllqGeg==}
 
@@ -2984,6 +3031,10 @@ packages:
     engines: {node: '>=18'}
     deprecated: Use @exodus/bytes instead for a more spec-conformant and faster implementation
 
+  whatwg-mimetype@3.0.0:
+    resolution: {integrity: sha512-nt+N2dzIutVRxARx1nghPKGv1xHikU7HKdfafKkLNLindmPU/ch3U31NOCGGA/dmPcmb1VlofO0vnKAcsm0o/Q==}
+    engines: {node: '>=12'}
+
   whatwg-mimetype@4.0.0:
     resolution: {integrity: sha512-QaKxh0eNIi2mE9p2vEdzfagOKHCcj1pJ56EEHGQOVxp8r9/iszLUUV7v89x9O1p/T+NlTM5W7jW6+cz4Fq1YVg==}
     engines: {node: '>=18'}
@@ -3018,6 +3069,18 @@ packages:
   wrap-ansi@9.0.2:
     resolution: {integrity: sha512-42AtmgqjV+X1VpdOfyTGOYRi0/zsoLqtXQckTmqTeybT+BDIbM/Guxo7x3pE2vtpr1ok6xRqM9OpBe+Jyoqyww==}
     engines: {node: '>=18'}
+
+  ws@8.21.2:
+    resolution: {integrity: sha512-54dMVAo4WIe6SKy3vBgN+9bJZqqQ8IMRevAkOLQALhi49qkkQDQfWdAZ8KQlXiEabw88ARXXdUrlvtbKQX+aKw==}
+    engines: {node: '>=10.0.0'}
+    peerDependencies:
+      bufferutil: ^4.0.1
+      utf-8-validate: '>=5.0.2'
+    peerDependenciesMeta:
+      bufferutil:
+        optional: true
+      utf-8-validate:
+        optional: true
 
   xdg-basedir@5.1.0:
     resolution: {integrity: sha512-GCPAHLvrIH13+c0SuacwvRYj2SxJXQ4kaVTT5xgL3kPrz56XxkF21IGhjSE1+W0aw7gpBWRGXLCPnPby6lSpmQ==}
@@ -3473,6 +3536,8 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@dimforge/rapier3d-compat@0.12.0': {}
+
   '@electric-sql/pglite@0.5.4': {}
 
   '@emnapi/runtime@1.11.3':
@@ -3641,11 +3706,11 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@fontsource-variable/ibm-plex-sans@5.3.0': {}
+  '@fontsource-variable/archivo@5.3.0': {}
 
-  '@fontsource-variable/jetbrains-mono@5.3.0': {}
+  '@fontsource/ibm-plex-mono@5.3.0': {}
 
-  '@fontsource-variable/space-grotesk@5.3.0': {}
+  '@fontsource/instrument-serif@5.3.0': {}
 
   '@gar/promise-retry@1.0.3': {}
 
@@ -3958,6 +4023,8 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
+  '@tweenjs/tween.js@23.1.3': {}
+
   '@types/chai@5.2.3':
     dependencies:
       '@types/deep-eql': 4.0.2
@@ -3982,6 +4049,25 @@ snapshots:
   '@types/react@19.2.18':
     dependencies:
       csstype: 3.2.3
+
+  '@types/stats.js@0.17.4': {}
+
+  '@types/three@0.185.4':
+    dependencies:
+      '@dimforge/rapier3d-compat': 0.12.0
+      '@tweenjs/tween.js': 23.1.3
+      '@types/stats.js': 0.17.4
+      '@types/webxr': 0.5.24
+      fflate: 0.8.3
+      meshoptimizer: 1.1.1
+
+  '@types/webxr@0.5.24': {}
+
+  '@types/whatwg-mimetype@3.0.2': {}
+
+  '@types/ws@8.18.1':
+    dependencies:
+      '@types/node': 24.10.1
 
   '@typescript/typescript-aix-ppc64@7.0.2':
     optional: true
@@ -4177,6 +4263,10 @@ snapshots:
   brace-expansion@5.0.9:
     dependencies:
       balanced-match: 4.0.4
+
+  buffer-image-size@0.6.4:
+    dependencies:
+      '@types/node': 24.10.1
 
   bytes@3.0.0: {}
 
@@ -4716,6 +4806,19 @@ snapshots:
   gopd@1.2.0:
     optional: true
 
+  happy-dom@20.11.1:
+    dependencies:
+      '@types/node': 24.10.1
+      '@types/whatwg-mimetype': 3.0.2
+      '@types/ws': 8.18.1
+      buffer-image-size: 0.6.4
+      entities: 7.0.1
+      whatwg-mimetype: 3.0.0
+      ws: 8.21.2
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
+
   has-flag@4.0.0: {}
 
   has-symbols@1.1.0:
@@ -4919,6 +5022,8 @@ snapshots:
     optional: true
 
   merge-stream@2.0.0: {}
+
+  meshoptimizer@1.1.1: {}
 
   mime-db@1.33.0: {}
 
@@ -5471,6 +5576,8 @@ snapshots:
     dependencies:
       real-require: 1.0.0
 
+  three@0.185.1: {}
+
   tinybench@2.9.0: {}
 
   tinyexec@1.3.0: {}
@@ -5572,7 +5679,7 @@ snapshots:
       tsx: 4.23.5
       yaml: 2.9.0
 
-  vitest@4.1.10(@types/node@24.10.1)(vite@8.2.0(@types/node@24.10.1)(esbuild@0.28.1)(tsx@4.23.5)(yaml@2.9.0)):
+  vitest@4.1.10(@types/node@24.10.1)(happy-dom@20.11.1)(vite@8.2.0(@types/node@24.10.1)(esbuild@0.28.1)(tsx@4.23.5)(yaml@2.9.0)):
     dependencies:
       '@vitest/expect': 4.1.10
       '@vitest/mocker': 4.1.10(vite@8.2.0(@types/node@24.10.1)(esbuild@0.28.1)(tsx@4.23.5)(yaml@2.9.0))
@@ -5596,6 +5703,7 @@ snapshots:
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 24.10.1
+      happy-dom: 20.11.1
     transitivePeerDependencies:
       - msw
 
@@ -5608,6 +5716,8 @@ snapshots:
   whatwg-encoding@3.1.1:
     dependencies:
       iconv-lite: 0.6.3
+
+  whatwg-mimetype@3.0.0: {}
 
   whatwg-mimetype@4.0.0: {}
 
@@ -5645,6 +5755,8 @@ snapshots:
       ansi-styles: 6.2.3
       string-width: 7.2.0
       strip-ansi: 7.2.0
+
+  ws@8.21.2: {}
 
   xdg-basedir@5.1.0: {}
 

@@ -406,6 +406,80 @@ describe("beta workflow persistence", () => {
     expect((await store.listApplications(identity.tenantId))[0]?.outcomes).toHaveLength(1);
   });
 
+  it("clears the submission timestamp when an application leaves submitted_externally", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nimanto-store-"));
+    const store = await NimantoStore.open(join(root, "data"));
+    stores.push(store);
+    const identity = await store.createLocalTenant("dev@example.test", "Dev");
+    const profile = await store.createProfileVersion(identity.tenantId, "H-1B transfer support.");
+    const job = await store.upsertJob(identity.tenantId, {
+      source: "manual",
+      sourceJobId: "job-sub",
+      title: "Platform Engineer",
+      company: "Northwind",
+      description: "Build services",
+      location: "Remote",
+      workMode: "remote",
+      url: "https://example.test/jobs/sub",
+      requirements: ["TypeScript"],
+      capability: "deep_link",
+      sourceMeta: {},
+      contentHash: "content-sub",
+    });
+    const application = await store.createApplication(identity.tenantId, job.id, profile.id);
+
+    const submitted = await store.setApplicationStatus(
+      identity.tenantId,
+      application.id,
+      "submitted_externally",
+    );
+    expect(submitted?.submittedAt).toBeTruthy();
+
+    // A mis-recorded submission must not leave a permanent false claim that the
+    // candidate submitted something. Previously this timestamp was never cleared.
+    const corrected = await store.setApplicationStatus(
+      identity.tenantId,
+      application.id,
+      "approved_for_export",
+    );
+    expect(corrected?.status).toBe("approved_for_export");
+    expect(corrected?.submittedAt).toBeNull();
+  });
+
+  it("still lets packet flows set a status from any prior state", async () => {
+    // Packet creation writes "prepared" and packet approval writes
+    // "approved_for_export" as system consequences. Candidate-facing transition
+    // policy lives in the API route, so these internal writers must stay
+    // unblocked whatever state the application is in.
+    const root = await mkdtemp(join(tmpdir(), "nimanto-store-"));
+    const store = await NimantoStore.open(join(root, "data"));
+    stores.push(store);
+    const identity = await store.createLocalTenant("ops@example.test", "Ops");
+    const profile = await store.createProfileVersion(identity.tenantId, "H-1B transfer support.");
+    const job = await store.upsertJob(identity.tenantId, {
+      source: "manual",
+      sourceJobId: "job-sys",
+      title: "Platform Engineer",
+      company: "Northwind",
+      description: "Build services",
+      location: "Remote",
+      workMode: "remote",
+      url: "https://example.test/jobs/sys",
+      requirements: ["TypeScript"],
+      capability: "deep_link",
+      sourceMeta: {},
+      contentHash: "content-sys",
+    });
+    const application = await store.createApplication(identity.tenantId, job.id, profile.id);
+    await store.setApplicationStatus(identity.tenantId, application.id, "withdrawn");
+    const prepared = await store.setApplicationStatus(
+      identity.tenantId,
+      application.id,
+      "prepared",
+    );
+    expect(prepared?.status).toBe("prepared");
+  });
+
   it("requires assurance before packet approval and records action transitions", async () => {
     const root = await mkdtemp(join(tmpdir(), "nimanto-store-"));
     const store = await NimantoStore.open(join(root, "data"));

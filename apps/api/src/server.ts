@@ -20,6 +20,7 @@ import {
   createReceipt,
   evaluateEmployerResolution,
   freshH1bLabel,
+  isApplicationTransitionLegal,
   matchJob,
   resolveEmployer,
   transitionExternalAction,
@@ -1158,11 +1159,18 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
       "withdrawn",
     ];
     if (!statuses.includes(status)) throw new Error("INVALID_STATUS");
-    const record = await store.setApplicationStatus(
-      person.tenantId,
-      (request.params as { id: string }).id,
-      status,
+    const id = (request.params as { id: string }).id;
+    const existing = (await store.listApplications(person.tenantId)).find(
+      (application) => application.id === id,
     );
+    if (!existing) throw new Error("APPLICATION_NOT_FOUND");
+    // Membership in the union is not enough: the board must not be able to
+    // record a submission that skipped preparation, and leaving
+    // submitted_externally has to clear the timestamp the store stamped.
+    if (!isApplicationTransitionLegal(existing.status, status)) {
+      throw new Error("INVALID_APPLICATION_TRANSITION");
+    }
+    const record = await store.setApplicationStatus(person.tenantId, id, status);
     if (!record) throw new Error("APPLICATION_NOT_FOUND");
     return record;
   });
