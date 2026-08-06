@@ -263,17 +263,17 @@ tokens, applied to `/` and `/workspace/`, verified by the Playwright check in §
 
 **Vertical**
 
-| Relationship                          | Minimum                       |
+| Relationship | Minimum |
 | ------------------------------------- | ----------------------------- | --- |
-| Section band block padding            | `clamp(88px, 11vh, 168px)`    |
-| Heading → its own body copy           | **20px**, never collapsed     |
-| Eyebrow / placard → heading           | 14px                          |
-| Panel heading → panel body            | 18px                          |
-| Card internal padding                 | 20px (24px ≥768px)            |
-| List item → list item                 | 12px                          |
-| Label → input                         | 8px; input → field note       | 6px |
+| Section band block padding | `clamp(88px, 11vh, 168px)` |
+| Heading → its own body copy | **20px**, never collapsed |
+| Eyebrow / placard → heading | 14px |
+| Panel heading → panel body | 18px |
+| Card internal padding | 20px (24px ≥768px) |
+| List item → list item | 12px |
+| Label → input | 8px; input → field note | 6px |
 | Any two text elements sharing an edge | ≥16px, or a rule between them |
-| Two headings adjacent                 | forbidden                     |
+| Two headings adjacent | forbidden |
 
 **Horizontal**
 

@@ -23,7 +23,7 @@
   },
   "devDependencies": {
     "@nimanto/domain": "workspace:*",
-    "@types/node": "^24.10.1",
+    "@types/node": "^26.1.2",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@types/three": "^0.185.4",

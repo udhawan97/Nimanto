@@ -1,19 +1,8 @@
 export type ScheduledJobState =
-  | "queued"
-  | "running"
-  | "retry_wait"
-  | "paused"
-  | "dead_letter"
-  | "cancelled";
+  "queued" | "running" | "retry_wait" | "paused" | "dead_letter" | "cancelled";
 
 export type ScheduledJobEvent =
-  | "claim"
-  | "succeed"
-  | "fail"
-  | "exhaust"
-  | "pause"
-  | "resume"
-  | "cancel";
+  "claim" | "succeed" | "fail" | "exhaust" | "pause" | "resume" | "cancel";
 
 const transitions: Partial<
   Record<ScheduledJobState, Partial<Record<ScheduledJobEvent, ScheduledJobState>>>

@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.6",
-  "serialNumber": "urn:uuid:595e7629-666b-48b8-a726-944e13295399",
+  "serialNumber": "urn:uuid:418a1264-4813-457b-98db-96658bec439f",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-08-06T04:20:03Z",
+    "timestamp": "2026-08-06T04:26:48Z",
     "tools": {
       "components": [
         {
@@ -44542,180 +44542,6 @@
     {
       "group": "@types",
       "name": "node",
-      "version": "24.10.1",
-      "description": "TypeScript definitions for node",
-      "scope": "excluded",
-      "hashes": [
-        {
-          "alg": "SHA-512",
-          "content": "18d59c5134418084490f9ce3f93ab47ca389e5765a8c8881ae8385d32be3d9b494d56bcd7584bf767f54c70b2e8c65b8257d3a7671f28d5db2f6b45ac9b1f489"
-        }
-      ],
-      "licenses": [
-        {
-          "license": {
-            "id": "MIT",
-            "url": "https://opensource.org/licenses/MIT",
-            "properties": [
-              {
-                "name": "cdx:license:category",
-                "value": "Permissive"
-              },
-              {
-                "name": "cdx:license:foss",
-                "value": "true"
-              },
-              {
-                "name": "cdx:license:osiApproved",
-                "value": "true"
-              },
-              {
-                "name": "cdx:license:fsfLibre",
-                "value": "true"
-              },
-              {
-                "name": "cdx:license:deprecated",
-                "value": "false"
-              }
-            ]
-          }
-        }
-      ],
-      "purl": "pkg:npm/%40types/node@24.10.1",
-      "externalReferences": [
-        {
-          "type": "distribution",
-          "url": "https://registry.npmjs.org/@types/node/-/node-24.10.1.tgz"
-        }
-      ],
-      "type": "library",
-      "bom-ref": "pkg:npm/@types/node@24.10.1",
-      "properties": [
-        {
-          "name": "SrcFile",
-          "value": "pnpm-lock.yaml"
-        },
-        {
-          "name": "cdx:npm:package:development",
-          "value": "true"
-        },
-        {
-          "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.2.0"
-        },
-        {
-          "name": "internal:workspaceSrcFile",
-          "value": "apps/web/package.json"
-        },
-        {
-          "name": "cdx:npm:packageCreatedTime",
-          "value": "2016-05-17T18:26:38.670Z"
-        },
-        {
-          "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-07-27T17:32:23.307Z"
-        },
-        {
-          "name": "cdx:npm:publishTime",
-          "value": "2025-11-11T23:33:15.303Z"
-        },
-        {
-          "name": "cdx:npm:publisher",
-          "value": "types"
-        },
-        {
-          "name": "cdx:npm:publisherEmail",
-          "value": "ts-npm-types@microsoft.com"
-        },
-        {
-          "name": "cdx:npm:maintainerSet",
-          "value": "types, ts-npm-types@microsoft.com"
-        },
-        {
-          "name": "cdx:npm:priorMaintainerSet",
-          "value": "types, ts-npm-types@microsoft.com"
-        },
-        {
-          "name": "cdx:npm:maintainerSetCount",
-          "value": "2"
-        },
-        {
-          "name": "cdx:npm:priorMaintainerSetCount",
-          "value": "2"
-        },
-        {
-          "name": "cdx:npm:maintainerOverlapCount",
-          "value": "2"
-        },
-        {
-          "name": "cdx:npm:maintainerOverlapRatio",
-          "value": "1.00"
-        },
-        {
-          "name": "cdx:npm:versionCount",
-          "value": "2355"
-        },
-        {
-          "name": "cdx:npm:releaseGapDays",
-          "value": "8.92"
-        },
-        {
-          "name": "cdx:npm:releaseGapBaselineDays",
-          "value": "0.00"
-        },
-        {
-          "name": "cdx:npm:releaseGapSampleSize",
-          "value": "2243"
-        },
-        {
-          "name": "cdx:npm:releaseCadenceCompressionRatio",
-          "value": "3429.30"
-        },
-        {
-          "name": "cdx:npm:priorVersion",
-          "value": "22.19.0"
-        },
-        {
-          "name": "cdx:npm:priorPublishTime",
-          "value": "2025-11-03T01:30:21.892Z"
-        },
-        {
-          "name": "cdx:npm:priorPublisher",
-          "value": "types"
-        },
-        {
-          "name": "cdx:npm:artifactIntegrity",
-          "value": "sha512-GNWcUTRBgIRJD5zj+Tq0fKOJ5XZajIiBroOF0yvj2bSU1WvNdYS/dn9UxwsujGW4JX06dnHyjV2y9rRaybH0iQ=="
-        },
-        {
-          "name": "cdx:npm:artifactShasum",
-          "value": "91e92182c93db8bd6224fca031e2370cef9a8f01"
-        },
-        {
-          "name": "cdx:license:category",
-          "value": "Permissive"
-        }
-      ],
-      "evidence": {
-        "identity": [
-          {
-            "field": "purl",
-            "confidence": 1,
-            "methods": [
-              {
-                "technique": "manifest-analysis",
-                "confidence": 1,
-                "value": "pnpm-lock.yaml"
-              }
-            ],
-            "concludedValue": "pnpm-lock.yaml"
-          }
-        ]
-      }
-    },
-    {
-      "group": "@types",
-      "name": "node",
       "version": "25.9.5",
       "description": "TypeScript definitions for node",
       "scope": "excluded",
@@ -44860,6 +44686,180 @@
         {
           "name": "cdx:npm:artifactShasum",
           "value": "0fefc09e6e82e94cde291bacf43522e989eb01a4"
+        },
+        {
+          "name": "cdx:license:category",
+          "value": "Permissive"
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "manifest-analysis",
+                "confidence": 1,
+                "value": "pnpm-lock.yaml"
+              }
+            ],
+            "concludedValue": "pnpm-lock.yaml"
+          }
+        ]
+      }
+    },
+    {
+      "group": "@types",
+      "name": "node",
+      "version": "26.1.2",
+      "description": "TypeScript definitions for node",
+      "scope": "excluded",
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "56ee1ae54140f6b208149eeb07f55a69f87d96b090b33a294c2c7a2a315ba174c641b3cd6ac7a1551e531228ad8520c6c9dd43122501ca081366c83c8ee91e22"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "url": "https://opensource.org/licenses/MIT",
+            "properties": [
+              {
+                "name": "cdx:license:category",
+                "value": "Permissive"
+              },
+              {
+                "name": "cdx:license:foss",
+                "value": "true"
+              },
+              {
+                "name": "cdx:license:osiApproved",
+                "value": "true"
+              },
+              {
+                "name": "cdx:license:fsfLibre",
+                "value": "true"
+              },
+              {
+                "name": "cdx:license:deprecated",
+                "value": "false"
+              }
+            ]
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40types/node@26.1.2",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@types/node/-/node-26.1.2.tgz"
+        }
+      ],
+      "type": "library",
+      "bom-ref": "pkg:npm/@types/node@26.1.2",
+      "properties": [
+        {
+          "name": "SrcFile",
+          "value": "pnpm-lock.yaml"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "internal:workspaceRef",
+          "value": "pkg:npm/@nimanto/web@0.2.0"
+        },
+        {
+          "name": "internal:workspaceSrcFile",
+          "value": "apps/web/package.json"
+        },
+        {
+          "name": "cdx:npm:packageCreatedTime",
+          "value": "2016-05-17T18:26:38.670Z"
+        },
+        {
+          "name": "cdx:npm:lastModifiedTime",
+          "value": "2026-07-27T17:32:23.307Z"
+        },
+        {
+          "name": "cdx:npm:publishTime",
+          "value": "2026-07-27T17:32:14.992Z"
+        },
+        {
+          "name": "cdx:npm:publisher",
+          "value": "types"
+        },
+        {
+          "name": "cdx:npm:publisherEmail",
+          "value": "ts-npm-types@microsoft.com"
+        },
+        {
+          "name": "cdx:npm:maintainerSet",
+          "value": "types, ts-npm-types@microsoft.com"
+        },
+        {
+          "name": "cdx:npm:priorMaintainerSet",
+          "value": "types, ts-npm-types@microsoft.com"
+        },
+        {
+          "name": "cdx:npm:maintainerSetCount",
+          "value": "2"
+        },
+        {
+          "name": "cdx:npm:priorMaintainerSetCount",
+          "value": "2"
+        },
+        {
+          "name": "cdx:npm:maintainerOverlapCount",
+          "value": "2"
+        },
+        {
+          "name": "cdx:npm:maintainerOverlapRatio",
+          "value": "1.00"
+        },
+        {
+          "name": "cdx:npm:versionCount",
+          "value": "2355"
+        },
+        {
+          "name": "cdx:npm:releaseGapDays",
+          "value": "19.45"
+        },
+        {
+          "name": "cdx:npm:releaseGapBaselineDays",
+          "value": "0.00"
+        },
+        {
+          "name": "cdx:npm:releaseGapSampleSize",
+          "value": "2353"
+        },
+        {
+          "name": "cdx:npm:releaseCadenceCompressionRatio",
+          "value": "8162.72"
+        },
+        {
+          "name": "cdx:npm:priorVersion",
+          "value": "22.20.1"
+        },
+        {
+          "name": "cdx:npm:priorPublishTime",
+          "value": "2026-07-08T06:48:07.602Z"
+        },
+        {
+          "name": "cdx:npm:priorPublisher",
+          "value": "types"
+        },
+        {
+          "name": "cdx:npm:artifactIntegrity",
+          "value": "sha512-Vu4a5UFA9rIIFJ7rB/Vaafh9lrCQszopTCx6KjFboXTGQbPNasehVR5TEiithSDGyd1DEiUByggTZsg8jukeIg=="
+        },
+        {
+          "name": "cdx:npm:artifactShasum",
+          "value": "da79708f1f9c6294f4cdec8f455a3032b028808a"
         },
         {
           "name": "cdx:license:category",
@@ -58581,193 +58581,6 @@
       ],
       "group": "",
       "name": "cliui",
-      "version": "8.0.1",
-      "description": "easily create complex multi-column command-line-interfaces",
-      "scope": "optional",
-      "hashes": [
-        {
-          "alg": "SHA-512",
-          "content": "05278d9f2bacef90b8fff350f6042dd7f72c4d7ca8ffc49bf9a7cb024cc0a6d16e32ca1df4716890636e759a62fe8415ef786754afac47ee4f55131df83afb61"
-        }
-      ],
-      "licenses": [
-        {
-          "license": {
-            "id": "ISC",
-            "url": "https://opensource.org/licenses/ISC",
-            "properties": [
-              {
-                "name": "cdx:license:category",
-                "value": "Permissive"
-              },
-              {
-                "name": "cdx:license:foss",
-                "value": "true"
-              },
-              {
-                "name": "cdx:license:osiApproved",
-                "value": "true"
-              },
-              {
-                "name": "cdx:license:fsfLibre",
-                "value": "true"
-              },
-              {
-                "name": "cdx:license:deprecated",
-                "value": "false"
-              }
-            ]
-          }
-        }
-      ],
-      "purl": "pkg:npm/cliui@8.0.1",
-      "externalReferences": [
-        {
-          "type": "distribution",
-          "url": "https://registry.npmjs.org/cliui/-/cliui-8.0.1.tgz"
-        }
-      ],
-      "type": "library",
-      "bom-ref": "pkg:npm/cliui@8.0.1",
-      "properties": [
-        {
-          "name": "SrcFile",
-          "value": "pnpm-lock.yaml"
-        },
-        {
-          "name": "cdx:npm:package:development",
-          "value": "true"
-        },
-        {
-          "name": "cdx:npm:scripts",
-          "value": "check, fix, pretest, test, test:esm, postest, coverage, precompile, compile, postcompile, build:cjs, prepare"
-        },
-        {
-          "name": "cdx:npm:buildScripts",
-          "value": "compile, build:cjs"
-        },
-        {
-          "name": "cdx:npm:hasInstallScript",
-          "value": "true"
-        },
-        {
-          "name": "cdx:npm:risky_scripts",
-          "value": "prepare"
-        },
-        {
-          "name": "cdx:npm:packageCreatedTime",
-          "value": "2015-04-20T21:30:56.852Z"
-        },
-        {
-          "name": "cdx:npm:lastModifiedTime",
-          "value": "2025-03-17T02:36:25.675Z"
-        },
-        {
-          "name": "cdx:npm:publishTime",
-          "value": "2022-10-01T01:16:14.782Z"
-        },
-        {
-          "name": "cdx:npm:publisher",
-          "value": "oss-bot"
-        },
-        {
-          "name": "cdx:npm:publisherEmail",
-          "value": "bencoe+oss-bot@gmail.com"
-        },
-        {
-          "name": "cdx:npm:maintainerSet",
-          "value": "bcoe, bencoe@gmail.com, oss-bot, bencoe+oss-bot@gmail.com"
-        },
-        {
-          "name": "cdx:npm:priorMaintainerSet",
-          "value": "bcoe, bencoe@gmail.com, oss-bot, bencoe+oss-bot@gmail.com"
-        },
-        {
-          "name": "cdx:npm:maintainerSetCount",
-          "value": "4"
-        },
-        {
-          "name": "cdx:npm:priorMaintainerSetCount",
-          "value": "4"
-        },
-        {
-          "name": "cdx:npm:maintainerOverlapCount",
-          "value": "4"
-        },
-        {
-          "name": "cdx:npm:maintainerOverlapRatio",
-          "value": "1.00"
-        },
-        {
-          "name": "cdx:npm:versionCount",
-          "value": "27"
-        },
-        {
-          "name": "cdx:npm:releaseGapDays",
-          "value": "0.06"
-        },
-        {
-          "name": "cdx:npm:releaseGapBaselineDays",
-          "value": "13.04"
-        },
-        {
-          "name": "cdx:npm:releaseGapSampleSize",
-          "value": "23"
-        },
-        {
-          "name": "cdx:npm:releaseCadenceCompressionRatio",
-          "value": "0.00"
-        },
-        {
-          "name": "cdx:npm:priorVersion",
-          "value": "8.0.0"
-        },
-        {
-          "name": "cdx:npm:priorPublishTime",
-          "value": "2022-09-30T23:47:01.033Z"
-        },
-        {
-          "name": "cdx:npm:priorPublisher",
-          "value": "oss-bot"
-        },
-        {
-          "name": "cdx:npm:artifactIntegrity",
-          "value": "sha512-BSeNnyus75C4//NQ9gQt1/csTXyo/8Sb+afLAkzAptFuMsod9HFokGNudZpi/oQV73hnVK+sR+5PVRMd+Dr7YQ=="
-        },
-        {
-          "name": "cdx:npm:artifactShasum",
-          "value": "0c04b075db02cbfe60dc8e6cf2f5486b1a3608aa"
-        },
-        {
-          "name": "cdx:license:category",
-          "value": "Permissive"
-        }
-      ],
-      "evidence": {
-        "identity": [
-          {
-            "field": "purl",
-            "confidence": 1,
-            "methods": [
-              {
-                "technique": "manifest-analysis",
-                "confidence": 1,
-                "value": "pnpm-lock.yaml"
-              }
-            ],
-            "concludedValue": "pnpm-lock.yaml"
-          }
-        ]
-      }
-    },
-    {
-      "authors": [
-        {
-          "name": "Ben Coe <ben@npmjs.com>"
-        }
-      ],
-      "group": "",
-      "name": "cliui",
       "version": "9.0.1",
       "description": "easily create complex multi-column command-line-interfaces",
       "scope": "optional",
@@ -60358,13 +60171,13 @@
       ],
       "group": "",
       "name": "concurrently",
-      "version": "9.2.1",
+      "version": "10.0.4",
       "description": "Run commands concurrently",
       "scope": "optional",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "7ec7eb3b433157ae199e8cbcfe5d6f5488e31dadbd499cb2a8f8100708620dc696f3025cd96dd7595386c78337a09067bffcdd519208a75803792f7c1b33fc36"
+          "content": "b6b66a97eee5ff4f96440b009c475cb6be3e8a2392e99ad5888e87f1059c085f4c152fcb4f474aa5ef2f96e075b68ea2b7e3b1488e15a2ca454c814c5bc0c947"
         }
       ],
       "licenses": [
@@ -60397,15 +60210,15 @@
           }
         }
       ],
-      "purl": "pkg:npm/concurrently@9.2.1",
+      "purl": "pkg:npm/concurrently@10.0.4",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/concurrently/-/concurrently-9.2.1.tgz"
+          "url": "https://registry.npmjs.org/concurrently/-/concurrently-10.0.4.tgz"
         }
       ],
       "type": "library",
-      "bom-ref": "pkg:npm/concurrently@9.2.1",
+      "bom-ref": "pkg:npm/concurrently@10.0.4",
       "properties": [
         {
           "name": "SrcFile",
@@ -60425,7 +60238,7 @@
         },
         {
           "name": "cdx:npm:scripts",
-          "value": "build, postbuild, clean, format, format:fix, lint, lint:fix, report-coverage, test, test:smoke"
+          "value": "build, postbuild, typecheck, format, lint, test, test:smoke"
         },
         {
           "name": "cdx:npm:buildScripts",
@@ -60441,35 +60254,35 @@
         },
         {
           "name": "cdx:npm:publishTime",
-          "value": "2025-08-25T09:50:49.138Z"
+          "value": "2026-07-24T21:03:29.848Z"
         },
         {
           "name": "cdx:npm:publisher",
-          "value": "gustavohenke"
+          "value": "GitHub Actions"
         },
         {
           "name": "cdx:npm:publisherEmail",
-          "value": "guhenke@gmail.com"
+          "value": "npm-oidc-no-reply@github.com"
         },
         {
           "name": "cdx:npm:maintainerSet",
-          "value": "kimmobrunfeldt, kimmo.brunfeldt+public@gmail.com, gustavohenke, guhenke@gmail.com"
+          "value": "kimmobrunfeldt, kimmo.brunfeldt+public@gmail.com, gustavohenke, guhenke@gmail.com, github actions, npm-oidc-no-reply@github.com"
         },
         {
           "name": "cdx:npm:priorMaintainerSet",
-          "value": "kimmobrunfeldt, kimmo.brunfeldt+public@gmail.com, gustavohenke, guhenke@gmail.com"
+          "value": "kimmobrunfeldt, kimmo.brunfeldt+public@gmail.com, gustavohenke, guhenke@gmail.com, github actions, npm-oidc-no-reply@github.com"
         },
         {
           "name": "cdx:npm:maintainerSetCount",
-          "value": "4"
+          "value": "6"
         },
         {
           "name": "cdx:npm:priorMaintainerSetCount",
-          "value": "4"
+          "value": "6"
         },
         {
           "name": "cdx:npm:maintainerOverlapCount",
-          "value": "4"
+          "value": "6"
         },
         {
           "name": "cdx:npm:maintainerOverlapRatio",
@@ -60481,31 +60294,35 @@
         },
         {
           "name": "cdx:npm:releaseGapDays",
-          "value": "64.12"
+          "value": "13.64"
         },
         {
           "name": "cdx:npm:releaseGapBaselineDays",
-          "value": "44.50"
+          "value": "42.70"
         },
         {
           "name": "cdx:npm:releaseGapSampleSize",
-          "value": "63"
+          "value": "69"
         },
         {
           "name": "cdx:npm:releaseCadenceCompressionRatio",
-          "value": "1.44"
+          "value": "0.32"
         },
         {
           "name": "cdx:npm:priorVersion",
-          "value": "9.2.0"
+          "value": "9.2.4"
         },
         {
           "name": "cdx:npm:priorPublishTime",
-          "value": "2025-06-22T06:54:02.518Z"
+          "value": "2026-07-11T05:45:04.383Z"
         },
         {
           "name": "cdx:npm:priorPublisher",
-          "value": "gustavohenke"
+          "value": "GitHub Actions"
+        },
+        {
+          "name": "cdx:npm:compressedCadence",
+          "value": "true"
         },
         {
           "name": "cdx:npm:trustedPublishing",
@@ -60513,15 +60330,15 @@
         },
         {
           "name": "cdx:npm:artifactIntegrity",
-          "value": "sha512-fsfrO0MxV64Znoy8/l1vVIjjHa29SZyyqPgQBwhiDcaW8wJc2W3XWVOGx4M3oJBnv/zdUZIIp1gDeS98GzP8Ng=="
+          "value": "sha512-trZql+7l/0+WRAsAnEdctr4+iiOS6ZrViI6H8QWcCF9MFS/LT0dKpe8vluB1to6it+OxSI4VospFTIFMW8DJRw=="
         },
         {
           "name": "cdx:npm:artifactShasum",
-          "value": "248ea21b95754947be2dad9c3e4b60f18ca4e44f"
+          "value": "68ee55d60cbc3fee705958508fd5905acfc7514a"
         },
         {
           "name": "cdx:npm:provenanceUrl",
-          "value": "https://registry.npmjs.org/-/npm/v1/attestations/concurrently@9.2.1"
+          "value": "https://registry.npmjs.org/-/npm/v1/attestations/concurrently@10.0.4"
         },
         {
           "name": "cdx:license:category",
@@ -98004,13 +97821,13 @@
       ],
       "group": "",
       "name": "prettier",
-      "version": "3.6.2",
+      "version": "3.9.6",
       "description": "Prettier is an opinionated code formatter",
       "scope": "optional",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "23b0088396e802be51d0516d27aac27c3f8b16c587a7cd5da25ac50fc4bbf54f6d6fc033da71ab2677273129f2b3e6e94097d1533aacf619c0f35380037842b9"
+          "content": "3a9374cf355d89a880871a6eba3e5e7e9212e2c63d8fb6d8eae4799a78f9c8fcc691d92334a4897944e13dbeb4270dbd42e019800e28fbf881e3d90589a057ea"
         }
       ],
       "licenses": [
@@ -98043,15 +97860,15 @@
           }
         }
       ],
-      "purl": "pkg:npm/prettier@3.6.2",
+      "purl": "pkg:npm/prettier@3.9.6",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/prettier/-/prettier-3.6.2.tgz"
+          "url": "https://registry.npmjs.org/prettier/-/prettier-3.9.6.tgz"
         }
       ],
       "type": "library",
-      "bom-ref": "pkg:npm/prettier@3.6.2",
+      "bom-ref": "pkg:npm/prettier@3.9.6",
       "properties": [
         {
           "name": "SrcFile",
@@ -98079,35 +97896,35 @@
         },
         {
           "name": "cdx:npm:publishTime",
-          "value": "2025-06-27T02:53:53.185Z"
+          "value": "2026-07-21T05:51:53.987Z"
         },
         {
           "name": "cdx:npm:publisher",
-          "value": "prettier-bot"
+          "value": "GitHub Actions"
         },
         {
           "name": "cdx:npm:publisherEmail",
-          "value": "prettier-bot@d0d0.com"
+          "value": "npm-oidc-no-reply@github.com"
         },
         {
           "name": "cdx:npm:maintainerSet",
-          "value": "jlongster, longster@gmail.com, lydell, simon.lydell@gmail.com, thorn0, georgii.dolzhykov@gmail.com, vjeux, vjeuxx@gmail.com, fisker, lionkay@gmail.com, suchipi, me@suchipi.com, duailibe, lucasds@gmail.com, ikatyang, ikatyang@gmail.com, azz, lucas@azzola.dev, sosukesuzuki, aosukeke@gmail.com, prettier-bot, prettier-bot@d0d0.com"
+          "value": "jlongster, longster@gmail.com, lydell, simon.lydell@gmail.com, thorn0, georgii.dolzhykov@gmail.com, vjeux, vjeuxx@gmail.com, fisker, lionkay@gmail.com, suchipi, me@suchipi.com, duailibe, lucasds@gmail.com, ikatyang, ikatyang@gmail.com, azz, lucas@azzola.dev, sosukesuzuki, aosukeke@gmail.com, prettier-bot, prettier-bot@d0d0.com, github actions, npm-oidc-no-reply@github.com"
         },
         {
           "name": "cdx:npm:priorMaintainerSet",
-          "value": "jlongster, longster@gmail.com, lydell, simon.lydell@gmail.com, thorn0, georgii.dolzhykov@gmail.com, vjeux, vjeuxx@gmail.com, fisker, lionkay@gmail.com, suchipi, me@suchipi.com, duailibe, lucasds@gmail.com, ikatyang, ikatyang@gmail.com, azz, lucas@azzola.dev, sosukesuzuki, aosukeke@gmail.com, prettier-bot, prettier-bot@d0d0.com"
+          "value": "jlongster, longster@gmail.com, lydell, simon.lydell@gmail.com, thorn0, georgii.dolzhykov@gmail.com, vjeux, vjeuxx@gmail.com, fisker, lionkay@gmail.com, suchipi, me@suchipi.com, duailibe, lucasds@gmail.com, ikatyang, ikatyang@gmail.com, azz, lucas@azzola.dev, sosukesuzuki, aosukeke@gmail.com, prettier-bot, prettier-bot@d0d0.com, github actions, npm-oidc-no-reply@github.com"
         },
         {
           "name": "cdx:npm:maintainerSetCount",
-          "value": "22"
+          "value": "24"
         },
         {
           "name": "cdx:npm:priorMaintainerSetCount",
-          "value": "22"
+          "value": "24"
         },
         {
           "name": "cdx:npm:maintainerOverlapCount",
-          "value": "22"
+          "value": "24"
         },
         {
           "name": "cdx:npm:maintainerOverlapRatio",
@@ -98119,39 +97936,39 @@
         },
         {
           "name": "cdx:npm:releaseGapDays",
-          "value": "1.84"
+          "value": "11.57"
         },
         {
           "name": "cdx:npm:releaseGapBaselineDays",
-          "value": "4.29"
+          "value": "4.18"
         },
         {
           "name": "cdx:npm:releaseGapSampleSize",
-          "value": "175"
+          "value": "194"
         },
         {
           "name": "cdx:npm:releaseCadenceCompressionRatio",
-          "value": "0.43"
+          "value": "2.77"
         },
         {
           "name": "cdx:npm:priorVersion",
-          "value": "3.6.1"
+          "value": "3.9.5"
         },
         {
           "name": "cdx:npm:priorPublishTime",
-          "value": "2025-06-25T06:44:07.413Z"
+          "value": "2026-07-09T16:17:00.997Z"
         },
         {
           "name": "cdx:npm:priorPublisher",
-          "value": "prettier-bot"
+          "value": "GitHub Actions"
         },
         {
           "name": "cdx:npm:artifactIntegrity",
-          "value": "sha512-I7AIg5boAr5R0FFtJ6rCfD+LFsWHp81dolrFD8S79U9tb8Az2nGrJncnMSnys+bpQJfRUzqs9hnA81OAA3hCuQ=="
+          "value": "sha512-OpN0zzVdiaiAhxpuuj5efpIS4sY9j7bY6uR5mnj5yPzGkdkjNKSJeUThPb60Jw29QuAZgA4o+/iB49kFiaBX6g=="
         },
         {
           "name": "cdx:npm:artifactShasum",
-          "value": "ccda02a1003ebbb2bfda6f83a074978f608b9393"
+          "value": "b3ea5146515d40fc53f18aa63f74dfab1e10dbf6"
         },
         {
           "name": "cdx:license:category",
@@ -101425,181 +101242,6 @@
         {
           "name": "cdx:npm:artifactShasum",
           "value": "3d4ef870f73dde1d77f0cf9a381432444e174942"
-        },
-        {
-          "name": "cdx:license:category",
-          "value": "Permissive"
-        }
-      ],
-      "evidence": {
-        "identity": [
-          {
-            "field": "purl",
-            "confidence": 1,
-            "methods": [
-              {
-                "technique": "manifest-analysis",
-                "confidence": 1,
-                "value": "pnpm-lock.yaml"
-              }
-            ],
-            "concludedValue": "pnpm-lock.yaml"
-          }
-        ]
-      }
-    },
-    {
-      "authors": [
-        {
-          "name": "Troy Goode <troygoode@gmail.com> (http://github.com/troygoode/)"
-        }
-      ],
-      "group": "",
-      "name": "require-directory",
-      "version": "2.1.1",
-      "description": "Recursively iterates over specified directory, require()'ing each file, and returning a nested hash structure containing those modules.",
-      "scope": "optional",
-      "hashes": [
-        {
-          "alg": "SHA-512",
-          "content": "7c6c4423bfb0b06f71aef763b2b9662f6d8e3134e21d1c0032ba2211e320abc833a0b0bf3d0afb46c4434932d483f6d9019b45f9354890773aff84482abba2f9"
-        }
-      ],
-      "licenses": [
-        {
-          "license": {
-            "id": "MIT",
-            "url": "https://opensource.org/licenses/MIT",
-            "properties": [
-              {
-                "name": "cdx:license:category",
-                "value": "Permissive"
-              },
-              {
-                "name": "cdx:license:foss",
-                "value": "true"
-              },
-              {
-                "name": "cdx:license:osiApproved",
-                "value": "true"
-              },
-              {
-                "name": "cdx:license:fsfLibre",
-                "value": "true"
-              },
-              {
-                "name": "cdx:license:deprecated",
-                "value": "false"
-              }
-            ]
-          }
-        }
-      ],
-      "purl": "pkg:npm/require-directory@2.1.1",
-      "externalReferences": [
-        {
-          "type": "distribution",
-          "url": "https://registry.npmjs.org/require-directory/-/require-directory-2.1.1.tgz"
-        }
-      ],
-      "type": "library",
-      "bom-ref": "pkg:npm/require-directory@2.1.1",
-      "properties": [
-        {
-          "name": "SrcFile",
-          "value": "pnpm-lock.yaml"
-        },
-        {
-          "name": "cdx:npm:package:development",
-          "value": "true"
-        },
-        {
-          "name": "cdx:npm:scripts",
-          "value": "test, lint"
-        },
-        {
-          "name": "cdx:npm:packageCreatedTime",
-          "value": "2011-12-27T00:06:30.661Z"
-        },
-        {
-          "name": "cdx:npm:lastModifiedTime",
-          "value": "2022-06-26T11:36:41.323Z"
-        },
-        {
-          "name": "cdx:npm:publishTime",
-          "value": "2015-05-28T08:31:04.702Z"
-        },
-        {
-          "name": "cdx:npm:publisher",
-          "value": "troygoode"
-        },
-        {
-          "name": "cdx:npm:publisherEmail",
-          "value": "troygoode@gmail.com"
-        },
-        {
-          "name": "cdx:npm:maintainerSet",
-          "value": "troygoode, troygoode@gmail.com"
-        },
-        {
-          "name": "cdx:npm:priorMaintainerSet",
-          "value": "troygoode, troygoode@gmail.com"
-        },
-        {
-          "name": "cdx:npm:maintainerSetCount",
-          "value": "2"
-        },
-        {
-          "name": "cdx:npm:priorMaintainerSetCount",
-          "value": "2"
-        },
-        {
-          "name": "cdx:npm:maintainerOverlapCount",
-          "value": "2"
-        },
-        {
-          "name": "cdx:npm:maintainerOverlapRatio",
-          "value": "1.00"
-        },
-        {
-          "name": "cdx:npm:versionCount",
-          "value": "12"
-        },
-        {
-          "name": "cdx:npm:releaseGapDays",
-          "value": "98.14"
-        },
-        {
-          "name": "cdx:npm:releaseGapBaselineDays",
-          "value": "69.96"
-        },
-        {
-          "name": "cdx:npm:releaseGapSampleSize",
-          "value": "10"
-        },
-        {
-          "name": "cdx:npm:releaseCadenceCompressionRatio",
-          "value": "1.40"
-        },
-        {
-          "name": "cdx:npm:priorVersion",
-          "value": "2.1.0"
-        },
-        {
-          "name": "cdx:npm:priorPublishTime",
-          "value": "2015-02-19T05:02:34.997Z"
-        },
-        {
-          "name": "cdx:npm:priorPublisher",
-          "value": "troygoode"
-        },
-        {
-          "name": "cdx:npm:artifactIntegrity",
-          "value": "sha512-fGxEI7+wsG9xrvdjsrlmL22OMTTiHRwAMroiEeMgq8gzoLC/PQr7RsRDSTLUg/bZAZtF+TVIkHc6/4RIKrui+Q=="
-        },
-        {
-          "name": "cdx:npm:artifactShasum",
-          "value": "8c64ad5fd30dab1c976e2344ffe7f792a6a6df42"
         },
         {
           "name": "cdx:license:category",
@@ -106255,13 +105897,13 @@
       ],
       "group": "",
       "name": "shell-quote",
-      "version": "1.8.3",
+      "version": "1.9.0",
       "description": "quote and parse shell commands",
       "scope": "optional",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "39b9a7205e215cd83506a8671e681b0c44c5f1d2cf0a08195818e441f859a5bb3366762eaf90d49634dc0878a2e4b0b7279134c9e3bfd4b20cc87f94bc7420cb"
+          "content": "228bfe27016fff61dc4e973034c29df3e21635bf2d6e84093504e4018fcb2d52bb8061fd8f2f8b1a456a3f17de90797ec8c9a2a97b337465978247e697b863a8"
         }
       ],
       "licenses": [
@@ -106294,15 +105936,15 @@
           }
         }
       ],
-      "purl": "pkg:npm/shell-quote@1.8.3",
+      "purl": "pkg:npm/shell-quote@1.9.0",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/shell-quote/-/shell-quote-1.8.3.tgz"
+          "url": "https://registry.npmjs.org/shell-quote/-/shell-quote-1.9.0.tgz"
         }
       ],
       "type": "library",
-      "bom-ref": "pkg:npm/shell-quote@1.8.3",
+      "bom-ref": "pkg:npm/shell-quote@1.9.0",
       "properties": [
         {
           "name": "SrcFile",
@@ -106314,7 +105956,7 @@
         },
         {
           "name": "cdx:npm:scripts",
-          "value": "prepack, prepublish, prepublishOnly, prelint, lint, pretest, tests-only, test, posttest, version, postversion"
+          "value": "prepack, prepublish, prepublishOnly, prelint, lint, postlint, pretest, tests-only, test, posttest, version, postversion"
         },
         {
           "name": "cdx:npm:hasInstallScript",
@@ -106334,7 +105976,7 @@
         },
         {
           "name": "cdx:npm:publishTime",
-          "value": "2025-06-02T05:03:05.889Z"
+          "value": "2026-06-25T04:47:19.588Z"
         },
         {
           "name": "cdx:npm:publisher",
@@ -106374,27 +106016,27 @@
         },
         {
           "name": "cdx:npm:releaseGapDays",
-          "value": "186.31"
+          "value": "33.65"
         },
         {
           "name": "cdx:npm:releaseGapBaselineDays",
-          "value": "41.92"
+          "value": "54.62"
         },
         {
           "name": "cdx:npm:releaseGapSampleSize",
-          "value": "27"
+          "value": "29"
         },
         {
           "name": "cdx:npm:releaseCadenceCompressionRatio",
-          "value": "4.44"
+          "value": "0.62"
         },
         {
           "name": "cdx:npm:priorVersion",
-          "value": "1.8.2"
+          "value": "1.8.4"
         },
         {
           "name": "cdx:npm:priorPublishTime",
-          "value": "2024-11-27T21:33:37.690Z"
+          "value": "2026-05-22T13:13:48.633Z"
         },
         {
           "name": "cdx:npm:priorPublisher",
@@ -106402,11 +106044,11 @@
         },
         {
           "name": "cdx:npm:artifactIntegrity",
-          "value": "sha512-ObmnIF4hXNg1BqhnHmgbDETF8dLPCggZWBjkQfhZpbszZnYur5DUljTcCHii5LC3J5E0yeO/1LIMyH+UvHQgyw=="
+          "value": "sha512-Iov+JwFv/2HcTpcwNMKd8+IWNb8tboQJNQTkAY/LLVK7gGH9jy+LGkVqPxfekHl+yMmiqXszdGWXgkfml7hjqA=="
         },
         {
           "name": "cdx:npm:artifactShasum",
-          "value": "55e40ef33cf5c689902353a3d8cd1a6725f08b4b"
+          "value": "e108b1a136586d5964edb3300016d4bedba0fe57"
         },
         {
           "name": "cdx:license:category",
@@ -111393,6 +111035,173 @@
     {
       "authors": [
         {
+          "name": "Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)"
+        }
+      ],
+      "group": "",
+      "name": "supports-color",
+      "version": "10.2.2",
+      "description": "Detect whether a terminal supports color",
+      "scope": "optional",
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "492fa3c78e461754238045d0c78349655f489aa98ed8d3f3e4536c207aec0e387662c1e76b0a5a9fb48d435a3c36e86b6c7672f4066122809488279a5bf0bcd2"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "url": "https://opensource.org/licenses/MIT",
+            "properties": [
+              {
+                "name": "cdx:license:category",
+                "value": "Permissive"
+              },
+              {
+                "name": "cdx:license:foss",
+                "value": "true"
+              },
+              {
+                "name": "cdx:license:osiApproved",
+                "value": "true"
+              },
+              {
+                "name": "cdx:license:fsfLibre",
+                "value": "true"
+              },
+              {
+                "name": "cdx:license:deprecated",
+                "value": "false"
+              }
+            ]
+          }
+        }
+      ],
+      "purl": "pkg:npm/supports-color@10.2.2",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/supports-color/-/supports-color-10.2.2.tgz"
+        }
+      ],
+      "type": "library",
+      "bom-ref": "pkg:npm/supports-color@10.2.2",
+      "properties": [
+        {
+          "name": "SrcFile",
+          "value": "pnpm-lock.yaml"
+        },
+        {
+          "name": "cdx:npm:package:optional",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:scripts",
+          "value": "test"
+        },
+        {
+          "name": "cdx:npm:packageCreatedTime",
+          "value": "2014-06-14T01:45:57.033Z"
+        },
+        {
+          "name": "cdx:npm:lastModifiedTime",
+          "value": "2026-07-26T15:13:36.955Z"
+        },
+        {
+          "name": "cdx:npm:publishTime",
+          "value": "2025-09-08T14:49:55.476Z"
+        },
+        {
+          "name": "cdx:npm:publisher",
+          "value": "sindresorhus"
+        },
+        {
+          "name": "cdx:npm:publisherEmail",
+          "value": "sindresorhus@gmail.com"
+        },
+        {
+          "name": "cdx:npm:maintainerSet",
+          "value": "sindresorhus, sindresorhus@gmail.com"
+        },
+        {
+          "name": "cdx:npm:maintainerSetCount",
+          "value": "2"
+        },
+        {
+          "name": "cdx:npm:priorMaintainerSetCount",
+          "value": "0"
+        },
+        {
+          "name": "cdx:npm:versionCount",
+          "value": "56"
+        },
+        {
+          "name": "cdx:npm:releaseGapDays",
+          "value": "0.07"
+        },
+        {
+          "name": "cdx:npm:releaseGapBaselineDays",
+          "value": "41.20"
+        },
+        {
+          "name": "cdx:npm:releaseGapSampleSize",
+          "value": "53"
+        },
+        {
+          "name": "cdx:npm:releaseCadenceCompressionRatio",
+          "value": "0.00"
+        },
+        {
+          "name": "cdx:npm:priorVersion",
+          "value": "10.2.1"
+        },
+        {
+          "name": "cdx:npm:priorPublishTime",
+          "value": "2025-09-08T13:13:28.154Z"
+        },
+        {
+          "name": "cdx:npm:compressedCadence",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:artifactIntegrity",
+          "value": "sha512-SS+jx45GF1QjgEXQx4NJZV9ImqmO2NPz5FNsIHrsDjh2YsHnawpan7SNQ1o8NuhrbHZy9AZhIoCUiCeaW/C80g=="
+        },
+        {
+          "name": "cdx:npm:artifactShasum",
+          "value": "466c2978cc5cd0052d542a0b576461c2b802ebb4"
+        },
+        {
+          "name": "cdx:license:category",
+          "value": "Permissive"
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "manifest-analysis",
+                "confidence": 1,
+                "value": "pnpm-lock.yaml"
+              }
+            ],
+            "concludedValue": "pnpm-lock.yaml"
+          }
+        ]
+      }
+    },
+    {
+      "authors": [
+        {
           "name": "Sindre Sorhus <sindresorhus@gmail.com> (sindresorhus.com)"
         }
       ],
@@ -111546,185 +111355,6 @@
         {
           "name": "cdx:npm:artifactShasum",
           "value": "1b7dcdcb32b8138801b3e478ba6a51caa89648da"
-        },
-        {
-          "name": "cdx:license:category",
-          "value": "Permissive"
-        }
-      ],
-      "evidence": {
-        "identity": [
-          {
-            "field": "purl",
-            "confidence": 1,
-            "methods": [
-              {
-                "technique": "manifest-analysis",
-                "confidence": 1,
-                "value": "pnpm-lock.yaml"
-              }
-            ],
-            "concludedValue": "pnpm-lock.yaml"
-          }
-        ]
-      }
-    },
-    {
-      "authors": [
-        {
-          "name": "Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)"
-        }
-      ],
-      "group": "",
-      "name": "supports-color",
-      "version": "8.1.1",
-      "description": "Detect whether a terminal supports color",
-      "scope": "optional",
-      "hashes": [
-        {
-          "alg": "SHA-512",
-          "content": "3295043763a876d533c6f29097bd9c505ed14391221ec1af4ac546d226bd73945b5862f6088e02ec4a4f4bc513048a659e5cd988db95e7ac3e16e371cb7b72d9"
-        }
-      ],
-      "licenses": [
-        {
-          "license": {
-            "id": "MIT",
-            "url": "https://opensource.org/licenses/MIT",
-            "properties": [
-              {
-                "name": "cdx:license:category",
-                "value": "Permissive"
-              },
-              {
-                "name": "cdx:license:foss",
-                "value": "true"
-              },
-              {
-                "name": "cdx:license:osiApproved",
-                "value": "true"
-              },
-              {
-                "name": "cdx:license:fsfLibre",
-                "value": "true"
-              },
-              {
-                "name": "cdx:license:deprecated",
-                "value": "false"
-              }
-            ]
-          }
-        }
-      ],
-      "purl": "pkg:npm/supports-color@8.1.1",
-      "externalReferences": [
-        {
-          "type": "distribution",
-          "url": "https://registry.npmjs.org/supports-color/-/supports-color-8.1.1.tgz"
-        }
-      ],
-      "type": "library",
-      "bom-ref": "pkg:npm/supports-color@8.1.1",
-      "properties": [
-        {
-          "name": "SrcFile",
-          "value": "pnpm-lock.yaml"
-        },
-        {
-          "name": "cdx:npm:package:optional",
-          "value": "true"
-        },
-        {
-          "name": "cdx:npm:package:development",
-          "value": "true"
-        },
-        {
-          "name": "cdx:npm:scripts",
-          "value": "test"
-        },
-        {
-          "name": "cdx:npm:packageCreatedTime",
-          "value": "2014-06-14T01:45:57.033Z"
-        },
-        {
-          "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-07-26T15:13:36.955Z"
-        },
-        {
-          "name": "cdx:npm:publishTime",
-          "value": "2021-01-23T09:21:36.393Z"
-        },
-        {
-          "name": "cdx:npm:publisher",
-          "value": "sindresorhus"
-        },
-        {
-          "name": "cdx:npm:publisherEmail",
-          "value": "sindresorhus@gmail.com"
-        },
-        {
-          "name": "cdx:npm:maintainerSet",
-          "value": "sindresorhus, sindresorhus@gmail.com, qix, i.am.qix@gmail.com"
-        },
-        {
-          "name": "cdx:npm:priorMaintainerSet",
-          "value": "sindresorhus, sindresorhus@gmail.com, qix, i.am.qix@gmail.com"
-        },
-        {
-          "name": "cdx:npm:maintainerSetCount",
-          "value": "4"
-        },
-        {
-          "name": "cdx:npm:priorMaintainerSetCount",
-          "value": "4"
-        },
-        {
-          "name": "cdx:npm:maintainerOverlapCount",
-          "value": "4"
-        },
-        {
-          "name": "cdx:npm:maintainerOverlapRatio",
-          "value": "1.00"
-        },
-        {
-          "name": "cdx:npm:versionCount",
-          "value": "56"
-        },
-        {
-          "name": "cdx:npm:releaseGapDays",
-          "value": "39.71"
-        },
-        {
-          "name": "cdx:npm:releaseGapBaselineDays",
-          "value": "39.65"
-        },
-        {
-          "name": "cdx:npm:releaseGapSampleSize",
-          "value": "37"
-        },
-        {
-          "name": "cdx:npm:releaseCadenceCompressionRatio",
-          "value": "1.00"
-        },
-        {
-          "name": "cdx:npm:priorVersion",
-          "value": "8.1.0"
-        },
-        {
-          "name": "cdx:npm:priorPublishTime",
-          "value": "2020-12-14T16:16:19.236Z"
-        },
-        {
-          "name": "cdx:npm:priorPublisher",
-          "value": "sindresorhus"
-        },
-        {
-          "name": "cdx:npm:artifactIntegrity",
-          "value": "sha512-MpUEN2OodtUzxvKQl72cUF7RQ5EiHsGvSsVG0ia9c5RbWGL2CI4C7EpPS8UTBIplnlzZiNuV56w+FuNxy3ty2Q=="
-        },
-        {
-          "name": "cdx:npm:artifactShasum",
-          "value": "cd6fc17e28500cff56c1b86c0a7fd4a54a73005c"
         },
         {
           "name": "cdx:license:category",
@@ -115352,196 +114982,6 @@
     {
       "group": "",
       "name": "undici-types",
-      "version": "7.16.0",
-      "description": "A stand-alone types package for Undici",
-      "scope": "optional",
-      "hashes": [
-        {
-          "alg": "SHA-512",
-          "content": "673f9a6564a3f0b13ace8c43fb1ae387855f9081bc61ae8bbd8919aad5101893d98d8979df2a42694c16aa8ede234c7ae8a046791a3e9a504490c49e499dfc37"
-        }
-      ],
-      "licenses": [
-        {
-          "license": {
-            "id": "MIT",
-            "url": "https://opensource.org/licenses/MIT",
-            "properties": [
-              {
-                "name": "cdx:license:category",
-                "value": "Permissive"
-              },
-              {
-                "name": "cdx:license:foss",
-                "value": "true"
-              },
-              {
-                "name": "cdx:license:osiApproved",
-                "value": "true"
-              },
-              {
-                "name": "cdx:license:fsfLibre",
-                "value": "true"
-              },
-              {
-                "name": "cdx:license:deprecated",
-                "value": "false"
-              }
-            ]
-          }
-        }
-      ],
-      "purl": "pkg:npm/undici-types@7.16.0",
-      "externalReferences": [
-        {
-          "type": "distribution",
-          "url": "https://registry.npmjs.org/undici-types/-/undici-types-7.16.0.tgz"
-        }
-      ],
-      "type": "library",
-      "bom-ref": "pkg:npm/undici-types@7.16.0",
-      "properties": [
-        {
-          "name": "SrcFile",
-          "value": "pnpm-lock.yaml"
-        },
-        {
-          "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.2.0"
-        },
-        {
-          "name": "internal:workspaceSrcFile",
-          "value": "apps/web/package.json"
-        },
-        {
-          "name": "cdx:npm:package:development",
-          "value": "true"
-        },
-        {
-          "name": "cdx:npm:packageCreatedTime",
-          "value": "2023-09-19T15:09:35.360Z"
-        },
-        {
-          "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-03T15:08:45.647Z"
-        },
-        {
-          "name": "cdx:npm:publishTime",
-          "value": "2025-09-09T17:07:27.610Z"
-        },
-        {
-          "name": "cdx:npm:publisher",
-          "value": "GitHub Actions"
-        },
-        {
-          "name": "cdx:npm:publisherEmail",
-          "value": "npm-oidc-no-reply@github.com"
-        },
-        {
-          "name": "cdx:npm:maintainerSet",
-          "value": "matteo.collina, hello@matteocollina.com, ethan_arrowood, ethan@arrowood.dev, github actions, npm-oidc-no-reply@github.com"
-        },
-        {
-          "name": "cdx:npm:priorMaintainerSet",
-          "value": "matteo.collina, hello@matteocollina.com, ethan_arrowood, ethan@arrowood.dev"
-        },
-        {
-          "name": "cdx:npm:maintainerSetCount",
-          "value": "6"
-        },
-        {
-          "name": "cdx:npm:priorMaintainerSetCount",
-          "value": "4"
-        },
-        {
-          "name": "cdx:npm:maintainerOverlapCount",
-          "value": "4"
-        },
-        {
-          "name": "cdx:npm:maintainerOverlapRatio",
-          "value": "0.67"
-        },
-        {
-          "name": "cdx:npm:maintainerSetPartialDrift",
-          "value": "true"
-        },
-        {
-          "name": "cdx:npm:versionCount",
-          "value": "130"
-        },
-        {
-          "name": "cdx:npm:releaseGapDays",
-          "value": "18.05"
-        },
-        {
-          "name": "cdx:npm:releaseGapBaselineDays",
-          "value": "5.78"
-        },
-        {
-          "name": "cdx:npm:releaseGapSampleSize",
-          "value": "79"
-        },
-        {
-          "name": "cdx:npm:releaseCadenceCompressionRatio",
-          "value": "3.13"
-        },
-        {
-          "name": "cdx:npm:priorVersion",
-          "value": "7.15.0"
-        },
-        {
-          "name": "cdx:npm:priorPublishTime",
-          "value": "2025-08-22T15:54:12.138Z"
-        },
-        {
-          "name": "cdx:npm:priorPublisher",
-          "value": "matteo.collina"
-        },
-        {
-          "name": "cdx:npm:publisherDrift",
-          "value": "true"
-        },
-        {
-          "name": "cdx:npm:trustedPublishing",
-          "value": "true"
-        },
-        {
-          "name": "cdx:npm:artifactIntegrity",
-          "value": "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="
-        },
-        {
-          "name": "cdx:npm:artifactShasum",
-          "value": "ffccdff36aea4884cbfce9a750a0580224f58a46"
-        },
-        {
-          "name": "cdx:npm:provenanceUrl",
-          "value": "https://registry.npmjs.org/-/npm/v1/attestations/undici-types@7.16.0"
-        },
-        {
-          "name": "cdx:license:category",
-          "value": "Permissive"
-        }
-      ],
-      "evidence": {
-        "identity": [
-          {
-            "field": "purl",
-            "confidence": 1,
-            "methods": [
-              {
-                "technique": "manifest-analysis",
-                "confidence": 1,
-                "value": "pnpm-lock.yaml"
-              }
-            ],
-            "concludedValue": "pnpm-lock.yaml"
-          }
-        ]
-      }
-    },
-    {
-      "group": "",
-      "name": "undici-types",
       "version": "7.24.6",
       "description": "A stand-alone types package for Undici",
       "scope": "optional",
@@ -115694,6 +115134,188 @@
         {
           "name": "cdx:npm:provenanceUrl",
           "value": "https://registry.npmjs.org/-/npm/v1/attestations/undici-types@7.24.6"
+        },
+        {
+          "name": "cdx:license:category",
+          "value": "Permissive"
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "manifest-analysis",
+                "confidence": 1,
+                "value": "pnpm-lock.yaml"
+              }
+            ],
+            "concludedValue": "pnpm-lock.yaml"
+          }
+        ]
+      }
+    },
+    {
+      "group": "",
+      "name": "undici-types",
+      "version": "8.3.0",
+      "description": "A stand-alone types package for Undici",
+      "scope": "optional",
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "8f7ef949c57ad1da26f9890f1487d32dc3a23f190dfdbb87cf91a86e32e18b116e00d68db370bd9781a6ad6a9e8e05d627b05b25c158a53114912d467bc6e965"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "url": "https://opensource.org/licenses/MIT",
+            "properties": [
+              {
+                "name": "cdx:license:category",
+                "value": "Permissive"
+              },
+              {
+                "name": "cdx:license:foss",
+                "value": "true"
+              },
+              {
+                "name": "cdx:license:osiApproved",
+                "value": "true"
+              },
+              {
+                "name": "cdx:license:fsfLibre",
+                "value": "true"
+              },
+              {
+                "name": "cdx:license:deprecated",
+                "value": "false"
+              }
+            ]
+          }
+        }
+      ],
+      "purl": "pkg:npm/undici-types@8.3.0",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/undici-types/-/undici-types-8.3.0.tgz"
+        }
+      ],
+      "type": "library",
+      "bom-ref": "pkg:npm/undici-types@8.3.0",
+      "properties": [
+        {
+          "name": "SrcFile",
+          "value": "pnpm-lock.yaml"
+        },
+        {
+          "name": "internal:workspaceRef",
+          "value": "pkg:npm/@nimanto/web@0.2.0"
+        },
+        {
+          "name": "internal:workspaceSrcFile",
+          "value": "apps/web/package.json"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:packageCreatedTime",
+          "value": "2023-09-19T15:09:35.360Z"
+        },
+        {
+          "name": "cdx:npm:lastModifiedTime",
+          "value": "2026-08-03T15:08:45.647Z"
+        },
+        {
+          "name": "cdx:npm:publishTime",
+          "value": "2026-05-14T17:06:13.732Z"
+        },
+        {
+          "name": "cdx:npm:publisher",
+          "value": "GitHub Actions"
+        },
+        {
+          "name": "cdx:npm:publisherEmail",
+          "value": "npm-oidc-no-reply@github.com"
+        },
+        {
+          "name": "cdx:npm:maintainerSet",
+          "value": "matteo.collina, hello@matteocollina.com, ethan_arrowood, ethan@arrowood.dev, github actions, npm-oidc-no-reply@github.com"
+        },
+        {
+          "name": "cdx:npm:priorMaintainerSet",
+          "value": "matteo.collina, hello@matteocollina.com, ethan_arrowood, ethan@arrowood.dev, github actions, npm-oidc-no-reply@github.com"
+        },
+        {
+          "name": "cdx:npm:maintainerSetCount",
+          "value": "6"
+        },
+        {
+          "name": "cdx:npm:priorMaintainerSetCount",
+          "value": "6"
+        },
+        {
+          "name": "cdx:npm:maintainerOverlapCount",
+          "value": "6"
+        },
+        {
+          "name": "cdx:npm:maintainerOverlapRatio",
+          "value": "1.00"
+        },
+        {
+          "name": "cdx:npm:versionCount",
+          "value": "130"
+        },
+        {
+          "name": "cdx:npm:releaseGapDays",
+          "value": "12.84"
+        },
+        {
+          "name": "cdx:npm:releaseGapBaselineDays",
+          "value": "4.97"
+        },
+        {
+          "name": "cdx:npm:releaseGapSampleSize",
+          "value": "111"
+        },
+        {
+          "name": "cdx:npm:releaseCadenceCompressionRatio",
+          "value": "2.59"
+        },
+        {
+          "name": "cdx:npm:priorVersion",
+          "value": "8.2.0"
+        },
+        {
+          "name": "cdx:npm:priorPublishTime",
+          "value": "2026-05-01T20:53:57.929Z"
+        },
+        {
+          "name": "cdx:npm:priorPublisher",
+          "value": "GitHub Actions"
+        },
+        {
+          "name": "cdx:npm:trustedPublishing",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:artifactIntegrity",
+          "value": "sha512-j375ScV60dom+YkPFIfTLcOiPxkN/buHz5GobjLhixFuANaNs3C9l4GmrWqejgXWJ7BbJcFYpTEUkS1Ge8bpZQ=="
+        },
+        {
+          "name": "cdx:npm:artifactShasum",
+          "value": "44e9fc9f3244648cdea35e4f9bb2d681e9410809"
+        },
+        {
+          "name": "cdx:npm:provenanceUrl",
+          "value": "https://registry.npmjs.org/-/npm/v1/attestations/undici-types@8.3.0"
         },
         {
           "name": "cdx:license:category",
@@ -119361,182 +118983,6 @@
       ],
       "group": "",
       "name": "wrap-ansi",
-      "version": "7.0.0",
-      "description": "Wordwrap a string with ANSI escape codes",
-      "scope": "optional",
-      "hashes": [
-        {
-          "alg": "SHA-512",
-          "content": "6151888f691a98b493c70e8db198e80717d2c2c9f4c9c75eb26738a7e436d5ce733ee675a65f8d7f155dc4fb5d1ef98d54e43a5d2606e0052dcadfc58bb0f5e9"
-        }
-      ],
-      "licenses": [
-        {
-          "license": {
-            "id": "MIT",
-            "url": "https://opensource.org/licenses/MIT",
-            "properties": [
-              {
-                "name": "cdx:license:category",
-                "value": "Permissive"
-              },
-              {
-                "name": "cdx:license:foss",
-                "value": "true"
-              },
-              {
-                "name": "cdx:license:osiApproved",
-                "value": "true"
-              },
-              {
-                "name": "cdx:license:fsfLibre",
-                "value": "true"
-              },
-              {
-                "name": "cdx:license:deprecated",
-                "value": "false"
-              }
-            ]
-          }
-        }
-      ],
-      "purl": "pkg:npm/wrap-ansi@7.0.0",
-      "externalReferences": [
-        {
-          "type": "distribution",
-          "url": "https://registry.npmjs.org/wrap-ansi/-/wrap-ansi-7.0.0.tgz"
-        }
-      ],
-      "type": "library",
-      "bom-ref": "pkg:npm/wrap-ansi@7.0.0",
-      "properties": [
-        {
-          "name": "SrcFile",
-          "value": "pnpm-lock.yaml"
-        },
-        {
-          "name": "cdx:npm:package:development",
-          "value": "true"
-        },
-        {
-          "name": "cdx:npm:scripts",
-          "value": "test"
-        },
-        {
-          "name": "cdx:npm:packageCreatedTime",
-          "value": "2015-08-19T18:56:22.141Z"
-        },
-        {
-          "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-02-20T10:03:54.839Z"
-        },
-        {
-          "name": "cdx:npm:publishTime",
-          "value": "2020-04-22T16:53:23.889Z"
-        },
-        {
-          "name": "cdx:npm:publisher",
-          "value": "sindresorhus"
-        },
-        {
-          "name": "cdx:npm:publisherEmail",
-          "value": "sindresorhus@gmail.com"
-        },
-        {
-          "name": "cdx:npm:maintainerSet",
-          "value": "bcoe, ben@npmjs.com, qix, i.am.qix@gmail.com, sindresorhus, sindresorhus@gmail.com"
-        },
-        {
-          "name": "cdx:npm:priorMaintainerSet",
-          "value": "bcoe, ben@npmjs.com, qix, i.am.qix@gmail.com, sindresorhus, sindresorhus@gmail.com"
-        },
-        {
-          "name": "cdx:npm:maintainerSetCount",
-          "value": "6"
-        },
-        {
-          "name": "cdx:npm:priorMaintainerSetCount",
-          "value": "6"
-        },
-        {
-          "name": "cdx:npm:maintainerOverlapCount",
-          "value": "6"
-        },
-        {
-          "name": "cdx:npm:maintainerOverlapRatio",
-          "value": "1.00"
-        },
-        {
-          "name": "cdx:npm:versionCount",
-          "value": "23"
-        },
-        {
-          "name": "cdx:npm:releaseGapDays",
-          "value": "163.03"
-        },
-        {
-          "name": "cdx:npm:releaseGapBaselineDays",
-          "value": "46.41"
-        },
-        {
-          "name": "cdx:npm:releaseGapSampleSize",
-          "value": "14"
-        },
-        {
-          "name": "cdx:npm:releaseCadenceCompressionRatio",
-          "value": "3.51"
-        },
-        {
-          "name": "cdx:npm:priorVersion",
-          "value": "6.2.0"
-        },
-        {
-          "name": "cdx:npm:priorPublishTime",
-          "value": "2019-11-11T16:08:17.322Z"
-        },
-        {
-          "name": "cdx:npm:priorPublisher",
-          "value": "sindresorhus"
-        },
-        {
-          "name": "cdx:npm:artifactIntegrity",
-          "value": "sha512-YVGIj2kamLSTxw6NsZjoBxfSwsn0ycdesmc4p+Q21c5zPuZ1pl+NfxVdxPtdHvmNVOQ6XSYG4AUtyt/Fi7D16Q=="
-        },
-        {
-          "name": "cdx:npm:artifactShasum",
-          "value": "67e145cff510a6a6984bdf1152911d69d2eb9e43"
-        },
-        {
-          "name": "cdx:license:category",
-          "value": "Permissive"
-        }
-      ],
-      "evidence": {
-        "identity": [
-          {
-            "field": "purl",
-            "confidence": 1,
-            "methods": [
-              {
-                "technique": "manifest-analysis",
-                "confidence": 1,
-                "value": "pnpm-lock.yaml"
-              }
-            ],
-            "concludedValue": "pnpm-lock.yaml"
-          }
-        ]
-      },
-      "tags": ["escape"]
-    },
-    {
-      "authors": [
-        {
-          "name": "Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)"
-        }
-      ],
-      "group": "",
-      "name": "wrap-ansi",
       "version": "8.1.0",
       "description": "Wordwrap a string with ANSI escape codes",
       "scope": "optional",
@@ -121380,194 +120826,6 @@
       ],
       "group": "",
       "name": "yargs-parser",
-      "version": "21.1.1",
-      "description": "the mighty option parser used by yargs",
-      "scope": "optional",
-      "hashes": [
-        {
-          "alg": "SHA-512",
-          "content": "b55a6c256ec376379c0221696c80757b7ab1210b04e8da0f739fde4ddadb6c80b88742d5b16867a1ade0fa6d87725048ba31f3b31678549540f8652e736fcb07"
-        }
-      ],
-      "licenses": [
-        {
-          "license": {
-            "id": "ISC",
-            "url": "https://opensource.org/licenses/ISC",
-            "properties": [
-              {
-                "name": "cdx:license:category",
-                "value": "Permissive"
-              },
-              {
-                "name": "cdx:license:foss",
-                "value": "true"
-              },
-              {
-                "name": "cdx:license:osiApproved",
-                "value": "true"
-              },
-              {
-                "name": "cdx:license:fsfLibre",
-                "value": "true"
-              },
-              {
-                "name": "cdx:license:deprecated",
-                "value": "false"
-              }
-            ]
-          }
-        }
-      ],
-      "purl": "pkg:npm/yargs-parser@21.1.1",
-      "externalReferences": [
-        {
-          "type": "distribution",
-          "url": "https://registry.npmjs.org/yargs-parser/-/yargs-parser-21.1.1.tgz"
-        }
-      ],
-      "type": "library",
-      "bom-ref": "pkg:npm/yargs-parser@21.1.1",
-      "properties": [
-        {
-          "name": "SrcFile",
-          "value": "pnpm-lock.yaml"
-        },
-        {
-          "name": "cdx:npm:package:development",
-          "value": "true"
-        },
-        {
-          "name": "cdx:npm:scripts",
-          "value": "check, fix, pretest, test, test:esm, test:browser, pretest:typescript, test:typescript, coverage, precompile, compile, postcompile, build:cjs, prepare"
-        },
-        {
-          "name": "cdx:npm:buildScripts",
-          "value": "compile, build:cjs"
-        },
-        {
-          "name": "cdx:npm:hasInstallScript",
-          "value": "true"
-        },
-        {
-          "name": "cdx:npm:risky_scripts",
-          "value": "prepare"
-        },
-        {
-          "name": "cdx:npm:packageCreatedTime",
-          "value": "2016-01-23T21:12:29.644Z"
-        },
-        {
-          "name": "cdx:npm:lastModifiedTime",
-          "value": "2025-05-26T20:12:01.075Z"
-        },
-        {
-          "name": "cdx:npm:publishTime",
-          "value": "2022-08-04T21:13:43.411Z"
-        },
-        {
-          "name": "cdx:npm:publisher",
-          "value": "oss-bot"
-        },
-        {
-          "name": "cdx:npm:publisherEmail",
-          "value": "bencoe+oss-bot@gmail.com"
-        },
-        {
-          "name": "cdx:npm:maintainerSet",
-          "value": "bcoe, bencoe@gmail.com, nexdrew, andrewbgoode@gmail.com, oss-bot, bencoe+oss-bot@gmail.com"
-        },
-        {
-          "name": "cdx:npm:priorMaintainerSet",
-          "value": "bcoe, bencoe@gmail.com, nexdrew, andrewbgoode@gmail.com, oss-bot, bencoe+oss-bot@gmail.com"
-        },
-        {
-          "name": "cdx:npm:maintainerSetCount",
-          "value": "6"
-        },
-        {
-          "name": "cdx:npm:priorMaintainerSetCount",
-          "value": "6"
-        },
-        {
-          "name": "cdx:npm:maintainerOverlapCount",
-          "value": "6"
-        },
-        {
-          "name": "cdx:npm:maintainerOverlapRatio",
-          "value": "1.00"
-        },
-        {
-          "name": "cdx:npm:versionCount",
-          "value": "84"
-        },
-        {
-          "name": "cdx:npm:releaseGapDays",
-          "value": "1.08"
-        },
-        {
-          "name": "cdx:npm:releaseGapBaselineDays",
-          "value": "10.44"
-        },
-        {
-          "name": "cdx:npm:releaseGapSampleSize",
-          "value": "81"
-        },
-        {
-          "name": "cdx:npm:releaseCadenceCompressionRatio",
-          "value": "0.10"
-        },
-        {
-          "name": "cdx:npm:priorVersion",
-          "value": "21.1.0"
-        },
-        {
-          "name": "cdx:npm:priorPublishTime",
-          "value": "2022-08-03T19:24:40.722Z"
-        },
-        {
-          "name": "cdx:npm:priorPublisher",
-          "value": "oss-bot"
-        },
-        {
-          "name": "cdx:npm:artifactIntegrity",
-          "value": "sha512-tVpsJW7DdjecAiFpbIB1e3qxIQsE6NoPc5/eTdrbbIC4h0LVsWhnoa3g+m2HclBIujHzsxZ4VJVA+GUuc2/LBw=="
-        },
-        {
-          "name": "cdx:npm:artifactShasum",
-          "value": "9096bceebf990d21bb31fa9516e0ede294a77d35"
-        },
-        {
-          "name": "cdx:license:category",
-          "value": "Permissive"
-        }
-      ],
-      "evidence": {
-        "identity": [
-          {
-            "field": "purl",
-            "confidence": 1,
-            "methods": [
-              {
-                "technique": "manifest-analysis",
-                "confidence": 1,
-                "value": "pnpm-lock.yaml"
-              }
-            ],
-            "concludedValue": "pnpm-lock.yaml"
-          }
-        ]
-      },
-      "tags": ["parse"]
-    },
-    {
-      "authors": [
-        {
-          "name": "Ben Coe <ben@npmjs.com>"
-        }
-      ],
-      "group": "",
-      "name": "yargs-parser",
       "version": "22.0.0",
       "description": "the mighty option parser used by yargs",
       "scope": "optional",
@@ -121747,188 +121005,6 @@
         ]
       },
       "tags": ["parse"]
-    },
-    {
-      "group": "",
-      "name": "yargs",
-      "version": "17.7.2",
-      "description": "yargs the modern, pirate-themed, successor to optimist.",
-      "scope": "optional",
-      "hashes": [
-        {
-          "alg": "SHA-512",
-          "content": "edd4b3cd143ef822a7348fe4aca9d8455ec928a3d45cc121eb5b286872a0f66ad6121cc55a1167c4fc4697eebd703d4ebbadc2d773543c29e621caefa82b8ceb"
-        }
-      ],
-      "licenses": [
-        {
-          "license": {
-            "id": "MIT",
-            "url": "https://opensource.org/licenses/MIT",
-            "properties": [
-              {
-                "name": "cdx:license:category",
-                "value": "Permissive"
-              },
-              {
-                "name": "cdx:license:foss",
-                "value": "true"
-              },
-              {
-                "name": "cdx:license:osiApproved",
-                "value": "true"
-              },
-              {
-                "name": "cdx:license:fsfLibre",
-                "value": "true"
-              },
-              {
-                "name": "cdx:license:deprecated",
-                "value": "false"
-              }
-            ]
-          }
-        }
-      ],
-      "purl": "pkg:npm/yargs@17.7.2",
-      "externalReferences": [
-        {
-          "type": "distribution",
-          "url": "https://registry.npmjs.org/yargs/-/yargs-17.7.2.tgz"
-        }
-      ],
-      "type": "library",
-      "bom-ref": "pkg:npm/yargs@17.7.2",
-      "properties": [
-        {
-          "name": "SrcFile",
-          "value": "pnpm-lock.yaml"
-        },
-        {
-          "name": "cdx:npm:package:development",
-          "value": "true"
-        },
-        {
-          "name": "cdx:npm:scripts",
-          "value": "fix, fix:js, posttest, test, test:esm, coverage, prepare, pretest, compile, postcompile, build:cjs, postbuild:cjs, check, check:js, clean"
-        },
-        {
-          "name": "cdx:npm:buildScripts",
-          "value": "compile, build:cjs"
-        },
-        {
-          "name": "cdx:npm:hasInstallScript",
-          "value": "true"
-        },
-        {
-          "name": "cdx:npm:risky_scripts",
-          "value": "prepare"
-        },
-        {
-          "name": "cdx:npm:packageCreatedTime",
-          "value": "2013-11-23T09:34:05.069Z"
-        },
-        {
-          "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-07-26T04:07:48.820Z"
-        },
-        {
-          "name": "cdx:npm:publishTime",
-          "value": "2023-04-27T19:59:02.861Z"
-        },
-        {
-          "name": "cdx:npm:publisher",
-          "value": "oss-bot"
-        },
-        {
-          "name": "cdx:npm:publisherEmail",
-          "value": "bencoe+oss-bot@gmail.com"
-        },
-        {
-          "name": "cdx:npm:maintainerSet",
-          "value": "bcoe, bencoe@gmail.com, oss-bot, bencoe+oss-bot@gmail.com"
-        },
-        {
-          "name": "cdx:npm:priorMaintainerSet",
-          "value": "bcoe, bencoe@gmail.com, oss-bot, bencoe+oss-bot@gmail.com"
-        },
-        {
-          "name": "cdx:npm:maintainerSetCount",
-          "value": "4"
-        },
-        {
-          "name": "cdx:npm:priorMaintainerSetCount",
-          "value": "4"
-        },
-        {
-          "name": "cdx:npm:maintainerOverlapCount",
-          "value": "4"
-        },
-        {
-          "name": "cdx:npm:maintainerOverlapRatio",
-          "value": "1.00"
-        },
-        {
-          "name": "cdx:npm:versionCount",
-          "value": "266"
-        },
-        {
-          "name": "cdx:npm:releaseGapDays",
-          "value": "65.18"
-        },
-        {
-          "name": "cdx:npm:releaseGapBaselineDays",
-          "value": "4.92"
-        },
-        {
-          "name": "cdx:npm:releaseGapSampleSize",
-          "value": "248"
-        },
-        {
-          "name": "cdx:npm:releaseCadenceCompressionRatio",
-          "value": "13.23"
-        },
-        {
-          "name": "cdx:npm:priorVersion",
-          "value": "17.7.1"
-        },
-        {
-          "name": "cdx:npm:priorPublishTime",
-          "value": "2023-02-21T15:44:58.643Z"
-        },
-        {
-          "name": "cdx:npm:priorPublisher",
-          "value": "oss-bot"
-        },
-        {
-          "name": "cdx:npm:artifactIntegrity",
-          "value": "sha512-7dSzzRQ++CKnNI/krKnYRV7JKKPUXMEh61soaHKg9mrWEhzFWhFnxPxGl+69cD1Ou63C13NUPCnmIcrvqCuM6w=="
-        },
-        {
-          "name": "cdx:npm:artifactShasum",
-          "value": "991df39aca675a192b816e1e0363f9d75d2aa269"
-        },
-        {
-          "name": "cdx:license:category",
-          "value": "Permissive"
-        }
-      ],
-      "evidence": {
-        "identity": [
-          {
-            "field": "purl",
-            "confidence": 1,
-            "methods": [
-              {
-                "technique": "manifest-analysis",
-                "confidence": 1,
-                "value": "pnpm-lock.yaml"
-              }
-            ],
-            "concludedValue": "pnpm-lock.yaml"
-          }
-        ]
-      }
     },
     {
       "group": "",
@@ -122132,7 +121208,7 @@
         "pkg:npm/@nimanto/domain@0.2.0",
         "pkg:npm/@nimanto/parsers@0.2.0",
         "pkg:npm/@nimanto/providers@0.2.0",
-        "pkg:npm/@types/node@24.10.1",
+        "pkg:npm/@types/node@26.1.2",
         "pkg:npm/fastify@5.11.2",
         "pkg:npm/tsx@4.23.5",
         "pkg:npm/typescript@7.0.2",
@@ -122146,7 +121222,7 @@
         "pkg:npm/@fontsource/ibm-plex-mono@5.3.0",
         "pkg:npm/@fontsource/instrument-serif@5.3.0",
         "pkg:npm/@nimanto/domain@0.2.0",
-        "pkg:npm/@types/node@24.10.1",
+        "pkg:npm/@types/node@26.1.2",
         "pkg:npm/@types/react-dom@19.2.4",
         "pkg:npm/@types/react@19.2.18",
         "pkg:npm/@types/three@0.185.4",
@@ -122164,7 +121240,7 @@
     {
       "ref": "pkg:npm/@nimanto/worker@0.2.0",
       "dependsOn": [
-        "pkg:npm/@types/node@24.10.1",
+        "pkg:npm/@types/node@26.1.2",
         "pkg:npm/tsx@4.23.5",
         "pkg:npm/typescript@7.0.2",
         "pkg:npm/vitest@4.1.10"
@@ -122175,7 +121251,7 @@
       "dependsOn": [
         "pkg:npm/@electric-sql/pglite@0.5.4",
         "pkg:npm/@nimanto/domain@0.2.0",
-        "pkg:npm/@types/node@24.10.1",
+        "pkg:npm/@types/node@26.1.2",
         "pkg:npm/typescript@7.0.2",
         "pkg:npm/vitest@4.1.10"
       ]
@@ -122184,7 +121260,7 @@
       "ref": "pkg:npm/@nimanto/documents@0.2.0",
       "dependsOn": [
         "pkg:npm/@nimanto/domain@0.2.0",
-        "pkg:npm/@types/node@24.10.1",
+        "pkg:npm/@types/node@26.1.2",
         "pkg:npm/docx@9.7.1",
         "pkg:npm/fflate@0.8.3",
         "pkg:npm/pdf-lib@1.17.1",
@@ -122196,7 +121272,7 @@
     {
       "ref": "pkg:npm/@nimanto/domain@0.2.0",
       "dependsOn": [
-        "pkg:npm/@types/node@24.10.1",
+        "pkg:npm/@types/node@26.1.2",
         "pkg:npm/typescript@7.0.2",
         "pkg:npm/vitest@4.1.10"
       ]
@@ -122205,7 +121281,7 @@
       "ref": "pkg:npm/@nimanto/parsers@0.2.0",
       "dependsOn": [
         "pkg:npm/@nimanto/domain@0.2.0",
-        "pkg:npm/@types/node@24.10.1",
+        "pkg:npm/@types/node@26.1.2",
         "pkg:npm/fflate@0.8.3",
         "pkg:npm/pdf-lib@1.17.1",
         "pkg:npm/pdfjs-dist@6.2.108",
@@ -122218,7 +121294,7 @@
       "ref": "pkg:npm/@nimanto/providers@0.2.0",
       "dependsOn": [
         "pkg:npm/@nimanto/domain@0.2.0",
-        "pkg:npm/@types/node@24.10.1",
+        "pkg:npm/@types/node@26.1.2",
         "pkg:npm/typescript@7.0.2",
         "pkg:npm/vitest@4.1.10"
       ]
@@ -123385,12 +122461,12 @@
       "dependsOn": []
     },
     {
-      "ref": "pkg:npm/@types/node@24.10.1",
-      "dependsOn": ["pkg:npm/undici-types@7.16.0"]
-    },
-    {
       "ref": "pkg:npm/@types/node@25.9.5",
       "dependsOn": ["pkg:npm/undici-types@7.24.6"]
+    },
+    {
+      "ref": "pkg:npm/@types/node@26.1.2",
+      "dependsOn": ["pkg:npm/undici-types@8.3.0"]
     },
     {
       "ref": "pkg:npm/@types/react-dom@19.2.4",
@@ -123425,7 +122501,7 @@
     },
     {
       "ref": "pkg:npm/@types/ws@8.18.1",
-      "dependsOn": ["pkg:npm/@types/node@24.10.1"]
+      "dependsOn": ["pkg:npm/@types/node@26.1.2"]
     },
     {
       "ref": "pkg:npm/@typescript/typescript-aix-ppc64@7.0.2",
@@ -123682,7 +122758,7 @@
     },
     {
       "ref": "pkg:npm/buffer-image-size@0.6.4",
-      "dependsOn": ["pkg:npm/@types/node@24.10.1"]
+      "dependsOn": ["pkg:npm/@types/node@26.1.2"]
     },
     {
       "ref": "pkg:npm/bytes@3.0.0",
@@ -123776,14 +122852,6 @@
       "dependsOn": ["pkg:npm/arch@2.2.0", "pkg:npm/execa@5.1.1", "pkg:npm/is-wsl@2.2.0"]
     },
     {
-      "ref": "pkg:npm/cliui@8.0.1",
-      "dependsOn": [
-        "pkg:npm/string-width@4.2.3",
-        "pkg:npm/strip-ansi@6.0.1",
-        "pkg:npm/wrap-ansi@7.0.0"
-      ]
-    },
-    {
       "ref": "pkg:npm/cliui@9.0.1",
       "dependsOn": [
         "pkg:npm/string-width@7.2.0",
@@ -123832,14 +122900,14 @@
       "dependsOn": []
     },
     {
-      "ref": "pkg:npm/concurrently@9.2.1",
+      "ref": "pkg:npm/concurrently@10.0.4",
       "dependsOn": [
-        "pkg:npm/chalk@4.1.2",
+        "pkg:npm/chalk@5.6.2",
         "pkg:npm/rxjs@7.8.2",
-        "pkg:npm/shell-quote@1.8.3",
-        "pkg:npm/supports-color@8.1.1",
+        "pkg:npm/shell-quote@1.9.0",
+        "pkg:npm/supports-color@10.2.2",
         "pkg:npm/tree-kill@1.2.2",
-        "pkg:npm/yargs@17.7.2"
+        "pkg:npm/yargs@18.0.0"
       ]
     },
     {
@@ -124336,7 +123404,7 @@
     {
       "ref": "pkg:npm/happy-dom@20.11.1",
       "dependsOn": [
-        "pkg:npm/@types/node@24.10.1",
+        "pkg:npm/@types/node@26.1.2",
         "pkg:npm/@types/whatwg-mimetype@3.0.2",
         "pkg:npm/@types/ws@8.18.1",
         "pkg:npm/buffer-image-size@0.6.4",
@@ -124886,7 +123954,7 @@
       ]
     },
     {
-      "ref": "pkg:npm/prettier@3.6.2",
+      "ref": "pkg:npm/prettier@3.9.6",
       "dependsOn": []
     },
     {
@@ -124977,10 +124045,6 @@
     {
       "ref": "pkg:npm/registry-url@3.1.0",
       "dependsOn": ["pkg:npm/rc@1.2.8"]
-    },
-    {
-      "ref": "pkg:npm/require-directory@2.1.1",
-      "dependsOn": []
     },
     {
       "ref": "pkg:npm/require-from-string@2.0.2",
@@ -125107,7 +124171,7 @@
       "dependsOn": []
     },
     {
-      "ref": "pkg:npm/shell-quote@1.8.3",
+      "ref": "pkg:npm/shell-quote@1.9.0",
       "dependsOn": []
     },
     {
@@ -125248,11 +124312,11 @@
       "dependsOn": ["pkg:npm/client-only@0.0.1", "pkg:npm/react@19.2.8"]
     },
     {
-      "ref": "pkg:npm/supports-color@7.2.0",
-      "dependsOn": ["pkg:npm/has-flag@4.0.0"]
+      "ref": "pkg:npm/supports-color@10.2.2",
+      "dependsOn": []
     },
     {
-      "ref": "pkg:npm/supports-color@8.1.1",
+      "ref": "pkg:npm/supports-color@7.2.0",
       "dependsOn": ["pkg:npm/has-flag@4.0.0"]
     },
     {
@@ -125338,11 +124402,11 @@
       "dependsOn": []
     },
     {
-      "ref": "pkg:npm/undici-types@7.16.0",
+      "ref": "pkg:npm/undici-types@7.24.6",
       "dependsOn": []
     },
     {
-      "ref": "pkg:npm/undici-types@7.24.6",
+      "ref": "pkg:npm/undici-types@8.3.0",
       "dependsOn": []
     },
     {
@@ -125449,14 +124513,6 @@
       "dependsOn": ["pkg:npm/string-width@5.1.2"]
     },
     {
-      "ref": "pkg:npm/wrap-ansi@7.0.0",
-      "dependsOn": [
-        "pkg:npm/ansi-styles@4.3.0",
-        "pkg:npm/string-width@4.2.3",
-        "pkg:npm/strip-ansi@6.0.1"
-      ]
-    },
-    {
       "ref": "pkg:npm/wrap-ansi@8.1.0",
       "dependsOn": [
         "pkg:npm/ansi-styles@6.2.3",
@@ -125505,24 +124561,8 @@
       "dependsOn": []
     },
     {
-      "ref": "pkg:npm/yargs-parser@21.1.1",
-      "dependsOn": []
-    },
-    {
       "ref": "pkg:npm/yargs-parser@22.0.0",
       "dependsOn": []
-    },
-    {
-      "ref": "pkg:npm/yargs@17.7.2",
-      "dependsOn": [
-        "pkg:npm/cliui@8.0.1",
-        "pkg:npm/escalade@3.2.0",
-        "pkg:npm/get-caller-file@2.0.5",
-        "pkg:npm/require-directory@2.1.1",
-        "pkg:npm/string-width@4.2.3",
-        "pkg:npm/y18n@5.0.8",
-        "pkg:npm/yargs-parser@21.1.1"
-      ]
     },
     {
       "ref": "pkg:npm/yargs@18.0.0",
@@ -125556,7 +124596,7 @@
           ]
         }
       },
-      "timestamp": "2026-08-06T04:20:03Z",
+      "timestamp": "2026-08-06T04:26:48Z",
       "text": "This Software Bill-of-Materials (SBOM) document was created on Thursday, August 6, 2026 with cdxgen. The data was captured during the pre-build lifecycle phase without building the application. The document describes an application named 'nimanto' with version '0.2.0'. The application also has 8 child modules/components. Trusted publishing metadata is present for 281 npm component(s) and 0 PyPI component(s). The package type in this SBOM is npm with 34 purl namespaces described under components. The components were identified from the source files: pnpm-lock.yaml."
     }
   ]

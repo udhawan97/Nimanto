@@ -7,20 +7,10 @@
  * copy — see followUpNote below. */
 
 export type ApplicationStatus =
-  | "tracked"
-  | "prepared"
-  | "approved_for_export"
-  | "submitted_externally"
-  | "withdrawn";
+  "tracked" | "prepared" | "approved_for_export" | "submitted_externally" | "withdrawn";
 
 export type Section =
-  | "overview"
-  | "evidence"
-  | "jobs"
-  | "applications"
-  | "packets"
-  | "actions"
-  | "data";
+  "overview" | "evidence" | "jobs" | "applications" | "packets" | "actions" | "data";
 
 type EvidenceLike = { status: string };
 type JobLike = { id: string };
