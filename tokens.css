@@ -1,74 +1,183 @@
-/* Hallmark · pre-emit critique: P5 H5 E5 S5 R5 V5
- * genre: modern-minimal · macrostructure: Workbench · theme: Cobalt with Japanese restraint and Indian modernism
- * tone: calm technical · anchor hue: indigo · enrichment: live evidence rail · knob delta: bilingual microtype and jaali proof ornament
- * contrast: pass (40–41) · nav: N13 · footer: Ft5 · slop: pass (42–45)
- * honest: pass (46) · chrome: pass (47) · tokens: pass (48) · responsive: pass (49) · icons: pass (30)
- * mobile: pass (34, 49, 50–57) · slop test: pass (58 gates)
+/* Nimanto — Colour & Material 002
+ *
+ * Every value is sampled from the shipped emblem, not chosen beside it.
+ * Contrast figures are COMPUTED (WCAG 2.x relative luminance) against ink
+ * #0A0908, not quoted from the source sheet — four of its six labels were
+ * optimistic and two claimed AAA below the 7.0 floor.
+ *
+ * Proportion, and it is a rule rather than a suggestion:
+ *   Ink 74 · Stone 16 · Brass 7 · Vermilion 2 · Emerald 1
+ *
+ * Ink carries almost everything. Stone does the reading. Brass is a line
+ * weight, never a fill. Vermilion earns its place once per screen. Emerald
+ * appears at the seed of the mark and effectively nowhere else.
+ *
+ * Two layers live here. RAMPS are raw material. ROLES are what component CSS
+ * is allowed to touch. The split exists so that an invisible border is not a
+ * value you can accidentally type — there is simply no role that resolves to
+ * one.
  */
+
 :root {
-  --color-paper: oklch(98.5% 0.004 250);
-  --color-paper-2: oklch(96% 0.008 250);
-  --color-paper-3: oklch(92% 0.012 250);
-  --color-ink: oklch(24% 0.02 258);
-  --color-ink-2: oklch(34% 0.018 257);
-  --color-muted: oklch(47% 0.018 257);
-  --color-rule: oklch(84% 0.012 252);
-  --color-rule-2: oklch(68% 0.025 254);
-  --color-accent: oklch(50% 0.2 256);
-  --color-accent-hover: oklch(43% 0.19 256);
-  --color-accent-ink: oklch(98% 0.004 250);
-  --color-seal: oklch(52% 0.17 35);
-  --color-indigo: oklch(31% 0.09 262);
-  --color-marigold: oklch(72% 0.15 78);
-  --color-terracotta: oklch(55% 0.14 42);
-  --color-focus: oklch(62% 0.22 256);
-  --color-success: oklch(43% 0.12 155);
-  --color-warning: oklch(52% 0.12 75);
-  --color-error: oklch(49% 0.18 25);
-  --color-graphite: oklch(21% 0.016 260);
-  --color-graphite-2: oklch(27% 0.02 260);
-  --color-graphite-ink: oklch(94% 0.008 250);
-  --color-overlay: oklch(16% 0.02 258 / 0.58);
-  --color-shadow: oklch(24% 0.02 258 / 0.08);
+  color-scheme: dark;
 
-  --font-display: "Space Grotesk Variable", "Space Grotesk", sans-serif;
-  --font-body: "IBM Plex Sans Variable", "IBM Plex Sans", sans-serif;
-  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", monospace;
+  /* ── Ground ─────────────────────────────────────────────────────────── */
+  --ink: #0a0908; /* the gallery — every surface the mark sits on */
+  --lacquer: #101013; /* raised surfaces. 1.05:1 vs ink — a field, never an edge */
+  --umber: #241c14; /* atmosphere only. radial wash behind the mark. never a fill */
 
-  --space-3xs: 0.125rem;
-  --space-2xs: 0.25rem;
-  --space-xs: 0.5rem;
-  --space-sm: 0.75rem;
-  --space-md: 1rem;
-  --space-lg: 1.5rem;
-  --space-xl: 2.5rem;
-  --space-2xl: 4rem;
-  --space-3xl: 6rem;
-  --space-4xl: 9rem;
+  /* ── Ramps ──────────────────────────────────────────────────────────── */
+  --brass-100: #2e2415; /* 1.31:1 — decorative fill only */
+  --brass-200: #57431f; /* 2.11:1 — fill, or hairline with ≥12px separation */
+  --brass-300: #7c6134; /* 3.43:1 — the lightest legal structural stroke */
+  --brass-400: #9d7c4a; /* 5.13:1 */
+  --brass-500: #b8935a; /* 6.97:1 — AA. links, quiet emphasis */
+  --brass-600: #d0af7e; /* 9.58:1 — AAA brass */
+  --brass-700: #e4cda6;
 
-  --text-xs: 0.72rem;
-  --text-sm: 0.82rem;
-  --text-base: 1rem;
-  --text-md: 1.2rem;
-  --text-lg: 1.44rem;
-  --text-xl: 1.728rem;
-  --text-2xl: 2.074rem;
+  --stone-100: #1c1a17;
+  --stone-200: #3a362f; /* 1.66:1 — fill only */
+  --stone-300: #6e665c; /* 3.52:1 — legal divider */
+  --stone-400: #8b8175; /* 5.21:1 — AA. placards, metadata. never below 14px */
+  --stone-500: #b3aa9c; /* 8.67:1 — AAA. body copy */
+  --stone-600: #d5ccb9; /* 12.47:1 — AAA. display type only, never body */
+  --stone-700: #e8e1d4; /* 15.30:1 — AAA. headlines, wordmark */
+
+  --vermilion-100: #3e1610;
+  --vermilion-200: #6b2519;
+  --vermilion-300: #b33a24;
+  --vermilion-400: #d6472c; /* the light behind the mark */
+  --vermilion-500: #e8785f; /* 6.90:1 — AA. the only red allowed on text */
+
+  --emerald-100: #0a231b;
+  --emerald-200: #113e2f;
+  --emerald-300: #16543f; /* 2.25:1 — the seed. FILL ONLY, never a glyph */
+  --emerald-400: #1f7358; /* 3.46:1 */
+  --emerald-500: #63b69b; /* 8.24:1 — AAA. the only emerald allowed on text */
+
+  /* ── Roles: surface ─────────────────────────────────────────────────── */
+  --surface: var(--ink);
+  --surface-raised: var(--lacquer);
+  --surface-sunken: #070606;
+  --atmosphere: var(--umber);
+
+  /* ── Roles: text ────────────────────────────────────────────────────── */
+  --text: var(--stone-700); /* 15.30:1 */
+  --text-display: var(--stone-600); /* 12.47:1 — display only */
+  --text-body: var(--stone-500); /* 8.67:1 */
+  --text-muted: var(--stone-400); /* 5.21:1 — floor 14px */
+  --text-link: var(--brass-500); /* 6.97:1 */
+  --text-link-hover: var(--stone-700);
+  --text-on-brass: var(--ink);
+
+  /* ── Roles: structure ───────────────────────────────────────────────── */
+  /* Every stroke below clears WCAG 1.4.11 (3:1 non-text) on ink AND lacquer. */
+  --edge: var(--brass-300); /* 3.43:1 — panels, cards, inputs */
+  --edge-strong: var(--brass-400); /* 5.13:1 — emphasis, hover */
+  --edge-quiet: var(--stone-300); /* 3.52:1 — dividers on lacquer */
+  --edge-hair: var(--brass-200); /* decorative; requires ≥12px row separation */
+  --focus: var(--brass-600); /* 9.58:1 */
+
+  /* ── Roles: state ───────────────────────────────────────────────────── */
+  /* Fill / text / edge triples. Text values are the only ones legible. */
+  /* Ratios below are text-on-its-own-fill and border-on-its-own-fill, not
+   * against the page. A chip's border sits next to the chip, so measuring it
+   * against ink overstates it by roughly 1.4 and picks a border you cannot see. */
+  --ok-fill: var(--emerald-100);
+  --ok-text: var(--emerald-500); /* 6.85:1 on ok-fill */
+  --ok-edge: var(--emerald-500); /* 6.85:1 — emerald-400 was 2.88 and failed */
+  --ok-seed: var(--emerald-300); /* fill only — the seed */
+
+  --live-fill: var(--vermilion-100);
+  --live-text: var(--vermilion-500); /* 5.49:1 on live-fill */
+  --live-edge: var(--vermilion-400); /* 3.61:1 — vermilion-300 was 2.67 and failed */
+  --live-core: var(--vermilion-400); /* fill only — the light */
+
+  --idle-fill: var(--stone-100);
+  --idle-text: var(--stone-500); /* 7.56:1 on idle-fill */
+  --idle-edge: var(--stone-400); /* 4.54:1 */
+
+  /* ── Type ───────────────────────────────────────────────────────────── */
+  --font-display: "Instrument Serif", ui-serif, Georgia, serif;
+  --font-body: "Archivo Variable", "Archivo", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  /* Instrument Serif appears at --text-display-s and above. Never body copy,
+   * never a label, never in the workbench outside the wordmark. That single
+   * rule is what keeps the serif an event instead of a texture. */
+  --text-hero: clamp(3rem, 7vw, 6.5rem);
+  --text-display-lg: clamp(2.75rem, 5.5vw, 4.5rem);
+  --text-display-s: clamp(2.25rem, 4.5vw, 3.5rem);
   --text-3xl: 2.488rem;
-  --text-4xl: 2.986rem;
-  --text-display-s: clamp(2.4rem, 5vw, 4rem);
-  --text-display: clamp(2.75rem, 5vw + 1rem, 5.25rem);
+  --text-2xl: 2.074rem;
+  --text-xl: 1.728rem;
+  --text-lg: 1.44rem;
+  --text-md: 1.2rem;
+  --text-base: 1rem;
+  --text-sm: 0.875rem;
+  --text-mono: 0.8125rem;
+  --text-placard: 0.6875rem;
 
+  --leading-hero: 1.02;
+  --leading-display: 1.08;
+  --leading-heading: 1.22;
+  --leading-body: 1.65;
+  --leading-mono: 1.7;
+  --leading-placard: 2;
+
+  --tracking-hero: -0.03em;
+  --tracking-display: -0.02em;
+  --tracking-heading: -0.01em;
+  --tracking-body: 0;
+  --tracking-mono: 0.02em;
+  --tracking-placard: 0.18em;
+
+  --measure-body: 68ch;
+  --measure-display: 20ch;
+
+  /* ── Spacing contract ───────────────────────────────────────────────── */
+  /* Named for the relationship they govern, so the rule survives contact
+   * with a component author. Verified at 375/768/1280/1920 by the Playwright
+   * spacing audit. */
+  --space-3xs: 0.25rem; /* 4px  */
+  --space-2xs: 0.375rem; /* 6px  — input → field note */
+  --space-xs: 0.5rem; /* 8px  — label → input, chip → chip */
+  --space-sm: 0.625rem; /* 10px — chip padding block */
+  --space-md: 0.75rem; /* 12px — list item → list item */
+  --space-lg: 1rem; /* 16px — the floor between any two text elements */
+  --space-xl: 1.25rem; /* 20px — heading → its own body copy */
+  --space-2xl: 1.5rem; /* 24px — card padding ≥768px */
+  --space-3xl: 2.5rem; /* 40px */
+  --space-4xl: 4rem; /* 64px */
+
+  --gap-heading-body: var(--space-xl); /* 20px — never collapsed */
+  --gap-eyebrow-heading: 0.875rem; /* 14px */
+  --gap-panel-heading-body: 1.125rem; /* 18px */
+  --pad-card: var(--space-xl);
+  --pad-card-wide: var(--space-2xl);
+  --pad-cell-inline: 0.875rem; /* 14px */
+  --pad-chip-inline: 0.625rem; /* 10px */
+  --pad-nav-inline: var(--space-md);
+  --pad-nav-block: var(--space-sm);
+  --band-block: clamp(88px, 11vh, 168px);
+  --shell-inline: clamp(20px, 5vw, 72px);
+  --shell-max: 1240px;
+
+  /* ── Motion ─────────────────────────────────────────────────────────── */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
   --dur-micro: 120ms;
   --dur-short: 220ms;
   --dur-long: 420ms;
+  --dur-reveal: 420ms;
 
+  /* ── Geometry ───────────────────────────────────────────────────────── */
+  /* The mark is cut, not rounded. Radii stay small so the system reads as
+   * lacquer and brass rather than as plastic. */
   --rule-hair: 1px;
-  --radius-sm: 0.375rem;
-  --radius-md: 0.625rem;
-  --radius-lg: 1rem;
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 4px;
 
   --z-base: 1;
   --z-raised: 10;
@@ -76,5 +185,15 @@
   --z-sticky: 200;
   --z-modal: 400;
   --z-toast: 500;
-  --z-tooltip: 600;
+}
+
+/* "Depth comes from value, not blur" collapses entirely in forced-colours
+ * mode. Restore real borders there rather than shipping a flat grey page. */
+@media (forced-colors: active) {
+  :root {
+    --edge: CanvasText;
+    --edge-strong: CanvasText;
+    --edge-quiet: CanvasText;
+    --edge-hair: CanvasText;
+  }
 }

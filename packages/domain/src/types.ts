@@ -1,19 +1,10 @@
 export type EvidenceStatus = "pending" | "confirmed" | "rejected" | "superseded";
 export type EvidenceConfidence = "high" | "medium" | "low";
 export type EvidenceState =
-  | "supported"
-  | "user_attested"
-  | "inferred"
-  | "missing"
-  | "unknown"
-  | "blocker";
+  "supported" | "user_attested" | "inferred" | "missing" | "unknown" | "blocker";
 
 export type MatchBand =
-  | "strong_evidence"
-  | "promising_evidence"
-  | "partial_evidence"
-  | "weak_evidence"
-  | "not_scored";
+  "strong_evidence" | "promising_evidence" | "partial_evidence" | "weak_evidence" | "not_scored";
 
 export type EvidenceStrength = "source_strong" | "source_mixed" | "source_limited";
 export type CoverageState = "coverage_sufficient" | "coverage_low";
@@ -87,11 +78,7 @@ export interface MatchResult {
 }
 
 export type ApplicationStatus =
-  | "tracked"
-  | "prepared"
-  | "approved_for_export"
-  | "submitted_externally"
-  | "withdrawn";
+  "tracked" | "prepared" | "approved_for_export" | "submitted_externally" | "withdrawn";
 
 export type OutcomeType = "reply" | "screen" | "interview" | "offer" | "rejection" | "withdrawal";
 

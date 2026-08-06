@@ -118,4 +118,4 @@ The packet must be approved, the action must be separately approved, and the run
 
 ### Gmail or Outlook is unavailable
 
-Connected-account sending is not part of v0.1.0. Use the local test outbox or a user-opened deep link. See [provider boundaries](provider-setup.md).
+Connected-account sending is not part of v0.2.0. Use the local test outbox or a user-opened deep link. See [provider boundaries](provider-setup.md).

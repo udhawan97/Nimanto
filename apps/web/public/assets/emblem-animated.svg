@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" role="img" aria-label="The Nimanto fold lotus: five brass-edged petals opening around an emerald seed">
+  <title>Nimanto — the fold lotus</title>
+  <!--
+    The mark, opening once and settling.
+
+    SMIL rather than CSS keyframes: GitHub serves README images through a proxy
+    that renders them as images, where CSS animation support is inconsistent and
+    SMIL is not.
+
+    The whole sequence is 4.4s with repeatCount="1", so nothing moves past the
+    five-second threshold in WCAG 2.2.2 — which matters because a README gives
+    the reader no pause control.
+
+    Petals open in the same staggered order, and to the same rest angles, that
+    the WebGL emblem uses, so the two read as one object.
+  -->
+  <defs>
+    <radialGradient id="ground" cx="50%" cy="50%" r="66%">
+      <stop offset="0" stop-color="#241C14"/>
+      <stop offset="1" stop-color="#0A0908"/>
+    </radialGradient>
+    <radialGradient id="bloom" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#E8785F"/>
+      <stop offset=".4" stop-color="#D6472C" stop-opacity=".75"/>
+      <stop offset="1" stop-color="#D6472C" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="200" height="200" rx="40" fill="url(#ground)"/>
+
+  <g transform="translate(36 34) scale(2.05)" stroke-linejoin="round">
+    <!-- the light behind the seed -->
+    <circle cx="32" cy="50" r="11" fill="url(#bloom)" opacity="0">
+      <animate attributeName="opacity" values="0;0;1;.72" keyTimes="0;.3;.68;1"
+               dur="4.4s" begin="0s" repeatCount="1" fill="freeze"/>
+    </circle>
+
+      <g transform="translate(33.63 47.48)">
+        <g transform="rotate(0) scale(.55)" opacity="0">
+          <animateTransform attributeName="transform" type="rotate" values="0;33"
+                            keyTimes="0.084;0.664" dur="4.4s" begin="0s" repeatCount="1"
+                            fill="freeze" calcMode="spline" keySplines="0 .55 .25 1" additive="sum"/>
+          <animateTransform attributeName="transform" type="scale" values=".55;1"
+                            keyTimes="0.084;0.664" dur="4.4s" begin="0s" repeatCount="1"
+                            fill="freeze" calcMode="spline" keySplines="0 .55 .25 1" additive="sum"/>
+          <animate attributeName="opacity" values="0;1" keyTimes="0.084;0.664"
+                   dur="4.4s" begin="0s" repeatCount="1" fill="freeze"/>
+          <path d="M0 -36.00 Q9.80 -25.20 6.60 -10.80 Q4.00 -1.98 0 0 Q-4.00 -1.98 -6.60 -10.80 Q-9.80 -25.20 0 -36.00 Z" fill="#101013" stroke="#B8935A" stroke-width=".5"/>
+          <path d="M0 0 L0 -36.00" stroke="#9D7C4A" stroke-width=".4" fill="none"/>
+        </g>
+      </g>
+      <g transform="translate(30.64 47.33)">
+        <g transform="rotate(0) scale(.55)" opacity="0">
+          <animateTransform attributeName="transform" type="rotate" values="0;-27"
+                            keyTimes="0.252;0.832" dur="4.4s" begin="0s" repeatCount="1"
+                            fill="freeze" calcMode="spline" keySplines="0 .55 .25 1" additive="sum"/>
+          <animateTransform attributeName="transform" type="scale" values=".55;1"
+                            keyTimes="0.252;0.832" dur="4.4s" begin="0s" repeatCount="1"
+                            fill="freeze" calcMode="spline" keySplines="0 .55 .25 1" additive="sum"/>
+          <animate attributeName="opacity" values="0;1" keyTimes="0.252;0.832"
+                   dur="4.4s" begin="0s" repeatCount="1" fill="freeze"/>
+          <path d="M0 -34.50 Q9.31 -24.15 6.27 -10.35 Q3.80 -1.90 0 0 Q-3.80 -1.90 -6.27 -10.35 Q-9.31 -24.15 0 -34.50 Z" fill="#101013" stroke="#B8935A" stroke-width=".5"/>
+          <path d="M0 0 L0 -34.50" stroke="#9D7C4A" stroke-width=".4" fill="none"/>
+        </g>
+      </g>
+      <g transform="translate(32.16 47.00)">
+        <g transform="rotate(0) scale(.55)" opacity="0">
+          <animateTransform attributeName="transform" type="rotate" values="0;3"
+                            keyTimes="0.168;0.748" dur="4.4s" begin="0s" repeatCount="1"
+                            fill="freeze" calcMode="spline" keySplines="0 .55 .25 1" additive="sum"/>
+          <animateTransform attributeName="transform" type="scale" values=".55;1"
+                            keyTimes="0.168;0.748" dur="4.4s" begin="0s" repeatCount="1"
+                            fill="freeze" calcMode="spline" keySplines="0 .55 .25 1" additive="sum"/>
+          <animate attributeName="opacity" values="0;1" keyTimes="0.168;0.748"
+                   dur="4.4s" begin="0s" repeatCount="1" fill="freeze"/>
+          <path d="M0 -41.50 Q11.03 -29.05 7.43 -12.45 Q4.50 -2.28 0 0 Q-4.50 -2.28 -7.43 -12.45 Q-11.03 -29.05 0 -41.50 Z" fill="#161613" stroke="#B8935A" stroke-width=".5"/>
+          <path d="M0 0 L0 -41.50" stroke="#9D7C4A" stroke-width=".4" fill="none"/>
+        </g>
+      </g>
+      <g transform="translate(34.70 48.68)">
+        <g transform="rotate(0) scale(.55)" opacity="0">
+          <animateTransform attributeName="transform" type="rotate" values="0;64"
+                            keyTimes="0.0;0.58" dur="4.4s" begin="0s" repeatCount="1"
+                            fill="freeze" calcMode="spline" keySplines="0 .55 .25 1" additive="sum"/>
+          <animateTransform attributeName="transform" type="scale" values=".55;1"
+                            keyTimes="0.0;0.58" dur="4.4s" begin="0s" repeatCount="1"
+                            fill="freeze" calcMode="spline" keySplines="0 .55 .25 1" additive="sum"/>
+          <animate attributeName="opacity" values="0;1" keyTimes="0.0;0.58"
+                   dur="4.4s" begin="0s" repeatCount="1" fill="freeze"/>
+          <path d="M0 -27.50 Q8.08 -19.25 5.45 -8.25 Q3.30 -1.51 0 0 Q-3.30 -1.51 -5.45 -8.25 Q-8.08 -19.25 0 -27.50 Z" fill="#D5CCB9" stroke="#B8935A" stroke-width=".5"/>
+          <path d="M0 0 L0 -27.50" stroke="#9D7C4A" stroke-width=".4" fill="none"/>
+        </g>
+      </g>
+      <g transform="translate(29.51 48.32)">
+        <g transform="rotate(0) scale(.55)" opacity="0">
+          <animateTransform attributeName="transform" type="rotate" values="0;-56"
+                            keyTimes="0.336;0.916" dur="4.4s" begin="0s" repeatCount="1"
+                            fill="freeze" calcMode="spline" keySplines="0 .55 .25 1" additive="sum"/>
+          <animateTransform attributeName="transform" type="scale" values=".55;1"
+                            keyTimes="0.336;0.916" dur="4.4s" begin="0s" repeatCount="1"
+                            fill="freeze" calcMode="spline" keySplines="0 .55 .25 1" additive="sum"/>
+          <animate attributeName="opacity" values="0;1" keyTimes="0.336;0.916"
+                   dur="4.4s" begin="0s" repeatCount="1" fill="freeze"/>
+          <path d="M0 -25.50 Q7.59 -17.85 5.12 -7.65 Q3.10 -1.40 0 0 Q-3.10 -1.40 -5.12 -7.65 Q-7.59 -17.85 0 -25.50 Z" fill="#D5CCB9" stroke="#B8935A" stroke-width=".5"/>
+          <path d="M0 0 L0 -25.50" stroke="#9D7C4A" stroke-width=".4" fill="none"/>
+        </g>
+      </g>
+
+    <!-- the seed at the axis, in its brass hub -->
+    <g opacity="0">
+      <animate attributeName="opacity" values="0;1" keyTimes="0;.2" dur="4.4s"
+               begin="0s" repeatCount="1" fill="freeze"/>
+      <circle cx="32" cy="50" r="3.1" fill="#16543F"/>
+      <circle cx="32" cy="50" r="4.2" stroke="#B8935A" stroke-width="1.5" fill="none"/>
+    </g>
+  </g>
+</svg>

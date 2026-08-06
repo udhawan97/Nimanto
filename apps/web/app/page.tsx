@@ -1,20 +1,53 @@
-import {
-  ArrowRight,
-  Check,
-  FileCheck2,
-  Fingerprint,
-  GitBranch,
-  LockKeyhole,
-  ShieldCheck,
-} from "lucide-react";
+import { ArrowRight, ArrowUpRight, Check, FileCheck2, GitBranch } from "lucide-react";
 import { Brand } from "../components/brand.js";
 import { CommandPalette } from "../components/command-palette.js";
+import { CopyLine } from "../components/copy-line.js";
+import { Emblem } from "../components/emblem.js";
+
+const METHOD = [
+  {
+    step: "01",
+    title: "Collect",
+    body: "Import TXT, Markdown, JSON, DOCX, a text-layer PDF, or approved fields from a downloaded LinkedIn archive. Messages and contacts are ignored. Macros, embedded objects and image-only scans fail closed. Every new claim waits for you.",
+  },
+  {
+    step: "02",
+    title: "Compare",
+    body: "Deterministic matching against confirmed evidence only. Four documented dimensions, requirement by requirement, with coverage limits and blockers left visible rather than averaged away.",
+  },
+  {
+    step: "03",
+    title: "Prepare",
+    body: "Reviewable JSON and plain text, plus synchronized modern and ATS-safe DOCX and PDF, assembled from confirmed evidence and hashed.",
+  },
+  {
+    step: "04",
+    title: "Approve",
+    body: "Pass assurance, approve the packet, approve the exact action, then turn on a runtime switch that resets itself off. Four separate decisions, all yours.",
+  },
+];
+
+const BOUNDARY = [
+  {
+    title: "No employer screening.",
+    body: "Nimanto never ranks people for employers and never estimates anyone’s hiring probability.",
+  },
+  {
+    title: "No hidden verification.",
+    body: "An imported claim stays pending until you confirm it. A parser saying so is not evidence.",
+  },
+  {
+    title: "No silent send.",
+    body: "Nothing leaves this machine without assurance, a packet approval, an action approval, and a live switch.",
+  },
+];
 
 export default function Home() {
   const hosted = process.env.NIMANTO_GITHUB_PAGES === "true";
   const startHref = hosted
     ? "https://github.com/udhawan97/Nimanto#run-the-local-beta"
     : "./workspace/";
+
   return (
     <>
       <header className="site-header">
@@ -22,210 +55,209 @@ export default function Home() {
           <Brand />
         </a>
         <nav aria-label="Main navigation">
-          <a href="#evidence">Method</a>
-          <a href="#trust">Trust</a>
+          <a href="#method">Method</a>
+          <a href="#boundary">Boundary</a>
+          <a href="#run">Run it</a>
           <a href="https://github.com/udhawan97/Nimanto">GitHub</a>
         </nav>
         <CommandPalette hosted={hosted} />
       </header>
 
       <main id="main">
-        <section className="hero shell">
+        {/* 00 — the mark is the page */}
+        <section className="hero" aria-labelledby="hero-title">
+          <Emblem />
           <div className="hero-copy">
-            <p className="eyebrow">
-              <span /> Local-first beta · candidate controlled
-            </p>
-            <div className="design-line" aria-label="Evidence, decision, and approval">
-              <span>Evidence</span>
-              <i aria-hidden="true" />
-              <span>Decision</span>
-              <i aria-hidden="true" />
-              <span>Approval</span>
-            </div>
-            <h1>
-              Evidence first.
-              <br />
-              Applications second.
-            </h1>
-            <p className="hero-lede">
-              Build one verified career record, see exactly why a role fits, and approve every
-              handoff yourself.
+            <h1 id="hero-title">Nimanto</h1>
+            <p className="hero-line">
+              An invitation you open yourself. Nothing goes out until you say so.
             </p>
             <div className="hero-actions">
               <a className="button primary" href={startHref}>
-                {hosted ? "Run Nimanto locally" : "Open local workbench"} <ArrowRight size={17} />
+                {hosted ? "Run it locally" : "Open the workbench"} <ArrowRight size={16} />
               </a>
               <a className="button quiet" href="https://github.com/udhawan97/Nimanto">
-                View source
+                View source <ArrowUpRight size={15} />
               </a>
             </div>
-            <p className="hero-note">
-              <LockKeyhole size={15} /> Your evidence stays on the machine running Nimanto by
-              default.
-            </p>
           </div>
-
-          <div className="evidence-rail" aria-label="Synthetic example of a live evidence trail">
-            <span className="evidence-seal" aria-hidden="true" />
-            <svg className="jaali-ornament" viewBox="0 0 82 18" aria-hidden="true">
-              <path d="m1 9 8-8 8 8-8 8Zm16 0 8-8 8 8-8 8Zm16 0 8-8 8 8-8 8Zm16 0 8-8 8 8-8 8Zm16 0 8-8 8 8-8 8Z" />
-              <circle cx="41" cy="9" r="2.2" />
-            </svg>
-            <div className="rail-heading">
-              <span>Synthetic example</span>
-              <strong>Platform Engineer</strong>
-            </div>
-            <div className="rail-requirement">
-              <span className="rail-index">01</span>
-              <div>
-                <small>Role requirement</small>
-                <strong>TypeScript service delivery</strong>
-              </div>
-              <span className="state supported">
-                <Check size={13} /> Supported
-              </span>
-            </div>
-            <div className="rail-line" aria-hidden="true">
-              <span />
-            </div>
-            <div className="rail-source">
-              <FileCheck2 size={19} />
-              <div>
-                <small>Confirmed evidence</small>
-                <strong>Led a typed service migration</strong>
-                <span>Project record · source line 3</span>
-              </div>
-            </div>
-            <div className="rail-line" aria-hidden="true">
-              <span />
-            </div>
-            <div className="rail-decision">
-              <GitBranch size={18} />
-              <div>
-                <small>Why it matters</small>
-                <strong>Direct skills overlap, linked to one confirmed claim</strong>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section id="evidence" className="method shell" aria-labelledby="method-title">
-          <div className="method-intro">
-            <div className="section-number">01 / Method</div>
-            <p className="design-caption">Inspect the record</p>
-            <h2 id="method-title">A career record you can inspect.</h2>
-            <p>
-              Nimanto keeps source, claim, role requirement, and output connected. Nothing becomes
-              “verified” merely because a parser or model said so.
-            </p>
-          </div>
-          <div className="method-steps">
-            <article>
-              <span>01</span>
-              <div>
-                <h3>Collect</h3>
-                <p>
-                  Import TXT, Markdown, JSON, DOCX, a text-layer PDF, or approved fields from a
-                  downloaded LinkedIn archive. Messages and contacts are ignored; macros, embedded
-                  objects, image-only scans, and prohibited legal documents fail closed. New claims
-                  wait for your confirmation.
-                </p>
-              </div>
-            </article>
-            <article>
-              <span>02</span>
-              <div>
-                <h3>Compare</h3>
-                <p>
-                  Run deterministic matching with visible requirements, evidence links, blockers,
-                  and coverage limits.
-                </p>
-              </div>
-            </article>
-            <article>
-              <span>03</span>
-              <div>
-                <h3>Prepare</h3>
-                <p>
-                  Generate reviewable JSON/text plus modern and ATS-safe DOCX/PDF packets from
-                  confirmed evidence only.
-                </p>
-              </div>
-            </article>
-            <article>
-              <span>04</span>
-              <div>
-                <h3>Approve</h3>
-                <p>
-                  Pass assurance, approve the packet, approve the handoff, then enable the execution
-                  switch.
-                </p>
-              </div>
-            </article>
-          </div>
-        </section>
-
-        <section id="trust" className="trust-band">
-          <div className="shell trust-grid">
-            <div>
-              <p className="eyebrow inverted">
-                <span /> Product boundary
-              </p>
-              <p className="design-caption inverted">Built for candidates</p>
-              <h2>Built for the candidate’s side of the table.</h2>
-            </div>
-            <div className="trust-points">
-              <p>
-                <ShieldCheck />
-                <span>
-                  <strong>No employer screening.</strong> Nimanto does not rank people for employers
-                  or estimate hiring probability.
-                </span>
-              </p>
-              <p>
-                <Fingerprint />
-                <span>
-                  <strong>No hidden verification.</strong> Imported claims remain pending until the
-                  candidate confirms them.
-                </span>
-              </p>
-              <p>
-                <LockKeyhole />
-                <span>
-                  <strong>No silent send.</strong> External actions need assurance, packet approval,
-                  action approval, and a live runtime switch.
-                </span>
-              </p>
-            </div>
-          </div>
-        </section>
-
-        <section className="scope shell" aria-labelledby="scope-title">
-          <div>
-            <div className="section-number">02 / Beta scope</div>
-            <h2 id="scope-title">Useful now. Honest about what comes next.</h2>
-            <p>
-              The local beta includes the core workbench and provider seams. Hosted identity,
-              production legal review, and signed desktop distribution remain explicit release
-              gates.
-            </p>
-          </div>
-          <a className="text-link" href="https://github.com/udhawan97/Nimanto#beta-boundaries">
-            Read beta boundaries <ArrowRight size={16} />
+          <a className="scroll-cue" href="#thesis" aria-label="Scroll to the introduction">
+            <span />
           </a>
+        </section>
+
+        {/* 01 — thesis */}
+        <section id="thesis" className="band thesis" aria-labelledby="thesis-title">
+          <div className="shell thesis-grid">
+            <p className="placard">01 — Thesis</p>
+            <h2 id="thesis-title" className="display">
+              Evidence first.
+              <br />
+              <em>Applications second.</em>
+            </h2>
+            <div className="thesis-body flow">
+              <p>
+                A job search usually becomes a pile of resumes, saved roles, sponsorship rumours and
+                half-finished forms. Nimanto gives that work one inspectable path: build a verified
+                career record once, see exactly why a role fits, and approve every handoff yourself.
+              </p>
+              <p className="quiet">
+                It is a candidate tool. It does not screen you for employers, guess your odds, or
+                promise that a company sponsors transfers today.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* 02 — method, four plates on one brass spine */}
+        <section id="method" className="band method" aria-labelledby="method-title">
+          <div className="shell">
+            <div className="band-head flow">
+              <p className="placard">02 — Method</p>
+              <h2 id="method-title">A career record you can inspect.</h2>
+              <p className="band-lede">
+                Source, claim, requirement and output stay connected end to end. Nothing becomes
+                verified merely because a parser or a model said so.
+              </p>
+            </div>
+            <ol className="spine">
+              {METHOD.map((entry) => (
+                <li key={entry.step}>
+                  <span className="spine-step">{entry.step}</span>
+                  <div className="spine-body flow">
+                    <h3>{entry.title}</h3>
+                    <p>{entry.body}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+
+        {/* 03 — the rail: one worked example, drawn */}
+        <section className="band rail-band" aria-labelledby="rail-title">
+          <div className="shell rail-grid">
+            <div className="band-head flow">
+              <p className="placard">03 — Worked example</p>
+              <h2 id="rail-title">Every match shows its work.</h2>
+              <p className="band-lede">
+                A requirement is only supported when a confirmed claim supports it, and the link
+                between the two is drawn rather than implied.
+              </p>
+            </div>
+
+            <figure className="rail" aria-label="Synthetic example of an explained match">
+              <figcaption>
+                <span className="placard">Synthetic example</span>
+                <strong>Platform Engineer · Northwind</strong>
+              </figcaption>
+
+              <div className="rail-node">
+                <span className="rail-index">01</span>
+                <div className="flow-tight">
+                  <p className="placard">Role requirement</p>
+                  <strong>TypeScript service delivery</strong>
+                </div>
+                <span className="chip ok">
+                  <Check size={13} /> Supported
+                </span>
+              </div>
+
+              <div className="rail-link" aria-hidden="true">
+                <span />
+              </div>
+
+              <div className="rail-node">
+                <FileCheck2 size={18} aria-hidden="true" />
+                <div className="flow-tight">
+                  <p className="placard">Confirmed evidence</p>
+                  <strong>Led a typed service migration</strong>
+                  <p className="rail-source">Project record · source line 3</p>
+                </div>
+              </div>
+
+              <div className="rail-link" aria-hidden="true">
+                <span />
+              </div>
+
+              <div className="rail-node">
+                <GitBranch size={18} aria-hidden="true" />
+                <div className="flow-tight">
+                  <p className="placard">Why it matters</p>
+                  <strong>Direct skills overlap, linked to one confirmed claim</strong>
+                </div>
+              </div>
+
+              <div className="rail-node is-blocked">
+                <span className="rail-index">02</span>
+                <div className="flow-tight">
+                  <p className="placard">Visible blocker</p>
+                  <strong>Posting states no sponsorship of any kind</strong>
+                </div>
+                <span className="chip live">Blocker</span>
+              </div>
+            </figure>
+          </div>
+        </section>
+
+        {/* 04 — boundary: the only large light field in the system */}
+        <section id="boundary" className="band boundary" aria-labelledby="boundary-title">
+          <div className="shell flow">
+            <p className="placard">04 — Boundary</p>
+            <h2 id="boundary-title" className="display-s">
+              What Nimanto refuses to do.
+            </h2>
+            <ul className="refusals">
+              {BOUNDARY.map((entry) => (
+                <li key={entry.title} className="flow-tight">
+                  <strong>{entry.title}</strong>
+                  <p>{entry.body}</p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+
+        {/* 05 — run it */}
+        <section id="run" className="band run" aria-labelledby="run-title">
+          <div className="shell run-grid">
+            <div className="band-head flow">
+              <p className="placard">05 — Run it</p>
+              <h2 id="run-title">Local, and yours.</h2>
+              <p className="band-lede">
+                Node 24–26 and pnpm 11 on macOS, Linux or Windows. Your evidence stays on the
+                machine running Nimanto. There is no hosted backend to opt out of.
+              </p>
+            </div>
+            <div className="run-block flow">
+              <CopyLine command="git clone https://github.com/udhawan97/Nimanto.git" />
+              <CopyLine command="cd Nimanto && corepack enable" />
+              <CopyLine command="pnpm install --frozen-lockfile && pnpm dev" />
+              <p className="run-note">
+                On macOS you can instead double-click <code>START-NIMANTO.command</code>. It
+                installs the locked dependencies, starts the local services, and opens the
+                workbench.
+              </p>
+              <a className="text-link" href="https://github.com/udhawan97/Nimanto#beta-boundaries">
+                Read the beta boundaries <ArrowRight size={15} />
+              </a>
+            </div>
+          </div>
         </section>
       </main>
 
-      <footer className="site-footer shell">
-        <Brand />
-        <p>
-          Your career record stays yours.
-          <small>Private by default. Candidate controlled.</small>
-        </p>
-        <div>
-          <a href="https://github.com/udhawan97/Nimanto">Source</a>
-          <a href="https://github.com/udhawan97/Nimanto/blob/main/SECURITY.md">Security</a>
-          <a href="https://github.com/udhawan97/Nimanto/blob/main/LICENSE">Apache-2.0</a>
+      <footer className="site-footer">
+        <div className="shell site-footer-grid">
+          <div className="flow-tight">
+            <Brand />
+            <p>Your career record stays yours.</p>
+          </div>
+          <nav aria-label="Footer">
+            <a href="https://github.com/udhawan97/Nimanto">Source</a>
+            <a href="https://github.com/udhawan97/Nimanto/blob/main/SECURITY.md">Security</a>
+            <a href="https://github.com/udhawan97/Nimanto/blob/main/LICENSE">Apache-2.0</a>
+          </nav>
+          <p className="placard">Private by default · Candidate controlled</p>
         </div>
       </footer>
     </>

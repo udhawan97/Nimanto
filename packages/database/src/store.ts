@@ -1127,13 +1127,31 @@ export class NimantoStore {
     id: string,
     status: ApplicationStatus,
   ): Promise<ApplicationRecord | null> {
+    const current = await this.#db.query<any>(
+      `SELECT status FROM applications WHERE tenant_id = $1 AND id = $2`,
+      [tenantId, id],
+    );
+    if (!current.rows[0]) return null;
+    /* This method serves two different callers and only one of them is the
+     * candidate. Packet creation and packet approval write "prepared" and
+     * "approved_for_export" as system consequences, and they must keep working
+     * for an application in any prior state. So the *policy* question — may the
+     * candidate move this card here — is enforced in the API route, and what
+     * stays here is the *data* invariant that applies no matter who writes:
+     * leaving submitted_externally clears the submission timestamp, which the
+     * previous COALESCE-only version never did. */
+    const from = current.rows[0].status as ApplicationStatus;
+    const clearSubmittedAt = from === "submitted_externally" && status !== "submitted_externally";
     const result = await this.#db.query<any>(
       `UPDATE applications SET status = $3,
-         submitted_at = CASE WHEN $3 = 'submitted_externally' THEN COALESCE(submitted_at, now()) ELSE submitted_at END,
+         submitted_at = CASE
+           WHEN $4 THEN NULL
+           WHEN $3 = 'submitted_externally' THEN COALESCE(submitted_at, now())
+           ELSE submitted_at END,
          updated_at = now()
        WHERE tenant_id = $1 AND id = $2
        RETURNING id, job_id, profile_version_id, status, submitted_at, created_at, updated_at`,
-      [tenantId, id, status],
+      [tenantId, id, status, clearSubmittedAt],
     );
     return result.rows[0] ? this.#mapApplication(result.rows[0]) : null;
   }

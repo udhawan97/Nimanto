@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ErrorBoundary } from "../../components/error-boundary.js";
 import { Workspace } from "../../components/workspace.js";
 
 export const metadata: Metadata = {
@@ -7,5 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function WorkspacePage() {
-  return <Workspace />;
+  return (
+    <ErrorBoundary>
+      <Workspace />
+    </ErrorBoundary>
+  );
 }

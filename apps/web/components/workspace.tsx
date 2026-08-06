@@ -33,6 +33,19 @@ import {
 } from "lucide-react";
 import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Brand } from "./brand.js";
+import { CommandPalette, type PaletteEntry } from "./command-palette.js";
+import { ConnectionBanner, ConnectionIndicator, useConnection } from "./connection.js";
+import {
+  BOARD_COLUMNS,
+  boardColumns,
+  canMove,
+  confirmationPrompt,
+  followUpNote,
+  funnelStages,
+  needsConfirmation,
+  nextSteps,
+  type ApplicationStatus,
+} from "../lib/derive.js";
 
 const API = process.env.NEXT_PUBLIC_NIMANTO_API_ORIGIN ?? "http://127.0.0.1:4310";
 
@@ -81,7 +94,13 @@ type Outcome = { id: string; type: string; note: string; occurredAt: string };
 type Application = {
   id: string;
   jobId: string;
-  status: string;
+  // Narrowed from string: the board maps status to a column and the API rejects
+  // anything outside the union, so a widened type here just hides the mismatch.
+  status: ApplicationStatus;
+  // The API has always returned these; the type simply never declared them, and
+  // the follow-up observation needs createdAt as its baseline.
+  createdAt?: string;
+  updatedAt?: string;
   job?: { title: string; company: string };
   outcomes?: Outcome[];
 };
@@ -239,6 +258,11 @@ export function Workspace() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const [mobileNav, setMobileNav] = useState(false);
+  const [apiReachable, setApiReachable] = useState(true);
+  // Declared with the other hooks: the component returns early for the auth and
+  // loading states, so a hook below those returns changes the hook count
+  // between renders.
+  const connection = useConnection(apiReachable);
   const [bootstrapSecret, setBootstrapSecret] = useState("");
   const [inviteToken, setInviteToken] = useState("");
   const menuButton = useRef<HTMLButtonElement>(null);
@@ -288,6 +312,7 @@ export function Workspace() {
   const refresh = useCallback(async () => {
     try {
       const status = await api<{ authenticated: boolean }>("/v1/auth/status");
+      setApiReachable(true);
       if (!status.authenticated) {
         setAuthRequired(true);
         setDashboard(null);
@@ -297,13 +322,18 @@ export function Workspace() {
       setDashboard(value);
       setAuthRequired(false);
     } catch (error) {
-      if (error instanceof ApiError && error.code === "AUTHENTICATION_REQUIRED")
+      if (error instanceof ApiError && error.code === "AUTHENTICATION_REQUIRED") {
+        // The API answered, it just refused. That is a reachable service.
+        setApiReachable(true);
         setAuthRequired(true);
-      else
+      } else {
+        // A transport failure means the local half is not answering at all.
+        setApiReachable(!(error instanceof TypeError));
         setNotice({
           kind: "error",
           text: error instanceof Error ? error.message : "The local service is unavailable.",
         });
+      }
     }
   }, []);
 
@@ -385,8 +415,34 @@ export function Workspace() {
     );
 
   const selected = navigation.find((item) => item.id === section)!;
+  const goToSection = (id: string) => {
+    setSection(id as Section);
+    setMobileNav(false);
+  };
+  // Sections plus whatever the candidate is actually working on. Every entry is
+  // a destination; none can carry an action.
+  const paletteEntries: PaletteEntry[] = [
+    ...navigation.map((item) => ({
+      label: item.label,
+      detail: "Section",
+      section: item.id,
+    })),
+    ...dashboard.jobs.slice(0, 20).map((job) => ({
+      label: `${job.title} · ${job.company}`,
+      detail: "Role",
+      section: "jobs",
+    })),
+    ...dashboard.applications.slice(0, 20).map((application) => ({
+      label: application.job
+        ? `${application.job.title} · ${application.job.company}`
+        : application.id,
+      detail: "Application",
+      section: "applications",
+    })),
+  ];
+
   return (
-    <div className="workspace-shell">
+    <div className="workspace-shell" data-nav={mobileNav ? "open" : "closed"}>
       <aside
         id="workspace-navigation"
         className={mobileNav ? "workspace-sidebar is-open" : "workspace-sidebar"}
@@ -444,9 +500,12 @@ export function Workspace() {
           })}
         </nav>
         <div className="sidebar-foot">
-          <div className="local-indicator">
-            <span /> Local service connected
-          </div>
+          {/* The palette trigger lives here rather than in the header: the header
+           * runs a hand-rolled Tab interception for the mobile menu, and adding a
+           * control between those two buttons would strand it or break the focus
+           * order. Cmd/Ctrl-K reaches it from anywhere regardless. */}
+          <CommandPalette entries={paletteEntries} onNavigate={goToSection} label="Jump to" />
+          <ConnectionIndicator state={connection} />
           <button
             type="button"
             className="workspace-nav-item"
@@ -508,6 +567,7 @@ export function Workspace() {
             <RefreshCw size={15} /> Refresh
           </button>
         </header>
+        <ConnectionBanner state={connection} onRetry={() => void refresh()} />
         {notice && (
           <div className={`notice ${notice.kind}`} role="status" aria-live="polite">
             {notice.kind === "ok" ? <Check size={17} /> : <CircleAlert size={17} />}
@@ -700,6 +760,23 @@ function Metric({
   );
 }
 
+/* Counts only, and the API's own scope caveat kept verbatim. A conversion rate
+ * computed off a sample of one or two would read as a hiring-probability claim,
+ * which is exactly what this product refuses to make. */
+function Funnel({ funnel }: { funnel: Dashboard["personalFunnel"] }) {
+  return (
+    <section className="funnel-strip" aria-label="Your recorded application funnel">
+      {funnelStages(funnel).map((stage) => (
+        <div className="funnel-stage" key={stage.id}>
+          <strong>{stage.count}</strong>
+          <span>{stage.label}</span>
+        </div>
+      ))}
+      <small className="funnel-scope">{funnel.scope}</small>
+    </section>
+  );
+}
+
 function Overview({
   dashboard,
   onGo,
@@ -717,6 +794,7 @@ function Overview({
     0,
   );
   const latestMatches = dashboard.matches.slice(0, 3);
+  const steps = nextSteps(dashboard);
   return (
     <>
       <PageIntro
@@ -751,6 +829,7 @@ function Overview({
           detail="Local audit trail"
         />
       </div>
+      <Funnel funnel={dashboard.personalFunnel} />
       <div className="workspace-columns">
         <section className="work-panel">
           <div className="panel-heading">
@@ -787,49 +866,40 @@ function Overview({
           <div className="panel-heading">
             <div>
               <span>Next decisions</span>
-              <h2>Review queue</h2>
+              <h2>What to do next</h2>
             </div>
           </div>
-          {pending > 0 ? (
-            <button className="queue-row" type="button" onClick={() => onGo("evidence")}>
-              <CircleAlert />
-              <span>
-                <strong>
-                  {pending} imported claim{pending === 1 ? "" : "s"}
-                </strong>
-                <small>Confirm or reject before matching</small>
-              </span>
-              <ArrowRight />
-            </button>
+          {/* Ordered by where the flow is blocked earliest, not by how many
+           * items each bucket holds. Confirming one claim unblocks matching,
+           * which unblocks packets, which unblocks actions. */}
+          {steps.length > 0 ? (
+            <div className="next-steps">
+              {steps.map((step) => (
+                <button
+                  key={step.id}
+                  className="next-step"
+                  data-tone={step.tone}
+                  type="button"
+                  onClick={() => onGo(step.section as Section)}
+                >
+                  <div>
+                    <strong>{step.title}</strong>
+                    <small>{step.detail}</small>
+                  </div>
+                  <ArrowRight size={17} />
+                </button>
+              ))}
+            </div>
           ) : (
             <div className="queue-row is-complete">
               <ShieldCheck />
               <span>
-                <strong>Evidence queue is clear</strong>
-                <small>All imported claims have a decision</small>
+                <strong>Nothing is waiting on you</strong>
+                <small>Every claim, role, packet and action has a decision</small>
               </span>
               <Check />
             </div>
           )}
-          {dashboard.externalActions
-            .filter((item) => item.state === "pending_approval")
-            .map((item) => (
-              <button
-                key={item.id}
-                className="queue-row"
-                type="button"
-                onClick={() => onGo("actions")}
-              >
-                <MailCheck />
-                <span>
-                  <strong>Action needs approval</strong>
-                  <small>
-                    {item.provider} · {item.target.to}
-                  </small>
-                </span>
-                <ArrowRight />
-              </button>
-            ))}
         </section>
       </div>
       {dashboard.jobs.length > 0 && dashboard.matches.length === 0 && (
@@ -1786,6 +1856,8 @@ function Applications({
   onGo: (section: Section) => void;
 }) {
   const [outcomeFor, setOutcomeFor] = useState<string | null>(null);
+  const [view, setView] = useState<"board" | "table">("board");
+  const now = new Date();
   const submitOutcome = (event: FormEvent<HTMLFormElement>, id: string) => {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(event.currentTarget));
@@ -1794,6 +1866,27 @@ function Applications({
       "Outcome recorded.",
     ).then(() => setOutcomeFor(null));
   };
+
+  /* Moving a card is a claim about what the candidate did in the world, so the
+   * consequential columns ask first. The server enforces legality independently
+   * — this only decides which moves to offer. */
+  const move = (application: Application, to: ApplicationStatus) => {
+    if (!canMove(application.status, to)) return;
+    if (
+      needsConfirmation(application.status, to) &&
+      !window.confirm(confirmationPrompt(to, application))
+    )
+      return;
+    void onAct(
+      () =>
+        api(`/v1/applications/${application.id}/status`, {
+          method: "PUT",
+          body: JSON.stringify({ status: to }),
+        }),
+      "Application status updated.",
+    );
+  };
+
   return (
     <>
       <PageIntro
@@ -1801,30 +1894,73 @@ function Applications({
         title="Track the real process."
         copy="Keep preparation, external submission, and candidate-reported outcomes separate. Nimanto never infers an outcome from silence."
         action={
-          <button className="button quiet" type="button" onClick={() => onGo("jobs")}>
-            <Plus size={16} /> Track another role
-          </button>
+          <div className="button-group">
+            <button
+              className="button quiet mini"
+              type="button"
+              onClick={() => setView(view === "board" ? "table" : "board")}
+            >
+              {view === "board" ? "Table view" : "Board view"}
+            </button>
+            <button className="button quiet" type="button" onClick={() => onGo("jobs")}>
+              <Plus size={16} /> Track another role
+            </button>
+          </div>
         }
       />
-      <div className="funnel-strip" aria-label="Personal application funnel">
-        <span>
-          <strong>{dashboard.personalFunnel.sampleSize}</strong> tracked
-        </span>
-        <span>
-          <strong>{dashboard.personalFunnel.replies}</strong> replies
-        </span>
-        <span>
-          <strong>{dashboard.personalFunnel.screens}</strong> screens
-        </span>
-        <span>
-          <strong>{dashboard.personalFunnel.interviews}</strong> interviews
-        </span>
-        <span>
-          <strong>{dashboard.personalFunnel.offers}</strong> offers
-        </span>
-        <small>{dashboard.personalFunnel.scope}</small>
-      </div>
-      <section className="application-table" aria-label="Tracked applications">
+      <Funnel funnel={dashboard.personalFunnel} />
+
+      {view === "board" && (
+        <section className="board" aria-label="Application pipeline">
+          {boardColumns(dashboard.applications).map((column) => (
+            <div className="board-column" key={column.id}>
+              <header>
+                <h3>{column.label}</h3>
+                <span>{column.items.length}</span>
+              </header>
+              {column.items.map((application) => {
+                const note = followUpNote(application, now);
+                return (
+                  <article className="board-card" key={application.id}>
+                    <strong>{application.job?.title ?? "Unknown role"}</strong>
+                    <span>{application.job?.company}</span>
+                    {note && (
+                      <span className="follow-up">
+                        <Clock3 size={12} aria-hidden="true" /> {note}
+                      </span>
+                    )}
+                    {/* Keyboard-operable by construction: buttons, not drag. */}
+                    <div className="board-move">
+                      <span className="board-move-label">Move to</span>
+                      {BOARD_COLUMNS.filter(
+                        (target) =>
+                          target.id !== application.status &&
+                          canMove(application.status, target.id),
+                      ).map((target) => (
+                        <button
+                          key={target.id}
+                          type="button"
+                          disabled={busy}
+                          onClick={() => move(application, target.id)}
+                        >
+                          {target.label}
+                        </button>
+                      ))}
+                    </div>
+                  </article>
+                );
+              })}
+              {column.items.length === 0 && <small className="field-note">Nothing here yet</small>}
+            </div>
+          ))}
+        </section>
+      )}
+
+      <section
+        className="application-table"
+        aria-label="Tracked applications"
+        hidden={view === "board"}
+      >
         <div className="table-head" aria-hidden="true">
           <span>Role</span>
           <span>Status</span>

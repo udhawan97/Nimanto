@@ -3,3 +3,6 @@ pnpm-lock.yaml
 apps/web/public/
 docs/planning/
 LICENSE
+
+# Vendored brand artifact — kept byte-identical to what was supplied.
+docs/superpowers/specs/assets/nimanto-emblem.source.js
