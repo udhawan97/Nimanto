@@ -1,8 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Nimanto">
   <defs>
     <radialGradient id="umber" cx="50%" cy="52%" r="62%">
-      <stop offset="0" stop-color="#241C14"/>
-      <stop offset="1" stop-color="#0A0908"/>
+      <stop offset="0" stop-color="#241C14"/><stop offset="1" stop-color="#0A0908"/>
     </radialGradient>
     <radialGradient id="light" cx="50%" cy="50%" r="50%">
       <stop offset="0" stop-color="#E8785F"/>
@@ -11,36 +10,29 @@
     </radialGradient>
   </defs>
   <rect width="512" height="512" rx="104" fill="url(#umber)"/>
-  <g transform="translate(56 46) scale(6.25)" fill="none" stroke-linejoin="round">
-    <!-- the light behind the seed -->
-    <circle cx="32" cy="50" r="10" fill="url(#light)"/>
-
-    <!-- three inner petals, lacquer -->
-    <g transform="translate(33.63 47.48) rotate(33)">
-      <path d="M0 -36.00 Q9.80 -25.20 6.60 -10.80 Q4.00 -1.98 0 0 Q-4.00 -1.98 -6.60 -10.80 Q-9.80 -25.20 0 -36.00 Z" fill="#101013" stroke="#B8935A" stroke-width=".5"/>
-      <path d="M0 0 L0 -36.00" stroke="#9D7C4A" stroke-width=".4"/>
+  <g stroke-linejoin="round">
+    <circle cx="256" cy="391.44" r="71.6" fill="url(#light)"/>
+    <g transform="translate(266.23 373.71) rotate(-30)">
+      <path d="M0 -240.37 Q65.12 -168.26 43.81 -72.11 Q26.59 -13.3 0 0 Q-26.59 -13.3 -43.81 -72.11 Q-65.12 -168.26 0 -240.37 Z" fill="#101013" stroke="#B8935A" stroke-width="3.41"/>
+      <path d="M0 0 L0 -240.37" stroke="#9D7C4A" stroke-width="2.73" fill="none"/>
     </g>
-    <g transform="translate(30.64 47.33) rotate(-27)">
-      <path d="M0 -34.50 Q9.31 -24.15 6.27 -10.35 Q3.80 -1.90 0 0 Q-3.80 -1.90 -6.27 -10.35 Q-9.31 -24.15 0 -34.50 Z" fill="#101013" stroke="#B8935A" stroke-width=".5"/>
-      <path d="M0 0 L0 -34.50" stroke="#9D7C4A" stroke-width=".4"/>
+    <g transform="translate(245.77 373.71) rotate(30)">
+      <path d="M0 -240.37 Q65.12 -168.26 43.81 -72.11 Q26.59 -13.3 0 0 Q-26.59 -13.3 -43.81 -72.11 Q-65.12 -168.26 0 -240.37 Z" fill="#101013" stroke="#B8935A" stroke-width="3.41"/>
+      <path d="M0 0 L0 -240.37" stroke="#9D7C4A" stroke-width="2.73" fill="none"/>
     </g>
-    <g transform="translate(32.16 47.00) rotate(3)">
-      <path d="M0 -41.50 Q11.03 -29.05 7.43 -12.45 Q4.50 -2.28 0 0 Q-4.50 -2.28 -7.43 -12.45 Q-11.03 -29.05 0 -41.50 Z" fill="#161613" stroke="#B8935A" stroke-width=".5"/>
-      <path d="M0 0 L0 -41.50" stroke="#9D7C4A" stroke-width=".4"/>
+    <g transform="translate(256 370.98) rotate(0)">
+      <path d="M0 -282.98 Q75.18 -198.09 50.63 -84.89 Q30.68 -15.51 0 0 Q-30.68 -15.51 -50.63 -84.89 Q-75.18 -198.09 0 -282.98 Z" fill="#161613" stroke="#B8935A" stroke-width="3.41"/>
+      <path d="M0 0 L0 -282.98" stroke="#9D7C4A" stroke-width="2.73" fill="none"/>
     </g>
-
-    <!-- two outer petals, ivory stone -->
-    <g transform="translate(34.70 48.68) rotate(64)">
-      <path d="M0 -27.50 Q8.08 -19.25 5.45 -8.25 Q3.30 -1.51 0 0 Q-3.30 -1.51 -5.45 -8.25 Q-8.08 -19.25 0 -27.50 Z" fill="#D5CCB9" stroke="#B8935A" stroke-width=".5"/>
-      <path d="M0 0 L0 -27.50" stroke="#9D7C4A" stroke-width=".4"/>
+    <g transform="translate(273.73 381.21) rotate(-60)">
+      <path d="M0 -180.7 Q53.53 -126.49 35.97 -54.21 Q21.82 -9.89 0 0 Q-21.82 -9.89 -35.97 -54.21 Q-53.53 -126.49 0 -180.7 Z" fill="#D5CCB9" stroke="#B8935A" stroke-width="3.41"/>
+      <path d="M0 0 L0 -180.7" stroke="#9D7C4A" stroke-width="2.73" fill="none"/>
     </g>
-    <g transform="translate(29.51 48.32) rotate(-56)">
-      <path d="M0 -25.50 Q7.59 -17.85 5.12 -7.65 Q3.10 -1.40 0 0 Q-3.10 -1.40 -5.12 -7.65 Q-7.59 -17.85 0 -25.50 Z" fill="#D5CCB9" stroke="#B8935A" stroke-width=".5"/>
-      <path d="M0 0 L0 -25.50" stroke="#9D7C4A" stroke-width=".4"/>
+    <g transform="translate(238.27 381.21) rotate(60)">
+      <path d="M0 -180.7 Q53.53 -126.49 35.97 -54.21 Q21.82 -9.89 0 0 Q-21.82 -9.89 -35.97 -54.21 Q-53.53 -126.49 0 -180.7 Z" fill="#D5CCB9" stroke="#B8935A" stroke-width="3.41"/>
+      <path d="M0 0 L0 -180.7" stroke="#9D7C4A" stroke-width="2.73" fill="none"/>
     </g>
-
-    <!-- the seed at the axis, and its brass hub -->
-    <circle cx="32" cy="50" r="3.1" fill="#16543F"/>
-    <circle cx="32" cy="50" r="4.2" stroke="#B8935A" stroke-width="1.5"/>
+    <circle cx="256" cy="391.44" r="19.6" fill="#16543F"/>
+    <circle cx="256" cy="391.44" r="26.42" stroke="#B8935A" stroke-width="12.27" fill="none"/>
   </g>
 </svg>

@@ -6,41 +6,49 @@
  * That is why the mark and the hero read as the same object rather than as a
  * logo and a render. */
 
+const HUB = { x: 32, y: 54.57 };
+const SEED_R = 3.27;
+const HUB_R = 4.4;
+const HUB_W = 2.05;
+const GLOW_R = 11.93;
+const STROKE = 0.57;
+const VEIN_W = 0.45;
+
 const PETALS = [
-  {
-    key: "outer-right",
-    material: "ivory",
-    at: "translate(34.70 48.68) rotate(64)",
-    d: "M0 -27.50 Q8.08 -19.25 5.45 -8.25 Q3.30 -1.51 0 0 Q-3.30 -1.51 -5.45 -8.25 Q-8.08 -19.25 0 -27.50 Z",
-    vein: "M0 0 L0 -27.50",
-  },
   {
     key: "inner-right",
     material: "lacquer",
-    at: "translate(33.63 47.48) rotate(33)",
-    d: "M0 -36.00 Q9.80 -25.20 6.60 -10.80 Q4.00 -1.98 0 0 Q-4.00 -1.98 -6.60 -10.80 Q-9.80 -25.20 0 -36.00 Z",
-    vein: "M0 0 L0 -36.00",
+    at: "translate(33.7 51.62) rotate(-30)",
+    d: "M0 -40.06 Q10.85 -28.04 7.3 -12.02 Q4.43 -2.22 0 0 Q-4.43 -2.22 -7.3 -12.02 Q-10.85 -28.04 0 -40.06 Z",
+    vein: "M0 0 L0 -40.06",
   },
   {
     key: "inner-left",
     material: "lacquer",
-    at: "translate(30.64 47.33) rotate(-27)",
-    d: "M0 -34.50 Q9.31 -24.15 6.27 -10.35 Q3.80 -1.90 0 0 Q-3.80 -1.90 -6.27 -10.35 Q-9.31 -24.15 0 -34.50 Z",
-    vein: "M0 0 L0 -34.50",
+    at: "translate(30.3 51.62) rotate(30)",
+    d: "M0 -40.06 Q10.85 -28.04 7.3 -12.02 Q4.43 -2.22 0 0 Q-4.43 -2.22 -7.3 -12.02 Q-10.85 -28.04 0 -40.06 Z",
+    vein: "M0 0 L0 -40.06",
   },
   {
     key: "crown",
-    material: "lacquer",
-    at: "translate(32.16 47.00) rotate(3)",
-    d: "M0 -41.50 Q11.03 -29.05 7.43 -12.45 Q4.50 -2.28 0 0 Q-4.50 -2.28 -7.43 -12.45 Q-11.03 -29.05 0 -41.50 Z",
-    vein: "M0 0 L0 -41.50",
+    material: "crown",
+    at: "translate(32 51.16) rotate(0)",
+    d: "M0 -47.16 Q12.53 -33.01 8.44 -14.15 Q5.11 -2.59 0 0 Q-5.11 -2.59 -8.44 -14.15 Q-12.53 -33.01 0 -47.16 Z",
+    vein: "M0 0 L0 -47.16",
+  },
+  {
+    key: "outer-right",
+    material: "ivory",
+    at: "translate(34.95 52.87) rotate(-60)",
+    d: "M0 -30.12 Q8.92 -21.08 5.99 -9.04 Q3.64 -1.65 0 0 Q-3.64 -1.65 -5.99 -9.04 Q-8.92 -21.08 0 -30.12 Z",
+    vein: "M0 0 L0 -30.12",
   },
   {
     key: "outer-left",
     material: "ivory",
-    at: "translate(29.51 48.32) rotate(-56)",
-    d: "M0 -25.50 Q7.59 -17.85 5.12 -7.65 Q3.10 -1.40 0 0 Q-3.10 -1.40 -5.12 -7.65 Q-7.59 -17.85 0 -25.50 Z",
-    vein: "M0 0 L0 -25.50",
+    at: "translate(29.05 52.87) rotate(60)",
+    d: "M0 -30.12 Q8.92 -21.08 5.99 -9.04 Q3.64 -1.65 0 0 Q-3.64 -1.65 -5.99 -9.04 Q-8.92 -21.08 0 -30.12 Z",
+    vein: "M0 0 L0 -30.12",
   },
 ];
 
@@ -57,18 +65,25 @@ export function Mark({ size = 40, title }: { size?: number; title?: string }) {
       focusable="false"
     >
       {/* the light behind the seed */}
-      <circle cx="32" cy="50" r="9" className="mark-glow" />
+      <circle cx={HUB.x} cy={HUB.y} r={GLOW_R} className="mark-glow" />
       {/* five petals: two ivory outer, three lacquer inner, brass at every edge.
           Lacquer first so the ivory pair reads in front, as it does in 3D. */}
       {PETALS.map((petal) => (
         <g key={petal.key} transform={petal.at}>
-          <path className={`mark-petal is-${petal.material}`} d={petal.d} strokeWidth="0.5" />
-          <path className="mark-vein" d={petal.vein} fill="none" strokeWidth="0.4" />
+          <path className={`mark-petal is-${petal.material}`} d={petal.d} strokeWidth={STROKE} />
+          <path className="mark-vein" d={petal.vein} fill="none" strokeWidth={VEIN_W} />
         </g>
       ))}
       {/* the seed at the axis, in its brass hub */}
-      <circle cx="32" cy="50" r="3.1" className="mark-seed" />
-      <circle cx="32" cy="50" r="4.2" className="mark-hub" fill="none" strokeWidth="1.5" />
+      <circle cx={HUB.x} cy={HUB.y} r={SEED_R} className="mark-seed" />
+      <circle
+        cx={HUB.x}
+        cy={HUB.y}
+        r={HUB_R}
+        className="mark-hub"
+        fill="none"
+        strokeWidth={HUB_W}
+      />
     </svg>
   );
 }

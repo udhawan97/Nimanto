@@ -317,11 +317,13 @@ export class NimantoEmblem {
   #buildLotus(): Group {
     const group = new Group();
     const spec = [
-      { angle: -64, w: 0.33, h: 1.1, material: "ivory" as const },
-      { angle: -33, w: 0.4, h: 1.44, material: "lacquer" as const },
-      { angle: -3, w: 0.45, h: 1.66, material: "lacquer" as const },
-      { angle: 27, w: 0.38, h: 1.38, material: "lacquer" as const },
-      { angle: 56, w: 0.31, h: 1.02, material: "ivory" as const },
+      // Mirrored pairs about a vertical crown. The brand source fanned these
+      // -64/-33/-3/27/56, which reads as a lean rather than as a mark.
+      { angle: -60, w: 0.32, h: 1.06, material: "ivory" as const },
+      { angle: -30, w: 0.39, h: 1.41, material: "lacquer" as const },
+      { angle: 0, w: 0.45, h: 1.66, material: "lacquer" as const },
+      { angle: 30, w: 0.39, h: 1.41, material: "lacquer" as const },
+      { angle: 60, w: 0.32, h: 1.06, material: "ivory" as const },
     ];
     const axis = -0.62;
 
