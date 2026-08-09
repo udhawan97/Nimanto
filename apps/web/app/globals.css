@@ -789,18 +789,19 @@ svg {
   border-radius: var(--radius-lg);
 }
 .copy-line {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space-lg);
   padding: var(--space-md) var(--space-lg);
   background: var(--surface);
   border: 1px solid var(--brass-100);
   border-radius: var(--radius-md);
-  overflow-x: auto;
+  overflow: hidden;
 }
 .copy-line code {
-  flex: 1;
   min-width: 0;
+  overflow-x: auto;
   color: var(--text-display);
   white-space: nowrap;
 }
@@ -1238,6 +1239,7 @@ svg {
   min-width: 0;
 }
 .match-row > div,
+.table-row > .application-identity,
 .job-row > div,
 .packet-row > div,
 .action-row > div,
@@ -1824,6 +1826,7 @@ textarea {
   padding: var(--space-3xl) var(--shell-inline);
 }
 .start-panel {
+  grid-template-columns: minmax(0, 1fr);
   width: min(560px, 100%);
 }
 .workspace-start h1 {
@@ -1858,6 +1861,7 @@ textarea {
   display: flex;
   align-items: center;
   gap: var(--space-md);
+  min-width: 0;
   font-family: var(--font-mono);
   font-size: var(--text-placard);
   letter-spacing: var(--tracking-placard);
@@ -1998,6 +2002,14 @@ textarea {
   .notice,
   .connection-banner {
     margin-inline: var(--space-lg);
+  }
+  .design-line.compact {
+    gap: var(--space-xs);
+  }
+  .design-line.compact > i {
+    flex: 1;
+    min-width: 0;
+    width: auto;
   }
   /* flex-wrap now lives in the base row grammar; only the auto margin that
    * pushes the state chip to the far end needs releasing at this width. */

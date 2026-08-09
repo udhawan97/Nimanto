@@ -1,5 +1,51 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { bootstrapSecret } from "../../playwright.config.js";
+
+async function installClipboardRecorder(page: Page) {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: async (value: string) => {
+          sessionStorage.setItem("nimanto-test-copied", value);
+        },
+      },
+    });
+  });
+}
+
+async function expectCopyLineContained(copyLine: Locator) {
+  await expect(copyLine).toBeVisible();
+  const geometry = await copyLine.evaluate((line) => {
+    const code = line.querySelector("code");
+    const button = line.querySelector("button");
+    if (!code || !button) return null;
+    const lineRect = line.getBoundingClientRect();
+    const codeRect = code.getBoundingClientRect();
+    const buttonRect = button.getBoundingClientRect();
+    const style = getComputedStyle(code);
+    return {
+      lineRight: lineRect.right,
+      codeRight: codeRect.right,
+      buttonLeft: buttonRect.left,
+      buttonRight: buttonRect.right,
+      overflowX: style.overflowX,
+      codeClientWidth: code.clientWidth,
+      codeScrollWidth: code.scrollWidth,
+    };
+  });
+
+  expect(geometry).not.toBeNull();
+  expect(geometry!.codeRight).toBeLessThanOrEqual(geometry!.buttonLeft);
+  expect(geometry!.buttonRight).toBeLessThanOrEqual(geometry!.lineRight);
+  expect(geometry!.overflowX).toBe("auto");
+  expect(geometry!.codeScrollWidth).toBeGreaterThan(geometry!.codeClientWidth);
+  const scrollLeft = await copyLine.locator("code").evaluate((code) => {
+    code.scrollLeft = code.scrollWidth;
+    return code.scrollLeft;
+  });
+  expect(scrollLeft).toBeGreaterThan(0);
+}
 
 test("a candidate starts a private workspace and receives deterministic role explanations", async ({
   page,
@@ -26,6 +72,25 @@ test("a candidate starts a private workspace and receives deterministic role exp
     )
     .toBe(true);
   await page.goto(`/workspace/#bootstrap=${bootstrapSecret}`);
+  await page.setViewportSize({ width: 320, height: 900 });
+  const entryLayout = await page.locator("form.start-panel").evaluate((panel) => {
+    const panelRect = panel.getBoundingClientRect();
+    const controls = [...panel.querySelectorAll("input, button")].map((control) => {
+      const rect = control.getBoundingClientRect();
+      return { left: rect.left, right: rect.right };
+    });
+    return {
+      clientWidth: panel.clientWidth,
+      scrollWidth: panel.scrollWidth,
+      controlsInside: controls.every(
+        ({ left, right }) =>
+          left >= panelRect.left && right <= panelRect.right && right <= innerWidth,
+      ),
+    };
+  });
+  expect(entryLayout.scrollWidth).toBeLessThanOrEqual(entryLayout.clientWidth);
+  expect(entryLayout.controlsInside).toBe(true);
+  await page.setViewportSize({ width: 1280, height: 900 });
   await page.getByLabel("Your name").fill("Asha Rao");
   await page.getByLabel("Your email").fill("asha@example.test");
   await page.getByRole("button", { name: "Start private workspace" }).click();
@@ -157,6 +222,29 @@ test("one guarded control owns every status change, and the two views are exclus
   await expect(page.locator(".board")).toHaveCount(0);
   await expect(page.locator(".application-table")).toBeVisible();
 
+  for (const width of [320, 375, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    const metadata = await page
+      .locator(".application-table .application-identity")
+      .first()
+      .evaluate((container) => {
+        const title = container.querySelector("strong")?.getBoundingClientRect();
+        const company = container.querySelector("small")?.getBoundingClientRect();
+        return title && company
+          ? {
+              display: getComputedStyle(container).display,
+              titleBottom: title.bottom,
+              companyTop: company.top,
+            }
+          : null;
+      });
+    expect(metadata, `application metadata exists at ${width}px`).not.toBeNull();
+    expect(metadata!.display, `application metadata layout at ${width}px`).toBe("grid");
+    expect(metadata!.companyTop, `application metadata separation at ${width}px`).toBeGreaterThan(
+      metadata!.titleBottom,
+    );
+  }
+
   // A control may only offer moves the domain allows. Listing all five taught
   // the candidate about illegal transitions by way of a rejected request.
   const status = page.locator(".application-table .table-row select").first();
@@ -199,16 +287,71 @@ test("one guarded control owns every status change, and the two views are exclus
   await expect(status).toHaveValue("submitted_externally");
   await page.waitForTimeout(250);
   expect(writes, "a declined confirmation must not write").toEqual([]);
+
+  await page.getByRole("button", { name: "Outcome", exact: true }).first().click();
+  const outcomeForm = page.locator(".application-table .outcome-form");
+  await outcomeForm.locator("select").selectOption("reply");
+  await outcomeForm.getByPlaceholder("Optional note").fill("Follow-up");
+  await outcomeForm.getByRole("button", { name: "Record" }).click();
+  const outcomeChips = page.locator(".application-table .outcome-chips").first();
+  await expect(outcomeChips.getByText("Reply", { exact: true })).toBeVisible();
+  const outcomeLayout = await outcomeChips.evaluate((chips) => {
+    const style = getComputedStyle(chips);
+    return { display: style.display, flexWrap: style.flexWrap };
+  });
+  expect(outcomeLayout).toEqual({ display: "flex", flexWrap: "wrap" });
+});
+
+test("long action references keep their Copy control clear at 320px", async ({ page }) => {
+  await installClipboardRecorder(page);
+  await page.goto(`/workspace/#bootstrap=${bootstrapSecret}`);
+  await page.getByLabel("Your name").fill("Copy Check");
+  await page.getByLabel("Your email").fill("copy@example.test");
+  await page.getByRole("button", { name: "Start private workspace" }).click();
+  await page.getByRole("button", { name: "Run starter matches" }).click();
+  await page.getByRole("button", { name: "Role discovery" }).click();
+  await page.getByRole("button", { name: "Track", exact: true }).first().click();
+
+  await page.getByRole("button", { name: "Review packets" }).click();
+  await page.getByRole("button", { name: "Generate", exact: true }).first().click();
+  await page.getByRole("button", { name: "Assure", exact: true }).first().click();
+  const packet = page.locator(".packet-row").first();
+  await packet.getByRole("button", { name: "Approve", exact: true }).click();
+  await expect(packet.getByText("Approved", { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Approved actions" }).click();
+  await page.getByRole("button", { name: "Prepare action" }).click();
+  await page.getByLabel("Provider").selectOption("test_outbox");
+  await page.getByLabel("Recipient").fill("recipient@example.test");
+  await page.getByRole("button", { name: "Create approval request" }).click();
+  const action = page.locator(".action-row").first();
+  await action.getByRole("button", { name: "Approve", exact: true }).click();
+  await page.getByRole("button", { name: "Turn on" }).click();
+  await action.getByRole("button", { name: "Execute", exact: true }).click();
+  await expect(action.getByText("Succeeded", { exact: true })).toBeVisible();
+
+  await page.setViewportSize({ width: 320, height: 900 });
+  const copyLine = action.locator(".copy-line");
+  await expectCopyLineContained(copyLine);
+  const fullReference = (await copyLine.locator("code").textContent())?.trim();
+  expect(fullReference?.length).toBeGreaterThan(32);
+  await copyLine.getByRole("button", { name: "Copy" }).click();
+  await expect(copyLine.getByRole("button", { name: "Copied" })).toBeVisible();
+  await expect
+    .poll(() => page.evaluate(() => sessionStorage.getItem("nimanto-test-copied")))
+    .toBe(fullReference);
 });
 
 test("deletion hands back a receipt that outlives the session, and does not outlive the next one", async ({
   page,
 }) => {
+  await installClipboardRecorder(page);
   await page.goto(`/workspace/#bootstrap=${bootstrapSecret}`);
   await page.getByLabel("Your name").fill("Erase Me");
   await page.getByLabel("Your email").fill("erase@example.test");
   await page.getByRole("button", { name: "Start private workspace" }).click();
   await page.getByRole("button", { name: "Data controls" }).click();
+  await page.setViewportSize({ width: 320, height: 900 });
 
   await page
     .getByRole("textbox", { name: /DELETE MY NIMANTO DATA/ })
@@ -223,8 +366,15 @@ test("deletion hands back a receipt that outlives the session, and does not outl
   await expect(receipt.getByRole("heading")).toContainText("deleted");
   await expect(receipt.getByRole("button", { name: /Copy/ })).toBeVisible();
   await expect(receipt).toContainText("/v1/deletion/resume");
-  const token = await receipt.locator("code").first().textContent();
-  expect(token?.trim().length).toBeGreaterThan(16);
+  const token = (await receipt.locator("code").first().textContent())?.trim();
+  expect(token?.length).toBeGreaterThan(16);
+  const copyLine = receipt.locator(".copy-line");
+  await expectCopyLineContained(copyLine);
+  await copyLine.getByRole("button", { name: "Copy" }).click();
+  await expect(copyLine.getByRole("button", { name: "Copied" })).toBeVisible();
+  await expect
+    .poll(() => page.evaluate(() => sessionStorage.getItem("nimanto-test-copied")))
+    .toBe(token);
 
   /* The success notice must not contradict the receipt beside it: the server
    * decides whether file cleanup finished, so this copy stays outcome-neutral.
@@ -246,6 +396,7 @@ test("deletion hands back a receipt that outlives the session, and does not outl
   await expect(page.locator(".workspace-shell")).toBeVisible();
   await expect(page.getByText("someone@example.test")).toBeVisible();
 
+  await page.setViewportSize({ width: 1280, height: 900 });
   await page.getByRole("button", { name: "Sign out" }).click();
   await expect(page.getByRole("heading", { name: "Your evidence stays with you." })).toBeVisible();
   await expect(page.locator(".receipt")).toHaveCount(0);

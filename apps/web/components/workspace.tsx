@@ -2269,7 +2269,7 @@ function Applications({
         </div>
         {dashboard.applications.map((application) => (
           <article key={application.id} className="table-row">
-            <div>
+            <div className="application-identity">
               <strong>{application.job?.title ?? "Unknown role"}</strong>
               <small>{application.job?.company}</small>
             </div>
