@@ -154,6 +154,8 @@ CREATE TABLE IF NOT EXISTS packets (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE SEQUENCE IF NOT EXISTS assurance_runs_run_sequence_seq;
+
 CREATE TABLE IF NOT EXISTS assurance_runs (
   id text PRIMARY KEY,
   tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
@@ -161,6 +163,7 @@ CREATE TABLE IF NOT EXISTS assurance_runs (
   status text NOT NULL,
   rule_version text NOT NULL,
   findings jsonb NOT NULL,
+  run_sequence bigint NOT NULL DEFAULT nextval('assurance_runs_run_sequence_seq'),
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
@@ -231,6 +234,29 @@ ALTER TABLE scheduled_jobs ADD COLUMN IF NOT EXISTS lease_token_hash text;
 ALTER TABLE scheduled_jobs ADD COLUMN IF NOT EXISTS lease_expires_at timestamptz;
 ALTER TABLE scheduled_jobs ADD COLUMN IF NOT EXISTS last_run_at timestamptz;
 ALTER TABLE scheduled_jobs ADD COLUMN IF NOT EXISTS last_result jsonb;
+ALTER TABLE assurance_runs ADD COLUMN IF NOT EXISTS run_sequence bigint;
+WITH sequence_base AS (
+  SELECT COALESCE(MAX(run_sequence), 0) AS value FROM assurance_runs
+), ordered_runs AS (
+  SELECT
+    id,
+    sequence_base.value + ROW_NUMBER() OVER (ORDER BY created_at, id) AS value
+  FROM assurance_runs CROSS JOIN sequence_base
+  WHERE run_sequence IS NULL
+)
+UPDATE assurance_runs
+SET run_sequence = ordered_runs.value
+FROM ordered_runs
+WHERE assurance_runs.id = ordered_runs.id;
+ALTER TABLE assurance_runs
+  ALTER COLUMN run_sequence SET DEFAULT nextval('assurance_runs_run_sequence_seq');
+ALTER TABLE assurance_runs ALTER COLUMN run_sequence SET NOT NULL;
+ALTER SEQUENCE assurance_runs_run_sequence_seq OWNED BY assurance_runs.run_sequence;
+SELECT setval(
+  'assurance_runs_run_sequence_seq',
+  GREATEST(COALESCE((SELECT MAX(run_sequence) FROM assurance_runs), 0) + 1, 1),
+  false
+);
 
 CREATE TABLE IF NOT EXISTS deletion_runs (
   id text PRIMARY KEY,

@@ -358,6 +358,25 @@ describe("Nimanto beta API", () => {
     });
     expect(approval.json().status).toBe("approved");
 
+    const reviewedDashboard = (
+      await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } })
+    ).json();
+    expect(reviewedDashboard.packets).toEqual([
+      expect.objectContaining({
+        id: packetId,
+        artifactHash: expect.any(String),
+        canonicalContent: expect.objectContaining({ schemaVersion: "packet_v1" }),
+        artifactManifest: expect.objectContaining({
+          documentInspection: expect.objectContaining({ status: "passed" }),
+        }),
+        latestAssurance: expect.objectContaining({
+          status: "passed",
+          ruleVersion: expect.stringContaining("application_assurance_v1"),
+          findings: [],
+        }),
+      }),
+    ]);
+
     const action = await app.inject({
       method: "POST",
       url: "/v1/actions",

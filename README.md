@@ -61,14 +61,16 @@ today.
 
 ## What it actually does
 
-| If you need to…                     | Start with                | What stays visible                                                      |
-| ----------------------------------- | ------------------------- | ----------------------------------------------------------------------- |
-| Build a reusable career record      | **Evidence vault**        | Claim status, source name, source locator, confidence, profile version  |
-| Decide whether a role is worth time | **Role discovery**        | Requirement-by-requirement evidence, coverage limits, blockers          |
-| Keep sponsorship context honest     | **H-1B evidence signals** | Source type, period, observation time, confidence, limitations          |
-| Prepare application materials       | **Review packets**        | Canonical content, modern and ATS-safe variants, hashes, approval state |
-| Hand work to email safely           | **Approved actions**      | Exact recipient and payload, approval, runtime switch, provider receipt |
-| Leave with your data                | **Data controls**         | Portable workspace JSON, artifact manifests, resumable deletion         |
+| If you need to…                     | Start with                | What stays visible                                                          |
+| ----------------------------------- | ------------------------- | --------------------------------------------------------------------------- |
+| Build a reusable career record      | **Evidence vault**        | Claim status, source name, source locator, confidence, profile version      |
+| Decide whether a role is worth time | **Role discovery**        | Ephemeral filters, four match dimensions, requirements, coverage, blockers  |
+| Keep sponsorship context honest     | **H-1B evidence signals** | Source, period, observation time, confidence, freshness adjustment, limits  |
+| Remember what actually happened     | **Applications**          | Candidate-recorded outcomes and notes on a literal chronology               |
+| Prepare application materials       | **Review packets**        | Canonical content, format checks, hashes, stored assurance findings         |
+| Hand work to email safely           | **Approved actions**      | Exact recipient and payload, approval, runtime switch, provider receipt     |
+| Inspect local provenance            | **Local activity**        | Hash-checked match, packet, and executed-action receipts; no delivery claim |
+| Leave with your data                | **Data controls**         | Portable workspace JSON, artifact manifests, resumable deletion             |
 
 ## How it looks
 
@@ -140,11 +142,12 @@ issue a hashed, expiring, single-use invitation.
 - An unmet requirement offers to add evidence for itself. Only the requirement
   wording is carried into the claim form — never the posting's source name or
   locator — and the claim it creates is pending and user-attested like any other.
-- Evidence Strength — an API-level ordinal, not yet surfaced in the workbench —
-  counts a requirement as source-linked only when a claim behind it is **not**
-  marked as your own attestation. Manually entered claims are always attested,
-  so a workspace built from them reports `source_limited`, and that includes the
-  synthetic starter data.
+- Match anatomy exposes the four weighted dimensions, requirement states,
+  evidence-link counts, coverage, rule version, exclusions and explicit
+  blockers. Evidence Strength remains an API-level ordinal intentionally
+  excluded from that view; the workbench does not turn it into a score or hiring
+  probability. Manually entered claims are always attested, so a workspace built
+  from them reports `source_limited`, including the synthetic starter data.
 - The free-text scoring projection removes pronouns, standalone year cues and a
   conventional name prefix. It is **not** comprehensive de-identification —
   sensitive identity details should not be imported as scoring evidence.
@@ -152,13 +155,18 @@ issue a hashed, expiring, single-use invitation.
 ### Discovery and application memory
 
 - Manual job intake, plus allowlisted Greenhouse, Lever and Ashby adapters.
+- Search by title, company or location and combine source, match-state, and
+  tracking filters. These filters live only in the open Role discovery view;
+  they are not persisted or sent to the API.
 - Candidate-controlled hourly-to-weekly discovery schedules with single leases,
   run-now/pause/resume/cancel, bounded retries, visible dead letters,
   deduplication, and deterministic match receipts.
 - Redirect refusal, fixed provider hosts, timeouts, bounded imports.
 - Disabled-by-default, terms-dated exact-host HTTPS intake with pinned public
   DNS, private-address and redirect rejection, and transient-body deletion.
-- Historical H-1B evidence with source period, confidence and stated limitations.
+- Historical H-1B evidence with source type, locator, period, observation time,
+  confidence, explicit freshness, any downgraded original label, and stated
+  limitations. Current role wording remains controlling.
 - Employer resolution is off by default. Enabling positive upgrades requires a
   server-owned, independently reviewed corpus of at least 300 unique
   predicted-positive fixtures at 0.98 measured precision with a 0.95 Wilson lower
@@ -168,6 +176,9 @@ issue a hashed, expiring, single-use invitation.
   interviews, offers, rejections and withdrawals. Every status control — board
   card or row list — offers only the moves the domain allows, asks before a
   consequential one, and the transition is enforced server-side regardless.
+- A recorded-outcome timeline shows application creation and the candidate's
+  dated notes in order. It does not reconstruct unrecorded stages or infer an
+  outcome from silence.
 
 ### Grounded packets
 
@@ -184,6 +195,11 @@ issue a hashed, expiring, single-use invitation.
 - Optional exact-tag `NIMANTO_ASSURANCE_MODEL`. When configured, its installed
   digest is recorded, and an unavailable, malformed or blocking local review
   fails approval closed with no cloud fallback.
+- Expandable packet review shows canonical destination, summary, claims and
+  authorization wording beside document inspection checks, artifact hashes, and
+  the latest stored assurance rule and findings. These checks cover structure,
+  integrity and configured rules—not claim truth, writing quality, employer
+  acceptance or external delivery.
 
 ### Approval-gated actions
 
@@ -191,6 +207,9 @@ issue a hashed, expiring, single-use invitation.
 - Separate packet approval, action approval, and an in-memory execution switch.
 - The switch always starts **off** after an API restart.
 - Idempotency keys, explicit action states, local receipts, safe failure codes.
+- A local activity ledger verifies each stored receipt hash on read and exposes
+  its input, artifact and receipt hashes with copy controls. It is tamper-evident
+  internal history, not a signature or an employer acknowledgment.
 
 ## Architecture
 
@@ -241,7 +260,7 @@ transitions, design-token contrast, API integration, and a WebKit journey.
 
 ## Beta boundaries
 
-Version `0.2.0` is a **local beta**:
+Version `0.3.0` is a **local beta**:
 
 - The local candidate workflow is implemented and tested.
 - Public website hosting carries product information and the static workbench
@@ -292,5 +311,5 @@ of scope.
 Apache License 2.0. See [LICENSE](LICENSE), [NOTICE](NOTICE),
 [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md),
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), and the release
-[CycloneDX](docs/releases/nimanto-v0.2.0.cdx.json) /
-[SPDX](docs/releases/nimanto-v0.2.0.spdx.json) inventories.
+[CycloneDX](docs/releases/nimanto-v0.3.0.cdx.json) /
+[SPDX](docs/releases/nimanto-v0.3.0.spdx.json) inventories.

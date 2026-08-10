@@ -12,12 +12,14 @@ import {
   confirmationPrompt,
   daysSinceLastRecord,
   failureMessage,
+  filterRoles,
   followUpNote,
   funnelStages,
   lastRecordedAt,
   legalTargets,
   needsConfirmation,
   nextSteps,
+  recordedOutcomeTimeline,
   sectionFromHash,
   sectionHash,
   type ApplicationStatus,
@@ -206,6 +208,97 @@ describe("follow-up observation", () => {
   });
 });
 
+describe("recorded outcome timeline", () => {
+  it("orders only literal records and keeps the candidate's notes", () => {
+    expect(
+      recordedOutcomeTimeline({
+        id: "app-1",
+        status: "submitted_externally",
+        createdAt: "2026-07-01T12:00:00.000Z",
+        outcomes: [
+          {
+            id: "outcome-2",
+            type: "interview",
+            note: "Panel with the platform team",
+            occurredAt: "2026-07-08T12:00:00.000Z",
+          },
+          {
+            id: "outcome-1",
+            type: "reply",
+            note: "Recruiter asked for times",
+            occurredAt: "2026-07-03T12:00:00.000Z",
+          },
+        ],
+      }),
+    ).toEqual([
+      expect.objectContaining({ type: "tracked", note: "Application record created" }),
+      expect.objectContaining({ type: "reply", note: "Recruiter asked for times" }),
+      expect.objectContaining({ type: "interview", note: "Panel with the platform team" }),
+    ]);
+  });
+
+  it("does not manufacture a status when no record exists", () => {
+    expect(recordedOutcomeTimeline({ id: "app-1", status: "tracked" })).toEqual([]);
+  });
+});
+
+describe("ephemeral role filters", () => {
+  const roles = [
+    {
+      id: "platform",
+      source: "greenhouse",
+      title: "Platform Engineer",
+      company: "Northwind",
+      location: "Chicago",
+      tracked: true,
+      match: { result: { band: "strong_evidence", blockers: [] } },
+    },
+    {
+      id: "data",
+      source: "manual",
+      title: "Data Engineer",
+      company: "Contoso",
+      location: "Remote",
+      tracked: false,
+      match: { result: { band: "partial_evidence", blockers: [{}] } },
+    },
+    {
+      id: "design",
+      source: "lever",
+      title: "Product Designer",
+      company: "Acme Design",
+      location: "Austin",
+      tracked: false,
+      match: null,
+    },
+  ];
+
+  it("searches title, company, and location without changing the records", () => {
+    const before = structuredClone(roles);
+    expect(
+      filterRoles(roles, { query: "NORTHWIND", source: "all", fit: "all", tracking: "all" }),
+    ).toEqual([roles[0]]);
+    expect(
+      filterRoles(roles, { query: "remote", source: "all", fit: "all", tracking: "all" }),
+    ).toEqual([roles[1]]);
+    expect(roles).toEqual(before);
+  });
+
+  it("combines source, fit, blocker, and tracking filters deterministically", () => {
+    expect(
+      filterRoles(roles, {
+        query: "",
+        source: "manual",
+        fit: "blocked",
+        tracking: "untracked",
+      }),
+    ).toEqual([roles[1]]);
+    expect(
+      filterRoles(roles, { query: "", source: "all", fit: "unmatched", tracking: "all" }),
+    ).toEqual([roles[2]]);
+  });
+});
+
 describe("pipeline board", () => {
   it("keeps a column for every status in the domain union", () => {
     expect(BOARD_COLUMNS.map((column) => column.id).sort()).toEqual(
@@ -329,6 +422,10 @@ describe("section routing", () => {
 
   it("emits only the section name, never a record identifier", () => {
     expect(sectionHash("applications")).toBe("#applications");
+  });
+
+  it("makes the local activity ledger a first-class deep-linkable section", () => {
+    expect(sectionFromHash("#activity")).toBe("activity");
   });
 });
 

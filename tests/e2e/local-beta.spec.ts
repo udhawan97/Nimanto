@@ -47,6 +47,40 @@ async function expectCopyLineContained(copyLine: Locator) {
   expect(scrollLeft).toBeGreaterThan(0);
 }
 
+test("the public site reflows, links, and identifies itself in WebKit", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark" });
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Nimanto", exact: true })).toBeVisible();
+  await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
+    "content",
+    /assets\/social-card\.png$/,
+  );
+  await expect(page.locator('link[rel="manifest"]')).toHaveAttribute(
+    "href",
+    /manifest\.webmanifest$/,
+  );
+  const skipLink = page.getByRole("link", { name: "Skip to main content" });
+  await skipLink.focus();
+  await expect(skipLink).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/#main$/);
+
+  // 640 CSS px is the effective reflow width of a 1280 px viewport at 200% zoom.
+  for (const width of [320, 375, 414, 640, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(overflow, `public-site overflow at ${width}px`).toBeLessThanOrEqual(0);
+  }
+
+  await expect(page.getByRole("link", { name: "Run it" })).toHaveAttribute("href", "#run");
+  await expect(page.getByRole("link", { name: /Open the workbench/ })).toHaveAttribute(
+    "href",
+    "./workspace/",
+  );
+});
+
 test("a candidate starts a private workspace and receives deterministic role explanations", async ({
   page,
 }) => {
@@ -294,12 +328,66 @@ test("one guarded control owns every status change, and the two views are exclus
   await outcomeForm.getByPlaceholder("Optional note").fill("Follow-up");
   await outcomeForm.getByRole("button", { name: "Record" }).click();
   const outcomeChips = page.locator(".application-table .outcome-chips").first();
-  await expect(outcomeChips.getByText("Reply", { exact: true })).toBeVisible();
+  await expect(outcomeChips.locator(":scope > span", { hasText: "Reply" })).toBeVisible();
   const outcomeLayout = await outcomeChips.evaluate((chips) => {
     const style = getComputedStyle(chips);
     return { display: style.display, flexWrap: style.flexWrap };
   });
   expect(outcomeLayout).toEqual({ display: "flex", flexWrap: "wrap" });
+});
+
+test("evidence-rich review features stay literal, local, and inspectable", async ({ page }) => {
+  await page.goto(`/workspace/#bootstrap=${bootstrapSecret}`);
+  await page.getByLabel("Your name").fill("Review Check");
+  await page.getByLabel("Your email").fill("review@example.test");
+  await page.getByRole("button", { name: "Start private workspace" }).click();
+  await page.getByRole("button", { name: "Run starter matches" }).click();
+
+  await page.getByRole("button", { name: "Role discovery" }).click();
+  await expect(page.getByText("Filters stay in this open view")).toBeVisible();
+  await page.getByRole("searchbox", { name: "Search roles" }).fill("Northwind");
+  await expect(page.locator(".job-row")).toHaveCount(1);
+  await expect(page.getByText("1 of 2")).toBeVisible();
+  await page.getByRole("button", { name: "Clear filters" }).click();
+  await expect(page.locator(".job-row")).toHaveCount(2);
+
+  const role = page.locator(".job-row").first();
+  await role.getByText("View match anatomy").click();
+  await expect(role.locator(".dimension-grid article")).toHaveCount(4);
+  await expect(role.getByText(/Roles without requirements remain not scored/)).toBeVisible();
+  await expect(role.getByText(/explicit blockers remain separate/)).toBeVisible();
+  await expect(role.getByText(/Evidence Strength is intentionally excluded/)).toBeVisible();
+  const signal = page.locator(".signal-list article").first();
+  await signal.getByText("Source and freshness").click();
+  await expect(signal.getByText("Current role wording remains controlling.")).toBeVisible();
+
+  await role.getByRole("button", { name: "Track", exact: true }).click();
+  await page.getByRole("button", { name: "Applications" }).click();
+  const timeline = page.locator(".board-card .recorded-timeline").first();
+  await timeline.getByText("Recorded timeline").click();
+  await expect(timeline.getByText("Application record created")).toBeVisible();
+  await expect(timeline.getByText("Gaps infer nothing.")).toBeVisible();
+
+  await page.getByRole("button", { name: "Review packets" }).click();
+  await page.getByRole("button", { name: "Generate", exact: true }).first().click();
+  await page.getByRole("button", { name: "Assure", exact: true }).first().click();
+  const packet = page.locator(".packet-row").first();
+  await packet.getByText("Inspect content, formats, and assurance").click();
+  await expect(packet.getByText("Canonical content", { exact: true })).toBeVisible();
+  await expect(packet.getByText("Document inspection", { exact: true })).toBeVisible();
+  await expect(packet.getByText("Latest assurance", { exact: true })).toBeVisible();
+  await expect(packet.getByText(/does not verify claim truth/)).toBeVisible();
+
+  await page.getByRole("button", { name: "Local activity" }).click();
+  await expect(page).toHaveURL(/#activity$/);
+  await expect(page.locator(".receipt-row").first()).toContainText("Internal hash checked");
+  await expect(page.getByText(/not a signature, an employer receipt/)).toBeVisible();
+
+  await page.setViewportSize({ width: 320, height: 900 });
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(0);
 });
 
 test("long action references keep their Copy control clear at 320px", async ({ page }) => {

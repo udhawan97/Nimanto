@@ -13,17 +13,17 @@ const METHOD = [
   {
     step: "02",
     title: "Compare",
-    body: "Deterministic matching against confirmed evidence only. Four documented dimensions, requirement by requirement, with coverage limits and blockers left visible rather than averaged away.",
+    body: "Narrow roles with private, unsaved filters, then inspect deterministic matching against confirmed evidence only. Four documented dimensions, requirement by requirement, with coverage limits and blockers left visible rather than averaged away.",
   },
   {
     step: "03",
     title: "Prepare",
-    body: "Reviewable JSON and plain text, plus synchronized modern and ATS-safe DOCX and PDF, assembled from confirmed evidence and hashed.",
+    body: "Inspect canonical claims, authorization wording, format checks and stored assurance findings before reviewable JSON, text, modern and ATS-safe DOCX/PDF leave the workbench.",
   },
   {
     step: "04",
     title: "Approve",
-    body: "Pass assurance, approve the packet, approve the exact action, then turn on a runtime switch that resets itself off. Four separate decisions, all yours.",
+    body: "Pass assurance, approve the packet, approve the exact action, then turn on a runtime switch that resets itself off. Hash-checked local receipts preserve the thread without claiming an employer received it.",
   },
 ];
 
@@ -40,13 +40,15 @@ const BOUNDARY = [
     title: "No silent send.",
     body: "Nothing leaves this machine without assurance, a packet approval, an action approval, and a live switch.",
   },
+  {
+    title: "No invented history.",
+    body: "Application timelines contain only what you recorded. A gap is not a rejection, a delay, or a prediction.",
+  },
 ];
 
 export default function Home() {
   const hosted = process.env.NIMANTO_GITHUB_PAGES === "true";
-  const startHref = hosted
-    ? "https://github.com/udhawan97/Nimanto#run-the-local-beta"
-    : "./workspace/";
+  const startHref = hosted ? "https://github.com/udhawan97/Nimanto#run-it" : "./workspace/";
 
   return (
     <>

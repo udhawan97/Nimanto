@@ -1331,6 +1331,7 @@ svg {
 .job-list,
 .packet-list,
 .action-list,
+.activity-ledger,
 .schedule-list,
 .signal-list,
 .match-detail,
@@ -1339,6 +1340,313 @@ svg {
   display: grid;
   gap: var(--space-md);
   min-width: 0;
+}
+
+/* The brass thread: ephemeral narrowing, stored provenance, and internal
+ * receipts share one quiet visual grammar without pretending they are the same
+ * kind of evidence. */
+.role-filter {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  gap: var(--space-lg);
+  align-items: end;
+  padding: var(--pad-card);
+  border: 1px solid var(--brass-200);
+  border-inline-start: 2px solid var(--brass-400);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  min-width: 0;
+}
+.role-filter > div:first-child {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: var(--space-3xs);
+}
+.role-filter > div:first-child > span,
+.packet-review section > span,
+.receipt-heading > span {
+  font-family: var(--font-mono);
+  font-size: var(--text-placard);
+  letter-spacing: var(--tracking-placard);
+  text-transform: uppercase;
+  color: var(--idle-text);
+}
+.role-filter h2 {
+  font-size: var(--text-lg);
+}
+.role-filter p,
+.role-filter-result span {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.role-filter-result {
+  display: grid;
+  gap: var(--space-3xs);
+  align-content: end;
+  min-width: 7.5rem;
+}
+.role-filter-result strong {
+  color: var(--text);
+  font-size: var(--text-lg);
+  font-weight: 500;
+}
+
+.match-detail {
+  width: 100%;
+  padding: var(--space-md) var(--pad-cell-inline);
+  border: 1px solid var(--brass-100);
+  border-radius: var(--radius-md);
+  background: var(--stone-100);
+}
+.match-detail > summary,
+.signal-provenance > summary,
+.recorded-timeline > summary,
+.packet-review > summary {
+  cursor: pointer;
+  color: var(--brass-500);
+  font-weight: 500;
+}
+.match-detail > div,
+.signal-provenance[open],
+.recorded-timeline[open],
+.packet-review[open] {
+  display: grid;
+  gap: var(--space-lg);
+}
+.match-detail > div {
+  margin-block-start: var(--space-lg);
+}
+.match-anatomy-heading,
+.inspection-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+.match-anatomy-heading > div {
+  display: grid;
+  gap: var(--space-3xs);
+}
+.match-anatomy-heading span {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.dimension-grid,
+.packet-review-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-md);
+}
+.dimension-grid article,
+.inspection-checks li,
+.recorded-timeline li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+.dimension-grid article {
+  padding: var(--space-md);
+  border: 1px solid var(--brass-100);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+.dimension-grid article > div,
+.inspection-checks li > div {
+  display: grid;
+  gap: var(--space-3xs);
+  min-width: 0;
+}
+.dimension-grid small,
+.inspection-checks small {
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+.match-boundary {
+  padding-inline-start: var(--space-md);
+  border-inline-start: 1px solid var(--brass-300);
+}
+.match-exclusions {
+  display: grid;
+  gap: var(--space-3xs);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.signal-provenance {
+  flex-basis: 100%;
+  min-width: 0;
+}
+.signal-provenance dl,
+.packet-review dl {
+  display: grid;
+  gap: var(--space-xs);
+  margin: 0;
+}
+.signal-provenance dl > div,
+.packet-review dl > div {
+  display: grid;
+  grid-template-columns: minmax(7rem, 0.35fr) minmax(0, 1fr);
+  gap: var(--space-md);
+  padding-block: var(--space-xs);
+  border-block-end: 1px solid var(--brass-100);
+}
+.signal-provenance dt,
+.packet-review dt,
+.receipt-hashes dt {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.signal-provenance dd,
+.packet-review dd,
+.receipt-hashes dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.signal-provenance code,
+.rule-code,
+.receipt-id {
+  overflow-wrap: anywhere;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-placard);
+}
+
+.recorded-timeline {
+  flex-basis: 100%;
+  min-width: 0;
+}
+.recorded-timeline ol {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.recorded-timeline li {
+  position: relative;
+  padding-block: var(--space-xs);
+}
+.recorded-timeline li > span {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  margin-block-start: 0.4rem;
+  transform: rotate(45deg);
+  background: var(--brass-400);
+}
+.recorded-timeline li > div {
+  display: grid;
+  gap: var(--space-3xs);
+}
+.recorded-timeline time,
+.recorded-timeline p {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.packet-review {
+  flex-basis: 100%;
+  min-width: 0;
+  padding: var(--space-md) var(--pad-cell-inline);
+  border-block-start: 1px solid var(--brass-100);
+}
+.packet-review-grid {
+  margin-block-start: var(--space-lg);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.packet-review-grid > section {
+  display: grid;
+  align-content: start;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border: 1px solid var(--brass-100);
+  border-radius: var(--radius-md);
+  background: var(--stone-100);
+  min-width: 0;
+}
+.packet-claims,
+.inspection-checks,
+.assurance-findings {
+  display: grid;
+  gap: var(--space-xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.packet-claims li,
+.assurance-findings li {
+  display: grid;
+  gap: var(--space-3xs);
+  padding: var(--space-xs) 0;
+  border-block-end: 1px solid var(--brass-100);
+}
+.packet-claims small,
+.assurance-findings span,
+.packet-review-grid p,
+.inspection-status time {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.packet-hashes {
+  display: grid;
+  gap: var(--space-xs);
+}
+.packet-hashes > span {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.activity-filter {
+  min-width: min(17rem, 100%);
+}
+.receipt-row {
+  display: grid;
+  grid-template-columns: auto minmax(10rem, 0.35fr) minmax(0, 1fr);
+  gap: var(--space-lg);
+  align-items: start;
+  padding: var(--space-lg) var(--pad-cell-inline);
+  border: 1px solid var(--brass-100);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  min-width: 0;
+}
+.receipt-knot {
+  width: 8px;
+  height: 8px;
+  margin-block-start: 0.35rem;
+  transform: rotate(45deg);
+  background: var(--brass-400);
+  box-shadow: 0 0 0 4px var(--brass-100);
+}
+.receipt-heading {
+  display: grid;
+  gap: var(--space-3xs);
+}
+.receipt-heading h2 {
+  font-size: var(--text-lg);
+}
+.receipt-heading time {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.receipt-hashes {
+  display: grid;
+  gap: var(--space-sm);
+  margin: 0;
+  min-width: 0;
+}
+.receipt-hashes > div {
+  display: grid;
+  grid-template-columns: 7rem minmax(0, 1fr);
+  gap: var(--space-md);
+  align-items: center;
+  min-width: 0;
+}
+.receipt-id {
+  grid-column: 2 / -1;
 }
 
 .table-head {
@@ -1896,7 +2204,7 @@ textarea {
     gap: var(--space-4xl);
   }
   .refusals {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .site-footer-grid {
     grid-template-columns: minmax(0, 1fr) auto auto;
@@ -1906,6 +2214,12 @@ textarea {
 
 @media (max-width: 1040px) {
   .workspace-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .role-filter {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .packet-review-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 }
@@ -1976,6 +2290,13 @@ textarea {
     grid-template-columns: minmax(0, 1fr);
     gap: var(--space-md);
   }
+  .receipt-row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .receipt-hashes,
+  .receipt-id {
+    grid-column: 2;
+  }
 }
 
 @media (max-width: 520px) {
@@ -1994,6 +2315,24 @@ textarea {
   .board {
     grid-template-columns: minmax(0, 1fr);
     grid-auto-flow: row;
+  }
+  .role-filter,
+  .dimension-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .signal-provenance dl > div,
+  .packet-review dl > div,
+  .receipt-hashes > div {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .receipt-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .receipt-knot,
+  .receipt-heading,
+  .receipt-hashes,
+  .receipt-id {
+    grid-column: 1;
   }
   .workspace-content,
   .workspace-header {

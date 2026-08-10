@@ -1,6 +1,6 @@
 {
   "name": "nimanto",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "An evidence-first, candidate-controlled job search and application workbench for H-1B professionals.",
   "author": "Umang Dhawan",
@@ -36,8 +36,8 @@
     "format": "prettier --write .",
     "lint": "cspell --no-progress --no-summary . && pnpm format:check",
     "licenses:check": "pnpm licenses list --prod --json",
-    "sbom:check": "env -u NODE_PATH node node_modules/@cyclonedx/cdxgen/bin/cdxgen.js -t js --no-install-deps --profile license-compliance --spec-version 1.6 --format cyclonedx -o /tmp/nimanto.cdx.json . && node scripts/sanitize-sbom.mjs /tmp/nimanto.cdx.json && node scripts/validate-sbom.mjs /tmp/nimanto.cdx.json",
-    "sbom:release": "env -u NODE_PATH node node_modules/@cyclonedx/cdxgen/bin/cdxgen.js -t js --no-install-deps --profile license-compliance --spec-version 1.6 --json-pretty --format cyclonedx -o docs/releases/nimanto-v0.2.0.cdx.json . && env -u NODE_PATH node node_modules/@cyclonedx/cdxgen/bin/cdxgen.js -t js --no-install-deps --profile license-compliance --json-pretty --format spdx -o docs/releases/nimanto-v0.2.0.spdx.json . && node scripts/sanitize-sbom.mjs docs/releases/nimanto-v0.2.0.cdx.json docs/releases/nimanto-v0.2.0.spdx.json && prettier --write docs/releases/nimanto-v0.2.0.cdx.json docs/releases/nimanto-v0.2.0.spdx.json && node scripts/validate-sbom.mjs docs/releases/nimanto-v0.2.0.cdx.json docs/releases/nimanto-v0.2.0.spdx.json",
+    "sbom:check": "env -u NODE_PATH node node_modules/@cyclonedx/cdxgen/bin/cdxgen.js -t js --exclude '.claude/**' --no-install-deps --profile license-compliance --spec-version 1.6 --format cyclonedx -o /tmp/nimanto.cdx.json . && node scripts/sanitize-sbom.mjs /tmp/nimanto.cdx.json && node scripts/validate-sbom.mjs /tmp/nimanto.cdx.json",
+    "sbom:release": "env -u NODE_PATH node node_modules/@cyclonedx/cdxgen/bin/cdxgen.js -t js --exclude '.claude/**' --no-install-deps --profile license-compliance --spec-version 1.6 --json-pretty --format cyclonedx -o docs/releases/nimanto-v0.3.0.cdx.json . && env -u NODE_PATH node node_modules/@cyclonedx/cdxgen/bin/cdxgen.js -t js --exclude '.claude/**' --no-install-deps --profile license-compliance --json-pretty --format spdx -o docs/releases/nimanto-v0.3.0.spdx.json . && node scripts/sanitize-sbom.mjs docs/releases/nimanto-v0.3.0.cdx.json docs/releases/nimanto-v0.3.0.spdx.json && prettier --write docs/releases/nimanto-v0.3.0.cdx.json docs/releases/nimanto-v0.3.0.spdx.json && node scripts/validate-sbom.mjs docs/releases/nimanto-v0.3.0.cdx.json docs/releases/nimanto-v0.3.0.spdx.json",
     "start": "concurrently --kill-others --names api,web --prefix-colors blue,magenta \"pnpm --filter @nimanto/api start\" \"pnpm --filter @nimanto/web start\"",
     "start:all": "concurrently --kill-others --names api,worker,web --prefix-colors blue,cyan,magenta \"pnpm --filter @nimanto/api start\" \"pnpm --filter @nimanto/worker start\" \"pnpm --filter @nimanto/web start\"",
     "test": "pnpm -r --if-present run test",

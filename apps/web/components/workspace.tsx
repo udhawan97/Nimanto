@@ -12,6 +12,7 @@ import {
   Database,
   Download,
   FileCheck2,
+  FileClock,
   FileOutput,
   FolderSearch2,
   LogOut,
@@ -31,7 +32,15 @@ import {
   UserRoundCheck,
   X,
 } from "lucide-react";
-import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type FormEvent,
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Brand } from "./brand.js";
 import { CommandPalette, type PaletteEntry } from "./command-palette.js";
 import { ConnectionBanner, ConnectionIndicator, useConnection } from "./connection.js";
@@ -42,14 +51,17 @@ import {
   canMove,
   confirmationPrompt,
   failureMessage,
+  filterRoles,
   followUpNote,
   funnelStages,
   legalTargets,
   needsConfirmation,
   nextSteps,
+  recordedOutcomeTimeline,
   sectionFromHash,
   sectionHash,
   type ApplicationStatus,
+  type Section,
 } from "../lib/derive.js";
 
 const API = process.env.NEXT_PUBLIC_NIMANTO_API_ORIGIN ?? "http://127.0.0.1:4310";
@@ -59,7 +71,6 @@ const API = process.env.NEXT_PUBLIC_NIMANTO_API_ORIGIN ?? "http://127.0.0.1:4310
  * battery. The probe writes `apiReachable` and nothing else. */
 const HEALTH_PROBE_MS = 15_000;
 
-type Section = "overview" | "evidence" | "jobs" | "applications" | "packets" | "actions" | "data";
 type Evidence = {
   id: string;
   kind: string;
@@ -88,9 +99,17 @@ type Match = {
   id: string;
   jobId: string;
   result: {
+    ruleVersion: string;
     band: string;
     coverage: string;
+    dimensions: Array<{
+      name: string;
+      state: string;
+      weightUnits: number;
+      evidenceIds: string[];
+    }>;
     blockers: Array<{ code: string; sourceText: string }>;
+    exclusions: string[];
     requirements: Array<{
       requirement: string;
       state: string;
@@ -119,7 +138,36 @@ type Packet = {
   applicationId: string;
   status: string;
   approvedAt: string | null;
-  artifactManifest: { artifacts?: Array<{ format: string; filename: string; sha256: string }> };
+  artifactHash: string;
+  canonicalContent: {
+    schemaVersion?: string;
+    candidateName?: string;
+    destination?: { company?: string; role?: string; contactEmail?: string };
+    summary?: string;
+    claims?: Array<{ text: string; evidenceIds: string[] }>;
+    authorizationWording?: string;
+    generatedAt?: string;
+  };
+  artifactManifest: {
+    artifacts?: Array<{ format: string; filename: string; sha256: string }>;
+    documentInspection?: {
+      ruleVersion: string;
+      status: "passed" | "blocked";
+      checks: Array<{
+        code: string;
+        status: "passed" | "blocked";
+        format?: string;
+        detail: string;
+      }>;
+    };
+  };
+  latestAssurance: {
+    id: string;
+    status: "passed" | "blocked";
+    ruleVersion: string;
+    findings: Array<{ code?: string; severity?: string; message?: string; detail?: string }>;
+    createdAt: string;
+  } | null;
 };
 type Action = {
   id: string;
@@ -139,6 +187,18 @@ type Signal = {
   sourcePeriod: string;
   confidence: string;
   limitations: string;
+  observedAt: string;
+  freshness: "current" | "stale";
+  originalLabel: string;
+};
+type Receipt = {
+  schemaVersion: "receipt_v1";
+  id: string;
+  type: string;
+  occurredAt: string;
+  inputHash: string;
+  artifactHash: string;
+  receiptHash: string;
 };
 type SourceSchedule = {
   id: string;
@@ -163,7 +223,7 @@ type Dashboard = {
   applications: Application[];
   packets: Packet[];
   externalActions: Action[];
-  receipts: unknown[];
+  receipts: Receipt[];
   schedules: SourceSchedule[];
   personalFunnel: {
     sampleSize: number;
@@ -269,6 +329,7 @@ const navigation: Array<{ id: Section; label: string; icon: typeof Activity }> =
   { id: "applications", label: "Applications", icon: UserRoundCheck },
   { id: "packets", label: "Review packets", icon: FileOutput },
   { id: "actions", label: "Approved actions", icon: Send },
+  { id: "activity", label: "Local activity", icon: FileClock },
   { id: "data", label: "Data controls", icon: Database },
 ];
 
@@ -755,6 +816,7 @@ export function Workspace() {
           )}
           {section === "packets" && <Packets dashboard={dashboard} onAct={act} busy={busy} />}
           {section === "actions" && <Actions dashboard={dashboard} onAct={act} busy={busy} />}
+          {section === "activity" && <ActivityLedger dashboard={dashboard} />}
           {section === "data" && (
             <DataControls
               dashboard={dashboard}
@@ -1033,7 +1095,7 @@ function Overview({
         />
         <Metric
           value={dashboard.receipts.length}
-          label="Execution receipts"
+          label="Local receipts"
           detail="Local audit trail"
         />
       </div>
@@ -1491,9 +1553,40 @@ function Jobs({
   const [adding, setAdding] = useState(false);
   const [sourceOpen, setSourceOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [sourceFilter, setSourceFilter] = useState("all");
+  const [fitFilter, setFitFilter] = useState("all");
+  const [trackingFilter, setTrackingFilter] = useState<"all" | "tracked" | "untracked">("all");
+  const deferredQuery = useDeferredValue(query);
   const latest = useMemo(
     () => new Map(dashboard.matches.map((match) => [match.jobId, match])),
     [dashboard.matches],
+  );
+  const roleInputs = useMemo(
+    () =>
+      dashboard.jobs.map((job) => ({
+        ...job,
+        match: latest.get(job.id) ?? null,
+        tracked: dashboard.applications.some((application) => application.jobId === job.id),
+      })),
+    [dashboard.applications, dashboard.jobs, latest],
+  );
+  const sourceOptions = useMemo(
+    () => [...new Set(dashboard.jobs.map((job) => job.source))].toSorted(),
+    [dashboard.jobs],
+  );
+  const visibleRoles = useMemo(
+    () =>
+      filterRoles(roleInputs, {
+        query: deferredQuery,
+        source: sourceFilter,
+        fit: fitFilter,
+        tracking: trackingFilter,
+      }),
+    [deferredQuery, fitFilter, roleInputs, sourceFilter, trackingFilter],
+  );
+  const filtersActive = Boolean(
+    query || sourceFilter !== "all" || fitFilter !== "all" || trackingFilter !== "all",
   );
   const addJob = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -1864,9 +1957,81 @@ function Jobs({
           </div>
         </section>
       )}
+      <section className="role-filter" aria-labelledby="role-filter-title">
+        <div>
+          <span>Private shortlist</span>
+          <h2 id="role-filter-title">Narrow this view</h2>
+          <p>Filters stay in this open view. They are not saved or sent anywhere.</p>
+        </div>
+        <label className="role-search">
+          Search roles
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Title, company, or location"
+          />
+        </label>
+        <label>
+          Source
+          <select value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value)}>
+            <option value="all">All sources</option>
+            {sourceOptions.map((source) => (
+              <option key={source} value={source}>
+                {human(source)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Evidence fit
+          <select value={fitFilter} onChange={(event) => setFitFilter(event.target.value)}>
+            <option value="all">All explanations</option>
+            <option value="strong_evidence">Strong evidence</option>
+            <option value="promising_evidence">Promising evidence</option>
+            <option value="partial_evidence">Partial evidence</option>
+            <option value="weak_evidence">Weak evidence</option>
+            <option value="blocked">Has explicit blocker</option>
+            <option value="unmatched">Not explained</option>
+          </select>
+        </label>
+        <label>
+          Tracking
+          <select
+            value={trackingFilter}
+            onChange={(event) =>
+              setTrackingFilter(event.target.value as "all" | "tracked" | "untracked")
+            }
+          >
+            <option value="all">All roles</option>
+            <option value="tracked">Tracked</option>
+            <option value="untracked">Not tracked</option>
+          </select>
+        </label>
+        <div className="role-filter-result" aria-live="polite">
+          <strong>
+            {visibleRoles.length} of {dashboard.jobs.length}
+          </strong>
+          <span>roles shown</span>
+          {filtersActive && (
+            <button
+              className="button mini quiet"
+              type="button"
+              onClick={() => {
+                setQuery("");
+                setSourceFilter("all");
+                setFitFilter("all");
+                setTrackingFilter("all");
+              }}
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+      </section>
       <div className="job-list">
-        {dashboard.jobs.map((job) => {
-          const match = latest.get(job.id);
+        {visibleRoles.map((job) => {
+          const match = job.match;
           return (
             <article key={job.id} className="job-row">
               <div className="job-main">
@@ -1936,8 +2101,36 @@ function Jobs({
               </div>
               {match && (
                 <details className="match-detail">
-                  <summary>View requirement evidence</summary>
+                  <summary>View match anatomy</summary>
                   <div>
+                    <div className="match-anatomy-heading">
+                      <div>
+                        <span>Deterministic result</span>
+                        <strong>{human(match.result.coverage)}</strong>
+                      </div>
+                      <code>{match.result.ruleVersion}</code>
+                    </div>
+                    <div className="dimension-grid" aria-label="Weighted match dimensions">
+                      {match.result.dimensions.map((dimension) => (
+                        <article key={dimension.name}>
+                          <span className={`status-dot ${dimension.state}`} aria-hidden="true" />
+                          <div>
+                            <strong>{human(dimension.name)}</strong>
+                            <small>
+                              {human(dimension.state)} · {dimension.weightUnits} weight units ·{" "}
+                              {dimension.evidenceIds.length} evidence link
+                              {dimension.evidenceIds.length === 1 ? "" : "s"}
+                            </small>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                    <p className="boundary-note match-boundary">
+                      Roles without requirements remain not scored. Otherwise, the four weighted
+                      dimensions determine the scored band; explicit blockers remain separate and
+                      are never averaged away. Evidence Strength is intentionally excluded from this
+                      view; this is not a hiring probability.
+                    </p>
                     {match.result.blockers.map((blocker) => (
                       <p className="blocker" key={blocker.code}>
                         <CircleAlert size={15} />
@@ -1976,6 +2169,12 @@ function Jobs({
                         )}
                       </div>
                     ))}
+                    {match.result.exclusions.length > 0 && (
+                      <div className="match-exclusions">
+                        <strong>Excluded inputs</strong>
+                        <span>{match.result.exclusions.join(" · ")}</span>
+                      </div>
+                    )}
                   </div>
                 </details>
               )}
@@ -2008,6 +2207,13 @@ function Jobs({
           );
         })}
       </div>
+      {dashboard.jobs.length > 0 && visibleRoles.length === 0 && (
+        <Empty
+          icon={FolderSearch2}
+          title="No roles match this view"
+          copy="Clear one or more private filters to bring roles back. No records were changed."
+        />
+      )}
       <Signals dashboard={dashboard} onAct={onAct} busy={busy} />
     </>
   );
@@ -2104,7 +2310,50 @@ function Signals({
             <p>
               {signal.sourceType} · {signal.sourcePeriod}
             </p>
-            <small>{signal.limitations}</small>
+            <span className={`state ${signal.freshness === "current" ? "supported" : "warning"}`}>
+              {human(signal.freshness)} source
+            </span>
+            <details className="signal-provenance">
+              <summary>Source and freshness</summary>
+              <dl>
+                <div>
+                  <dt>Observed</dt>
+                  <dd>{localDateTime(signal.observedAt)}</dd>
+                </div>
+                <div>
+                  <dt>Confidence</dt>
+                  <dd>{human(signal.confidence)}</dd>
+                </div>
+                <div>
+                  <dt>Source</dt>
+                  <dd>
+                    {signal.sourceType} · {signal.sourcePeriod}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Locator</dt>
+                  <dd>
+                    <code>{signal.sourceLocator}</code>
+                  </dd>
+                </div>
+                {signal.originalLabel !== signal.label && (
+                  <div>
+                    <dt>Freshness adjustment</dt>
+                    <dd>
+                      {human(signal.originalLabel)} → {human(signal.label)}
+                    </dd>
+                  </div>
+                )}
+                <div>
+                  <dt>Limits</dt>
+                  <dd>{signal.limitations}</dd>
+                </div>
+              </dl>
+              <p className="boundary-note">
+                Historical evidence cannot establish current eligibility, company policy, or legal
+                advice. Current role wording remains controlling.
+              </p>
+            </details>
           </article>
         ))}
       </div>
@@ -2225,6 +2474,7 @@ function Applications({
                         <Clock3 size={12} aria-hidden="true" /> {note}
                       </span>
                     )}
+                    <RecordedTimeline application={application} />
                     {/* Keyboard-operable by construction: buttons, not drag. */}
                     <div className="board-move">
                       <span className="board-move-label">Move to</span>
@@ -2299,6 +2549,7 @@ function Applications({
               ) : (
                 <small>No outcome recorded</small>
               )}
+              <RecordedTimeline application={application} />
             </div>
             <button
               className="button mini quiet"
@@ -2337,6 +2588,32 @@ function Applications({
         />
       )}
     </>
+  );
+}
+
+function RecordedTimeline({ application }: { application: Application }) {
+  const timeline = recordedOutcomeTimeline(application);
+  if (timeline.length === 0) return null;
+  return (
+    <details className="recorded-timeline">
+      <summary>Recorded timeline</summary>
+      <ol>
+        {timeline.map((entry) => (
+          <li key={entry.id}>
+            <span aria-hidden="true" />
+            <div>
+              <strong>{human(entry.type)}</strong>
+              <time dateTime={entry.occurredAt}>{localDateTime(entry.occurredAt)}</time>
+              {entry.note && <p>{entry.note}</p>}
+            </div>
+          </li>
+        ))}
+      </ol>
+      <p className="boundary-note">
+        Only stored application creation and candidate-recorded outcomes appear here. Gaps infer
+        nothing.
+      </p>
+    </details>
   );
 }
 
@@ -2446,6 +2723,119 @@ function Packets({
                     </a>
                   ))}
                 </div>
+              )}
+              {packet && (
+                <details className="packet-review">
+                  <summary>Inspect content, formats, and assurance</summary>
+                  <div className="packet-review-grid">
+                    <section>
+                      <span>Canonical content</span>
+                      <h3>{packet.canonicalContent.candidateName ?? "Candidate packet"}</h3>
+                      <p>{packet.canonicalContent.summary ?? "No summary stored."}</p>
+                      <dl>
+                        <div>
+                          <dt>Destination</dt>
+                          <dd>
+                            {packet.canonicalContent.destination?.role ?? "Role not recorded"} ·{" "}
+                            {packet.canonicalContent.destination?.company ?? "Company not recorded"}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Authorization wording</dt>
+                          <dd>
+                            {packet.canonicalContent.authorizationWording ?? "No wording stored."}
+                          </dd>
+                        </div>
+                        {packet.canonicalContent.generatedAt && (
+                          <div>
+                            <dt>Generated</dt>
+                            <dd>{localDateTime(packet.canonicalContent.generatedAt)}</dd>
+                          </div>
+                        )}
+                      </dl>
+                      {Boolean(packet.canonicalContent.claims?.length) && (
+                        <ul className="packet-claims">
+                          {packet.canonicalContent.claims?.map((claim, index) => (
+                            <li key={`${index}-${claim.text}`}>
+                              <span>{claim.text}</span>
+                              <small>
+                                {claim.evidenceIds.length} evidence link
+                                {claim.evidenceIds.length === 1 ? "" : "s"}
+                              </small>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </section>
+                    <section>
+                      <span>Document inspection</span>
+                      {packet.artifactManifest.documentInspection ? (
+                        <>
+                          <div className="inspection-status">
+                            <strong>
+                              {human(packet.artifactManifest.documentInspection.status)}
+                            </strong>
+                            <code>{packet.artifactManifest.documentInspection.ruleVersion}</code>
+                          </div>
+                          <ul className="inspection-checks">
+                            {packet.artifactManifest.documentInspection.checks.map((check) => (
+                              <li key={`${check.format ?? "all"}-${check.code}`}>
+                                <span className={`status-dot ${check.status}`} aria-hidden="true" />
+                                <div>
+                                  <strong>{human(check.code)}</strong>
+                                  <small>
+                                    {check.format ? `${check.format.toUpperCase()} · ` : ""}
+                                    {check.detail}
+                                  </small>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        </>
+                      ) : (
+                        <p>No document inspection is stored for this packet.</p>
+                      )}
+                    </section>
+                    <section>
+                      <span>Latest assurance</span>
+                      {packet.latestAssurance ? (
+                        <>
+                          <div className="inspection-status">
+                            <strong>{human(packet.latestAssurance.status)}</strong>
+                            <time dateTime={packet.latestAssurance.createdAt}>
+                              {localDateTime(packet.latestAssurance.createdAt)}
+                            </time>
+                          </div>
+                          <code className="rule-code">{packet.latestAssurance.ruleVersion}</code>
+                          {packet.latestAssurance.findings.length > 0 ? (
+                            <ul className="assurance-findings">
+                              {packet.latestAssurance.findings.map((finding, index) => (
+                                <li key={`${finding.code ?? "finding"}-${index}`}>
+                                  <strong>{human(finding.code ?? "Stored finding")}</strong>
+                                  <span>
+                                    {finding.detail ?? finding.message ?? finding.severity}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p>No assurance findings were recorded.</p>
+                          )}
+                        </>
+                      ) : (
+                        <p>Run assurance to create a review record.</p>
+                      )}
+                    </section>
+                  </div>
+                  <div className="packet-hashes">
+                    <span>Canonical packet hash</span>
+                    <CopyLine command={packet.artifactHash} />
+                  </div>
+                  <p className="boundary-note">
+                    Inspection checks structure, format integrity, and configured rules. It does not
+                    verify claim truth, writing quality, employer acceptance, or external delivery.
+                  </p>
+                </details>
               )}
             </article>
           );
@@ -2691,6 +3081,89 @@ function Actions({
           icon={MailCheck}
           title="No actions prepared"
           copy="Approve a packet before creating a local test-outbox message or a user-opened email deep link. Connected-account sending remains outside this release."
+        />
+      )}
+    </>
+  );
+}
+
+function ActivityLedger({ dashboard }: { dashboard: Dashboard }) {
+  const [typeFilter, setTypeFilter] = useState("all");
+  const types = useMemo(
+    () => [...new Set(dashboard.receipts.map((receipt) => receipt.type))].toSorted(),
+    [dashboard.receipts],
+  );
+  const visibleReceipts =
+    typeFilter === "all"
+      ? dashboard.receipts
+      : dashboard.receipts.filter((receipt) => receipt.type === typeFilter);
+  return (
+    <>
+      <PageIntro
+        eyebrow="Local activity"
+        title="Follow the evidence thread."
+        copy="Nimanto checks each stored receipt against its internal hash before showing it. The ledger is tamper-evident local history—not a signature, an employer receipt, or proof of external delivery."
+        action={
+          types.length > 1 ? (
+            <label className="activity-filter">
+              Receipt type
+              <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+                <option value="all">All receipt types</option>
+                {types.map((type) => (
+                  <option key={type} value={type}>
+                    {human(type)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null
+        }
+      />
+      <div className="activity-ledger">
+        {visibleReceipts.map((receipt) => (
+          <article className="receipt-row" key={receipt.id}>
+            <span className="receipt-knot" aria-hidden="true" />
+            <div className="receipt-heading">
+              <span>Internal hash checked</span>
+              <h2>{human(receipt.type)}</h2>
+              <time dateTime={receipt.occurredAt}>{localDateTime(receipt.occurredAt)}</time>
+            </div>
+            <dl className="receipt-hashes">
+              <div>
+                <dt>Input hash</dt>
+                <dd>
+                  <CopyLine command={receipt.inputHash} />
+                </dd>
+              </div>
+              <div>
+                <dt>Artifact hash</dt>
+                <dd>
+                  <CopyLine command={receipt.artifactHash} />
+                </dd>
+              </div>
+              <div>
+                <dt>Receipt hash</dt>
+                <dd>
+                  <CopyLine command={receipt.receiptHash} />
+                </dd>
+              </div>
+            </dl>
+            <code className="receipt-id">{receipt.id}</code>
+          </article>
+        ))}
+      </div>
+      {dashboard.receipts.length === 0 && (
+        <Empty
+          icon={FileClock}
+          title="No local receipts yet"
+          copy="Match runs, packet generation and review, packet approval, and executed external actions add tamper-evident receipts as they occur."
+        />
+      )}
+      {dashboard.receipts.length > 0 && visibleReceipts.length === 0 && (
+        <Empty
+          icon={FileClock}
+          title="No receipts of this type"
+          copy="Choose another receipt type to return to the local activity history."
         />
       )}
     </>

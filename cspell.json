@@ -98,6 +98,10 @@
     "WCAG",
     "wght",
     "wordmark",
-    "Wordmark"
+    "Wordmark",
+    "nextval",
+    "setval",
+    "worktree",
+    "worktrees"
   ]
 }

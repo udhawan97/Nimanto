@@ -469,7 +469,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     openapi: {
       info: {
         title: "Nimanto local beta API",
-        version: "0.2.0",
+        version: "0.3.0",
         description: "Candidate-side evidence and application workbench.",
       },
       servers: [{ url: `http://${options.host}:${options.port}` }],
@@ -487,10 +487,10 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     return payload;
   });
 
-  app.get("/health", async () => ({ status: "ok", version: "0.2.0" }));
+  app.get("/health", async () => ({ status: "ok", version: "0.3.0" }));
   app.get("/v1/meta", async () => ({
     name: "Nimanto",
-    version: "0.2.0",
+    version: "0.3.0",
     mode: "local_beta",
     externalActionsEnabled,
     providers: {
@@ -776,6 +776,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
       receipts,
       profile,
       schedules,
+      assurances,
     ] = await Promise.all([
       store.listEvidence(person.tenantId),
       store.listJobs(person.tenantId),
@@ -787,7 +788,11 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
       store.listReceipts(person.tenantId),
       store.latestProfileVersion(person.tenantId),
       store.listSourceSchedules(person.tenantId),
+      store.listLatestAssurances(person.tenantId),
     ]);
+    const assuranceByPacket = new Map(
+      assurances.map((assurance) => [assurance.packetId, assurance]),
+    );
     return {
       identity: person,
       profile,
@@ -796,7 +801,10 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
       matches,
       h1bSignals: signals.map((signal) => ({ ...signal, ...freshH1bLabel(signal) })),
       applications,
-      packets,
+      packets: packets.map((packet) => ({
+        ...packet,
+        latestAssurance: assuranceByPacket.get(packet.id) ?? null,
+      })),
       externalActions: actions,
       receipts,
       schedules,

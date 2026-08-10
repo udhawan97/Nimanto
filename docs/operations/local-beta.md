@@ -52,7 +52,7 @@ The digest-pinned container runs the same static web workbench and API with publ
 docker compose up --build
 ```
 
-Open `http://127.0.0.1:4300/`. Retrieve the generated admin key with `docker compose exec nimanto sh -c 'cat /data/launch-secret'`, then issue a private invitation as above. The named `nimanto-data` volume holds the database and artifacts. The image is built in CI; the v0.1.0 release has not been certified for internet exposure and should remain bound to loopback.
+Open `http://127.0.0.1:4300/`. Retrieve the generated admin key with `docker compose exec nimanto sh -c 'cat /data/launch-secret'`, then issue a private invitation as above. The named `nimanto-data` volume holds the database and artifacts. The image is built in CI; v0.3.0 has not been certified for internet exposure and should remain bound to loopback.
 
 ## Data locations
 
@@ -112,6 +112,26 @@ Each schedule can be run now, paused, resumed, or cancelled. A worker cycle clai
 
 The queue stores only provider and board identifiers. Scheduled work cannot prepare packets, approve, email, submit, or open any Slice 4 action. `pnpm dev:core` or `pnpm start` intentionally runs only the API and web processes for deterministic testing; `pnpm start:all` includes the worker.
 
+## Inspect the evidence thread
+
+- **Role discovery** search and source/match-state/tracking filters are ephemeral React
+  state. Refreshing or leaving the page clears them; the API never receives a
+  filter preference.
+- **H-1B evidence signals → Source and freshness** shows the stored locator,
+  period, observation time, confidence, freshness, any original label that was
+  downgraded, and the signal's stated limits. This is historical context, not
+  legal advice or a current employer policy.
+- **Applications → Recorded timeline** lists application creation and explicit
+  candidate-reported outcomes only. Missing dates and silence create no inferred
+  stage.
+- **Review packets → Inspect content, formats, and assurance** shows canonical
+  content, `document_assurance_v1` checks, artifact hashes, and the latest stored
+  assurance run. Inspection verifies structure and configured rules; it does not
+  verify claim truth, writing quality, employer acceptance, or delivery.
+- **Local activity** verifies each internal receipt hash while loading the
+  dashboard, then exposes the input, artifact, and receipt hashes. These records
+  are tamper-evident but unsigned and are not external acknowledgments.
+
 ## Verify
 
 ```bash
@@ -143,4 +163,4 @@ The packet must be approved, the action must be separately approved, and the run
 
 ### Gmail or Outlook is unavailable
 
-Connected-account sending is not part of v0.2.0. Use the local test outbox or a user-opened deep link. See [provider boundaries](provider-setup.md).
+Connected-account sending is not part of v0.3.0. Use the local test outbox or a user-opened deep link. See [provider boundaries](provider-setup.md).

@@ -68,6 +68,12 @@ The local beta uses PGlite, which runs PostgreSQL in-process and gives a zero-in
 
 Tenant isolation is enforced in every public repository method and exercised through cross-tenant tests. This is defense in depth for the local beta, not a claim of production PostgreSQL row-level security.
 
+Assurance runs carry a database-generated monotonic sequence. Packet review and
+packet approval both resolve the latest run by that sequence, so two runs sharing
+the same wall-clock timestamp cannot be reordered by their random IDs. Stored
+execution receipts are verified against their canonical hashes on dashboard read;
+the workbench exposes those internal hashes without treating them as signatures.
+
 ## Authentication
 
 `POST /v1/auth/local` and the explicitly labeled synthetic-demo route are available only on loopback while local mode is enabled and require the high-entropy launch key stored mode `0600`. The local route records the candidate's own name and email. It creates a local tenant, user, membership, and a random 256-bit session token. Only the SHA-256 token hash is stored. The browser receives an HttpOnly, SameSite=Lax cookie.
@@ -82,7 +88,7 @@ Candidates can schedule Greenhouse, Lever, and Ashby public-board refreshes from
 
 The database state machine and domain state machine must agree. The API refuses execution unless the action is `approved` and the in-memory runtime switch is on. The switch has no environment override and resets to off with every API restart.
 
-Version 0.2.0 has no connected-account provider. Verification uses only a user-opened deep link and the local test outbox. Gmail, Outlook, form submission, and desktop delivery remain behind the separately approved Slice 4 boundary.
+Version 0.3.0 has no connected-account provider. Verification uses only a user-opened deep link and the local test outbox. Gmail, Outlook, form submission, and desktop delivery remain behind the separately approved Slice 4 boundary.
 
 ## Scaling path
 

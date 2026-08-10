@@ -117,6 +117,75 @@ describe("tenant-scoped persistence public seam", () => {
 });
 
 describe("beta workflow persistence", () => {
+  it("backfills assurance order when reopening a pre-sequence workspace", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nimanto-store-upgrade-"));
+    const data = join(root, "data");
+    const store = await NimantoStore.open(data);
+    stores.push(store);
+    const identity = await store.createLocalTenant("upgrade@example.test", "Upgrade");
+    const job = await store.upsertJob(identity.tenantId, {
+      source: "manual",
+      sourceJobId: "upgrade-job",
+      title: "Engineer",
+      company: "Northwind",
+      description: "Build services",
+      location: "",
+      workMode: "unspecified",
+      url: "",
+      requirements: [],
+      capability: "deep_link",
+      sourceMeta: {},
+      contentHash: "upgrade-content",
+    });
+    const application = await store.createApplication(identity.tenantId, job.id, null);
+    const packet = await store.createPacket(identity.tenantId, {
+      applicationId: application.id,
+      profileVersionId: null,
+      canonicalContent: { schemaVersion: "packet_v1", claims: [{ text: "Preserved" }] },
+      artifactManifest: { artifacts: [] },
+    });
+    const older = await store.saveAssurance(identity.tenantId, packet.id, {
+      status: "blocked",
+      ruleVersion: "application_assurance_v0",
+      findings: [{ code: "OLDER_FINDING" }],
+    });
+    const newer = await store.saveAssurance(identity.tenantId, packet.id, {
+      status: "passed",
+      ruleVersion: "application_assurance_v1",
+      findings: [],
+    });
+    await store.close();
+    stores.splice(stores.indexOf(store), 1);
+
+    const legacy = await PGlite.create(data);
+    await legacy.query(
+      `UPDATE assurance_runs
+       SET created_at = CASE id
+         WHEN $1 THEN '2026-08-01T00:00:00.000Z'::timestamptz
+         WHEN $2 THEN '2026-08-02T00:00:00.000Z'::timestamptz
+       END`,
+      [older.id, newer.id],
+    );
+    await legacy.exec("ALTER TABLE assurance_runs DROP COLUMN run_sequence");
+    await legacy.exec("DROP SEQUENCE IF EXISTS assurance_runs_run_sequence_seq");
+    await legacy.close();
+
+    const reopened = await NimantoStore.open(data);
+    stores.push(reopened);
+    expect(await reopened.listLatestAssurances(identity.tenantId)).toEqual([
+      expect.objectContaining({
+        id: newer.id,
+        status: "passed",
+        ruleVersion: "application_assurance_v1",
+      }),
+    ]);
+    expect(await reopened.getPacket(identity.tenantId, packet.id)).toMatchObject({
+      canonicalContent: { schemaVersion: "packet_v1", claims: [{ text: "Preserved" }] },
+      artifactManifest: { artifacts: [] },
+    });
+    expect((await reopened.approvePacket(identity.tenantId, packet.id))?.status).toBe("approved");
+  });
+
   it("rejects a schedule that its provider adapter could never execute", async () => {
     const root = await mkdtemp(join(tmpdir(), "nimanto-store-"));
     const store = await NimantoStore.open(join(root, "data"));
@@ -509,6 +578,23 @@ describe("beta workflow persistence", () => {
     await expect(store.approvePacket(identity.tenantId, packet.id)).rejects.toThrow(
       "ASSURANCE_REQUIRED",
     );
+    await store.saveAssurance(identity.tenantId, packet.id, {
+      status: "passed",
+      ruleVersion: "application_assurance_v1",
+      findings: [],
+    });
+    await store.saveAssurance(identity.tenantId, packet.id, {
+      status: "blocked",
+      ruleVersion: "application_assurance_v2",
+      findings: [{ code: "SYNTHETIC_REVIEW_FINDING" }],
+    });
+    expect(await store.listLatestAssurances(identity.tenantId)).toEqual([
+      expect.objectContaining({
+        packetId: packet.id,
+        status: "blocked",
+        ruleVersion: "application_assurance_v2",
+      }),
+    ]);
     await store.saveAssurance(identity.tenantId, packet.id, {
       status: "passed",
       ruleVersion: "application_assurance_v1",

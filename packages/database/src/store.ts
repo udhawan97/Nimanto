@@ -1317,7 +1317,7 @@ export class NimantoStore {
     const result = await this.#db.query<any>(
       `SELECT id, packet_id, status, rule_version, findings, created_at
        FROM assurance_runs WHERE tenant_id = $1 AND packet_id = $2
-       ORDER BY created_at DESC, id DESC LIMIT 1`,
+       ORDER BY run_sequence DESC LIMIT 1`,
       [tenantId, packetId],
     );
     const row = result.rows[0];
@@ -1331,6 +1331,29 @@ export class NimantoStore {
           createdAt: iso(row.created_at)!,
         }
       : null;
+  }
+
+  async listLatestAssurances(tenantId: string): Promise<AssuranceRecord[]> {
+    const result = await this.#db.query<any>(
+      `SELECT id, packet_id, status, rule_version, findings, created_at
+       FROM (
+         SELECT DISTINCT ON (packet_id)
+           id, packet_id, status, rule_version, findings, created_at
+         FROM assurance_runs
+         WHERE tenant_id = $1
+         ORDER BY packet_id, run_sequence DESC
+       ) AS latest
+       ORDER BY created_at DESC, id DESC`,
+      [tenantId],
+    );
+    return result.rows.map((row) => ({
+      id: row.id,
+      packetId: row.packet_id,
+      status: row.status,
+      ruleVersion: row.rule_version,
+      findings: row.findings,
+      createdAt: iso(row.created_at)!,
+    }));
   }
 
   async approvePacket(tenantId: string, packetId: string): Promise<PacketRecord | null> {

@@ -10,12 +10,12 @@ export type ApplicationStatus =
   "tracked" | "prepared" | "approved_for_export" | "submitted_externally" | "withdrawn";
 
 export type Section =
-  "overview" | "evidence" | "jobs" | "applications" | "packets" | "actions" | "data";
+  "overview" | "evidence" | "jobs" | "applications" | "packets" | "actions" | "activity" | "data";
 
 type EvidenceLike = { status: string };
 type JobLike = { id: string };
 type MatchLike = { job: { id: string }; result: { blockers: unknown[] } };
-type OutcomeLike = { occurredAt: string };
+type OutcomeLike = { id?: string; type?: string; note?: string; occurredAt: string };
 type ApplicationLike = {
   id: string;
   jobId?: string;
@@ -26,6 +26,46 @@ type ApplicationLike = {
 };
 type PacketLike = { status: string; applicationId?: string };
 type ActionLike = { state: string };
+
+type RoleLike = {
+  source: string;
+  title: string;
+  company: string;
+  location?: string;
+  tracked: boolean;
+  match: { result: { band: string; blockers: unknown[] } } | null;
+};
+
+export type RoleFilters = {
+  query: string;
+  source: string;
+  fit: string;
+  tracking: "all" | "tracked" | "untracked";
+};
+
+/* These filters are intentionally pure and ephemeral. The workbench owns the
+ * input state for the life of the open section; no query, source, or shortlist
+ * preference is written to the API or local storage. */
+export function filterRoles<T extends RoleLike>(roles: readonly T[], filters: RoleFilters): T[] {
+  const query = filters.query.trim().toLocaleLowerCase("en-US");
+  return roles.filter((role) => {
+    if (
+      query &&
+      ![role.title, role.company, role.location ?? ""]
+        .join(" ")
+        .toLocaleLowerCase("en-US")
+        .includes(query)
+    )
+      return false;
+    if (filters.source !== "all" && role.source !== filters.source) return false;
+    if (filters.tracking === "tracked" && !role.tracked) return false;
+    if (filters.tracking === "untracked" && role.tracked) return false;
+    if (filters.fit === "all") return true;
+    if (filters.fit === "unmatched") return role.match === null;
+    if (filters.fit === "blocked") return Boolean(role.match?.result.blockers.length);
+    return role.match?.result.band === filters.fit;
+  });
+}
 
 /* ── F2 · next-step rail ─────────────────────────────────────────────────── */
 
@@ -190,6 +230,40 @@ export function followUpNote(application: ApplicationLike, now: Date): string | 
   return `Nothing recorded since ${on}`;
 }
 
+export type RecordedTimelineEntry = {
+  id: string;
+  type: string;
+  note: string;
+  occurredAt: string;
+};
+
+/* A chronology of records, not a reconstructed hiring process. In particular,
+ * status transitions are absent because the current application status does not
+ * tell us when a real-world event occurred. */
+export function recordedOutcomeTimeline(application: ApplicationLike): RecordedTimelineEntry[] {
+  const entries: RecordedTimelineEntry[] = [];
+  if (application.createdAt) {
+    entries.push({
+      id: `${application.id}-created`,
+      type: "tracked",
+      note: "Application record created",
+      occurredAt: application.createdAt,
+    });
+  }
+  for (const outcome of application.outcomes ?? []) {
+    entries.push({
+      id: outcome.id ?? `${application.id}-${outcome.occurredAt}-${outcome.type ?? "outcome"}`,
+      type: outcome.type ?? "outcome",
+      note: outcome.note ?? "",
+      occurredAt: outcome.occurredAt,
+    });
+  }
+  return entries.toSorted((left, right) => {
+    const time = Date.parse(left.occurredAt) - Date.parse(right.occurredAt);
+    return Number.isNaN(time) || time === 0 ? left.id.localeCompare(right.id) : time;
+  });
+}
+
 /* ── F1 · pipeline board ─────────────────────────────────────────────────── */
 
 export const BOARD_COLUMNS: readonly { id: ApplicationStatus; label: string }[] = [
@@ -300,6 +374,7 @@ export const SECTIONS: readonly Section[] = [
   "applications",
   "packets",
   "actions",
+  "activity",
   "data",
 ];
 
