@@ -17,11 +17,16 @@ const METHOD = [
   },
   {
     step: "03",
+    title: "Remember",
+    body: "Review application records after 336 quiet hours, count explicit creation-time cohorts, and inspect retained profile, match, packet and assurance history. The workbench shows literal stored values without inventing a cause or employer outcome.",
+  },
+  {
+    step: "04",
     title: "Prepare",
     body: "Inspect canonical claims, authorization wording, format checks and stored assurance findings before reviewable JSON, text, modern and ATS-safe DOCX/PDF leave the workbench.",
   },
   {
-    step: "04",
+    step: "05",
     title: "Approve",
     body: "Pass assurance, approve the packet, approve the exact action, then turn on a runtime switch that resets itself off. Hash-checked local receipts preserve the thread without claiming an employer received it.",
   },
@@ -42,7 +47,7 @@ const BOUNDARY = [
   },
   {
     title: "No invented history.",
-    body: "Application timelines contain only what you recorded. A gap is not a rejection, a delay, or a prediction.",
+    body: "Application timelines and retained comparisons contain only stored records. A gap or difference is not a rejection, a cause, or a prediction.",
   },
 ];
 
@@ -81,6 +86,12 @@ export default function Home() {
               <a className="button quiet" href="https://github.com/udhawan97/Nimanto">
                 View source <ArrowUpRight size={15} />
               </a>
+              <a
+                className="button quiet"
+                href="https://github.com/udhawan97/Nimanto/blob/main/docs/releases/v0.4.0.md"
+              >
+                v0.4.0 notes <ArrowUpRight size={15} />
+              </a>
             </div>
           </div>
           <a className="scroll-cue" href="#thesis" aria-label="Scroll to the introduction">
@@ -101,7 +112,8 @@ export default function Home() {
               <p>
                 A job search usually becomes a pile of resumes, saved roles, sponsorship rumours and
                 half-finished forms. Nimanto gives that work one inspectable path: build a verified
-                career record once, see exactly why a role fits, and approve every handoff yourself.
+                career record once, see exactly why a role fits, compare what you actually stored,
+                and approve every handoff yourself.
               </p>
               <p className="quiet">
                 It is a candidate tool. It does not screen you for employers, guess your odds, or
@@ -243,6 +255,12 @@ export default function Home() {
               <a className="text-link" href="https://github.com/udhawan97/Nimanto#beta-boundaries">
                 Read the beta boundaries <ArrowRight size={15} />
               </a>
+              <a
+                className="text-link"
+                href="https://github.com/udhawan97/Nimanto/blob/main/docs/releases/v0.4.0.md"
+              >
+                Read the v0.4.0 release notes <ArrowRight size={15} />
+              </a>
             </div>
           </div>
         </section>
@@ -257,6 +275,9 @@ export default function Home() {
           <nav aria-label="Footer">
             <a href="https://github.com/udhawan97/Nimanto">Source</a>
             <a href="https://github.com/udhawan97/Nimanto/blob/main/SECURITY.md">Security</a>
+            <a href="https://github.com/udhawan97/Nimanto/blob/main/docs/releases/v0.4.0.md">
+              v0.4.0 notes
+            </a>
             <a href="https://github.com/udhawan97/Nimanto/blob/main/LICENSE">Apache-2.0</a>
           </nav>
           <p className="placard">Private by default · Candidate controlled</p>

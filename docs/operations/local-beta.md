@@ -52,7 +52,7 @@ The digest-pinned container runs the same static web workbench and API with publ
 docker compose up --build
 ```
 
-Open `http://127.0.0.1:4300/`. Retrieve the generated admin key with `docker compose exec nimanto sh -c 'cat /data/launch-secret'`, then issue a private invitation as above. The named `nimanto-data` volume holds the database and artifacts. The image is built in CI; v0.3.0 has not been certified for internet exposure and should remain bound to loopback.
+Open `http://127.0.0.1:4300/`. Retrieve the generated admin key with `docker compose exec nimanto sh -c 'cat /data/launch-secret'`, then issue a private invitation as above. The named `nimanto-data` volume holds the database and artifacts. The image is built in CI; v0.4.0 has not been certified for internet exposure and should remain bound to loopback.
 
 ## Data locations
 
@@ -124,13 +124,45 @@ The queue stores only provider and board identifiers. Scheduled work cannot prep
 - **Applications → Recorded timeline** lists application creation and explicit
   candidate-reported outcomes only. Missing dates and silence create no inferred
   stage.
+- **Applications → Record-review queue** is a current derived view over the
+  latest literal activity timestamp. It includes non-withdrawn records after 336
+  elapsed hours, shows that baseline and the exact computed due time in due
+  order, persists no reminder, and infers no employer response.
+- **Applications → Application cohort counts** uses an explicit local-time
+  creation window. Optional role-source and match-band filters use current stored
+  values. Unmatched means no stored match; unknown preserves a stored band this
+  client does not recognize. Results are raw counts, never rates or predictions.
 - **Review packets → Inspect content, formats, and assurance** shows canonical
   content, `document_assurance_v1` checks, artifact hashes, and the latest stored
   assurance run. Inspection verifies structure and configured rules; it does not
   verify claim truth, writing quality, employer acceptance, or delivery.
+- **Review packets → History** loads retained packet generations for one
+  application on demand. The comparison lists literal changed canonical fields
+  and artifact-manifest entries; it is history, not lineage. Status and manifests
+  are current mutable fields. Assurance runs use packet-local ordinals and do not
+  expose the store's global ordering sequence.
+- **Stored history** loads cursor-paginated profile versions and match runs only
+  when opened. Profile diffs compare exact claim IDs and authorization wording.
+  Neutral A/B labels permit same or reverse-ordered selections without misstating
+  chronology. Same-role match comparisons disclose their rule, blocker values,
+  stored reference hash, and result hash but do not claim causality, replay
+  guarantees, or immutable job history.
 - **Local activity** verifies each internal receipt hash while loading the
   dashboard, then exposes the input, artifact, and receipt hashes. These records
   are tamper-evident but unsigned and are not external acknowledgments.
+
+## Inspect a workspace export
+
+Open **Data controls**, read the sensitive-data warning, and confirm it before
+downloading JSON. `nimanto-local-beta-v2` wraps `nimanto_export_v2`, including
+retained profile versions, match runs, assurance runs, packet manifests,
+applications, and receipts. It excludes sessions, invitation secrets, deletion
+internals, and generated packet files.
+
+Treat the file as sensitive candidate data. It is an inspection export—not a
+restore archive, immutable role history, online backup, or replay proof. Continue
+to stop the API and copy the complete `.nimanto-data/` directory for the bounded
+offline backup procedure above.
 
 ## Verify
 
@@ -163,4 +195,4 @@ The packet must be approved, the action must be separately approved, and the run
 
 ### Gmail or Outlook is unavailable
 
-Connected-account sending is not part of v0.3.0. Use the local test outbox or a user-opened deep link. See [provider boundaries](provider-setup.md).
+Connected-account sending is not part of v0.4.0. Use the local test outbox or a user-opened deep link. See [provider boundaries](provider-setup.md).

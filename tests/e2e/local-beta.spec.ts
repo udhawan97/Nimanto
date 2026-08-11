@@ -47,6 +47,52 @@ async function expectCopyLineContained(copyLine: Locator) {
   expect(scrollLeft).toBeGreaterThan(0);
 }
 
+async function expectSurfaceContained(page: Page, surface: Locator, label: string) {
+  await expect(surface).toBeVisible();
+  const geometry = await surface.evaluate((root) => {
+    const rootRect = root.getBoundingClientRect();
+    const checked = [
+      root,
+      ...root.querySelectorAll("code, dd, li, p, small, strong, select, button"),
+    ];
+    const escaped = checked.flatMap((element) =>
+      [...element.getClientRects()]
+        .filter((rect) => rect.left < rootRect.left - 1 || rect.right > rootRect.right + 1)
+        .map((rect) => ({
+          tag: element.tagName,
+          text: element.textContent?.slice(0, 80) ?? "",
+          left: rect.left,
+          right: rect.right,
+          rootLeft: rootRect.left,
+          rootRight: rootRect.right,
+        })),
+    );
+    const overflowing = [...root.querySelectorAll("*")]
+      .filter((element) => element.scrollWidth > element.clientWidth + 1)
+      .map((element) => ({
+        tag: element.tagName,
+        className: element.className,
+        text: element.textContent?.slice(0, 80) ?? "",
+        clientWidth: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+      }));
+    return {
+      clientWidth: root.clientWidth,
+      scrollWidth: root.scrollWidth,
+      escaped,
+      overflowing,
+    };
+  });
+  expect(geometry.escaped, label + " child geometry").toEqual([]);
+  expect(geometry.scrollWidth, label + " scroll width").toBeLessThanOrEqual(geometry.clientWidth);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    ),
+    label + " document overflow",
+  ).toBeLessThanOrEqual(0);
+}
+
 test("the public site reflows, links, and identifies itself in WebKit", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark" });
   await page.goto("/");
@@ -58,6 +104,14 @@ test("the public site reflows, links, and identifies itself in WebKit", async ({
   await expect(page.locator('link[rel="manifest"]')).toHaveAttribute(
     "href",
     /manifest\.webmanifest$/,
+  );
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+    "href",
+    "https://udhawan97.github.io/Nimanto/",
+  );
+  await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute(
+    "content",
+    "summary_large_image",
   );
   const skipLink = page.getByRole("link", { name: "Skip to main content" });
   await skipLink.focus();
@@ -78,6 +132,10 @@ test("the public site reflows, links, and identifies itself in WebKit", async ({
   await expect(page.getByRole("link", { name: /Open the workbench/ })).toHaveAttribute(
     "href",
     "./workspace/",
+  );
+  await expect(page.getByRole("link", { name: "v0.4.0 notes" }).first()).toHaveAttribute(
+    "href",
+    /docs\/releases\/v0\.4\.0\.md$/,
   );
 });
 
@@ -181,7 +239,7 @@ test("a candidate starts a private workspace and receives deterministic role exp
   await schedule.getByRole("button", { name: "Resume schedule" }).click();
   await expect(schedule).toContainText("Queued");
 
-  for (const width of [320, 375, 768, 1280]) {
+  for (const width of [320, 375, 414, 768, 1280, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -245,6 +303,7 @@ test("one guarded control owns every status change, and the two views are exclus
   await page.getByRole("button", { name: "Run starter matches" }).click();
   await page.getByRole("button", { name: "Role discovery" }).click();
   await page.getByRole("button", { name: "Track", exact: true }).first().click();
+  await expect(page.getByRole("button", { name: "Tracked", exact: true }).first()).toBeDisabled();
   await page.getByRole("button", { name: "Applications" }).click();
 
   // Board view used to render the row list underneath it, because `hidden` lost
@@ -388,6 +447,124 @@ test("evidence-rich review features stay literal, local, and inspectable", async
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
   );
   expect(overflow).toBeLessThanOrEqual(0);
+});
+
+test("retained history, record review, cohorts, and sensitive export stay bounded and explicit", async ({
+  page,
+}) => {
+  await expect
+    .poll(
+      async () => {
+        try {
+          return (await page.request.get("http://127.0.0.1:4310/health")).ok();
+        } catch {
+          return false;
+        }
+      },
+      { message: "local API health before retained-history journey", timeout: 20_000 },
+    )
+    .toBe(true);
+  await page.goto(`/workspace/#bootstrap=${bootstrapSecret}`);
+  await page.getByLabel("Your name").fill("History Check");
+  await page.getByLabel("Your email").fill("history@example.test");
+  await page.getByRole("button", { name: "Start private workspace" }).click();
+  await page.getByRole("button", { name: "Run starter matches" }).click();
+
+  await page.getByRole("button", { name: "Evidence vault" }).click();
+  await page
+    .getByLabel("Candidate-approved statement")
+    .fill("I require employer support for an H-1B transfer.");
+  await page.getByRole("button", { name: "Save profile version" }).click();
+
+  await page.getByRole("button", { name: "Role discovery" }).click();
+  const role = page.locator(".job-row").first();
+  const comparedRoleTitle = (await role.getByRole("heading", { level: 2 }).textContent())!.trim();
+  const comparedRoleCompany = (await role.locator(".job-main p").textContent())!.split(" · ")[0]!;
+  await role.getByRole("button", { name: "Explain fit" }).click();
+  await role.getByRole("button", { name: "Track", exact: true }).click();
+
+  await page.getByRole("button", { name: "Stored history" }).click();
+  const profileHistory = page.locator(".history-panel").first();
+  await expect(profileHistory.getByRole("heading", { name: "Profile version diff" })).toBeVisible();
+  await expect(profileHistory.getByText("Version A exact wording")).toBeVisible();
+  await expect(profileHistory.getByText("Version B exact wording")).toBeVisible();
+  const profileA = profileHistory.getByLabel("Profile version A");
+  const profileB = profileHistory.getByLabel("Profile version B");
+  const profileOptions = await profileA
+    .locator("option")
+    .evaluateAll((options) => options.map((option) => (option as HTMLOptionElement).value));
+  await profileB.selectOption(profileOptions[0]!);
+  await expect(profileHistory.getByText("Version B exact wording")).toBeVisible();
+  await profileA.selectOption(profileOptions[0]!);
+  await profileB.selectOption(profileOptions[1]!);
+  await expect(profileHistory.getByText("Version A exact wording")).toBeVisible();
+  const matchHistory = page.locator(".history-panel").nth(1);
+  await expect(
+    matchHistory.getByRole("heading", { name: "Same-role match comparison" }),
+  ).toBeVisible();
+  await matchHistory
+    .getByLabel("Role with stored runs")
+    .selectOption({ label: comparedRoleTitle + " · " + comparedRoleCompany });
+  await expect(matchHistory.getByText("Stored run A")).toBeVisible();
+  await expect(matchHistory.getByText("Stored run B")).toBeVisible();
+  await expect(matchHistory.getByText("Rule version").first()).toBeVisible();
+  await expect(matchHistory.getByText("Blockers").first()).toBeVisible();
+  await expect(matchHistory.getByText(/not a content hash/)).toBeVisible();
+  const runA = matchHistory.getByLabel("Stored match run A");
+  const runB = matchHistory.getByLabel("Stored match run B");
+  const runOptions = await runA
+    .locator("option")
+    .evaluateAll((options) => options.map((option) => (option as HTMLOptionElement).value));
+  await runB.selectOption(runOptions[0]!);
+  await expect(matchHistory.getByText("Stored run B")).toBeVisible();
+  await runA.selectOption(runOptions[0]!);
+  await runB.selectOption(runOptions[1]!);
+  await page.setViewportSize({ width: 320, height: 900 });
+  await expectSurfaceContained(page, page.locator(".history-grid"), "stored history at 320px");
+
+  await page.getByRole("button", { name: "Open navigation" }).click();
+  await page.getByRole("button", { name: "Applications" }).click();
+  await expect(page.getByRole("heading", { name: "Record-review queue" })).toBeVisible();
+  await expect(page.getByText(/No application record has reached 336 elapsed hours/)).toBeVisible();
+  const cohort = page.locator(".cohort-panel");
+  await expect(cohort.getByRole("heading", { name: /explicit creation window/ })).toBeVisible();
+  await expect(cohort.getByText("Counts only.")).toBeVisible();
+  await expect(cohort.locator(".metric").first()).toContainText("1");
+  await expectSurfaceContained(page, cohort, "application cohort at 320px");
+
+  await page.getByRole("button", { name: "Open navigation" }).click();
+  await page.getByRole("button", { name: "Review packets" }).click();
+  const packet = page.locator(".packet-row").first();
+  await packet.getByRole("button", { name: "Generate", exact: true }).click();
+  await packet.getByRole("button", { name: "Generate new" }).click();
+  await packet.getByRole("button", { name: "Assure", exact: true }).click();
+  await packet.getByRole("button", { name: "Assure", exact: true }).click();
+  await packet.getByRole("button", { name: "History", exact: true }).click();
+  const packetHistory = packet.locator(".packet-history");
+  await expect(
+    packetHistory.getByRole("heading", { name: "Packet history and comparison" }),
+  ).toBeVisible();
+  await expect(packetHistory.locator(".packet-version-list article")).toHaveCount(2);
+  await packetHistory
+    .locator(".packet-version-list article")
+    .first()
+    .getByRole("button", { name: "Assurance history" })
+    .click();
+  await expect(packetHistory.getByText("Run 2 · Passed")).toBeVisible();
+  await expect(packetHistory.getByText(/no workspace-global sequence is exposed/)).toBeVisible();
+  await expect(packetHistory.getByText(/Changed fields:/)).toBeVisible();
+  await expect(packetHistory.getByText("Artifact manifest", { exact: true })).toBeVisible();
+  await expectSurfaceContained(page, packetHistory, "packet history at 320px");
+
+  await page.getByRole("button", { name: "Open navigation" }).click();
+  await page.getByRole("button", { name: "Data controls" }).click();
+  const exportButton = page.getByRole("button", { name: "Download JSON" });
+  await expect(exportButton).toBeDisabled();
+  await page.getByLabel(/I understand this JSON contains sensitive candidate records/).check();
+  await expect(exportButton).toBeEnabled();
+  await expect(page.getByText(/not a restore archive/)).toBeVisible();
+
+  await expectSurfaceContained(page, page.locator(".data-grid"), "data controls at 320px");
 });
 
 test("long action references keep their Copy control clear at 320px", async ({ page }) => {

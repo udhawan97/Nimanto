@@ -1,7 +1,7 @@
 {
   "name": "Nimanto",
   "short_name": "Nimanto",
-  "description": "A private, evidence-first job search and application workbench.",
+  "description": "A private, evidence-first job search, stored-history, and application workbench.",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#0A0908",

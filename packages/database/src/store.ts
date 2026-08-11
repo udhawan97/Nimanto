@@ -64,6 +64,11 @@ export interface ProfileVersionRecord {
   createdAt: string;
 }
 
+export interface HistoryPage<T> {
+  items: T[];
+  nextCursor: string | null;
+}
+
 export interface JobRecord {
   id: string;
   source: string;
@@ -147,6 +152,12 @@ export interface AssuranceRecord {
   createdAt: string;
 }
 
+export interface AssuranceHistoryRecord extends AssuranceRecord {
+  /** Tenant-safe ordinal within this packet. The database-wide sequence is
+   * intentionally never returned. */
+  packetOrdinal: number;
+}
+
 export interface ExternalActionRecord {
   id: string;
   packetId: string | null;
@@ -192,6 +203,12 @@ function sha256(value: string): string {
 function iso(value: string | Date | null): string | null {
   if (value === null) return null;
   return value instanceof Date ? value.toISOString() : value;
+}
+
+function historyLimit(value?: number): number {
+  if (value === undefined) return 20;
+  if (!Number.isInteger(value) || value < 1) throw new Error("INVALID_LIMIT");
+  return Math.min(value, 50);
 }
 
 async function tightenPosixPermissions(directory: string): Promise<void> {
@@ -859,6 +876,42 @@ export class NimantoStore {
       : null;
   }
 
+  async listProfileVersions(
+    tenantId: string,
+    options: { cursor?: string; limit?: number } = {},
+  ): Promise<HistoryPage<ProfileVersionRecord>> {
+    const limit = historyLimit(options.limit);
+    let anchor: { created_at: string | Date; id: string } | undefined;
+    if (options.cursor) {
+      const result = await this.#db.query<{ created_at: string | Date; id: string }>(
+        `SELECT created_at, id FROM profile_versions
+         WHERE tenant_id = $1 AND id = $2 LIMIT 1`,
+        [tenantId, options.cursor],
+      );
+      anchor = result.rows[0];
+      if (!anchor) throw new Error("INVALID_CURSOR");
+    }
+    const result = await this.#db.query<any>(
+      `SELECT id, claim_ids, authorization_wording, input_hash, created_at
+       FROM profile_versions
+       WHERE tenant_id = $1
+         AND ($2::timestamptz IS NULL OR (created_at, id) < ($2::timestamptz, $3::text))
+       ORDER BY created_at DESC, id DESC LIMIT $4`,
+      [tenantId, anchor ? iso(anchor.created_at) : null, anchor?.id ?? null, limit + 1],
+    );
+    const items = result.rows.slice(0, limit).map((row) => ({
+      id: row.id,
+      claimIds: row.claim_ids,
+      authorizationWording: row.authorization_wording ?? "",
+      inputHash: row.input_hash,
+      createdAt: iso(row.created_at)!,
+    }));
+    return {
+      items,
+      nextCursor: result.rows.length > limit ? (items.at(-1)?.id ?? null) : null,
+    };
+  }
+
   async upsertJob(
     tenantId: string,
     input: Omit<JobRecord, "id" | "updatedAt" | "status"> & { id?: string; status?: string },
@@ -972,6 +1025,19 @@ export class NimantoStore {
     return result.rows.map((row) => this.#mapJob(row));
   }
 
+  async listJobsByIds(tenantId: string, ids: readonly string[]): Promise<JobRecord[]> {
+    const uniqueIds = [...new Set(ids)];
+    if (uniqueIds.length === 0) return [];
+    const result = await this.#db.query<any>(
+      `SELECT id, source, source_job_id, title, company, description, location,
+        work_mode, url, requirements, status, capability, source_meta, content_hash, updated_at
+       FROM jobs WHERE tenant_id = $1 AND id = ANY($2::text[])
+       ORDER BY updated_at DESC, id`,
+      [tenantId, uniqueIds],
+    );
+    return result.rows.map((row) => this.#mapJob(row));
+  }
+
   async saveMatch(
     tenantId: string,
     jobId: string,
@@ -1018,7 +1084,7 @@ export class NimantoStore {
          m.id, m.job_id, m.profile_version_id, m.rule_version, m.result,
          m.input_hash, m.artifact_hash, m.created_at
        FROM match_runs m WHERE m.tenant_id = $1
-       ORDER BY m.job_id, m.created_at DESC`,
+       ORDER BY m.job_id, m.created_at DESC, m.id DESC`,
       [tenantId],
     );
     const jobs = new Map((await this.listJobs(tenantId)).map((job) => [job.id, job]));
@@ -1039,6 +1105,57 @@ export class NimantoStore {
         },
       ];
     });
+  }
+
+  async listMatchRuns(
+    tenantId: string,
+    options: { cursor?: string; limit?: number; jobId?: string } = {},
+  ): Promise<HistoryPage<MatchRunRecord>> {
+    const limit = historyLimit(options.limit);
+    if (options.jobId && !(await this.getJob(tenantId, options.jobId))) {
+      throw new Error("JOB_NOT_FOUND");
+    }
+    let anchor: { created_at: string | Date; id: string } | undefined;
+    if (options.cursor) {
+      const result = await this.#db.query<{ created_at: string | Date; id: string }>(
+        `SELECT created_at, id FROM match_runs
+         WHERE tenant_id = $1 AND id = $2
+           AND ($3::text IS NULL OR job_id = $3::text) LIMIT 1`,
+        [tenantId, options.cursor, options.jobId ?? null],
+      );
+      anchor = result.rows[0];
+      if (!anchor) throw new Error("INVALID_CURSOR");
+    }
+    const result = await this.#db.query<any>(
+      `SELECT id, job_id, profile_version_id, rule_version, result, input_hash,
+              artifact_hash, created_at
+       FROM match_runs
+       WHERE tenant_id = $1
+         AND ($2::text IS NULL OR job_id = $2::text)
+         AND ($3::timestamptz IS NULL OR (created_at, id) < ($3::timestamptz, $4::text))
+       ORDER BY created_at DESC, id DESC LIMIT $5`,
+      [
+        tenantId,
+        options.jobId ?? null,
+        anchor ? iso(anchor.created_at) : null,
+        anchor?.id ?? null,
+        limit + 1,
+      ],
+    );
+    const items = result.rows.slice(0, limit).map((row) => ({
+      id: row.id,
+      jobId: row.job_id,
+      profileVersionId: row.profile_version_id,
+      ruleVersion: row.rule_version,
+      result: row.result,
+      inputHash: row.input_hash,
+      artifactHash: row.artifact_hash,
+      createdAt: iso(row.created_at)!,
+    }));
+    return {
+      items,
+      nextCursor: result.rows.length > limit ? (items.at(-1)?.id ?? null) : null,
+    };
   }
 
   async createH1bSignal(
@@ -1278,10 +1395,75 @@ export class NimantoStore {
 
   async listPackets(tenantId: string): Promise<PacketRecord[]> {
     const result = await this.#db.query<any>(
-      "SELECT * FROM packets WHERE tenant_id = $1 ORDER BY updated_at DESC, id",
+      "SELECT * FROM packets WHERE tenant_id = $1 ORDER BY created_at DESC, id DESC",
       [tenantId],
     );
     return result.rows.map((row) => this.#mapPacket(row));
+  }
+
+  async listLatestPackets(tenantId: string): Promise<PacketRecord[]> {
+    const result = await this.#db.query<any>(
+      `SELECT * FROM (
+         SELECT DISTINCT ON (application_id) * FROM packets
+         WHERE tenant_id = $1
+         ORDER BY application_id, created_at DESC, id DESC
+       ) AS latest ORDER BY created_at DESC, id DESC`,
+      [tenantId],
+    );
+    return result.rows.map((row) => this.#mapPacket(row));
+  }
+
+  async listPacketsByIds(tenantId: string, ids: readonly string[]): Promise<PacketRecord[]> {
+    const uniqueIds = [...new Set(ids)];
+    if (uniqueIds.length === 0) return [];
+    const result = await this.#db.query<any>(
+      `SELECT * FROM packets
+       WHERE tenant_id = $1 AND id = ANY($2::text[])
+       ORDER BY created_at DESC, id DESC`,
+      [tenantId, uniqueIds],
+    );
+    return result.rows.map((row) => this.#mapPacket(row));
+  }
+
+  async listApplicationPackets(
+    tenantId: string,
+    applicationId: string,
+    options: { cursor?: string; limit?: number } = {},
+  ): Promise<HistoryPage<PacketRecord>> {
+    const application = await this.#db.query<{ id: string }>(
+      "SELECT id FROM applications WHERE tenant_id = $1 AND id = $2 LIMIT 1",
+      [tenantId, applicationId],
+    );
+    if (!application.rows[0]) throw new Error("APPLICATION_NOT_FOUND");
+    const limit = historyLimit(options.limit);
+    let anchor: { created_at: string | Date; id: string } | undefined;
+    if (options.cursor) {
+      const result = await this.#db.query<{ created_at: string | Date; id: string }>(
+        `SELECT created_at, id FROM packets
+         WHERE tenant_id = $1 AND application_id = $2 AND id = $3 LIMIT 1`,
+        [tenantId, applicationId, options.cursor],
+      );
+      anchor = result.rows[0];
+      if (!anchor) throw new Error("INVALID_CURSOR");
+    }
+    const result = await this.#db.query<any>(
+      `SELECT * FROM packets
+       WHERE tenant_id = $1 AND application_id = $2
+         AND ($3::timestamptz IS NULL OR (created_at, id) < ($3::timestamptz, $4::text))
+       ORDER BY created_at DESC, id DESC LIMIT $5`,
+      [
+        tenantId,
+        applicationId,
+        anchor ? iso(anchor.created_at) : null,
+        anchor?.id ?? null,
+        limit + 1,
+      ],
+    );
+    const items = result.rows.slice(0, limit).map((row) => this.#mapPacket(row));
+    return {
+      items,
+      nextCursor: result.rows.length > limit ? (items.at(-1)?.id ?? null) : null,
+    };
   }
 
   async saveAssurance(
@@ -1353,6 +1535,98 @@ export class NimantoStore {
       ruleVersion: row.rule_version,
       findings: row.findings,
       createdAt: iso(row.created_at)!,
+    }));
+  }
+
+  async listLatestAssurancesForPackets(
+    tenantId: string,
+    packetIds: readonly string[],
+  ): Promise<AssuranceRecord[]> {
+    if (packetIds.length === 0) return [];
+    const result = await this.#db.query<any>(
+      `SELECT id, packet_id, status, rule_version, findings, created_at
+       FROM (
+         SELECT DISTINCT ON (packet_id)
+           id, packet_id, status, rule_version, findings, created_at
+         FROM assurance_runs
+         WHERE tenant_id = $1 AND packet_id = ANY($2::text[])
+         ORDER BY packet_id, run_sequence DESC
+       ) AS latest
+       ORDER BY created_at DESC, id DESC`,
+      [tenantId, [...packetIds]],
+    );
+    return result.rows.map((row) => ({
+      id: row.id,
+      packetId: row.packet_id,
+      status: row.status,
+      ruleVersion: row.rule_version,
+      findings: row.findings,
+      createdAt: iso(row.created_at)!,
+    }));
+  }
+
+  async listAssuranceRuns(
+    tenantId: string,
+    packetId: string,
+    options: { cursor?: string; limit?: number } = {},
+  ): Promise<HistoryPage<AssuranceHistoryRecord>> {
+    const packet = await this.getPacket(tenantId, packetId);
+    if (!packet) throw new Error("PACKET_NOT_FOUND");
+    const limit = historyLimit(options.limit);
+    let anchorSequence: number | null = null;
+    if (options.cursor) {
+      const result = await this.#db.query<{ run_sequence: number }>(
+        `SELECT run_sequence FROM assurance_runs
+         WHERE tenant_id = $1 AND packet_id = $2 AND id = $3 LIMIT 1`,
+        [tenantId, packetId, options.cursor],
+      );
+      if (!result.rows[0]) throw new Error("INVALID_CURSOR");
+      anchorSequence = Number(result.rows[0].run_sequence);
+    }
+    const result = await this.#db.query<any>(
+      `SELECT id, packet_id, status, rule_version, findings, created_at, packet_ordinal
+       FROM (
+         SELECT id, packet_id, status, rule_version, findings, created_at, run_sequence,
+                ROW_NUMBER() OVER (PARTITION BY packet_id ORDER BY run_sequence ASC)::int AS packet_ordinal
+         FROM assurance_runs WHERE tenant_id = $1 AND packet_id = $2
+       ) AS history
+       WHERE ($3::bigint IS NULL OR run_sequence < $3::bigint)
+       ORDER BY run_sequence DESC LIMIT $4`,
+      [tenantId, packetId, anchorSequence, limit + 1],
+    );
+    const items = result.rows.slice(0, limit).map((row) => ({
+      id: row.id,
+      packetId: row.packet_id,
+      status: row.status,
+      ruleVersion: row.rule_version,
+      findings: row.findings,
+      createdAt: iso(row.created_at)!,
+      packetOrdinal: Number(row.packet_ordinal),
+    }));
+    return {
+      items,
+      nextCursor: result.rows.length > limit ? (items.at(-1)?.id ?? null) : null,
+    };
+  }
+
+  async listAssuranceHistory(tenantId: string): Promise<AssuranceHistoryRecord[]> {
+    const result = await this.#db.query<any>(
+      `SELECT id, packet_id, status, rule_version, findings, created_at, packet_ordinal
+       FROM (
+         SELECT id, packet_id, status, rule_version, findings, created_at,
+                ROW_NUMBER() OVER (PARTITION BY packet_id ORDER BY run_sequence ASC)::int AS packet_ordinal
+         FROM assurance_runs WHERE tenant_id = $1
+       ) AS history ORDER BY created_at DESC, id DESC`,
+      [tenantId],
+    );
+    return result.rows.map((row) => ({
+      id: row.id,
+      packetId: row.packet_id,
+      status: row.status,
+      ruleVersion: row.rule_version,
+      findings: row.findings,
+      createdAt: iso(row.created_at)!,
+      packetOrdinal: Number(row.packet_ordinal),
     }));
   }
 
@@ -1519,6 +1793,9 @@ export class NimantoStore {
       actions,
       receipts,
       schedules,
+      profileVersionsPage,
+      matchRunsPage,
+      assuranceRuns,
     ] = await Promise.all([
       this.listEvidence(tenantId),
       this.latestProfileVersion(tenantId),
@@ -1530,9 +1807,26 @@ export class NimantoStore {
       this.listExternalActions(tenantId),
       this.listReceipts(tenantId),
       this.listSourceSchedules(tenantId),
+      this.listProfileVersions(tenantId, { limit: 50 }),
+      this.listMatchRuns(tenantId, { limit: 50 }),
+      this.listAssuranceHistory(tenantId),
     ]);
+    const profileVersions = [...profileVersionsPage.items];
+    let profileCursor = profileVersionsPage.nextCursor;
+    while (profileCursor) {
+      const page = await this.listProfileVersions(tenantId, { cursor: profileCursor, limit: 50 });
+      profileVersions.push(...page.items);
+      profileCursor = page.nextCursor;
+    }
+    const matchRuns = [...matchRunsPage.items];
+    let matchCursor = matchRunsPage.nextCursor;
+    while (matchCursor) {
+      const page = await this.listMatchRuns(tenantId, { cursor: matchCursor, limit: 50 });
+      matchRuns.push(...page.items);
+      matchCursor = page.nextCursor;
+    }
     return {
-      schemaVersion: "nimanto_export_v1",
+      schemaVersion: "nimanto_export_v2",
       exportedAt: new Date().toISOString(),
       evidence,
       profile,
@@ -1544,6 +1838,9 @@ export class NimantoStore {
       externalActions: actions,
       receipts,
       schedules,
+      profileVersions,
+      matchRuns,
+      assuranceRuns,
     };
   }
 

@@ -6,7 +6,9 @@ import {
 } from "@nimanto/domain";
 import {
   BOARD_COLUMNS,
+  APPLICATION_MATCH_BUCKETS,
   FOLLOW_UP_DAYS,
+  applicationCohortCounts,
   boardColumns,
   canMove,
   confirmationPrompt,
@@ -19,6 +21,8 @@ import {
   legalTargets,
   needsConfirmation,
   nextSteps,
+  profileVersionDiff,
+  recordReviewQueue,
   recordedOutcomeTimeline,
   sectionFromHash,
   sectionHash,
@@ -155,6 +159,25 @@ describe("next-step rail", () => {
     const steps = nextSteps({ ...empty, evidence: [{ status: "pending" }] });
     expect(steps[0]?.title).toBe("Confirm 1 imported claim");
   });
+
+  it("adds the derived record-review queue without inferring an employer outcome", () => {
+    const steps = nextSteps(
+      {
+        ...empty,
+        applications: [
+          { id: "app-1", jobId: "job-1", status: "submitted_externally", createdAt: daysAgo(14) },
+        ],
+      },
+      NOW,
+    );
+    expect(steps.find((step) => step.id === "review-records")).toMatchObject({
+      title: "Review 1 application record",
+      section: "applications",
+    });
+    expect(steps.find((step) => step.id === "review-records")?.detail).toContain(
+      "No outcome is inferred",
+    );
+  });
 });
 
 describe("follow-up observation", () => {
@@ -205,6 +228,162 @@ describe("follow-up observation", () => {
   it("survives a missing or unparseable timestamp", () => {
     expect(daysSinceLastRecord({ id: "x", status: "tracked" }, NOW)).toBeNull();
     expect(followUpNote({ id: "x", status: "tracked", createdAt: "not-a-date" }, NOW)).toBeNull();
+  });
+});
+
+describe("record-review queue", () => {
+  it("includes only non-withdrawn records whose literal activity is at least 336 hours old", () => {
+    const applications = [
+      {
+        id: "due",
+        status: "submitted_externally" as const,
+        createdAt: daysAgo(30),
+        outcomes: [{ occurredAt: daysAgo(14) }],
+      },
+      {
+        id: "recent",
+        status: "tracked" as const,
+        createdAt: daysAgo(13),
+        outcomes: [],
+      },
+      {
+        id: "withdrawn",
+        status: "withdrawn" as const,
+        createdAt: daysAgo(90),
+        outcomes: [],
+      },
+    ];
+    expect(recordReviewQueue(applications, NOW).map((item) => item.application.id)).toEqual([
+      "due",
+    ]);
+    expect(recordReviewQueue(applications, NOW)[0]).toMatchObject({
+      elapsedHours: 336,
+      lastRecordedAt: daysAgo(14),
+      dueAt: NOW.toISOString(),
+    });
+  });
+
+  it("orders records by their exact due instant even when floored elapsed hours tie", () => {
+    const hour = 3_600_000;
+    const minute = 60_000;
+    const queue = recordReviewQueue(
+      [
+        {
+          id: "a-later-due",
+          status: "tracked" as const,
+          createdAt: new Date(NOW.getTime() - 336 * hour - 10 * minute).toISOString(),
+        },
+        {
+          id: "z-earlier-due",
+          status: "tracked" as const,
+          createdAt: new Date(NOW.getTime() - 336 * hour - 50 * minute).toISOString(),
+        },
+      ],
+      NOW,
+    );
+    expect(queue.map((item) => item.application.id)).toEqual(["z-earlier-due", "a-later-due"]);
+    expect(queue.map((item) => item.elapsedHours)).toEqual([336, 336]);
+  });
+});
+
+describe("profile-version diff", () => {
+  it("compares exact claim identifiers and authorization wording without interpretation", () => {
+    expect(
+      profileVersionDiff(
+        { claimIds: ["claim-a", "claim-b"], authorizationWording: "Exact wording A" },
+        { claimIds: ["claim-b", "claim-c"], authorizationWording: "Exact wording B" },
+      ),
+    ).toEqual({
+      addedClaimIds: ["claim-c"],
+      removedClaimIds: ["claim-a"],
+      authorizationWordingChanged: true,
+      beforeAuthorizationWording: "Exact wording A",
+      afterAuthorizationWording: "Exact wording B",
+    });
+  });
+});
+
+describe("application cohort counts", () => {
+  const applications = [
+    {
+      id: "a",
+      jobId: "job-a",
+      status: "tracked" as const,
+      createdAt: "2026-08-01T12:00:00.000Z",
+      outcomes: [{ type: "reply", occurredAt: "2026-08-02T12:00:00.000Z" }],
+    },
+    {
+      id: "b",
+      jobId: "job-b",
+      status: "tracked" as const,
+      createdAt: "2026-08-03T12:00:00.000Z",
+      outcomes: [],
+    },
+    {
+      id: "c",
+      jobId: "job-c",
+      status: "tracked" as const,
+      createdAt: "2026-07-20T12:00:00.000Z",
+      outcomes: [],
+    },
+  ];
+  const jobs = [
+    { id: "job-a", source: "greenhouse" },
+    { id: "job-b", source: "manual" },
+    { id: "job-c", source: "greenhouse" },
+  ];
+  const matches = [{ jobId: "job-a", result: { band: "strong_evidence" } }];
+
+  it("uses an explicit creation-time cohort and mutually exclusive match classifications", () => {
+    const result = applicationCohortCounts({
+      applications,
+      jobs,
+      matches,
+      startAt: "2026-08-01T00:00:00.000Z",
+      endAtExclusive: "2026-08-05T00:00:00.000Z",
+      source: "all",
+      matchBucket: "all",
+    });
+    expect(result.sampleSize).toBe(2);
+    expect(result.byMatchBucket).toEqual({
+      strong_evidence: 1,
+      promising_evidence: 0,
+      partial_evidence: 0,
+      weak_evidence: 0,
+      not_scored: 0,
+      unmatched: 1,
+      unknown: 0,
+    });
+    expect(Object.keys(result.byMatchBucket)).toEqual(APPLICATION_MATCH_BUCKETS);
+    expect(result.outcomes).toMatchObject({ replies: 1, screens: 0, interviews: 0, offers: 0 });
+  });
+
+  it("filters by the current role source and current latest match snapshot", () => {
+    expect(
+      applicationCohortCounts({
+        applications,
+        jobs,
+        matches,
+        startAt: "2026-07-01T00:00:00.000Z",
+        endAtExclusive: "2026-09-01T00:00:00.000Z",
+        source: "greenhouse",
+        matchBucket: "strong_evidence",
+      }).applicationIds,
+    ).toEqual(["a"]);
+  });
+
+  it("keeps an unrecognized stored band distinct from no stored match", () => {
+    const result = applicationCohortCounts({
+      applications,
+      jobs,
+      matches: [...matches, { jobId: "job-b", result: { band: "future_band" } }],
+      startAt: "2026-08-01T00:00:00.000Z",
+      endAtExclusive: "2026-08-05T00:00:00.000Z",
+      source: "all",
+      matchBucket: "all",
+    });
+    expect(result.byMatchBucket.unmatched).toBe(0);
+    expect(result.byMatchBucket.unknown).toBe(1);
   });
 });
 
@@ -426,6 +605,10 @@ describe("section routing", () => {
 
   it("makes the local activity ledger a first-class deep-linkable section", () => {
     expect(sectionFromHash("#activity")).toBe("activity");
+  });
+
+  it("makes stored history a first-class deep-linkable section", () => {
+    expect(sectionFromHash("#history")).toBe("history");
   });
 });
 

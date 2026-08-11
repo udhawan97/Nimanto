@@ -377,6 +377,46 @@ describe("Nimanto beta API", () => {
       }),
     ]);
 
+    const profileHistory = await app.inject({
+      method: "GET",
+      url: "/v1/history/profile-versions?limit=1",
+      headers: { cookie },
+    });
+    expect(profileHistory.statusCode).toBe(200);
+    expect(profileHistory.json()).toMatchObject({
+      items: [expect.objectContaining({ id: expect.any(String), claimIds: expect.any(Array) })],
+      nextCursor: null,
+    });
+    const matchHistory = await app.inject({
+      method: "GET",
+      url: `/v1/history/match-runs?jobId=${jobId}&limit=1`,
+      headers: { cookie },
+    });
+    expect(matchHistory.statusCode).toBe(200);
+    expect(matchHistory.json().items[0]).toMatchObject({
+      jobId,
+      currentJob: { id: jobId, title: expect.any(String) },
+    });
+    const packetHistory = await app.inject({
+      method: "GET",
+      url: `/v1/applications/${applicationId}/packets?limit=1`,
+      headers: { cookie },
+    });
+    expect(packetHistory.statusCode).toBe(200);
+    expect(packetHistory.json().items[0]).toMatchObject({ id: packetId });
+    const assuranceHistory = await app.inject({
+      method: "GET",
+      url: `/v1/packets/${packetId}/assurance-runs?limit=1`,
+      headers: { cookie },
+    });
+    expect(assuranceHistory.statusCode).toBe(200);
+    expect(assuranceHistory.json().items[0]).toMatchObject({
+      packetId,
+      packetOrdinal: 1,
+      status: "passed",
+    });
+    expect(assuranceHistory.body).not.toContain("runSequence");
+
     const action = await app.inject({
       method: "POST",
       url: "/v1/actions",
@@ -391,6 +431,26 @@ describe("Nimanto beta API", () => {
     });
     expect(action.json().state).toBe("pending_approval");
     const actionId = action.json().id as string;
+
+    const newerDraftPacket = await app.inject({
+      method: "POST",
+      url: "/v1/packets",
+      headers: { cookie },
+      payload: { applicationId, contactEmail: "newer@example.test" },
+    });
+    expect(newerDraftPacket.statusCode).toBe(200);
+    const dashboardWithActionHistory = (
+      await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } })
+    ).json();
+    expect(dashboardWithActionHistory.packets.map((packet: { id: string }) => packet.id)).toEqual([
+      newerDraftPacket.json().id,
+    ]);
+    expect(
+      dashboardWithActionHistory.actionPackets.find(
+        (packet: { id: string }) => packet.id === packetId,
+      ),
+    ).toMatchObject({ status: "approved" });
+
     expect(
       (
         await app.inject({
@@ -438,9 +498,14 @@ describe("Nimanto beta API", () => {
     });
     expect(exported.statusCode).toBe(200);
     expect(exported.json()).toMatchObject({
-      exportVersion: "nimanto-local-beta-v1",
+      exportVersion: "nimanto-local-beta-v2",
       identity: { displayName: "Priya Shah", email: "priya@example.test" },
-      workspace: { schemaVersion: "nimanto_export_v1" },
+      workspace: {
+        schemaVersion: "nimanto_export_v2",
+        profileVersions: expect.any(Array),
+        matchRuns: expect.any(Array),
+        assuranceRuns: expect.any(Array),
+      },
     });
     expect(exported.json().artifactNote).toContain("individually downloadable");
 
@@ -479,6 +544,19 @@ describe("Nimanto beta API", () => {
       headers: { cookie: otherCookie },
     });
     expect(foreign.statusCode).toBe(404);
+    const foreignProfileCursor = await app.inject({
+      method: "GET",
+      url: `/v1/history/profile-versions?cursor=${first.profile.id}`,
+      headers: { cookie: otherCookie },
+    });
+    expect(foreignProfileCursor.statusCode).toBe(400);
+    expect(foreignProfileCursor.json().error.code).toBe("INVALID_CURSOR");
+    const foreignMatchHistory = await app.inject({
+      method: "GET",
+      url: `/v1/history/match-runs?jobId=${first.jobs[0].id}`,
+      headers: { cookie: otherCookie },
+    });
+    expect(foreignMatchHistory.statusCode).toBe(404);
   });
 
   it("does not let a second client resume a workspace without the private launch key", async () => {

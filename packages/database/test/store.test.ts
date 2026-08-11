@@ -117,6 +117,152 @@ describe("tenant-scoped persistence public seam", () => {
 });
 
 describe("beta workflow persistence", () => {
+  it("pages tenant-owned history without exposing another tenant or a global assurance sequence", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nimanto-store-history-"));
+    const store = await NimantoStore.open(join(root, "data"));
+    stores.push(store);
+    const alpha = await store.createLocalTenant("alpha-history@example.test", "Alpha History");
+    const beta = await store.createLocalTenant("beta-history@example.test", "Beta History");
+
+    const alphaProfile1 = await store.createProfileVersion(alpha.tenantId, "Wording one");
+    const alphaProfile2 = await store.createProfileVersion(alpha.tenantId, "Wording two");
+    const betaProfile = await store.createProfileVersion(beta.tenantId, "Private beta wording");
+    const job = await store.upsertJob(alpha.tenantId, {
+      source: "manual",
+      sourceJobId: "history-job",
+      title: "History Engineer",
+      company: "Northwind",
+      description: "Build history views",
+      location: "Remote",
+      workMode: "remote",
+      url: "",
+      requirements: [],
+      capability: "deep_link",
+      sourceMeta: {},
+      contentHash: "history-job-content",
+    });
+    const matchResult = matchJob({
+      job: {
+        id: job.id,
+        title: job.title,
+        company: job.company,
+        description: job.description,
+        requirements: [],
+      },
+      evidence: [],
+    });
+    await store.saveMatch(alpha.tenantId, job.id, alphaProfile1.id, matchResult);
+    await store.saveMatch(alpha.tenantId, job.id, alphaProfile2.id, matchResult);
+    const application = await store.createApplication(alpha.tenantId, job.id, alphaProfile2.id);
+    const packet1 = await store.createPacket(alpha.tenantId, {
+      applicationId: application.id,
+      profileVersionId: alphaProfile1.id,
+      canonicalContent: { version: 1 },
+      artifactManifest: { artifacts: [] },
+    });
+    const packet2 = await store.createPacket(alpha.tenantId, {
+      applicationId: application.id,
+      profileVersionId: alphaProfile2.id,
+      canonicalContent: { version: 2 },
+      artifactManifest: { artifacts: [] },
+    });
+    await store.saveAssurance(alpha.tenantId, packet2.id, {
+      status: "blocked",
+      ruleVersion: "application_assurance_v1",
+      findings: [{ code: "SYNTHETIC_BLOCK" }],
+    });
+    await store.saveAssurance(
+      beta.tenantId,
+      (
+        await store.createPacket(beta.tenantId, {
+          applicationId: (
+            await store.createApplication(
+              beta.tenantId,
+              (
+                await store.upsertJob(beta.tenantId, {
+                  source: "manual",
+                  sourceJobId: "beta-job",
+                  title: "Beta",
+                  company: "Private",
+                  description: "Private",
+                  location: "",
+                  workMode: "unspecified",
+                  url: "",
+                  requirements: [],
+                  capability: "deep_link",
+                  sourceMeta: {},
+                  contentHash: "beta",
+                })
+              ).id,
+              betaProfile.id,
+            )
+          ).id,
+          profileVersionId: betaProfile.id,
+          canonicalContent: { private: true },
+          artifactManifest: {},
+        })
+      ).id,
+      { status: "passed", ruleVersion: "application_assurance_v1", findings: [] },
+    );
+    await store.saveAssurance(alpha.tenantId, packet2.id, {
+      status: "passed",
+      ruleVersion: "application_assurance_v1",
+      findings: [],
+    });
+
+    const profiles = await store.listProfileVersions(alpha.tenantId, { limit: 1 });
+    expect(profiles.items).toHaveLength(1);
+    expect(profiles.nextCursor).toBeTruthy();
+    const nextProfiles = await store.listProfileVersions(alpha.tenantId, {
+      cursor: profiles.nextCursor!,
+      limit: 1,
+    });
+    expect(new Set([profiles.items[0]!.id, nextProfiles.items[0]!.id])).toEqual(
+      new Set([alphaProfile1.id, alphaProfile2.id]),
+    );
+    await expect(
+      store.listProfileVersions(alpha.tenantId, { cursor: betaProfile.id }),
+    ).rejects.toThrow("INVALID_CURSOR");
+
+    expect((await store.listMatchRuns(alpha.tenantId, { jobId: job.id })).items).toHaveLength(2);
+    expect(await store.listJobsByIds(alpha.tenantId, [job.id, "missing-job"])).toEqual([
+      expect.objectContaining({ id: job.id }),
+    ]);
+    const expectedPacketOrder = [packet1, packet2]
+      .toSorted(
+        (left, right) =>
+          right.createdAt.localeCompare(left.createdAt) || right.id.localeCompare(left.id),
+      )
+      .map((packet) => packet.id);
+    expect(
+      (await store.listApplicationPackets(alpha.tenantId, application.id)).items.map(
+        (item) => item.id,
+      ),
+    ).toEqual(expectedPacketOrder);
+    const assuranceHistory = await store.listAssuranceRuns(alpha.tenantId, packet2.id);
+    expect(assuranceHistory.items.map((item) => item.packetOrdinal)).toEqual([2, 1]);
+    expect(assuranceHistory.items.every((item) => !("runSequence" in item))).toBe(true);
+    expect(await store.listLatestPackets(alpha.tenantId)).toEqual([
+      expect.objectContaining({ id: expectedPacketOrder[0] }),
+    ]);
+    expect(
+      (
+        await store.listPacketsByIds(alpha.tenantId, [packet1.id, packet2.id, "missing-packet"])
+      ).map((packet) => packet.id),
+    ).toEqual(expectedPacketOrder);
+    expect(await store.listLatestAssurancesForPackets(alpha.tenantId, [packet2.id])).toEqual([
+      expect.objectContaining({ packetId: packet2.id, status: "passed" }),
+    ]);
+
+    const exported = await store.exportTenant(alpha.tenantId);
+    expect(exported).toMatchObject({ schemaVersion: "nimanto_export_v2" });
+    expect(exported.profileVersions).toHaveLength(2);
+    expect(exported.matchRuns).toHaveLength(2);
+    expect(exported.assuranceRuns).toHaveLength(2);
+    expect(JSON.stringify(exported)).not.toContain("Private beta wording");
+    expect(JSON.stringify(exported)).not.toContain("runSequence");
+  });
+
   it("backfills assurance order when reopening a pre-sequence workspace", async () => {
     const root = await mkdtemp(join(tmpdir(), "nimanto-store-upgrade-"));
     const data = join(root, "data");

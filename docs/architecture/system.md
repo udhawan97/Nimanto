@@ -74,6 +74,21 @@ the same wall-clock timestamp cannot be reordered by their random IDs. Stored
 execution receipts are verified against their canonical hashes on dashboard read;
 the workbench exposes those internal hashes without treating them as signatures.
 
+Retained profile, match, packet, and assurance records are exposed through
+tenant-scoped, cursor-paginated read seams. The dashboard loads only the latest
+match per role and packet per application, plus packets referenced by visible
+actions, and the latest assurance per loaded packet; historical pages are
+requested only when the candidate opens them. A
+cursor is the identifier of a record owned by the same tenant and scope, so a
+foreign cursor fails closed. Assurance pages translate the internal global
+sequence into an ordinal scoped to one packet and never return the global value.
+
+`nimanto_export_v2` adds complete retained profile-version, match-run, and
+assurance-run datasets to the explicit JSON inspection export. It intentionally
+omits session and invitation credentials, deletion internals, and generated
+packet files. It is not a restore protocol, immutable job-history snapshot, or
+execution replay format.
+
 ## Authentication
 
 `POST /v1/auth/local` and the explicitly labeled synthetic-demo route are available only on loopback while local mode is enabled and require the high-entropy launch key stored mode `0600`. The local route records the candidate's own name and email. It creates a local tenant, user, membership, and a random 256-bit session token. Only the SHA-256 token hash is stored. The browser receives an HttpOnly, SameSite=Lax cookie.
@@ -88,7 +103,7 @@ Candidates can schedule Greenhouse, Lever, and Ashby public-board refreshes from
 
 The database state machine and domain state machine must agree. The API refuses execution unless the action is `approved` and the in-memory runtime switch is on. The switch has no environment override and resets to off with every API restart.
 
-Version 0.3.0 has no connected-account provider. Verification uses only a user-opened deep link and the local test outbox. Gmail, Outlook, form submission, and desktop delivery remain behind the separately approved Slice 4 boundary.
+Version 0.4.0 has no connected-account provider. Verification uses only a user-opened deep link and the local test outbox. Gmail, Outlook, form submission, and desktop delivery remain behind the separately approved Slice 4 boundary.
 
 ## Scaling path
 

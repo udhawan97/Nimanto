@@ -49,6 +49,17 @@ async function shoot(
       const match = await context.request.post(`${api}/v1/jobs/${job.id}/match`);
       if (!match.ok()) throw new Error(`Screenshot match failed: ${match.status()}`);
     }
+    const version = await context.request.post(`${api}/v1/profile/versions`, {
+      data: { authorizationWording: "I require employer support for an H-1B transfer." },
+    });
+    if (!version.ok()) throw new Error(`Screenshot profile version failed: ${version.status()}`);
+    const firstJob = (await dashboard.json()).jobs?.[0];
+    if (firstJob) {
+      const comparisonRun = await context.request.post(`${api}/v1/jobs/${firstJob.id}/match`);
+      if (!comparisonRun.ok()) {
+        throw new Error(`Screenshot comparison match failed: ${comparisonRun.status()}`);
+      }
+    }
   }
   const page = await context.newPage();
   const problems = [];
@@ -57,6 +68,10 @@ async function shoot(
   });
   page.on("pageerror", (error) => problems.push(error.message));
   await page.goto(url, { waitUntil: "networkidle" });
+  if (workbench) {
+    await page.getByRole("button", { name: "Stored history" }).click();
+    await page.getByRole("heading", { name: "Profile version diff" }).waitFor();
+  }
   await page.evaluate(() => document.fonts.ready);
   // The emblem assembles over ~5s; shoot it at rest, not mid-assembly.
   await page.waitForTimeout(settle);

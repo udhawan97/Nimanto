@@ -10,7 +10,15 @@ export type ApplicationStatus =
   "tracked" | "prepared" | "approved_for_export" | "submitted_externally" | "withdrawn";
 
 export type Section =
-  "overview" | "evidence" | "jobs" | "applications" | "packets" | "actions" | "activity" | "data";
+  | "overview"
+  | "evidence"
+  | "jobs"
+  | "applications"
+  | "packets"
+  | "history"
+  | "actions"
+  | "activity"
+  | "data";
 
 type EvidenceLike = { status: string };
 type JobLike = { id: string };
@@ -81,14 +89,17 @@ export type NextStep = {
  * many items each bucket holds. Confirming evidence unblocks matching, which
  * unblocks packets, which unblocks actions — so a single pending claim
  * outranks ten packets awaiting assurance. */
-export function nextSteps(input: {
-  evidence: EvidenceLike[];
-  jobs: JobLike[];
-  matches: MatchLike[];
-  applications: ApplicationLike[];
-  packets: PacketLike[];
-  externalActions: ActionLike[];
-}): NextStep[] {
+export function nextSteps(
+  input: {
+    evidence: EvidenceLike[];
+    jobs: JobLike[];
+    matches: MatchLike[];
+    applications: ApplicationLike[];
+    packets: PacketLike[];
+    externalActions: ActionLike[];
+  },
+  now = new Date(),
+): NextStep[] {
   const steps: NextStep[] = [];
   const pending = input.evidence.filter((item) => item.status === "pending").length;
   if (pending > 0) {
@@ -156,6 +167,18 @@ export function nextSteps(input: {
       detail:
         "Packets are assembled from confirmed evidence and your locked authorization wording.",
       section: "packets",
+      tone: "idle",
+    });
+  }
+
+  const reviewDue = recordReviewQueue(input.applications, now).length;
+  if (reviewDue > 0) {
+    steps.push({
+      id: "review-records",
+      title: `Review ${reviewDue} application record${reviewDue === 1 ? "" : "s"}`,
+      detail:
+        "At least 336 hours have elapsed since the last thing you recorded. No outcome is inferred.",
+      section: "applications",
       tone: "idle",
     });
   }
@@ -228,6 +251,132 @@ export function followUpNote(application: ApplicationLike, now: Date): string | 
     day: "numeric",
   });
   return `Nothing recorded since ${on}`;
+}
+
+export const RECORD_REVIEW_HOURS = FOLLOW_UP_DAYS * 24;
+
+export type RecordReviewItem<T extends ApplicationLike> = {
+  application: T;
+  lastRecordedAt: string;
+  dueAt: string;
+  elapsedHours: number;
+};
+
+/** A derived queue over literal stored activity. It does not persist a reminder,
+ * infer an employer response, or change the application status. */
+export function recordReviewQueue<T extends ApplicationLike>(
+  applications: readonly T[],
+  now: Date,
+): Array<RecordReviewItem<T>> {
+  return applications
+    .flatMap((application) => {
+      if (application.status === "withdrawn") return [];
+      const recordedAt = lastRecordedAt(application);
+      if (!recordedAt) return [];
+      const parsed = Date.parse(recordedAt);
+      if (Number.isNaN(parsed)) return [];
+      const elapsedHours = Math.floor((now.getTime() - parsed) / 3_600_000);
+      if (elapsedHours < RECORD_REVIEW_HOURS) return [];
+      return [
+        {
+          application,
+          lastRecordedAt: recordedAt,
+          dueAt: new Date(parsed + RECORD_REVIEW_HOURS * 3_600_000).toISOString(),
+          elapsedHours,
+        },
+      ];
+    })
+    .toSorted(
+      (left, right) =>
+        Date.parse(left.dueAt) - Date.parse(right.dueAt) ||
+        left.application.id.localeCompare(right.application.id),
+    );
+}
+
+export type ProfileVersionLike = {
+  claimIds: readonly string[];
+  authorizationWording: string;
+};
+
+/** Literal set and string comparison only; it makes no claim about why a
+ * profile changed or whether a later match result was caused by that change. */
+export function profileVersionDiff(before: ProfileVersionLike, after: ProfileVersionLike) {
+  const beforeClaims = new Set(before.claimIds);
+  const afterClaims = new Set(after.claimIds);
+  return {
+    addedClaimIds: after.claimIds.filter((id) => !beforeClaims.has(id)).toSorted(),
+    removedClaimIds: before.claimIds.filter((id) => !afterClaims.has(id)).toSorted(),
+    authorizationWordingChanged: before.authorizationWording !== after.authorizationWording,
+    beforeAuthorizationWording: before.authorizationWording,
+    afterAuthorizationWording: after.authorizationWording,
+  };
+}
+
+export const APPLICATION_MATCH_BUCKETS = [
+  "strong_evidence",
+  "promising_evidence",
+  "partial_evidence",
+  "weak_evidence",
+  "not_scored",
+  "unmatched",
+  "unknown",
+] as const;
+export type ApplicationMatchBucket = (typeof APPLICATION_MATCH_BUCKETS)[number];
+
+type CohortJobLike = { id: string; source: string };
+type CohortMatchLike = { jobId: string; result: { band: string } };
+
+/** Current-snapshot counts over applications created inside an explicit instant
+ * range. The result intentionally contains no rate, probability, or reconstructed
+ * historical source/match state. */
+export function applicationCohortCounts(input: {
+  applications: readonly ApplicationLike[];
+  jobs: readonly CohortJobLike[];
+  matches: readonly CohortMatchLike[];
+  startAt: string;
+  endAtExclusive: string;
+  source: string;
+  matchBucket: "all" | ApplicationMatchBucket;
+}) {
+  const start = Date.parse(input.startAt);
+  const end = Date.parse(input.endAtExclusive);
+  const jobs = new Map(input.jobs.map((job) => [job.id, job]));
+  const matches = new Map(input.matches.map((match) => [match.jobId, match]));
+  const bucketFor = (application: ApplicationLike): ApplicationMatchBucket => {
+    const match = application.jobId ? matches.get(application.jobId) : undefined;
+    if (!match) return "unmatched";
+    const band = match.result.band;
+    return APPLICATION_MATCH_BUCKETS.includes(band as ApplicationMatchBucket)
+      ? (band as ApplicationMatchBucket)
+      : "unknown";
+  };
+  const selected = input.applications.filter((application) => {
+    const created = Date.parse(application.createdAt ?? "");
+    if (!Number.isFinite(start) || !Number.isFinite(end) || !Number.isFinite(created)) return false;
+    if (created < start || created >= end) return false;
+    const job = application.jobId ? jobs.get(application.jobId) : undefined;
+    if (input.source !== "all" && job?.source !== input.source) return false;
+    return input.matchBucket === "all" || bucketFor(application) === input.matchBucket;
+  });
+  const byMatchBucket = Object.fromEntries(
+    APPLICATION_MATCH_BUCKETS.map((bucket) => [
+      bucket,
+      selected.filter((application) => bucketFor(application) === bucket).length,
+    ]),
+  ) as Record<ApplicationMatchBucket, number>;
+  const hasOutcome = (application: ApplicationLike, type: string) =>
+    application.outcomes?.some((outcome) => outcome.type === type) ?? false;
+  return {
+    sampleSize: selected.length,
+    applicationIds: selected.map((application) => application.id),
+    byMatchBucket,
+    outcomes: {
+      replies: selected.filter((application) => hasOutcome(application, "reply")).length,
+      screens: selected.filter((application) => hasOutcome(application, "screen")).length,
+      interviews: selected.filter((application) => hasOutcome(application, "interview")).length,
+      offers: selected.filter((application) => hasOutcome(application, "offer")).length,
+    },
+  };
 }
 
 export type RecordedTimelineEntry = {
@@ -373,6 +522,7 @@ export const SECTIONS: readonly Section[] = [
   "jobs",
   "applications",
   "packets",
+  "history",
   "actions",
   "activity",
   "data",

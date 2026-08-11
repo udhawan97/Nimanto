@@ -94,6 +94,20 @@ function strings(value: unknown, field: string): string[] {
   return value.map((entry) => entry.normalize("NFC").trim()).filter(Boolean);
 }
 
+function historyOptions(query: unknown): { cursor?: string; limit: number } {
+  const value = object(query ?? {});
+  const cursor = value.cursor === undefined ? undefined : string(value.cursor, "cursor");
+  if (
+    cursor &&
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(cursor)
+  ) {
+    throw new Error("INVALID_CURSOR");
+  }
+  const parsed = value.limit === undefined ? 20 : Number(value.limit);
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 50) throw new Error("INVALID_LIMIT");
+  return { ...(cursor ? { cursor } : {}), limit: parsed };
+}
+
 async function parseEvidenceUpload(value: unknown): Promise<{
   filename: string;
   mimeType?: string;
@@ -469,7 +483,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     openapi: {
       info: {
         title: "Nimanto local beta API",
-        version: "0.3.0",
+        version: "0.4.0",
         description: "Candidate-side evidence and application workbench.",
       },
       servers: [{ url: `http://${options.host}:${options.port}` }],
@@ -487,10 +501,10 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     return payload;
   });
 
-  app.get("/health", async () => ({ status: "ok", version: "0.3.0" }));
+  app.get("/health", async () => ({ status: "ok", version: "0.4.0" }));
   app.get("/v1/meta", async () => ({
     name: "Nimanto",
-    version: "0.3.0",
+    version: "0.4.0",
     mode: "local_beta",
     externalActionsEnabled,
     providers: {
@@ -776,20 +790,29 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
       receipts,
       profile,
       schedules,
-      assurances,
     ] = await Promise.all([
       store.listEvidence(person.tenantId),
       store.listJobs(person.tenantId),
       store.listLatestMatches(person.tenantId),
       store.listH1bSignals(person.tenantId),
       store.listApplications(person.tenantId),
-      store.listPackets(person.tenantId),
+      store.listLatestPackets(person.tenantId),
       store.listExternalActions(person.tenantId),
       store.listReceipts(person.tenantId),
       store.latestProfileVersion(person.tenantId),
       store.listSourceSchedules(person.tenantId),
-      store.listLatestAssurances(person.tenantId),
     ]);
+    const actionPackets = await store.listPacketsByIds(
+      person.tenantId,
+      actions.map((action) => action.packetId).filter((id): id is string => id !== null),
+    );
+    const assurancePackets = [
+      ...new Map([...packets, ...actionPackets].map((packet) => [packet.id, packet])).values(),
+    ];
+    const assurances = await store.listLatestAssurancesForPackets(
+      person.tenantId,
+      assurancePackets.map((packet) => packet.id),
+    );
     const assuranceByPacket = new Map(
       assurances.map((assurance) => [assurance.packetId, assurance]),
     );
@@ -802,6 +825,10 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
       h1bSignals: signals.map((signal) => ({ ...signal, ...freshH1bLabel(signal) })),
       applications,
       packets: packets.map((packet) => ({
+        ...packet,
+        latestAssurance: assuranceByPacket.get(packet.id) ?? null,
+      })),
+      actionPackets: actionPackets.map((packet) => ({
         ...packet,
         latestAssurance: assuranceByPacket.get(packet.id) ?? null,
       })),
@@ -921,6 +948,33 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
       person.tenantId,
       typeof body.authorizationWording === "string" ? body.authorizationWording : "",
     );
+  });
+
+  app.get("/v1/history/profile-versions", async (request) => {
+    const person = identity(request);
+    return store.listProfileVersions(person.tenantId, historyOptions(request.query));
+  });
+
+  app.get("/v1/history/match-runs", async (request) => {
+    const person = identity(request);
+    const query = object(request.query ?? {});
+    const jobId = query.jobId === undefined ? undefined : string(query.jobId, "job_id");
+    const page = await store.listMatchRuns(person.tenantId, {
+      ...historyOptions(query),
+      ...(jobId ? { jobId } : {}),
+    });
+    const jobs = new Map(
+      (
+        await store.listJobsByIds(
+          person.tenantId,
+          page.items.map((run) => run.jobId),
+        )
+      ).map((job) => [job.id, job]),
+    );
+    return {
+      ...page,
+      items: page.items.map((run) => ({ ...run, currentJob: jobs.get(run.jobId) ?? null })),
+    };
   });
 
   app.post("/v1/jobs", async (request) => {
@@ -1297,6 +1351,22 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     return updated;
   });
 
+  app.get("/v1/applications/:id/packets", async (request) => {
+    const person = identity(request);
+    const applicationId = string((request.params as { id?: unknown }).id, "application_id");
+    return store.listApplicationPackets(
+      person.tenantId,
+      applicationId,
+      historyOptions(request.query),
+    );
+  });
+
+  app.get("/v1/packets/:id/assurance-runs", async (request) => {
+    const person = identity(request);
+    const packetId = string((request.params as { id?: unknown }).id, "packet_id");
+    return store.listAssuranceRuns(person.tenantId, packetId, historyOptions(request.query));
+  });
+
   app.post("/v1/packets/:id/assure", async (request) => {
     const person = identity(request);
     const packetId = (request.params as { id: string }).id;
@@ -1603,7 +1673,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     const person = identity(request);
     const workspace = await store.exportTenant(person.tenantId);
     return reply.header("content-disposition", 'attachment; filename="nimanto-export.json"').send({
-      exportVersion: "nimanto-local-beta-v1",
+      exportVersion: "nimanto-local-beta-v2",
       exportedAt: new Date().toISOString(),
       identity: {
         displayName: person.displayName,
@@ -1611,7 +1681,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
       },
       workspace,
       artifactNote:
-        "Generated packet files remain individually downloadable; this JSON includes their manifests, provenance, and hashes.",
+        "This inspection export includes stored profile, match, packet, assurance, application, and receipt records. Generated packet files remain individually downloadable. It is not a restore archive, immutable job history, or replay proof.",
     });
   });
   app.delete("/v1/data", async (request, reply) => {

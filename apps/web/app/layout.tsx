@@ -14,9 +14,10 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://udhawan97.github.io/Nimanto/"),
   title: { default: "Nimanto — evidence-first job search", template: "%s · Nimanto" },
   description:
-    "A private, candidate-controlled evidence and application workbench for H-1B professionals.",
+    "A private, candidate-controlled evidence, history, and application workbench for H-1B professionals.",
   applicationName: "Nimanto",
   referrer: "no-referrer",
+  alternates: { canonical: "https://udhawan97.github.io/Nimanto/" },
   manifest: `${publicBase}/manifest.webmanifest`,
   /* No hand-written `icons` entry. The tab icon comes from app/icon.svg via the
    * Next file convention, which emits a basePath-correct href on its own — the
@@ -25,7 +26,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Nimanto — evidence-first job search",
     description:
-      "Build a verified career record, understand role fit, and approve every application handoff.",
+      "Build a verified career record, inspect stored history, understand role fit, and approve every application handoff.",
     type: "website",
     images: [
       {
@@ -35,6 +36,13 @@ export const metadata: Metadata = {
         alt: "Nimanto — the invitation fold, beside the words evidence first, applications second",
       },
     ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Nimanto — evidence-first job search",
+    description:
+      "Build a verified career record, inspect stored history, understand role fit, and approve every application handoff.",
+    images: ["https://udhawan97.github.io/Nimanto/assets/social-card.png"],
   },
 };
 

@@ -29,11 +29,13 @@
   ·
   <a href="#what-it-actually-does"><strong>What it does</strong></a>
   ·
+  <a href="docs/releases/v0.4.0.md"><strong>v0.4.0 notes</strong></a>
+  ·
   <a href="docs/planning/product-contract.md"><strong>Product contract</strong></a>
 </p>
 
 <p align="center">
-  <img src="docs/assets/nimanto-workbench.png" alt="The Nimanto workbench on an ink ground: confirmed evidence counts, a personal funnel, recent role explanations, and a next-step rail" width="1100">
+  <img src="docs/assets/nimanto-workbench.png" alt="The Nimanto stored-history workbench on an ink ground: an exact profile-version diff beside a same-role match comparison" width="1100">
 </p>
 
 ---
@@ -52,7 +54,9 @@ half-finished forms. Nimanto gives that work one inspectable path:
    what is supported, what is missing, and what blocks you.
 5. **Track** the application and generate JSON, plain text, and paired modern and
    ATS-safe DOCX/PDF from confirmed evidence only.
-6. **Approve** — assurance, then the packet, then the exact action, then a runtime
+6. **Inspect** retained profile, match, packet, and assurance records when you
+   need them; compare literal stored values without inventing causality.
+7. **Approve** — assurance, then the packet, then the exact action, then a runtime
    switch that resets itself off.
 
 Nimanto is a **candidate tool**. It does not screen you for employers, estimate
@@ -67,10 +71,12 @@ today.
 | Decide whether a role is worth time | **Role discovery**        | Ephemeral filters, four match dimensions, requirements, coverage, blockers  |
 | Keep sponsorship context honest     | **H-1B evidence signals** | Source, period, observation time, confidence, freshness adjustment, limits  |
 | Remember what actually happened     | **Applications**          | Candidate-recorded outcomes and notes on a literal chronology               |
+| Review a bounded application cohort | **Applications**          | Creation-window counts using current role source and match classification   |
 | Prepare application materials       | **Review packets**        | Canonical content, format checks, hashes, stored assurance findings         |
+| Compare retained records            | **Stored history**        | Profile diffs and same-role match runs, fetched only when opened            |
 | Hand work to email safely           | **Approved actions**      | Exact recipient and payload, approval, runtime switch, provider receipt     |
 | Inspect local provenance            | **Local activity**        | Hash-checked match, packet, and executed-action receipts; no delivery claim |
-| Leave with your data                | **Data controls**         | Portable workspace JSON, artifact manifests, resumable deletion             |
+| Inspect or erase your data          | **Data controls**         | Sensitive workspace JSON, explicit exclusions, resumable deletion           |
 
 ## How it looks
 
@@ -179,6 +185,29 @@ issue a hashed, expiring, single-use invitation.
 - A recorded-outcome timeline shows application creation and the candidate's
   dated notes in order. It does not reconstruct unrecorded stages or infer an
   outcome from silence.
+- A record-review queue is derived from the newest application creation or
+  candidate-recorded outcome timestamp. It appears after 336 elapsed hours,
+  shows the exact activity baseline and computed due time in due order, excludes
+  withdrawn records, persists no reminder, and infers no employer response.
+- Application cohort counts use an explicit local-time creation window and
+  optional current job-source/current match-classification filters. The
+  classification contains the five domain bands plus separate unmatched and
+  unknown buckets. Counts are mutually exclusive and raw—never rates,
+  predictions, or reconstructed historical values.
+
+### Retained history and comparison
+
+- Cursor-paginated, tenant-scoped profile-version and match-run history is read
+  only when **Stored history** opens. The dashboard remains bounded to current
+  working records.
+- Profile comparison reports exact added/removed claim IDs and exact
+  authorization-wording changes. Neutral A/B labels stay truthful even when the
+  candidate selects the same or reverse-ordered records. Same-role match
+  comparison shows stored run, profile, rule, input-hash, result-hash, band, and
+  blocker values beside a clearly labeled current mutable job snapshot.
+- The stored match input hash identifies the job and profile-version references;
+  it is not a content hash. Comparisons do not claim causality, replay guarantees, or
+  immutable job history.
 
 ### Grounded packets
 
@@ -200,6 +229,12 @@ issue a hashed, expiring, single-use invitation.
   the latest stored assurance rule and findings. These checks cover structure,
   integrity and configured rules—not claim truth, writing quality, employer
   acceptance or external delivery.
+- A candidate can generate another unapproved packet for the same application,
+  then inspect paginated generations and literal canonical-content differences.
+  The view calls them history, not lineage: no predecessor relationship is
+  stored. Packet status and manifests are identified as current mutable fields.
+- Assurance history is paginated per packet and uses a packet-local ordinal. The
+  database-wide ordering sequence is never returned to a candidate or export.
 
 ### Approval-gated actions
 
@@ -251,16 +286,18 @@ pnpm build
 pnpm test:e2e
 ```
 
-The suite covers private launch access, tenant isolation, owner-only filesystem
+The suite covers private launch access, tenant-isolated history cursors,
+owner-only filesystem
 modes, deterministic matching and freshness, canonical receipts, parser
 boundaries, provider allowlists, durable schedule leases, retries and dead
 letters, application transition legality, modern and ATS-safe packet formats,
 artifact tamper detection, assurance gating, resumable deletion, external-action
-transitions, design-token contrast, API integration, and a WebKit journey.
+transitions, literal history comparison, sensitive export confirmation,
+design-token contrast, API integration, and nine sequential WebKit journeys.
 
 ## Beta boundaries
 
-Version `0.3.0` is a **local beta**:
+Version `0.4.0` is a **local beta**:
 
 - The local candidate workflow is implemented and tested.
 - Public website hosting carries product information and the static workbench
@@ -284,9 +321,14 @@ Version `0.3.0` is a **local beta**:
 - Tenant IDs scope every product query; cross-tenant tests exercise the seam.
 - External action payloads cannot execute from draft or pending states.
 - The runtime switch is in memory and resets off.
-- Exports are portable workspace JSON with identity, provenance, hashes and
-  artifact manifests. Generated packet files download separately. Local deletion
-  removes tenant rows, packet artifacts, outbox messages and the session.
+- Versioned inspection exports contain identity, provenance, hashes, packet
+  manifests, and retained profile/match/assurance records. The workbench disables
+  its download control until the candidate acknowledges the sensitive-data
+  warning; the authenticated local API remains directly callable. Exports exclude
+  sessions, invitation secrets, deletion internals, and generated packet files.
+  The JSON is not a restore archive, immutable role history, or replay proof.
+  Local deletion removes tenant rows, packet artifacts, outbox messages and the
+  session.
 - Deletion hands back a seven-day status token and says which outcome it
   reached. If local file cleanup could not finish, it says so rather than
   reporting success, and the token resumes it. The token is a bearer
@@ -311,5 +353,5 @@ of scope.
 Apache License 2.0. See [LICENSE](LICENSE), [NOTICE](NOTICE),
 [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md),
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), and the release
-[CycloneDX](docs/releases/nimanto-v0.3.0.cdx.json) /
-[SPDX](docs/releases/nimanto-v0.3.0.spdx.json) inventories.
+[CycloneDX](docs/releases/nimanto-v0.4.0.cdx.json) /
+[SPDX](docs/releases/nimanto-v0.4.0.spdx.json) inventories.

@@ -47,6 +47,8 @@ import { ConnectionBanner, ConnectionIndicator, useConnection } from "./connecti
 import { CopyLine } from "./copy-line.js";
 import {
   BOARD_COLUMNS,
+  APPLICATION_MATCH_BUCKETS,
+  applicationCohortCounts,
   boardColumns,
   canMove,
   confirmationPrompt,
@@ -57,6 +59,8 @@ import {
   legalTargets,
   needsConfirmation,
   nextSteps,
+  profileVersionDiff,
+  recordReviewQueue,
   recordedOutcomeTimeline,
   sectionFromHash,
   sectionHash,
@@ -98,6 +102,11 @@ type Job = {
 type Match = {
   id: string;
   jobId: string;
+  profileVersionId: string | null;
+  ruleVersion: string;
+  inputHash: string;
+  artifactHash: string;
+  createdAt: string;
   result: {
     ruleVersion: string;
     band: string;
@@ -136,8 +145,11 @@ type Application = {
 type Packet = {
   id: string;
   applicationId: string;
+  profileVersionId: string | null;
   status: string;
   approvedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
   artifactHash: string;
   canonicalContent: {
     schemaVersion?: string;
@@ -169,6 +181,20 @@ type Packet = {
     createdAt: string;
   } | null;
 };
+type ProfileVersion = {
+  id: string;
+  claimIds: string[];
+  authorizationWording: string;
+  inputHash: string;
+  createdAt: string;
+};
+type MatchHistoryRun = Omit<Match, "job"> & { currentJob: Job | null };
+type AssuranceHistoryRun = NonNullable<Packet["latestAssurance"]> & {
+  packetId: string;
+  packetOrdinal: number;
+};
+type PacketHistoryRecord = Omit<Packet, "latestAssurance">;
+type HistoryPage<T> = { items: T[]; nextCursor: string | null };
 type Action = {
   id: string;
   packetId: string;
@@ -215,13 +241,14 @@ type SourceSchedule = {
 };
 type Dashboard = {
   identity: { displayName: string; email: string };
-  profile: { authorizationWording: string } | null;
+  profile: ProfileVersion | null;
   evidence: Evidence[];
   jobs: Job[];
   matches: Match[];
   h1bSignals: Signal[];
   applications: Application[];
   packets: Packet[];
+  actionPackets: Packet[];
   externalActions: Action[];
   receipts: Receipt[];
   schedules: SourceSchedule[];
@@ -313,6 +340,66 @@ function localDateTime(value: string): string {
   }).format(new Date(value));
 }
 
+function packetCanonicalDelta(before: PacketHistoryRecord, after: PacketHistoryRecord): string[] {
+  const fields: Array<keyof Packet["canonicalContent"]> = [
+    "schemaVersion",
+    "candidateName",
+    "destination",
+    "summary",
+    "claims",
+    "authorizationWording",
+    "generatedAt",
+  ];
+  return fields.filter(
+    (field) =>
+      JSON.stringify(before.canonicalContent[field]) !==
+      JSON.stringify(after.canonicalContent[field]),
+  );
+}
+
+function packetManifestDelta(before: PacketHistoryRecord, after: PacketHistoryRecord): string[] {
+  const beforeArtifacts = new Map(
+    (before.artifactManifest.artifacts ?? []).map((artifact) => [
+      artifact.format + ":" + artifact.filename,
+      artifact.sha256,
+    ]),
+  );
+  const afterArtifacts = new Map(
+    (after.artifactManifest.artifacts ?? []).map((artifact) => [
+      artifact.format + ":" + artifact.filename,
+      artifact.sha256,
+    ]),
+  );
+  const keys = [...new Set([...beforeArtifacts.keys(), ...afterArtifacts.keys()])].toSorted();
+  const changes = keys.flatMap((key) => {
+    if (!beforeArtifacts.has(key)) return ["Added " + key];
+    if (!afterArtifacts.has(key)) return ["Removed " + key];
+    if (beforeArtifacts.get(key) !== afterArtifacts.get(key)) return ["Changed " + key];
+    return [];
+  });
+  if (
+    JSON.stringify(before.artifactManifest.documentInspection) !==
+    JSON.stringify(after.artifactManifest.documentInspection)
+  ) {
+    changes.push("Changed document inspection");
+  }
+  return changes;
+}
+
+function dateInputValue(value: Date, offsetDays = 0): string {
+  const local = new Date(value);
+  local.setDate(local.getDate() + offsetDays);
+  const year = local.getFullYear();
+  const month = String(local.getMonth() + 1).padStart(2, "0");
+  const day = String(local.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function localDayInstant(value: string, offsetDays = 0): string {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year!, month! - 1, day! + offsetDays).toISOString();
+}
+
 function fileBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -328,6 +415,7 @@ const navigation: Array<{ id: Section; label: string; icon: typeof Activity }> =
   { id: "jobs", label: "Role discovery", icon: BriefcaseBusiness },
   { id: "applications", label: "Applications", icon: UserRoundCheck },
   { id: "packets", label: "Review packets", icon: FileOutput },
+  { id: "history", label: "Stored history", icon: FileClock },
   { id: "actions", label: "Approved actions", icon: Send },
   { id: "activity", label: "Local activity", icon: FileClock },
   { id: "data", label: "Data controls", icon: Database },
@@ -815,6 +903,7 @@ export function Workspace() {
             <Applications dashboard={dashboard} onAct={act} busy={busy} onGo={goToSection} />
           )}
           {section === "packets" && <Packets dashboard={dashboard} onAct={act} busy={busy} />}
+          {section === "history" && <StoredHistory />}
           {section === "actions" && <Actions dashboard={dashboard} onAct={act} busy={busy} />}
           {section === "activity" && <ActivityLedger dashboard={dashboard} />}
           {section === "data" && (
@@ -2361,6 +2450,375 @@ function Signals({
   );
 }
 
+function StoredHistory() {
+  const [profiles, setProfiles] = useState<HistoryPage<ProfileVersion> | null>(null);
+  const [matchOverview, setMatchOverview] = useState<HistoryPage<MatchHistoryRun> | null>(null);
+  const [jobRuns, setJobRuns] = useState<HistoryPage<MatchHistoryRun> | null>(null);
+  const [selectedJobId, setSelectedJobId] = useState("");
+  const [profileBefore, setProfileBefore] = useState("");
+  const [profileAfter, setProfileAfter] = useState("");
+  const [matchBefore, setMatchBefore] = useState("");
+  const [matchAfter, setMatchAfter] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.all([
+      api<HistoryPage<ProfileVersion>>("/v1/history/profile-versions?limit=20"),
+      api<HistoryPage<MatchHistoryRun>>("/v1/history/match-runs?limit=20"),
+    ])
+      .then(([profilePage, matchPage]) => {
+        if (cancelled) return;
+        setProfiles(profilePage);
+        setMatchOverview(matchPage);
+        setProfileAfter(profilePage.items[0]?.id ?? "");
+        setProfileBefore(profilePage.items[1]?.id ?? "");
+        setSelectedJobId(matchPage.items[0]?.jobId ?? "");
+      })
+      .catch(() => {
+        if (!cancelled) setError("Stored history could not be loaded from the local service.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!selectedJobId) {
+      setJobRuns(null);
+      return;
+    }
+    let cancelled = false;
+    setJobRuns(null);
+    void api<HistoryPage<MatchHistoryRun>>(
+      `/v1/history/match-runs?jobId=${encodeURIComponent(selectedJobId)}&limit=20`,
+    )
+      .then((page) => {
+        if (cancelled) return;
+        setJobRuns(page);
+        setMatchAfter(page.items[0]?.id ?? "");
+        setMatchBefore(page.items[1]?.id ?? "");
+      })
+      .catch(() => {
+        if (!cancelled) setError("Match-run history could not be loaded.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedJobId]);
+
+  const profileVersions = profiles?.items ?? [];
+  const beforeProfile = profileVersions.find((item) => item.id === profileBefore);
+  const afterProfile = profileVersions.find((item) => item.id === profileAfter);
+  const profileDiff =
+    beforeProfile && afterProfile ? profileVersionDiff(beforeProfile, afterProfile) : null;
+  const jobs = [
+    ...new Map(
+      (matchOverview?.items ?? [])
+        .filter((run) => run.currentJob)
+        .map((run) => [run.jobId, run.currentJob!]),
+    ).values(),
+  ];
+  const beforeRun = jobRuns?.items.find((run) => run.id === matchBefore);
+  const afterRun = jobRuns?.items.find((run) => run.id === matchAfter);
+
+  const appendProfiles = async () => {
+    if (!profiles?.nextCursor) return;
+    const page = await api<HistoryPage<ProfileVersion>>(
+      `/v1/history/profile-versions?limit=20&cursor=${encodeURIComponent(profiles.nextCursor)}`,
+    );
+    setProfiles({ items: [...profiles.items, ...page.items], nextCursor: page.nextCursor });
+  };
+  const appendMatchOverview = async () => {
+    if (!matchOverview?.nextCursor) return;
+    const page = await api<HistoryPage<MatchHistoryRun>>(
+      `/v1/history/match-runs?limit=20&cursor=${encodeURIComponent(matchOverview.nextCursor)}`,
+    );
+    setMatchOverview({
+      items: [...matchOverview.items, ...page.items],
+      nextCursor: page.nextCursor,
+    });
+  };
+  const appendJobRuns = async () => {
+    if (!jobRuns?.nextCursor || !selectedJobId) return;
+    const page = await api<HistoryPage<MatchHistoryRun>>(
+      `/v1/history/match-runs?jobId=${encodeURIComponent(selectedJobId)}&limit=20&cursor=${encodeURIComponent(jobRuns.nextCursor)}`,
+    );
+    setJobRuns({ items: [...jobRuns.items, ...page.items], nextCursor: page.nextCursor });
+  };
+
+  return (
+    <>
+      <PageIntro
+        eyebrow="Stored history"
+        title="Inspect what changed—without inventing why."
+        copy="Profile versions and deterministic match runs are retained as stored records. Comparisons are literal; they do not reconstruct mutable job history or prove causality."
+      />
+      {error && (
+        <div className="notice error" role="alert">
+          <CircleAlert size={17} /> {error}
+        </div>
+      )}
+      {loading ? (
+        <Empty
+          icon={FileClock}
+          title="Loading stored history"
+          copy="Reading this workspace only."
+        />
+      ) : (
+        <div className="history-grid">
+          <section className="work-panel history-panel" aria-labelledby="profile-history-title">
+            <div className="panel-heading">
+              <div>
+                <span>Exact profile records</span>
+                <h2 id="profile-history-title">Profile version diff</h2>
+                <p>Claim identifiers and authorization wording only.</p>
+              </div>
+              <strong>{profileVersions.length} loaded</strong>
+            </div>
+            {profileVersions.length >= 2 ? (
+              <>
+                <div className="history-selectors">
+                  <label>
+                    Version A
+                    <select
+                      aria-label="Profile version A"
+                      value={profileBefore}
+                      onChange={(event) => setProfileBefore(event.target.value)}
+                    >
+                      {profileVersions.map((profile) => (
+                        <option key={profile.id} value={profile.id}>
+                          {localDateTime(profile.createdAt)} · {profile.id.slice(0, 8)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Version B
+                    <select
+                      aria-label="Profile version B"
+                      value={profileAfter}
+                      onChange={(event) => setProfileAfter(event.target.value)}
+                    >
+                      {profileVersions.map((profile) => (
+                        <option key={profile.id} value={profile.id}>
+                          {localDateTime(profile.createdAt)} · {profile.id.slice(0, 8)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                {profileDiff && (
+                  <div className="literal-diff">
+                    <div>
+                      <span>Added claim IDs</span>
+                      {profileDiff.addedClaimIds.length ? (
+                        profileDiff.addedClaimIds.map((id) => <code key={id}>{id}</code>)
+                      ) : (
+                        <small>None</small>
+                      )}
+                    </div>
+                    <div>
+                      <span>Removed claim IDs</span>
+                      {profileDiff.removedClaimIds.length ? (
+                        profileDiff.removedClaimIds.map((id) => <code key={id}>{id}</code>)
+                      ) : (
+                        <small>None</small>
+                      )}
+                    </div>
+                    <div className="history-wording">
+                      <span>Version A exact wording</span>
+                      <p>{profileDiff.beforeAuthorizationWording || "No wording stored."}</p>
+                    </div>
+                    <div className="history-wording">
+                      <span>Version B exact wording</span>
+                      <p>{profileDiff.afterAuthorizationWording || "No wording stored."}</p>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <Empty
+                icon={FileClock}
+                title="One profile version stored"
+                copy="Save another version to enable a literal diff."
+              />
+            )}
+            {profiles?.nextCursor && (
+              <button
+                className="button mini quiet"
+                type="button"
+                onClick={() => void appendProfiles()}
+              >
+                Load older profile versions
+              </button>
+            )}
+          </section>
+
+          <section className="work-panel history-panel" aria-labelledby="match-history-title">
+            <div className="panel-heading">
+              <div>
+                <span>Deterministic stored outputs</span>
+                <h2 id="match-history-title">Same-role match comparison</h2>
+                <p>Current role fields are shown as a mutable snapshot.</p>
+              </div>
+              <strong>{matchOverview?.items.length ?? 0} loaded</strong>
+            </div>
+            {jobs.length ? (
+              <>
+                <label>
+                  Role with stored runs
+                  <select
+                    value={selectedJobId}
+                    onChange={(event) => setSelectedJobId(event.target.value)}
+                  >
+                    {jobs.map((job) => (
+                      <option key={job.id} value={job.id}>
+                        {job.title} · {job.company}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {jobRuns?.items.length && jobRuns.items.length >= 2 ? (
+                  <>
+                    <div className="history-selectors">
+                      <label>
+                        Run A
+                        <select
+                          aria-label="Stored match run A"
+                          value={matchBefore}
+                          onChange={(event) => setMatchBefore(event.target.value)}
+                        >
+                          {jobRuns.items.map((run) => (
+                            <option key={run.id} value={run.id}>
+                              {localDateTime(run.createdAt)} · {run.id.slice(0, 8)}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label>
+                        Run B
+                        <select
+                          aria-label="Stored match run B"
+                          value={matchAfter}
+                          onChange={(event) => setMatchAfter(event.target.value)}
+                        >
+                          {jobRuns.items.map((run) => (
+                            <option key={run.id} value={run.id}>
+                              {localDateTime(run.createdAt)} · {run.id.slice(0, 8)}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                    {beforeRun && afterRun && (
+                      <div className="run-comparison">
+                        {[beforeRun, afterRun].map((run, index) => (
+                          <article key={run.id + "-" + index}>
+                            <span>{index === 0 ? "Stored run A" : "Stored run B"}</span>
+                            <h3>{human(run.result.band)}</h3>
+                            <time dateTime={run.createdAt}>{localDateTime(run.createdAt)}</time>
+                            <dl>
+                              <div>
+                                <dt>Run ID</dt>
+                                <dd>
+                                  <code>{run.id}</code>
+                                </dd>
+                              </div>
+                              <div>
+                                <dt>Profile version</dt>
+                                <dd>
+                                  <code>{run.profileVersionId ?? "none"}</code>
+                                </dd>
+                              </div>
+                              <div>
+                                <dt>Stored input hash</dt>
+                                <dd>
+                                  <code>{run.inputHash}</code>
+                                </dd>
+                              </div>
+                              <div>
+                                <dt>Stored result hash</dt>
+                                <dd>
+                                  <code>{run.artifactHash}</code>
+                                </dd>
+                              </div>
+                              <div>
+                                <dt>Rule version</dt>
+                                <dd>
+                                  <code>{run.ruleVersion}</code>
+                                </dd>
+                              </div>
+                              <div>
+                                <dt>Blockers</dt>
+                                <dd>
+                                  {run.result.blockers.length ? (
+                                    <ul className="literal-values">
+                                      {run.result.blockers.map((blocker) => (
+                                        <li key={blocker.code + ":" + blocker.sourceText}>
+                                          <code>{blocker.code}</code> · {blocker.sourceText}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  ) : (
+                                    "None"
+                                  )}
+                                </dd>
+                              </div>
+                            </dl>
+                          </article>
+                        ))}
+                      </div>
+                    )}
+                    <p className="boundary-note">
+                      The input hash identifies the stored job and profile-version references; it is
+                      not a content hash. A changed result is not attributed to any cause.
+                    </p>
+                  </>
+                ) : (
+                  <Empty
+                    icon={FileClock}
+                    title="One run stored for this role"
+                    copy="Run the same deterministic match again to enable comparison."
+                  />
+                )}
+                {jobRuns?.nextCursor && (
+                  <button
+                    className="button mini quiet"
+                    type="button"
+                    onClick={() => void appendJobRuns()}
+                  >
+                    Load older runs for this role
+                  </button>
+                )}
+              </>
+            ) : (
+              <Empty
+                icon={Sparkles}
+                title="No match history yet"
+                copy="Run a role explanation to create the first stored match record."
+              />
+            )}
+            {matchOverview?.nextCursor && (
+              <button
+                className="button mini quiet"
+                type="button"
+                onClick={() => void appendMatchOverview()}
+              >
+                Load older roles and runs
+              </button>
+            )}
+          </section>
+        </div>
+      )}
+    </>
+  );
+}
+
 function Applications({
   dashboard,
   onAct,
@@ -2374,7 +2832,29 @@ function Applications({
 }) {
   const [outcomeFor, setOutcomeFor] = useState<string | null>(null);
   const [view, setView] = useState<"board" | "table">("board");
+  const [reviewOnly, setReviewOnly] = useState(false);
+  const [cohortStart, setCohortStart] = useState(() => dateInputValue(new Date(), -30));
+  const [cohortEnd, setCohortEnd] = useState(() => dateInputValue(new Date()));
+  const [cohortSource, setCohortSource] = useState("all");
+  const [cohortBucket, setCohortBucket] = useState<
+    "all" | (typeof APPLICATION_MATCH_BUCKETS)[number]
+  >("all");
   const now = new Date();
+  const reviewQueue = recordReviewQueue(dashboard.applications, now);
+  const visibleApplications = reviewOnly
+    ? reviewQueue.map((item) => item.application)
+    : dashboard.applications;
+  const cohort = applicationCohortCounts({
+    applications: dashboard.applications,
+    jobs: dashboard.jobs,
+    matches: dashboard.matches,
+    startAt: localDayInstant(cohortStart),
+    endAtExclusive: localDayInstant(cohortEnd, 1),
+    source: cohortSource,
+    matchBucket: cohortBucket,
+  });
+  const cohortTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const cohortSources = [...new Set(dashboard.jobs.map((job) => job.source))].toSorted();
   const submitOutcome = (event: FormEvent<HTMLFormElement>, id: string) => {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(event.currentTarget));
@@ -2439,6 +2919,14 @@ function Applications({
             >
               {view === "board" ? "Table view" : "Board view"}
             </button>
+            <button
+              className="button quiet mini"
+              type="button"
+              aria-pressed={reviewOnly}
+              onClick={() => setReviewOnly((value) => !value)}
+            >
+              <Clock3 size={15} /> {reviewOnly ? "Show all" : `Review due · ${reviewQueue.length}`}
+            </button>
             <button className="button quiet" type="button" onClick={() => onGo("jobs")}>
               <Plus size={16} /> Track another role
             </button>
@@ -2447,9 +2935,125 @@ function Applications({
       />
       <Funnel funnel={dashboard.personalFunnel} />
 
+      <section className="record-review-strip" aria-labelledby="record-review-title">
+        <div>
+          <span>Derived current view</span>
+          <h2 id="record-review-title">Record-review queue</h2>
+          <p>
+            {reviewQueue.length
+              ? `${reviewQueue.length} application record${reviewQueue.length === 1 ? " has" : "s have"} no candidate-recorded activity in at least 336 elapsed hours.`
+              : "No application record has reached 336 elapsed hours since its latest candidate-recorded activity."}
+          </p>
+        </div>
+        {reviewQueue.length ? (
+          <ol className="record-review-list">
+            {reviewQueue.map((item) => (
+              <li key={item.application.id}>
+                <strong>
+                  {item.application.job?.title ?? "Unknown role"} ·{" "}
+                  {item.application.job?.company ?? "Unknown company"}
+                </strong>
+                <small>
+                  Latest candidate record {localDateTime(item.lastRecordedAt)} · review due{" "}
+                  {localDateTime(item.dueAt)}
+                </small>
+              </li>
+            ))}
+          </ol>
+        ) : null}
+        <small>No reminder is stored and no employer outcome is inferred.</small>
+      </section>
+
+      <section className="cohort-panel" aria-labelledby="cohort-title">
+        <div className="panel-heading">
+          <div>
+            <span>Application cohort counts · current snapshot</span>
+            <h2 id="cohort-title">Count records in an explicit creation window</h2>
+            <p>
+              Dates use {cohortTimezone}. Role source and match classification reflect their current
+              stored values, not reconstructed values at application time.
+            </p>
+          </div>
+        </div>
+        <div className="cohort-controls">
+          <label>
+            Created from
+            <input
+              type="date"
+              value={cohortStart}
+              max={cohortEnd}
+              onChange={(event) => {
+                if (event.target.value) setCohortStart(event.target.value);
+              }}
+            />
+          </label>
+          <label>
+            Created through
+            <input
+              type="date"
+              value={cohortEnd}
+              min={cohortStart}
+              onChange={(event) => {
+                if (event.target.value) setCohortEnd(event.target.value);
+              }}
+            />
+          </label>
+          <label>
+            Current role source
+            <select value={cohortSource} onChange={(event) => setCohortSource(event.target.value)}>
+              <option value="all">All sources</option>
+              {cohortSources.map((source) => (
+                <option key={source} value={source}>
+                  {human(source)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Current match classification
+            <select
+              value={cohortBucket}
+              onChange={(event) => setCohortBucket(event.target.value as typeof cohortBucket)}
+            >
+              <option value="all">All classifications</option>
+              {APPLICATION_MATCH_BUCKETS.map((bucket) => (
+                <option key={bucket} value={bucket}>
+                  {human(bucket)}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div className="cohort-counts" aria-live="polite">
+          <Metric
+            value={cohort.sampleSize}
+            label="Applications"
+            detail="Creation-time denominator"
+          />
+          <Metric value={cohort.outcomes.replies} label="Replies recorded" detail="Raw count" />
+          <Metric value={cohort.outcomes.screens} label="Screens recorded" detail="Raw count" />
+          <Metric
+            value={cohort.outcomes.interviews}
+            label="Interviews recorded"
+            detail="Raw count"
+          />
+          <Metric value={cohort.outcomes.offers} label="Offers recorded" detail="Raw count" />
+        </div>
+        <div className="cohort-bands">
+          {APPLICATION_MATCH_BUCKETS.map((bucket) => (
+            <span key={bucket}>
+              <strong>{cohort.byMatchBucket[bucket]}</strong> {human(bucket)}
+            </span>
+          ))}
+        </div>
+        <p className="boundary-note">
+          Counts only. They are not conversion rates, hiring probabilities, or causal evidence.
+        </p>
+      </section>
+
       {view === "board" && (
         <section className="board" aria-label="Application pipeline">
-          {boardColumns(dashboard.applications).map((column) => (
+          {boardColumns(visibleApplications).map((column) => (
             <div className="board-column" key={column.id}>
               <header>
                 <h3>{column.label}</h3>
@@ -2517,7 +3121,7 @@ function Applications({
           <span>Outcomes</span>
           <span>Next step</span>
         </div>
-        {dashboard.applications.map((application) => (
+        {visibleApplications.map((application) => (
           <article key={application.id} className="table-row">
             <div className="application-identity">
               <strong>{application.job?.title ?? "Unknown role"}</strong>
@@ -2587,6 +3191,13 @@ function Applications({
           copy="Choose Track from Role discovery when a position is worth pursuing."
         />
       )}
+      {dashboard.applications.length > 0 && visibleApplications.length === 0 && (
+        <Empty
+          icon={Clock3}
+          title="No records are due for review"
+          copy="Every active record has candidate-recorded activity within the last 336 elapsed hours."
+        />
+      )}
     </>
   );
 }
@@ -2626,6 +3237,7 @@ function Packets({
   onAct: ActionRunner;
   busy: boolean;
 }) {
+  const [historyFor, setHistoryFor] = useState<string | null>(null);
   const packetByApplication = new Map(
     dashboard.packets.map((packet) => [packet.applicationId, packet]),
   );
@@ -2684,6 +3296,23 @@ function Packets({
                     <button
                       className="button mini quiet"
                       type="button"
+                      disabled={busy}
+                      onClick={() =>
+                        onAct(
+                          () =>
+                            api("/v1/packets", {
+                              method: "POST",
+                              body: JSON.stringify({ applicationId: application.id }),
+                            }),
+                          "A new packet generation is ready for review.",
+                        )
+                      }
+                    >
+                      <FileOutput size={15} /> Generate new
+                    </button>
+                    <button
+                      className="button mini quiet"
+                      type="button"
                       disabled={busy || packet.status === "approved"}
                       onClick={() =>
                         onAct(
@@ -2706,6 +3335,16 @@ function Packets({
                       }
                     >
                       <Check size={15} /> Approve
+                    </button>
+                    <button
+                      className="button mini quiet"
+                      type="button"
+                      aria-expanded={historyFor === application.id}
+                      onClick={() =>
+                        setHistoryFor(historyFor === application.id ? null : application.id)
+                      }
+                    >
+                      <FileClock size={15} /> History
                     </button>
                   </>
                 )}
@@ -2837,6 +3476,9 @@ function Packets({
                   </p>
                 </details>
               )}
+              {packet && historyFor === application.id && (
+                <PacketHistoryPanel applicationId={application.id} />
+              )}
             </article>
           );
         })}
@@ -2852,6 +3494,217 @@ function Packets({
   );
 }
 
+function PacketHistoryPanel({ applicationId }: { applicationId: string }) {
+  const [page, setPage] = useState<HistoryPage<PacketHistoryRecord> | null>(null);
+  const [assuranceFor, setAssuranceFor] = useState<string | null>(null);
+  const [assurances, setAssurances] = useState<HistoryPage<AssuranceHistoryRun> | null>(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    void api<HistoryPage<PacketHistoryRecord>>(
+      `/v1/applications/${encodeURIComponent(applicationId)}/packets?limit=20`,
+    )
+      .then((value) => {
+        if (!cancelled) setPage(value);
+      })
+      .catch(() => {
+        if (!cancelled) setError("Packet history could not be loaded.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [applicationId]);
+
+  useEffect(() => {
+    if (!assuranceFor) {
+      setAssurances(null);
+      return;
+    }
+    let cancelled = false;
+    void api<HistoryPage<AssuranceHistoryRun>>(
+      `/v1/packets/${encodeURIComponent(assuranceFor)}/assurance-runs?limit=20`,
+    )
+      .then((value) => {
+        if (!cancelled) setAssurances(value);
+      })
+      .catch(() => {
+        if (!cancelled) setError("Assurance history could not be loaded.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [assuranceFor]);
+
+  const packets = page?.items ?? [];
+  const latest = packets[0];
+  const previous = packets[1];
+  const canonicalDelta = latest && previous ? packetCanonicalDelta(previous, latest) : [];
+  const manifestDelta = latest && previous ? packetManifestDelta(previous, latest) : [];
+  const loadOlderPackets = async () => {
+    if (!page?.nextCursor) return;
+    const older = await api<HistoryPage<PacketHistoryRecord>>(
+      `/v1/applications/${encodeURIComponent(applicationId)}/packets?limit=20&cursor=${encodeURIComponent(page.nextCursor)}`,
+    );
+    setPage({ items: [...page.items, ...older.items], nextCursor: older.nextCursor });
+  };
+  const loadOlderAssurances = async () => {
+    if (!assurances?.nextCursor || !assuranceFor) return;
+    const older = await api<HistoryPage<AssuranceHistoryRun>>(
+      `/v1/packets/${encodeURIComponent(assuranceFor)}/assurance-runs?limit=20&cursor=${encodeURIComponent(assurances.nextCursor)}`,
+    );
+    setAssurances({ items: [...assurances.items, ...older.items], nextCursor: older.nextCursor });
+  };
+
+  return (
+    <section className="packet-history" aria-label="Stored packet history">
+      <div className="panel-heading">
+        <div>
+          <span>Stored generations · newest first</span>
+          <h3>Packet history and comparison</h3>
+          <p>These are sibling records for one application, not a proven causal lineage.</p>
+        </div>
+        <strong>{packets.length} loaded</strong>
+      </div>
+      {error && <p className="field-note error-text">{error}</p>}
+      {!page && !error && <small>Loading packet history…</small>}
+      {latest && previous && (
+        <div className="packet-comparison">
+          <div>
+            <span>Canonical content</span>
+            <strong>
+              {latest.artifactHash === previous.artifactHash
+                ? "Same stored hash"
+                : "Changed stored hash"}
+            </strong>
+            <small>
+              {canonicalDelta.length
+                ? "Changed fields: " + canonicalDelta.join(", ")
+                : "No literal field changes"}
+            </small>
+          </div>
+          <div>
+            <span>Claim count</span>
+            <strong>
+              {previous.canonicalContent.claims?.length ?? 0} →{" "}
+              {latest.canonicalContent.claims?.length ?? 0}
+            </strong>
+          </div>
+          <div>
+            <span>Authorization wording</span>
+            <strong>
+              {previous.canonicalContent.authorizationWording ===
+              latest.canonicalContent.authorizationWording
+                ? "Unchanged"
+                : "Changed exactly"}
+            </strong>
+          </div>
+          <div>
+            <span>Artifact manifest</span>
+            <strong>
+              {manifestDelta.length ? manifestDelta.length + " change(s)" : "Unchanged"}
+            </strong>
+            <small>{manifestDelta.length ? manifestDelta.join("; ") : "No literal changes"}</small>
+          </div>
+          <div>
+            <span>Generated</span>
+            <strong>
+              {localDateTime(previous.createdAt)} → {localDateTime(latest.createdAt)}
+            </strong>
+          </div>
+        </div>
+      )}
+      <div className="packet-version-list">
+        {packets.map((packet, index) => (
+          <article key={packet.id}>
+            <div>
+              <span>{index === 0 ? "Latest generation" : `Earlier generation ${index}`}</span>
+              <strong>Packet {packet.id.slice(0, 8)}</strong>
+              <time dateTime={packet.createdAt}>{localDateTime(packet.createdAt)}</time>
+            </div>
+            <span className={`state ${packet.status === "approved" ? "supported" : "muted"}`}>
+              {human(packet.status)}
+            </span>
+            <dl>
+              <div>
+                <dt>Profile version</dt>
+                <dd>
+                  <code>{packet.profileVersionId ?? "none"}</code>
+                </dd>
+              </div>
+              <div>
+                <dt>Canonical hash</dt>
+                <dd>
+                  <code>{packet.artifactHash}</code>
+                </dd>
+              </div>
+              <div>
+                <dt>Current manifest files</dt>
+                <dd>{packet.artifactManifest.artifacts?.length ?? 0}</dd>
+              </div>
+            </dl>
+            <button
+              className="button mini quiet"
+              type="button"
+              aria-expanded={assuranceFor === packet.id}
+              onClick={() => setAssuranceFor(assuranceFor === packet.id ? null : packet.id)}
+            >
+              <ShieldCheck size={14} /> Assurance history
+            </button>
+          </article>
+        ))}
+      </div>
+      {page?.nextCursor && (
+        <button className="button mini quiet" type="button" onClick={() => void loadOlderPackets()}>
+          Load older packets
+        </button>
+      )}
+      {assuranceFor && (
+        <div className="assurance-history">
+          <span>Assurance runs for packet {assuranceFor.slice(0, 8)}</span>
+          <p>Packet ordinals are scoped to this packet; no workspace-global sequence is exposed.</p>
+          {assurances ? (
+            assurances.items.length ? (
+              <ol>
+                {assurances.items.map((run) => (
+                  <li key={run.id}>
+                    <strong>
+                      Run {run.packetOrdinal} · {human(run.status)}
+                    </strong>
+                    <time dateTime={run.createdAt}>{localDateTime(run.createdAt)}</time>
+                    <small>
+                      {run.ruleVersion} · {run.findings.length} stored finding
+                      {run.findings.length === 1 ? "" : "s"}
+                    </small>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <small>No assurance run is stored for this packet.</small>
+            )
+          ) : (
+            <small>Loading assurance history…</small>
+          )}
+          {assurances?.nextCursor && (
+            <button
+              className="button mini quiet"
+              type="button"
+              onClick={() => void loadOlderAssurances()}
+            >
+              Load older assurance runs
+            </button>
+          )}
+        </div>
+      )}
+      <p className="boundary-note">
+        Packet status and artifact manifests are current mutable fields. The canonical hash covers
+        stored canonical content, including its generated timestamp; it is not a hash of generated
+        files.
+      </p>
+    </section>
+  );
+}
+
 function Actions({
   dashboard,
   onAct,
@@ -2861,12 +3714,17 @@ function Actions({
   onAct: ActionRunner;
   busy: boolean;
 }) {
-  const approvedPackets = dashboard.packets.filter((packet) => packet.status === "approved");
+  const availablePackets = [
+    ...new Map(
+      [...dashboard.packets, ...dashboard.actionPackets].map((packet) => [packet.id, packet]),
+    ).values(),
+  ];
+  const approvedPackets = availablePackets.filter((packet) => packet.status === "approved");
   /* This control decides what leaves the machine. Naming it "a9c20e42" asked
    * the candidate to map opaque hex to a role at the most consequential step in
    * the product; the identifier stays, as secondary detail. */
   const packetLabel = (packetId: string) => {
-    const packet = dashboard.packets.find((item) => item.id === packetId);
+    const packet = availablePackets.find((item) => item.id === packetId);
     const job = dashboard.applications.find((item) => item.id === packet?.applicationId)?.job;
     return job ? `${job.title} · ${job.company}` : `Packet ${packetId.slice(0, 8)}`;
   };
@@ -3182,6 +4040,7 @@ function DataControls({
   onDeleted: (receipt: DeletionReceipt) => void;
 }) {
   const [confirmation, setConfirmation] = useState("");
+  const [exportConfirmed, setExportConfirmed] = useState(false);
   const download = async () => {
     const response = await fetch(`${API}/v1/export`, { credentials: "include" });
     if (!response.ok) throw new Error("Export failed.");
@@ -3207,18 +4066,35 @@ function DataControls({
             <h2>Download the workspace record</h2>
             <p>
               Includes {dashboard.evidence.length} evidence items, {dashboard.applications.length}{" "}
-              applications, the local receipt trail, and packet manifests. Generated packet files
-              remain available as individual downloads.
+              applications, retained profile versions, match runs, assurance runs, the local receipt
+              trail, and packet manifests. Generated packet files remain available as individual
+              downloads.
             </p>
           </div>
+          <label className="sensitive-confirmation">
+            <input
+              type="checkbox"
+              checked={exportConfirmed}
+              onChange={(event) => setExportConfirmed(event.target.checked)}
+            />
+            <span>
+              I understand this JSON contains sensitive candidate records and should be stored
+              privately.
+            </span>
+          </label>
           <button
             className="button primary"
             type="button"
-            disabled={busy}
+            disabled={busy || !exportConfirmed}
             onClick={() => onAct(download, "Export downloaded.")}
           >
             <Download size={16} /> Download JSON
           </button>
+          <p className="field-note">
+            This is an inspection export, not a restore archive, immutable role history, or replay
+            proof. Sessions, invitation secrets, deletion internals, and generated packet files are
+            excluded.
+          </p>
         </section>
         <section className="work-panel data-panel danger-zone">
           <Trash2 />

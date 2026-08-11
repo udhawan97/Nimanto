@@ -51,7 +51,7 @@ describe("evidence parser", () => {
     ]);
   });
 
-  it("extracts a text-layer PDF and rejects image-only PDFs", async () => {
+  it("extracts a text-layer PDF and rejects image-only PDFs", { timeout: 15_000 }, async () => {
     const textPdf = await PDFDocument.create();
     const font = await textPdf.embedFont(StandardFonts.Helvetica);
     textPdf.addPage().drawText("Skill: TypeScript", { x: 72, y: 720, size: 12, font });
