@@ -482,6 +482,10 @@ test("retained history, record review, cohorts, and sensitive export stay bounde
   const comparedRoleCompany = (await role.locator(".job-main p").textContent())!.split(" · ")[0]!;
   await role.getByRole("button", { name: "Explain fit" }).click();
   await role.getByRole("button", { name: "Track", exact: true }).click();
+  // Tracking refreshes the dashboard asynchronously. Prove that the
+  // application has landed before leaving this view; every history/cohort
+  // assertion below depends on that refreshed snapshot.
+  await expect(role.getByRole("button", { name: "Tracked", exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Stored history" }).click();
   const profileHistory = page.locator(".history-panel").first();
@@ -618,9 +622,11 @@ test("deletion hands back a receipt that outlives the session, and does not outl
   await page.getByRole("button", { name: "Data controls" }).click();
   await page.setViewportSize({ width: 320, height: 900 });
 
-  await page
-    .getByRole("textbox", { name: /DELETE MY NIMANTO DATA/ })
-    .fill("DELETE MY NIMANTO DATA");
+  const deletionConfirmation = page.getByRole("textbox", {
+    name: /DELETE MY NIMANTO DATA/,
+  });
+  await deletionConfirmation.pressSequentially("DELETE MY NIMANTO DATA");
+  await expect(deletionConfirmation).toHaveValue("DELETE MY NIMANTO DATA");
   await page.getByRole("button", { name: "Delete all data" }).click();
 
   /* Deletion clears the session, so the panel that requested it unmounts. The
