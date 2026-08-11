@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://udhawan97.github.io/Nimanto/"),
   title: { default: "Nimanto — evidence-first job search", template: "%s · Nimanto" },
   description:
-    "A private, candidate-controlled evidence, history, and application workbench for H-1B professionals.",
+    "A local-first, candidate-controlled evidence and application workbench for H-1B professionals.",
   applicationName: "Nimanto",
   referrer: "no-referrer",
   alternates: { canonical: "https://udhawan97.github.io/Nimanto/" },
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Nimanto — evidence-first job search",
     description:
-      "Build a verified career record, inspect stored history, understand role fit, and approve every application handoff.",
+      "Build a confirmed career record, work an action-first application pipeline, and approve every handoff.",
     type: "website",
     images: [
       {
@@ -41,7 +41,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Nimanto — evidence-first job search",
     description:
-      "Build a verified career record, inspect stored history, understand role fit, and approve every application handoff.",
+      "Build a confirmed career record, work an action-first application pipeline, and approve every handoff.",
     images: ["https://udhawan97.github.io/Nimanto/assets/social-card.png"],
   },
 };

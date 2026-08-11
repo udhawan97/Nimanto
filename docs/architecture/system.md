@@ -83,6 +83,15 @@ cursor is the identifier of a record owned by the same tenant and scope, so a
 foreign cursor fails closed. Assurance pages translate the internal global
 sequence into an ordinal scoped to one packet and never return the global value.
 
+Profile-version creation is serialized by a tenant-row lock. Confirmed claim IDs
+and NFC-trimmed authorization wording are compared with the latest literal
+record inside that transaction; unchanged input reuses the latest version. The
+client's disabled no-change control is guidance, not the correctness boundary.
+
+Manual role drafts deliberately stay outside persistence. The client holds one
+owner-bounded draft above section routing, clears it at authentication and
+deletion boundaries, and writes a role only after an explicit successful save.
+
 `nimanto_export_v2` adds complete retained profile-version, match-run, and
 assurance-run datasets to the explicit JSON inspection export. It intentionally
 omits session and invitation credentials, deletion internals, and generated
@@ -103,7 +112,7 @@ Candidates can schedule Greenhouse, Lever, and Ashby public-board refreshes from
 
 The database state machine and domain state machine must agree. The API refuses execution unless the action is `approved` and the in-memory runtime switch is on. The switch has no environment override and resets to off with every API restart.
 
-Version 0.4.0 has no connected-account provider. Verification uses only a user-opened deep link and the local test outbox. Gmail, Outlook, form submission, and desktop delivery remain behind the separately approved Slice 4 boundary.
+Version 0.4.1 has no connected-account provider. Verification uses only a user-opened deep link and the local test outbox. Gmail, Outlook, form submission, and desktop delivery remain behind the separately approved Slice 4 boundary.
 
 ## Scaling path
 

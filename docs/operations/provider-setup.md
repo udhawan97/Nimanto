@@ -26,7 +26,7 @@ No network request is made.
 
 ## Connected accounts
 
-Gmail and Microsoft Outlook sending are not implemented or configurable in v0.4.0. No access-token environment variable is read. Connected-account effects require the separately reviewed Slice 4 plan and exact approval before code or onboarding documentation is added.
+Gmail and Microsoft Outlook sending are not implemented or configurable in v0.4.1. No access-token environment variable is read. Connected-account effects require the separately reviewed Slice 4 plan and exact approval before code or onboarding documentation is added.
 
 ## Verification rule
 

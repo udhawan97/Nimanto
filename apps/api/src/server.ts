@@ -483,7 +483,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     openapi: {
       info: {
         title: "Nimanto local beta API",
-        version: "0.4.0",
+        version: "0.4.1",
         description: "Candidate-side evidence and application workbench.",
       },
       servers: [{ url: `http://${options.host}:${options.port}` }],
@@ -501,10 +501,10 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     return payload;
   });
 
-  app.get("/health", async () => ({ status: "ok", version: "0.4.0" }));
+  app.get("/health", async () => ({ status: "ok", version: "0.4.1" }));
   app.get("/v1/meta", async () => ({
     name: "Nimanto",
-    version: "0.4.0",
+    version: "0.4.1",
     mode: "local_beta",
     externalActionsEnabled,
     providers: {
@@ -944,10 +944,13 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
   app.post("/v1/profile/versions", async (request) => {
     const person = identity(request);
     const body = object(request.body ?? {});
-    return store.createProfileVersion(
+    const saved = await store.saveProfileVersion(
       person.tenantId,
       typeof body.authorizationWording === "string" ? body.authorizationWording : "",
     );
+    // Additive patch response: existing clients still receive the version's
+    // top-level fields, while newer clients can distinguish a no-op save.
+    return { ...saved.version, created: saved.created };
   });
 
   app.get("/v1/history/profile-versions", async (request) => {

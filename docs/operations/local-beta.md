@@ -52,7 +52,7 @@ The digest-pinned container runs the same static web workbench and API with publ
 docker compose up --build
 ```
 
-Open `http://127.0.0.1:4300/`. Retrieve the generated admin key with `docker compose exec nimanto sh -c 'cat /data/launch-secret'`, then issue a private invitation as above. The named `nimanto-data` volume holds the database and artifacts. The image is built in CI; v0.4.0 has not been certified for internet exposure and should remain bound to loopback.
+Open `http://127.0.0.1:4300/`. Retrieve the generated admin key with `docker compose exec nimanto sh -c 'cat /data/launch-secret'`, then issue a private invitation as above. The named `nimanto-data` volume holds the database and artifacts. The image is built in CI; v0.4.1 has not been certified for internet exposure and should remain bound to loopback.
 
 ## Data locations
 
@@ -124,6 +124,12 @@ The queue stores only provider and board identifiers. Scheduled work cannot prep
 - **Applications → Recorded timeline** lists application creation and explicit
   candidate-reported outcomes only. Missing dates and silence create no inferred
   stage.
+- **Applications** places the board/table work surface before funnel, review,
+  and cohort counts. Board and table use the same deliberate outcome editor;
+  recording an outcome does not change application status.
+- **Role discovery → Add role** keeps a draft only in the current signed-in tab
+  while the candidate moves between workbench sections. Reload, sign-out,
+  identity change, successful save, or confirmed discard clears it.
 - **Applications → Record-review queue** is a current derived view over the
   latest literal activity timestamp. It includes non-withdrawn records after 336
   elapsed hours, shows that baseline and the exact computed due time in due
@@ -195,4 +201,4 @@ The packet must be approved, the action must be separately approved, and the run
 
 ### Gmail or Outlook is unavailable
 
-Connected-account sending is not part of v0.4.0. Use the local test outbox or a user-opened deep link. See [provider boundaries](provider-setup.md).
+Connected-account sending is not part of v0.4.1. Use the local test outbox or a user-opened deep link. See [provider boundaries](provider-setup.md).

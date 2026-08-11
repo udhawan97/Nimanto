@@ -11,19 +11,24 @@
  * Pass --site-only to shoot the public page without a running API.
  */
 
-import { mkdir } from "node:fs/promises";
+// cspell:ignore requestfailed
+
+import { copyFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { webkit } from "@playwright/test";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const assets = path.join(root, "docs/assets");
+const publicAssets = path.join(root, "apps/web/public/assets");
 const site = process.env.NIMANTO_SITE_ORIGIN ?? "http://127.0.0.1:4321";
 const api = process.env.NIMANTO_API_ORIGIN ?? "http://127.0.0.1:4310";
 const screenshotSecret = process.env.NIMANTO_SCREENSHOT_BOOTSTRAP_SECRET ?? "";
 const siteOnly = process.argv.includes("--site-only");
+const workbenchOnly = process.argv.includes("--workbench-only");
 
 await mkdir(assets, { recursive: true });
+await mkdir(publicAssets, { recursive: true });
 const browser = await webkit.launch();
 
 async function shoot(
@@ -45,7 +50,8 @@ async function shoot(
     if (!login.ok()) throw new Error(`Synthetic screenshot login failed: ${login.status()}`);
     const dashboard = await context.request.get(`${api}/v1/dashboard`);
     if (!dashboard.ok()) throw new Error(`Screenshot dashboard failed: ${dashboard.status()}`);
-    for (const job of (await dashboard.json()).jobs ?? []) {
+    const dashboardBody = await dashboard.json();
+    for (const job of dashboardBody.jobs ?? []) {
       const match = await context.request.post(`${api}/v1/jobs/${job.id}/match`);
       if (!match.ok()) throw new Error(`Screenshot match failed: ${match.status()}`);
     }
@@ -53,12 +59,24 @@ async function shoot(
       data: { authorizationWording: "I require employer support for an H-1B transfer." },
     });
     if (!version.ok()) throw new Error(`Screenshot profile version failed: ${version.status()}`);
-    const firstJob = (await dashboard.json()).jobs?.[0];
+    const firstJob = dashboardBody.jobs?.[0];
     if (firstJob) {
       const comparisonRun = await context.request.post(`${api}/v1/jobs/${firstJob.id}/match`);
       if (!comparisonRun.ok()) {
         throw new Error(`Screenshot comparison match failed: ${comparisonRun.status()}`);
       }
+      const application = await context.request.post(`${api}/v1/applications`, {
+        data: { jobId: firstJob.id },
+      });
+      if (!application.ok()) {
+        throw new Error(`Screenshot application failed: ${application.status()}`);
+      }
+      const applicationBody = await application.json();
+      const outcome = await context.request.post(
+        `${api}/v1/applications/${applicationBody.id}/outcomes`,
+        { data: { type: "reply", note: "Candidate-recorded follow-up" } },
+      );
+      if (!outcome.ok()) throw new Error(`Screenshot outcome failed: ${outcome.status()}`);
     }
   }
   const page = await context.newPage();
@@ -67,20 +85,32 @@ async function shoot(
     if (message.type() === "error") problems.push(message.text());
   });
   page.on("pageerror", (error) => problems.push(error.message));
-  await page.goto(url, { waitUntil: "networkidle" });
+  page.on("requestfailed", (request) =>
+    problems.push(`request failed: ${request.method()} ${request.url()}`),
+  );
+  page.on("response", (response) => {
+    if (response.status() >= 400) problems.push(`${response.status()} ${response.url()}`);
+  });
+  const response = await page.goto(url, { waitUntil: "networkidle" });
+  if (!response?.ok()) throw new Error(`Screenshot page failed: ${response?.status() ?? "none"}`);
   if (workbench) {
-    await page.getByRole("button", { name: "Stored history" }).click();
-    await page.getByRole("heading", { name: "Profile version diff" }).waitFor();
+    await page.getByRole("button", { name: "Applications" }).click();
+    await page.getByRole("heading", { name: "Track the real process." }).waitFor();
+    await page.locator(".board-card").first().waitFor();
+    await page.getByRole("button", { name: "Record outcome" }).first().waitFor();
   }
   await page.evaluate(() => document.fonts.ready);
   // The emblem assembles over ~5s; shoot it at rest, not mid-assembly.
   await page.waitForTimeout(settle);
-  await page.screenshot({ path: path.join(assets, `${name}.png`), fullPage: full });
+  const output = path.join(assets, `${name}.png`);
+  await page.screenshot({ path: output, fullPage: full });
+  if (workbench) await copyFile(output, path.join(publicAssets, `${name}.png`));
   await context.close();
-  console.log(`${name}.png${problems.length ? `  [console: ${problems.join(" | ")}]` : ""}`);
+  if (problems.length) throw new Error(`${name}.png: ${problems.join(" | ")}`);
+  console.log(`${name}.png`);
 }
 
-await shoot("nimanto-landing", `${site}/`, { settle: 6000 });
+if (!workbenchOnly) await shoot("nimanto-landing", `${site}/`, { settle: 6000 });
 
 if (!siteOnly) {
   await shoot("nimanto-workbench", `${site}/workspace/`, { settle: 2500, workbench: true });

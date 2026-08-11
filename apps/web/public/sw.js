@@ -1,4 +1,4 @@
-const CACHE = "nimanto-shell-v2";
+const CACHE = "nimanto-shell-v3";
 const SHELL = [
   "./",
   "./workspace/",

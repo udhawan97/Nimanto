@@ -21,6 +21,9 @@ import {
   legalTargets,
   needsConfirmation,
   nextSteps,
+  countedNoun,
+  packetInventoryNotice,
+  profileInputChanged,
   profileVersionDiff,
   recordReviewQueue,
   recordedOutcomeTimeline,
@@ -40,6 +43,50 @@ const empty = {
   externalActions: [],
   applications: [],
 };
+
+describe("completion copy", () => {
+  it("uses singular and plural nouns literally", () => {
+    expect(countedNoun(0, "application")).toBe("0 applications");
+    expect(countedNoun(1, "application")).toBe("1 application");
+    expect(countedNoun(2, "application")).toBe("2 applications");
+  });
+
+  it("describes returned packet files and distinct file types", () => {
+    expect(packetInventoryNotice({ artifacts: [] })).toBe(
+      "Packet generated: 0 files across 0 file types.",
+    );
+    expect(
+      packetInventoryNotice({
+        artifacts: [{ filename: "packet.json", format: "canonical", sha256: "a" }],
+      }),
+    ).toBe("Packet generated: 1 file across 1 file type.");
+    expect(
+      packetInventoryNotice({
+        artifacts: [
+          { filename: "packet.json", format: "canonical", sha256: "a" },
+          { filename: "resume.txt", format: "resume", sha256: "b" },
+          { filename: "cover-letter.txt", format: "cover", sha256: "c" },
+          { filename: "resume.docx", format: "resume", sha256: "d" },
+          { filename: "cover-letter.docx", format: "cover", sha256: "e" },
+          { filename: "packet.pdf", format: "combined", sha256: "f" },
+        ],
+      }),
+    ).toBe("Packet generated: 6 files across 4 file types.");
+  });
+});
+
+describe("profile input comparison", () => {
+  const profile = { authorizationWording: "Caf\u00e9 eligible", claimIds: ["b", "a"] };
+
+  it("treats NFC, surrounding whitespace, and claim order as equivalent", () => {
+    expect(profileInputChanged(profile, "  Cafe\u0301 eligible  ", ["a", "b"])).toBe(false);
+  });
+
+  it("detects wording and confirmed-claim changes", () => {
+    expect(profileInputChanged(profile, "Different wording", ["a", "b"])).toBe(true);
+    expect(profileInputChanged(profile, "Caf\u00e9 eligible", ["a", "c"])).toBe(true);
+  });
+});
 
 describe("next-step rail", () => {
   it("says nothing when there is nothing to do", () => {

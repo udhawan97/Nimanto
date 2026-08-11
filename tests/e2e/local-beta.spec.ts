@@ -97,6 +97,12 @@ test("the public site reflows, links, and identifies itself in WebKit", async ({
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark" });
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Nimanto", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      name: "Build the evidence. Work the application. Keep the truth yours.",
+    }),
+  ).toBeVisible();
+  await expect(page.getByText("Candidate controlled", { exact: true })).toBeVisible();
   await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
     "content",
     /assets\/social-card\.png$/,
@@ -133,9 +139,17 @@ test("the public site reflows, links, and identifies itself in WebKit", async ({
     "href",
     "./workspace/",
   );
-  await expect(page.getByRole("link", { name: "v0.4.0 notes" }).first()).toHaveAttribute(
+  await expect(page.getByRole("link", { name: "Source releases", exact: true })).toHaveAttribute(
     "href",
-    /docs\/releases\/v0\.4\.0\.md$/,
+    "https://github.com/udhawan97/Nimanto/releases",
+  );
+  await expect(page.getByRole("link", { name: "v0.4.1 notes" }).first()).toHaveAttribute(
+    "href",
+    /docs\/releases\/v0\.4\.1\.md$/,
+  );
+  await expect(page.getByAltText(/Synthetic Nimanto Applications workbench/)).toHaveAttribute(
+    "src",
+    /assets\/nimanto-workbench\.png$/,
   );
 });
 
@@ -226,6 +240,71 @@ test("a candidate starts a private workspace and receives deterministic role exp
   await expect(page.getByRole("heading", { name: "Platform Engineer" })).toBeVisible();
   await expect(page.getByText("Northwind Systems").first()).toBeVisible();
 
+  // A long manual role is transient, but section navigation is not allowed to
+  // erase it. Every field is controlled by the parent workspace boundary.
+  await page.getByRole("button", { name: "Add role" }).click();
+  await page.getByLabel("Role title").fill("Synthetic Reliability Engineer");
+  await page.getByLabel("Company").fill("Synthetic Works");
+  await page.getByLabel("Location").fill("Chicago");
+  await page.getByLabel("Work mode").selectOption("hybrid");
+  await page.getByLabel("Posting URL").fill("https://example.test/jobs/reliability");
+  await page.getByLabel("Description").fill("Build reliable synthetic systems.");
+  await page.getByLabel("Requirements, one per line").fill("TypeScript\nPostgreSQL");
+  await page.getByLabel("Posted annual minimum (USD)").fill("120000");
+  await page.getByLabel("Posted annual maximum (USD)").fill("160000");
+  await page.getByLabel("Stated benefits, one per line").fill("Health\nLearning budget");
+  await page.getByLabel("Interview-process evidence").fill("Three candidate-recorded stages");
+  await page.getByLabel("Interview source").fill("Synthetic candidate note");
+  await page.getByRole("button", { name: "Evidence vault" }).click();
+  await page.getByRole("button", { name: "Role discovery" }).click();
+  await expect(page.getByLabel("Role title")).toHaveValue("Synthetic Reliability Engineer");
+  await expect(page.getByLabel("Company")).toHaveValue("Synthetic Works");
+  await expect(page.getByLabel("Location")).toHaveValue("Chicago");
+  await expect(page.getByLabel("Work mode")).toHaveValue("hybrid");
+  await expect(page.getByLabel("Posting URL")).toHaveValue("https://example.test/jobs/reliability");
+  await expect(page.getByLabel("Description")).toHaveValue("Build reliable synthetic systems.");
+  await expect(page.getByLabel("Requirements, one per line")).toHaveValue("TypeScript\nPostgreSQL");
+  await expect(page.getByLabel("Posted annual minimum (USD)")).toHaveValue("120000");
+  await expect(page.getByLabel("Posted annual maximum (USD)")).toHaveValue("160000");
+  await expect(page.getByLabel("Stated benefits, one per line")).toHaveValue(
+    "Health\nLearning budget",
+  );
+  await expect(page.getByLabel("Interview-process evidence")).toHaveValue(
+    "Three candidate-recorded stages",
+  );
+  await expect(page.getByLabel("Interview source")).toHaveValue("Synthetic candidate note");
+
+  page.once("dialog", (dialog) => void dialog.dismiss());
+  await page.getByRole("button", { name: "Discard draft" }).click();
+  await expect(page.getByLabel("Role title")).toHaveValue("Synthetic Reliability Engineer");
+  await expect(page.getByRole("button", { name: "Discard draft" })).toBeFocused();
+  page.once("dialog", (dialog) => void dialog.accept());
+  await page.getByRole("button", { name: "Discard draft" }).click();
+  await expect(page.getByRole("button", { name: "Add role" })).toBeFocused();
+  await page.getByRole("button", { name: "Add role" }).click();
+  await page.getByLabel("Role title").fill("Reload clears this draft");
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Add role" })).toBeVisible();
+  await expect(page.locator("#manual-role-draft")).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Add role" }).click();
+  await page.getByLabel("Role title").fill("Saved Synthetic Role");
+  await page.getByLabel("Company").fill("Synthetic Works");
+  await page.getByLabel("Description").fill("A role saved exactly once.");
+  await page.getByLabel("Requirements, one per line").fill("TypeScript");
+  await page.getByLabel("Posted annual minimum (USD)").fill("200000");
+  await page.getByLabel("Posted annual maximum (USD)").fill("100000");
+  await page.getByRole("button", { name: "Save role" }).click();
+  await expect(page.getByLabel("Role title")).toHaveValue("Saved Synthetic Role");
+  await expect(page.getByLabel("Description")).toHaveValue("A role saved exactly once.");
+  const expectedFailureProblems = consoleProblems.splice(0);
+  expect(expectedFailureProblems).toHaveLength(1);
+  expect(expectedFailureProblems[0]).toContain("status of 400");
+  await page.getByLabel("Posted annual maximum (USD)").fill("220000");
+  await page.getByRole("button", { name: "Save role" }).click();
+  await expect(page.getByRole("button", { name: "Add role" })).toBeFocused();
+  await expect(page.getByRole("heading", { name: "Saved Synthetic Role" })).toHaveCount(1);
+
   await page.getByRole("button", { name: "Schedule source" }).click();
   await page.getByLabel("Scheduled provider").selectOption("greenhouse");
   await page.getByLabel("Scheduled board identifier").fill("northwind-careers");
@@ -293,6 +372,36 @@ test("an email-bound invitation creates a separate empty candidate workspace", a
   await expect.poll(() => page.evaluate(() => location.hash)).toBe("");
 });
 
+test("a revoked session clears identity-bound drafts before another workspace opens", async ({
+  page,
+}) => {
+  await page.goto(`/workspace/#bootstrap=${bootstrapSecret}`);
+  await page.getByLabel("Your name").fill("Expired Session");
+  await page.getByLabel("Your email").fill("expired-session@example.test");
+  await page.getByRole("button", { name: "Start private workspace" }).click();
+  await page.getByRole("button", { name: "Role discovery" }).click();
+  await page.getByRole("button", { name: "Add role" }).click();
+  await page.getByLabel("Role title").fill("Must not cross identity boundary");
+  await page.getByLabel("Company").fill("Synthetic Works");
+  await page.getByLabel("Description").fill("Transient candidate draft");
+  await page.getByLabel("Requirements, one per line").fill("TypeScript");
+
+  const revoked = await page.request.delete("http://127.0.0.1:4310/v1/session");
+  expect(revoked.ok()).toBe(true);
+  await page.getByRole("button", { name: "Save role" }).click();
+  await expect(page.getByRole("heading", { name: "Your evidence stays with you." })).toBeVisible();
+  await page.evaluate((secret) => {
+    window.location.hash = `bootstrap=${secret}`;
+  }, bootstrapSecret);
+  await expect(
+    page.getByRole("button", { name: "Use clearly labeled synthetic demo" }),
+  ).toBeEnabled();
+  await page.getByRole("button", { name: "Use clearly labeled synthetic demo" }).click();
+  await page.getByRole("button", { name: "Role discovery" }).click();
+  await expect(page.getByRole("button", { name: "Add role" })).toBeVisible();
+  await expect(page.locator("#manual-role-draft")).toHaveCount(0);
+});
+
 test("one guarded control owns every status change, and the two views are exclusive", async ({
   page,
 }) => {
@@ -311,6 +420,55 @@ test("one guarded control owns every status change, and the two views are exclus
   // control permanently on screen.
   await expect(page.locator(".board")).toBeVisible();
   await expect(page.locator(".application-table")).toBeHidden();
+  const workSurfaceOrder = await page.evaluate(() => {
+    const board = document.querySelector(".board");
+    const funnel = document.querySelector(".funnel-strip");
+    return board && funnel
+      ? {
+          dom: Boolean(board.compareDocumentPosition(funnel) & Node.DOCUMENT_POSITION_FOLLOWING),
+          visual: board.getBoundingClientRect().top < funnel.getBoundingClientRect().top,
+        }
+      : null;
+  });
+  expect(workSurfaceOrder).toEqual({ dom: true, visual: true });
+
+  const boardOutcome = page.getByRole("button", { name: "Record outcome" }).first();
+  await boardOutcome.click();
+  const boardOutcomeForm = page.locator(".board .outcome-form");
+  await page.setViewportSize({ width: 320, height: 900 });
+  const boardEditorGeometry = await boardOutcomeForm.evaluate((form) => {
+    const rect = form.getBoundingClientRect();
+    return {
+      left: rect.left,
+      right: rect.right,
+      viewport: document.documentElement.clientWidth,
+      contained: form.scrollWidth <= form.clientWidth,
+    };
+  });
+  expect(boardEditorGeometry.left).toBeGreaterThanOrEqual(0);
+  expect(boardEditorGeometry.right).toBeLessThanOrEqual(boardEditorGeometry.viewport);
+  expect(boardEditorGeometry.contained).toBe(true);
+  await boardOutcomeForm.getByRole("button", { name: "Cancel" }).click();
+  await expect(boardOutcome).toBeFocused();
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await boardOutcome.click();
+  await boardOutcomeForm.getByLabel("Candidate-reported outcome").selectOption("reply");
+  await boardOutcomeForm.getByLabel("Optional note").fill("Board follow-up");
+  const outcomeType = boardOutcomeForm.getByLabel("Candidate-reported outcome");
+  await outcomeType.evaluate((select) => {
+    const option = document.createElement("option");
+    option.value = "synthetic-invalid";
+    option.textContent = "Synthetic invalid outcome";
+    select.append(option);
+  });
+  await outcomeType.selectOption("synthetic-invalid");
+  await boardOutcomeForm.getByRole("button", { name: "Record outcome" }).click();
+  await expect(outcomeType).toHaveValue("synthetic-invalid");
+  await expect(boardOutcomeForm.getByLabel("Optional note")).toHaveValue("Board follow-up");
+  await outcomeType.selectOption("reply");
+  await boardOutcomeForm.getByRole("button", { name: "Record outcome" }).click();
+  await expect(boardOutcome).toBeFocused();
+
   await page.getByRole("button", { name: "Table view" }).click();
   await expect(page.locator(".board")).toHaveCount(0);
   await expect(page.locator(".application-table")).toBeVisible();
@@ -381,13 +539,18 @@ test("one guarded control owns every status change, and the two views are exclus
   await page.waitForTimeout(250);
   expect(writes, "a declined confirmation must not write").toEqual([]);
 
-  await page.getByRole("button", { name: "Outcome", exact: true }).first().click();
+  await page.getByRole("button", { name: "Record outcome", exact: true }).first().click();
   const outcomeForm = page.locator(".application-table .outcome-form");
-  await outcomeForm.locator("select").selectOption("reply");
-  await outcomeForm.getByPlaceholder("Optional note").fill("Follow-up");
-  await outcomeForm.getByRole("button", { name: "Record" }).click();
+  await outcomeForm.getByLabel("Candidate-reported outcome").selectOption("interview");
+  await outcomeForm.getByLabel("Optional note").fill("Table follow-up");
+  const tableOutcomeTrigger = page
+    .getByRole("button", { name: "Record outcome", exact: true })
+    .first();
+  await outcomeForm.getByRole("button", { name: "Record outcome" }).click();
+  await expect(tableOutcomeTrigger).toBeFocused();
   const outcomeChips = page.locator(".application-table .outcome-chips").first();
   await expect(outcomeChips.locator(":scope > span", { hasText: "Reply" })).toBeVisible();
+  await expect(outcomeChips.locator(":scope > span", { hasText: "Interview" })).toBeVisible();
   const outcomeLayout = await outcomeChips.evaluate((chips) => {
     const style = getComputedStyle(chips);
     return { display: style.display, flexWrap: style.flexWrap };
@@ -429,6 +592,7 @@ test("evidence-rich review features stay literal, local, and inspectable", async
 
   await page.getByRole("button", { name: "Review packets" }).click();
   await page.getByRole("button", { name: "Generate", exact: true }).first().click();
+  await expect(page.getByText("Packet generated: 6 files across 4 file types.")).toBeVisible();
   await page.getByRole("button", { name: "Assure", exact: true }).first().click();
   const packet = page.locator(".packet-row").first();
   await packet.getByText("Inspect content, formats, and assurance").click();
@@ -475,6 +639,7 @@ test("retained history, record review, cohorts, and sensitive export stay bounde
     .getByLabel("Candidate-approved statement")
     .fill("I require employer support for an H-1B transfer.");
   await page.getByRole("button", { name: "Save profile version" }).click();
+  await expect(page.getByRole("button", { name: "No changes to save" })).toBeDisabled();
 
   await page.getByRole("button", { name: "Role discovery" }).click();
   const role = page.locator(".job-row").first();
@@ -562,6 +727,7 @@ test("retained history, record review, cohorts, and sensitive export stay bounde
 
   await page.getByRole("button", { name: "Open navigation" }).click();
   await page.getByRole("button", { name: "Data controls" }).click();
+  await expect(page.getByText(/1 application, retained profile versions/)).toBeVisible();
   const exportButton = page.getByRole("button", { name: "Download JSON" });
   await expect(exportButton).toBeDisabled();
   await page.getByLabel(/I understand this JSON contains sensitive candidate records/).check();
@@ -721,11 +887,50 @@ test("the match band is never covered, and the section survives back and reload"
   await page.reload();
   await expect(page.getByRole("heading", { name: "Track the real process." })).toBeVisible();
 
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
   await page.goBack();
   await expect(page).toHaveURL(/#jobs$/);
-  await expect(page.getByRole("heading", { name: /Compare roles to evidence/ })).toBeVisible();
+  const backHeading = page.getByRole("heading", { name: /Compare roles to evidence/ });
+  await expect(backHeading).toBeVisible();
+  await expect(page.locator(".workspace-content")).toBeFocused();
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const header = document.querySelector(".workspace-header")?.getBoundingClientRect();
+        const heading = document.querySelector(".workspace-content h1")?.getBoundingClientRect();
+        return Boolean(header && heading && heading.top >= header.bottom);
+      }),
+    )
+    .toBe(true);
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
   await page.goForward();
   await expect(page.getByRole("heading", { name: "Track the real process." })).toBeVisible();
+  await expect(page.locator(".workspace-content")).toBeFocused();
+
+  // Section focus starts from a scrolled document and clears the actual sticky
+  // header at every supported width. 640 CSS px represents 1280 at 200% zoom.
+  for (const width of [320, 375, 414, 640, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    if (width <= 880) await page.getByRole("button", { name: "Open navigation" }).click();
+    await page.getByRole("button", { name: "Stored history" }).click();
+    // The correction is deliberately requestAnimationFrame-bound so it runs
+    // after the newly selected section commits. Polling avoids measuring the
+    // previous scroll position in that one-frame handoff.
+    await expect
+      .poll(
+        () =>
+          page.evaluate(() => {
+            const header = document.querySelector(".workspace-header")?.getBoundingClientRect();
+            const heading = document
+              .querySelector(".workspace-content h1")
+              ?.getBoundingClientRect();
+            return Boolean(header && heading && heading.top >= header.bottom);
+          }),
+        { message: `focused heading clears header at ${width}px` },
+      )
+      .toBe(true);
+  }
 
   // A deep link opens on its section rather than on Overview.
   await page.goto("/workspace/#packets");

@@ -298,6 +298,52 @@ export type ProfileVersionLike = {
   authorizationWording: string;
 };
 
+export function countedNoun(count: number, singular: string, plural = `${singular}s`): string {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+type ArtifactManifestLike = {
+  artifacts?: ReadonlyArray<{ filename: string; format?: string; sha256?: string }>;
+};
+
+/** Completion copy is inventory, not a promise about a hard-coded generator.
+ * The returned manifest is the source of truth for both file and file-type
+ * counts, so changing the document set cannot silently make the UI inaccurate. */
+export function packetInventoryNotice(manifest: ArtifactManifestLike): string {
+  const artifacts = manifest.artifacts ?? [];
+  const fileTypes = new Set(
+    artifacts.map((artifact) => {
+      const extension = artifact.filename.match(/\.([^.]+)$/)?.[1];
+      return (extension ?? artifact.format ?? "unknown").toLocaleLowerCase("en-US");
+    }),
+  );
+  return `Packet generated: ${countedNoun(artifacts.length, "file")} across ${countedNoun(fileTypes.size, "file type")}.`;
+}
+
+function canonicalProfileInput(wording: string, claimIds: readonly string[]) {
+  return {
+    authorizationWording: wording.normalize("NFC").trim(),
+    claimIds: [...claimIds].toSorted(),
+  };
+}
+
+/** Advisory client comparison only. The store repeats this normalization under
+ * a tenant lock and remains the authority for whether a version is inserted. */
+export function profileInputChanged(
+  profile: ProfileVersionLike | null,
+  authorizationWording: string,
+  confirmedClaimIds: readonly string[],
+): boolean {
+  if (!profile) return true;
+  const before = canonicalProfileInput(profile.authorizationWording, profile.claimIds);
+  const after = canonicalProfileInput(authorizationWording, confirmedClaimIds);
+  return (
+    before.authorizationWording !== after.authorizationWording ||
+    before.claimIds.length !== after.claimIds.length ||
+    before.claimIds.some((id, index) => id !== after.claimIds[index])
+  );
+}
+
 /** Literal set and string comparison only; it makes no claim about why a
  * profile changed or whether a later match result was caused by that change. */
 export function profileVersionDiff(before: ProfileVersionLike, after: ProfileVersionLike) {

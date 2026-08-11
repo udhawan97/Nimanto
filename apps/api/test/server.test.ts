@@ -75,6 +75,41 @@ async function setup(options?: {
 }
 
 describe("Nimanto beta API", () => {
+  it("keeps profile-version responses additive and reports unchanged saves", async () => {
+    const { app, cookie } = await setup();
+    const dashboard = (
+      await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } })
+    ).json();
+    const unchanged = await app.inject({
+      method: "POST",
+      url: "/v1/profile/versions",
+      headers: { cookie },
+      payload: { authorizationWording: `  ${dashboard.profile.authorizationWording}  ` },
+    });
+    expect(unchanged.statusCode).toBe(200);
+    expect(unchanged.json()).toMatchObject({
+      id: dashboard.profile.id,
+      claimIds: dashboard.profile.claimIds,
+      authorizationWording: dashboard.profile.authorizationWording,
+      inputHash: dashboard.profile.inputHash,
+      createdAt: dashboard.profile.createdAt,
+      created: false,
+    });
+
+    const changed = await app.inject({
+      method: "POST",
+      url: "/v1/profile/versions",
+      headers: { cookie },
+      payload: { authorizationWording: "Candidate-approved changed wording." },
+    });
+    expect(changed.statusCode).toBe(200);
+    expect(changed.json()).toMatchObject({
+      authorizationWording: "Candidate-approved changed wording.",
+      created: true,
+    });
+    expect(changed.json().id).not.toBe(dashboard.profile.id);
+  });
+
   it("keeps the worker cycle healthy when a running schedule is cancelled", async () => {
     let markProviderStarted: (() => void) | undefined;
     let releaseProvider: (() => void) | undefined;

@@ -64,6 +64,11 @@ export interface ProfileVersionRecord {
   createdAt: string;
 }
 
+export interface ProfileVersionSaveResult {
+  version: ProfileVersionRecord;
+  created: boolean;
+}
+
 export interface HistoryPage<T> {
   items: T[];
   nextCursor: string | null;
@@ -815,41 +820,91 @@ export class NimantoStore {
     tenantId: string,
     authorizationWording = "",
   ): Promise<ProfileVersionRecord> {
-    const claims = await this.#db.query<{ id: string }>(
-      `SELECT id FROM evidence_claims
-       WHERE tenant_id = $1 AND status = 'confirmed'
-       ORDER BY created_at, id`,
-      [tenantId],
-    );
-    const claimIds = claims.rows.map((row) => row.id);
-    const id = randomUUID();
-    const inputHash = canonicalHash({ authorizationWording, claimIds });
-    const result = await this.#db.query<{
-      id: string;
-      claim_ids: string[];
-      authorization_wording: string | null;
-      input_hash: string;
-      created_at: string | Date;
-    }>(
-      `INSERT INTO profile_versions(id, tenant_id, claim_ids, authorization_wording, input_hash)
-       VALUES ($1, $2, $3::jsonb, $4, $5)
-       RETURNING id, claim_ids, authorization_wording, input_hash, created_at`,
-      [
-        id,
-        tenantId,
-        JSON.stringify(claimIds),
-        authorizationWording.normalize("NFC").trim(),
-        inputHash,
-      ],
-    );
-    const row = result.rows[0]!;
-    return {
-      id: row.id,
-      claimIds: row.claim_ids,
-      authorizationWording: row.authorization_wording ?? "",
-      inputHash: row.input_hash,
-      createdAt: iso(row.created_at)!,
-    };
+    return (await this.saveProfileVersion(tenantId, authorizationWording)).version;
+  }
+
+  /** Serializes profile snapshots per tenant, then compares normalized literal
+   * inputs instead of trusting an older stored hash. The UI may avoid an
+   * unchanged request, but this transaction is the correctness boundary. */
+  async saveProfileVersion(
+    tenantId: string,
+    authorizationWording = "",
+  ): Promise<ProfileVersionSaveResult> {
+    return this.#db.transaction(async (tx) => {
+      const tenant = await tx.query<{ id: string }>(
+        `SELECT id FROM tenants
+         WHERE id = $1 AND deletion_state = 'active'
+         FOR UPDATE`,
+        [tenantId],
+      );
+      if (!tenant.rows[0]) throw new Error("TENANT_NOT_ACTIVE");
+
+      const claims = await tx.query<{ id: string }>(
+        `SELECT id FROM evidence_claims
+         WHERE tenant_id = $1 AND status = 'confirmed'
+         ORDER BY id`,
+        [tenantId],
+      );
+      const claimIds = claims.rows.map((row) => row.id);
+      const normalizedWording = authorizationWording.normalize("NFC").trim();
+      const latest = await tx.query<{
+        id: string;
+        claim_ids: string[];
+        authorization_wording: string | null;
+        input_hash: string;
+        created_at: string | Date;
+      }>(
+        `SELECT id, claim_ids, authorization_wording, input_hash, created_at
+         FROM profile_versions WHERE tenant_id = $1
+         ORDER BY created_at DESC, id DESC LIMIT 1`,
+        [tenantId],
+      );
+      const current = latest.rows[0];
+      const currentClaimIds = current ? [...current.claim_ids].toSorted() : [];
+      const unchanged =
+        current !== undefined &&
+        (current.authorization_wording ?? "").normalize("NFC").trim() === normalizedWording &&
+        currentClaimIds.length === claimIds.length &&
+        currentClaimIds.every((id, index) => id === claimIds[index]);
+      if (current && unchanged) {
+        return {
+          created: false,
+          version: {
+            id: current.id,
+            claimIds: current.claim_ids,
+            authorizationWording: current.authorization_wording ?? "",
+            inputHash: current.input_hash,
+            createdAt: iso(current.created_at)!,
+          },
+        };
+      }
+
+      const id = randomUUID();
+      const inputHash = canonicalHash({ authorizationWording: normalizedWording, claimIds });
+      const inserted = await tx.query<{
+        id: string;
+        claim_ids: string[];
+        authorization_wording: string | null;
+        input_hash: string;
+        created_at: string | Date;
+      }>(
+        `INSERT INTO profile_versions(id, tenant_id, claim_ids, authorization_wording, input_hash)
+         VALUES ($1, $2, $3::jsonb, $4, $5)
+         RETURNING id, claim_ids, authorization_wording, input_hash, created_at`,
+        [id, tenantId, JSON.stringify(claimIds), normalizedWording, inputHash],
+      );
+      const row = inserted.rows[0]!;
+      return {
+        created: true,
+        version: {
+          id: row.id,
+          claimIds: row.claim_ids,
+          authorizationWording: row.authorization_wording ?? "",
+          inputHash: row.input_hash,
+          createdAt: iso(row.created_at)!,
+        },
+      };
+    });
   }
 
   async latestProfileVersion(tenantId: string): Promise<ProfileVersionRecord | null> {

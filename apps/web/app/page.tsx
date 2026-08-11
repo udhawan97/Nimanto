@@ -54,6 +54,7 @@ const BOUNDARY = [
 export default function Home() {
   const hosted = process.env.NIMANTO_GITHUB_PAGES === "true";
   const startHref = hosted ? "https://github.com/udhawan97/Nimanto#run-it" : "./workspace/";
+  const assetBase = hosted ? "/Nimanto" : "";
 
   return (
     <>
@@ -62,6 +63,7 @@ export default function Home() {
           <Brand />
         </a>
         <nav aria-label="Main navigation">
+          <a href="#workbench">Workbench</a>
           <a href="#method">Method</a>
           <a href="#boundary">Boundary</a>
           <a href="#run">Run it</a>
@@ -71,32 +73,37 @@ export default function Home() {
       </header>
 
       <main id="main">
-        {/* 00 — the mark is the page */}
+        {/* 00 — the invitation opens toward the literal product job. */}
         <section className="hero" aria-labelledby="hero-title">
-          <Emblem />
           <div className="hero-copy">
+            <p className="placard">Source-distributed local beta · v0.4.1</p>
             <h1 id="hero-title">Nimanto</h1>
+            <h2>Build the evidence. Work the application. Keep the truth yours.</h2>
             <p className="hero-line">
-              An invitation you open yourself. Nothing goes out until you say so.
+              A local-first workbench for H-1B professionals: compare roles to confirmed career
+              evidence, track candidate-reported outcomes, and approve every handoff yourself.
             </p>
+            <ul className="hero-boundaries" aria-label="Product boundaries">
+              <li>Local-first</li>
+              <li>Candidate controlled</li>
+              <li>No silent send</li>
+            </ul>
             <div className="hero-actions">
               <a className="button primary" href={startHref}>
-                {hosted ? "Run it locally" : "Open the workbench"} <ArrowRight size={16} />
+                {hosted ? "Run locally" : "Open the workbench"} <ArrowRight size={16} />
               </a>
               <a className="button quiet" href="https://github.com/udhawan97/Nimanto">
                 View source <ArrowUpRight size={15} />
               </a>
-              <a
-                className="button quiet"
-                href="https://github.com/udhawan97/Nimanto/blob/main/docs/releases/v0.4.0.md"
-              >
-                v0.4.0 notes <ArrowUpRight size={15} />
+              <a className="button quiet" href="https://github.com/udhawan97/Nimanto/releases">
+                Source releases <ArrowUpRight size={15} />
               </a>
             </div>
           </div>
-          <a className="scroll-cue" href="#thesis" aria-label="Scroll to the introduction">
-            <span />
-          </a>
+          <div className="hero-emblem" aria-hidden="true">
+            <Emblem />
+            <span className="invitation-thread" />
+          </div>
         </section>
 
         {/* 01 — thesis */}
@@ -111,7 +118,7 @@ export default function Home() {
             <div className="thesis-body flow">
               <p>
                 A job search usually becomes a pile of resumes, saved roles, sponsorship rumours and
-                half-finished forms. Nimanto gives that work one inspectable path: build a verified
+                half-finished forms. Nimanto gives that work one inspectable path: build a confirmed
                 career record once, see exactly why a role fits, compare what you actually stored,
                 and approve every handoff yourself.
               </p>
@@ -123,11 +130,42 @@ export default function Home() {
           </div>
         </section>
 
-        {/* 02 — method, four plates on one brass spine */}
+        {/* 02 — current synthetic runtime evidence */}
+        <section id="workbench" className="band proof" aria-labelledby="workbench-title">
+          <div className="shell proof-grid">
+            <div className="band-head flow">
+              <p className="placard">02 — Workbench</p>
+              <h2 id="workbench-title">The next action comes before the analytics.</h2>
+              <p className="band-lede">
+                Applications opens on the record you can work: move a candidate-recorded stage,
+                record an outcome from either view, or return to a role. Cohort counts and review
+                observations stay below that surface.
+              </p>
+              <p className="quiet">
+                The screen is synthetic current-runtime evidence. Outcomes are records entered by
+                the candidate—not inferred employer state.
+              </p>
+            </div>
+            <figure className="workbench-proof">
+              <img
+                src={`${assetBase}/assets/nimanto-workbench.png`}
+                width="1440"
+                height="900"
+                loading="lazy"
+                alt="Synthetic Nimanto Applications workbench with the action-first pipeline and Record outcome controls"
+              />
+              <figcaption>
+                v0.4.1 · action-first Applications · synthetic local workspace
+              </figcaption>
+            </figure>
+          </div>
+        </section>
+
+        {/* 03 — method, five plates on one brass spine */}
         <section id="method" className="band method" aria-labelledby="method-title">
           <div className="shell">
             <div className="band-head flow">
-              <p className="placard">02 — Method</p>
+              <p className="placard">03 — Method</p>
               <h2 id="method-title">A career record you can inspect.</h2>
               <p className="band-lede">
                 Source, claim, requirement and output stay connected end to end. Nothing becomes
@@ -148,11 +186,11 @@ export default function Home() {
           </div>
         </section>
 
-        {/* 03 — the rail: one worked example, drawn */}
+        {/* 04 — the rail: one worked example, drawn */}
         <section className="band rail-band" aria-labelledby="rail-title">
           <div className="shell rail-grid">
             <div className="band-head flow">
-              <p className="placard">03 — Worked example</p>
+              <p className="placard">04 — Worked example</p>
               <h2 id="rail-title">Every match shows its work.</h2>
               <p className="band-lede">
                 A requirement is only supported when a confirmed claim supports it, and the link
@@ -214,10 +252,10 @@ export default function Home() {
           </div>
         </section>
 
-        {/* 04 — boundary: the only large light field in the system */}
+        {/* 05 — boundary: the only large light field in the system */}
         <section id="boundary" className="band boundary" aria-labelledby="boundary-title">
           <div className="shell flow">
-            <p className="placard">04 — Boundary</p>
+            <p className="placard">05 — Boundary</p>
             <h2 id="boundary-title" className="display-s">
               What Nimanto refuses to do.
             </h2>
@@ -232,11 +270,11 @@ export default function Home() {
           </div>
         </section>
 
-        {/* 05 — run it */}
+        {/* 06 — run it */}
         <section id="run" className="band run" aria-labelledby="run-title">
           <div className="shell run-grid">
             <div className="band-head flow">
-              <p className="placard">05 — Run it</p>
+              <p className="placard">06 — Run it</p>
               <h2 id="run-title">Local, and yours.</h2>
               <p className="band-lede">
                 Node 24–26 and pnpm 11 on macOS, Linux or Windows. Your evidence stays on the
@@ -252,14 +290,21 @@ export default function Home() {
                 installs the locked dependencies, starts the local services, and opens the
                 workbench.
               </p>
+              <p className="run-note">
+                Nimanto is source-distributed. v0.4.1 does not ship a signed installer or desktop
+                binary.
+              </p>
+              <a className="text-link" href="https://github.com/udhawan97/Nimanto/releases">
+                Open source releases <ArrowRight size={15} />
+              </a>
               <a className="text-link" href="https://github.com/udhawan97/Nimanto#beta-boundaries">
                 Read the beta boundaries <ArrowRight size={15} />
               </a>
               <a
                 className="text-link"
-                href="https://github.com/udhawan97/Nimanto/blob/main/docs/releases/v0.4.0.md"
+                href="https://github.com/udhawan97/Nimanto/blob/main/docs/releases/v0.4.1.md"
               >
-                Read the v0.4.0 release notes <ArrowRight size={15} />
+                Read the v0.4.1 release notes <ArrowRight size={15} />
               </a>
             </div>
           </div>
@@ -275,8 +320,8 @@ export default function Home() {
           <nav aria-label="Footer">
             <a href="https://github.com/udhawan97/Nimanto">Source</a>
             <a href="https://github.com/udhawan97/Nimanto/blob/main/SECURITY.md">Security</a>
-            <a href="https://github.com/udhawan97/Nimanto/blob/main/docs/releases/v0.4.0.md">
-              v0.4.0 notes
+            <a href="https://github.com/udhawan97/Nimanto/blob/main/docs/releases/v0.4.1.md">
+              v0.4.1 notes
             </a>
             <a href="https://github.com/udhawan97/Nimanto/blob/main/LICENSE">Apache-2.0</a>
           </nav>

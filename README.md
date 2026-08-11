@@ -8,8 +8,8 @@
 
 <p align="center">
   A private, local-first job-search workbench for H-1B professionals.<br>
-  Build one verified career record, see exactly why a role fits, and approve<br>
-  every handoff yourself. Nothing leaves your machine unless you send it.
+  Build one confirmed career record, see exactly why a role fits, work the<br>
+  application record, and approve every handoff yourself.
 </p>
 
 <p align="center">
@@ -27,15 +27,17 @@
   ·
   <a href="#run-it"><strong>Run it</strong></a>
   ·
+  <a href="https://github.com/udhawan97/Nimanto/releases"><strong>Source releases</strong></a>
+  ·
   <a href="#what-it-actually-does"><strong>What it does</strong></a>
   ·
-  <a href="docs/releases/v0.4.0.md"><strong>v0.4.0 notes</strong></a>
+  <a href="docs/releases/v0.4.1.md"><strong>v0.4.1 notes</strong></a>
   ·
   <a href="docs/planning/product-contract.md"><strong>Product contract</strong></a>
 </p>
 
 <p align="center">
-  <img src="docs/assets/nimanto-workbench.png" alt="The Nimanto stored-history workbench on an ink ground: an exact profile-version diff beside a same-role match comparison" width="1100">
+  <img src="docs/assets/nimanto-workbench.png" alt="A synthetic Nimanto Applications workbench with an action-first pipeline and Record outcome controls" width="1100">
 </p>
 
 ---
@@ -48,12 +50,13 @@ half-finished forms. Nimanto gives that work one inspectable path:
 1. **Import** career evidence. Every extracted claim starts **pending**.
 2. **Confirm** the claims you can actually support, and save your exact
    work-authorization wording.
-3. **Add a role** by hand, or refresh an allowlisted Greenhouse, Lever or Ashby
-   board.
+3. **Add a role** by hand—with an in-tab draft that survives section changes—or
+   refresh an allowlisted Greenhouse, Lever or Ashby board.
 4. **Match** deterministically, and read the requirement-by-requirement result:
    what is supported, what is missing, and what blocks you.
-5. **Track** the application and generate JSON, plain text, and paired modern and
-   ATS-safe DOCX/PDF from confirmed evidence only.
+5. **Track** the application from an action-first board or table, record only
+   candidate-reported outcomes, and generate JSON, plain text, and paired modern
+   and ATS-safe DOCX/PDF from confirmed evidence only.
 6. **Inspect** retained profile, match, packet, and assurance records when you
    need them; compare literal stored values without inventing causality.
 7. **Approve** — assurance, then the packet, then the exact action, then a runtime
@@ -70,7 +73,7 @@ today.
 | Build a reusable career record      | **Evidence vault**        | Claim status, source name, source locator, confidence, profile version      |
 | Decide whether a role is worth time | **Role discovery**        | Ephemeral filters, four match dimensions, requirements, coverage, blockers  |
 | Keep sponsorship context honest     | **H-1B evidence signals** | Source, period, observation time, confidence, freshness adjustment, limits  |
-| Remember what actually happened     | **Applications**          | Candidate-recorded outcomes and notes on a literal chronology               |
+| Remember what actually happened     | **Applications**          | Action-first board/table, candidate-recorded outcomes, literal chronology   |
 | Review a bounded application cohort | **Applications**          | Creation-window counts using current role source and match classification   |
 | Prepare application materials       | **Review packets**        | Canonical content, format checks, hashes, stored assurance findings         |
 | Compare retained records            | **Stored history**        | Profile diffs and same-role match runs, fetched only when opened            |
@@ -96,6 +99,16 @@ something that opens because you opened it.
 </p>
 
 ## Run it
+
+Nimanto v0.4.1 is source-distributed. It does **not** ship a signed installer or
+desktop binary.
+
+| Path               | Best for                          | Start here                                                              |
+| ------------------ | --------------------------------- | ----------------------------------------------------------------------- |
+| macOS launcher     | A local first run without a shell | Download or clone the source, then open `START-NIMANTO.command`         |
+| Terminal           | macOS, Linux, or Windows          | Node.js 24–26, pnpm 11, then the commands below                         |
+| Docker on loopback | Invite-only local/self-hosted QA  | `docker compose up --build`; keep ports bound to `127.0.0.1`            |
+| Source release     | A versioned ZIP or tar archive    | [GitHub source releases](https://github.com/udhawan97/Nimanto/releases) |
 
 ### One double-click on macOS
 
@@ -143,6 +156,8 @@ issue a hashed, expiring, single-use invitation.
   lists the claims a file would create — up to the 500 an import stores —
   before anything is written.
 - Immutable profile versions carrying candidate-approved authorization wording.
+  A normalized no-op save reuses the latest version instead of manufacturing a
+  duplicate history row.
 - Deterministic `scoring_rules_v1` matching across four documented dimensions,
   with sponsorship, citizenship, clearance and location blockers left visible.
 - An unmet requirement offers to add evidence for itself. Only the requirement
@@ -161,6 +176,9 @@ issue a hashed, expiring, single-use invitation.
 ### Discovery and application memory
 
 - Manual job intake, plus allowlisted Greenhouse, Lever and Ashby adapters.
+- Manual role drafts stay in the signed-in browser tab across workbench section
+  changes. Reload, sign-out, identity change, successful save, or confirmed
+  discard clears them; failed saves preserve them.
 - Search by title, company or location and combine source, match-state, and
   tracking filters. These filters live only in the open Role discovery view;
   they are not persisted or sent to the API.
@@ -182,6 +200,8 @@ issue a hashed, expiring, single-use invitation.
   interviews, offers, rejections and withdrawals. Every status control — board
   card or row list — offers only the moves the domain allows, asks before a
   consequential one, and the transition is enforced server-side regardless.
+- The actionable board/table surface precedes funnel, review-queue, and cohort
+  analytics. Both views use the same labeled, deliberate outcome editor.
 - A recorded-outcome timeline shows application creation and the candidate's
   dated notes in order. It does not reconstruct unrecorded stages or infer an
   outcome from silence.
@@ -297,7 +317,7 @@ design-token contrast, API integration, and nine sequential WebKit journeys.
 
 ## Beta boundaries
 
-Version `0.4.0` is a **local beta**:
+Version `0.4.1` is a **local beta**:
 
 - The local candidate workflow is implemented and tested.
 - Public website hosting carries product information and the static workbench
@@ -353,5 +373,5 @@ of scope.
 Apache License 2.0. See [LICENSE](LICENSE), [NOTICE](NOTICE),
 [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md),
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), and the release
-[CycloneDX](docs/releases/nimanto-v0.4.0.cdx.json) /
-[SPDX](docs/releases/nimanto-v0.4.0.spdx.json) inventories.
+[CycloneDX](docs/releases/nimanto-v0.4.1.cdx.json) /
+[SPDX](docs/releases/nimanto-v0.4.1.spdx.json) inventories.

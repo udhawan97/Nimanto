@@ -1,7 +1,7 @@
 {
   "name": "Nimanto",
   "short_name": "Nimanto",
-  "description": "A private, evidence-first job search, stored-history, and application workbench.",
+  "description": "A local-first, candidate-controlled evidence and application workbench for H-1B professionals.",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#0A0908",

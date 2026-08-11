@@ -481,24 +481,30 @@ svg {
 }
 
 /* ── 00 · Hero ────────────────────────────────────────────────────────────
- * The mark is the page. dvh, not vh — the mobile URL bar otherwise crops it.
+ * The fold and the product job share one opening composition. Copy comes
+ * first in the DOM so a narrow first viewport answers what this is before the
+ * decorative mark asks for space.
  */
 .hero {
   position: relative;
   display: grid;
-  grid-template-rows: 1fr auto auto;
-  justify-items: center;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3xl);
+  align-items: center;
+  width: 100%;
+  max-width: var(--shell-max);
+  margin-inline: auto;
   min-height: calc(100dvh - 5rem);
-  padding-block: var(--space-3xl) var(--space-4xl);
+  padding-block: var(--space-4xl);
   padding-inline: var(--shell-inline);
-  text-align: center;
+  text-align: start;
 }
 
 .emblem {
   position: relative;
-  width: min(92vw, 620px);
-  height: clamp(320px, 46vh, 620px);
-  align-self: center;
+  width: min(88vw, 560px);
+  height: clamp(240px, 38vh, 560px);
+  margin-inline: auto;
 }
 /* Umber's only home in the whole system: the warmth behind the mark. A wash,
  * not a fill, and drawn wider than the canvas so it has no edge of its own. */
@@ -532,9 +538,9 @@ svg {
 
 .hero-copy {
   display: grid;
-  justify-items: center;
-  gap: var(--space-xl);
-  margin-block-start: var(--space-3xl);
+  justify-items: start;
+  gap: var(--space-lg);
+  max-width: 43rem;
 }
 .hero h1 {
   font-family: var(--font-display);
@@ -544,14 +550,61 @@ svg {
   letter-spacing: var(--tracking-hero);
   color: var(--text);
 }
+.hero h2 {
+  max-width: 19ch;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 400;
+  color: var(--text-display);
+}
 .hero-line {
-  max-width: 34ch;
+  max-width: 55ch;
   font-size: var(--text-md);
   color: var(--text-body);
 }
 .hero .hero-actions {
-  justify-content: center;
+  justify-content: flex-start;
   margin-block-start: var(--space-md);
+}
+.hero-boundaries {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.hero-boundaries li {
+  padding: var(--space-3xs) var(--space-sm);
+  border: 1px solid var(--brass-200);
+  border-radius: 999px;
+  color: var(--idle-text);
+  font-family: var(--font-mono);
+  font-size: var(--text-placard);
+  letter-spacing: var(--tracking-placard);
+  text-transform: uppercase;
+}
+.hero-emblem {
+  position: relative;
+  min-width: 0;
+}
+.invitation-thread {
+  position: absolute;
+  inset-inline: 10%;
+  inset-block-end: 8%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--brass-400), transparent);
+}
+.invitation-thread::after {
+  content: "";
+  position: absolute;
+  inset-inline-start: 50%;
+  inset-block-start: -3px;
+  width: 7px;
+  height: 7px;
+  transform: rotate(45deg);
+  background: var(--ok-seed);
+  box-shadow: 0 0 0 1px var(--brass-300);
 }
 
 .scroll-cue {
@@ -626,7 +679,39 @@ svg {
   max-width: var(--measure-body);
 }
 
-/* 02 — method. Four plates on one continuous jaali spine, so the sequence
+/* 02 — one current product surface, framed as evidence rather than decoration. */
+.proof-grid {
+  display: grid;
+  gap: var(--space-4xl);
+  align-items: center;
+}
+.workbench-proof {
+  display: grid;
+  gap: var(--space-md);
+  margin: 0;
+  padding: var(--space-md);
+  border: 1px solid var(--brass-200);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  box-shadow: 0 28px 80px color-mix(in srgb, var(--ink) 66%, transparent);
+}
+.workbench-proof img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--brass-100);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.workbench-proof figcaption {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-placard);
+  letter-spacing: var(--tracking-placard);
+  text-transform: uppercase;
+}
+
+/* 03 — method. Five plates on one continuous jaali spine, so the sequence
  * reads as a single object rather than as four cards. */
 .spine {
   display: grid;
@@ -669,7 +754,7 @@ svg {
   color: var(--text-body);
 }
 
-/* 03 — the rail */
+/* 04 — the rail */
 .rail-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -742,7 +827,7 @@ svg {
   background: linear-gradient(var(--brass-300), var(--ok-edge));
 }
 
-/* 04 — boundary. The only large light field in the system. */
+/* 05 — boundary. The only large light field in the system. */
 .boundary {
   background: var(--stone-600);
   color: var(--ink);
@@ -775,7 +860,7 @@ svg {
   color: color-mix(in srgb, var(--ink) 78%, transparent);
 }
 
-/* 05 — run it */
+/* 06 — run it */
 .run-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -1075,6 +1160,9 @@ svg {
   align-content: start;
   padding: var(--space-3xl);
   min-width: 0;
+  /* JS corrects against the measured sticky header after focus. This is the
+   * no-script/browser-scroll fallback and intentionally uses design tokens. */
+  scroll-margin-block-start: calc(var(--space-4xl) + var(--space-lg));
 }
 
 .page-intro {
@@ -2236,6 +2324,21 @@ textarea {
   color: var(--text-muted);
   font-size: var(--text-sm);
 }
+.outcome-form {
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-sm);
+  width: 100%;
+  padding: var(--space-md);
+  border: 1px solid var(--brass-200);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+.table-row > .outcome-form {
+  flex-basis: 100%;
+}
+.outcome-form .button-group {
+  margin-block-start: var(--space-xs);
+}
 .board-move {
   display: flex;
   flex-wrap: wrap;
@@ -2426,6 +2529,18 @@ textarea {
  * stops multi-column grids from crushing their contents at 320px.
  */
 @media (min-width: 900px) {
+  .hero {
+    grid-template-columns: minmax(0, 0.9fr) minmax(22rem, 1.1fr);
+    gap: clamp(2rem, 6vw, 6rem);
+  }
+  .hero-copy {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .hero-emblem {
+    grid-column: 2;
+    grid-row: 1;
+  }
   .thesis-grid {
     grid-template-columns: 12rem minmax(0, 1fr);
     align-items: start;
@@ -2438,7 +2553,8 @@ textarea {
     grid-column: 2;
   }
   .rail-grid,
-  .run-grid {
+  .run-grid,
+  .proof-grid {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
     gap: var(--space-4xl);
   }
@@ -2524,6 +2640,16 @@ textarea {
 }
 
 @media (max-width: 720px) {
+  .hero {
+    min-height: auto;
+    padding-block-start: var(--space-3xl);
+  }
+  .hero h1 {
+    font-size: clamp(3.5rem, 21vw, 5.5rem);
+  }
+  .hero .emblem {
+    height: 250px;
+  }
   .site-header {
     flex-wrap: wrap;
     gap: var(--space-md);

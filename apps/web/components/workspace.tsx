@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import {
   type FormEvent,
+  type ReactNode,
   useCallback,
   useDeferredValue,
   useEffect,
@@ -51,6 +52,7 @@ import {
   applicationCohortCounts,
   boardColumns,
   canMove,
+  countedNoun,
   confirmationPrompt,
   failureMessage,
   filterRoles,
@@ -59,6 +61,8 @@ import {
   legalTargets,
   needsConfirmation,
   nextSteps,
+  packetInventoryNotice,
+  profileInputChanged,
   profileVersionDiff,
   recordReviewQueue,
   recordedOutcomeTimeline,
@@ -188,6 +192,35 @@ type ProfileVersion = {
   inputHash: string;
   createdAt: string;
 };
+type ProfileVersionResponse = ProfileVersion & { created: boolean };
+type ManualRoleDraft = {
+  title: string;
+  company: string;
+  location: string;
+  workMode: string;
+  url: string;
+  description: string;
+  requirements: string;
+  compensationMin: string;
+  compensationMax: string;
+  benefits: string;
+  interviewEvidence: string;
+  interviewSource: string;
+};
+const emptyManualRoleDraft = (): ManualRoleDraft => ({
+  title: "",
+  company: "",
+  location: "",
+  workMode: "unspecified",
+  url: "",
+  description: "",
+  requirements: "",
+  compensationMin: "",
+  compensationMax: "",
+  benefits: "",
+  interviewEvidence: "",
+  interviewSource: "",
+});
 type MatchHistoryRun = Omit<Match, "job"> & { currentJob: Job | null };
 type AssuranceHistoryRun = NonNullable<Packet["latestAssurance"]> & {
   packetId: string;
@@ -264,8 +297,9 @@ type Dashboard = {
 };
 type ActionRunner = (
   work: () => Promise<unknown>,
-  success: string,
+  success: string | ((result: unknown) => string),
   onSuccess?: (result: unknown) => void,
+  afterSuccessSettles?: (result: unknown) => void,
 ) => Promise<void>;
 /* `state` is "completed" or "cleanup_pending"; the token is a bearer capability
  * that reaches the deletion status and resume routes without a session. */
@@ -442,6 +476,9 @@ export function Workspace() {
   // form. Never a source name or locator — see the note in EvidenceVault.
   const [draftClaim, setDraftClaim] = useState<string | null>(null);
   const clearDraftClaim = useCallback(() => setDraftClaim(null), []);
+  // A manual role can be long. Keep it above the section boundary so navigation
+  // cannot erase it, but never persist it or carry it into another identity.
+  const [manualRoleDraft, setManualRoleDraft] = useState<ManualRoleDraft | null>(null);
   // Held here, not in Data controls: deleting the workspace clears the session,
   // so that panel unmounts before the candidate could copy the token.
   const [deletionReceipt, setDeletionReceipt] = useState<DeletionReceipt | null>(null);
@@ -449,7 +486,33 @@ export function Workspace() {
   const closeNavigationButton = useRef<HTMLButtonElement>(null);
   const firstNavigationButton = useRef<HTMLButtonElement>(null);
   const refreshButton = useRef<HTMLButtonElement>(null);
+  const workspaceHeader = useRef<HTMLElement>(null);
   const contentHeading = useRef<HTMLDivElement>(null);
+
+  const focusSectionContent = useCallback(() => {
+    const target = contentHeading.current;
+    if (!target) return;
+    target.focus({ preventScroll: true });
+    const header = workspaceHeader.current?.getBoundingClientRect();
+    const targetTop = window.scrollY + target.getBoundingClientRect().top;
+    // `scrollIntoView` can legally keep the viewport inside a tall target. The
+    // workbench content is exactly such a target, so use its document offset
+    // and the measured header height to make the destination deterministic.
+    const root = document.documentElement;
+    const previousScrollBehavior = root.style.scrollBehavior;
+    root.style.scrollBehavior = "auto";
+    window.scrollTo(0, Math.max(0, targetTop - (header?.height ?? 0) - 8));
+    window.requestAnimationFrame(() => {
+      const heading = target.querySelector("h1") ?? target;
+      const headerBottom = workspaceHeader.current?.getBoundingClientRect().bottom ?? 0;
+      const headingTop = heading.getBoundingClientRect().top;
+      const clearance = 8;
+      if (headingTop < headerBottom + clearance) {
+        window.scrollBy(0, headingTop - headerBottom - clearance);
+      }
+      root.style.scrollBehavior = previousScrollBehavior;
+    });
+  }, []);
 
   /* Consume the hash, then scrub it — in that order, and never one without the
    * other. A credential can arrive on load or long after it, by pasting an
@@ -503,10 +566,11 @@ export function Workspace() {
       if (wasCredential) return;
       setSection(sectionFromHash(window.location.hash) ?? "overview");
       setNotice(null);
+      window.requestAnimationFrame(focusSectionContent);
     };
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
-  }, [readHash, routeReady]);
+  }, [focusSectionContent, readHash, routeReady]);
 
   const clearBootstrapSecret = useCallback(() => {
     window.sessionStorage.removeItem("nimanto_bootstrap");
@@ -521,6 +585,8 @@ export function Workspace() {
    * handle on an unfinished cleanup, and nothing else in the app holds it. */
   const startFresh = useCallback(() => {
     clearBootstrapSecret();
+    setManualRoleDraft(null);
+    setDraftClaim(null);
     setDeletionReceipt((receipt) => (receipt?.state === "completed" ? null : receipt));
   }, [clearBootstrapSecret]);
 
@@ -551,13 +617,23 @@ export function Workspace() {
       transport: error instanceof TypeError,
     });
 
+  const enterSignedOutState = useCallback(() => {
+    // An expired or revoked session is an identity transition even when it is
+    // discovered by an action rather than a dashboard refresh. Nothing drafted
+    // for the previous candidate may survive into the next session.
+    setManualRoleDraft(null);
+    setDraftClaim(null);
+    setMobileNav(false);
+    setDashboard(null);
+    setAuthRequired(true);
+  }, []);
+
   const refresh = useCallback(async () => {
     try {
       const status = await api<{ authenticated: boolean }>("/v1/auth/status");
       setApiReachable(true);
       if (!status.authenticated) {
-        setAuthRequired(true);
-        setDashboard(null);
+        enterSignedOutState();
         return;
       }
       const value = await api<Dashboard>("/v1/dashboard");
@@ -567,7 +643,7 @@ export function Workspace() {
       if (error instanceof ApiError && error.code === "AUTHENTICATION_REQUIRED") {
         // The API answered, it just refused. That is a reachable service.
         setApiReachable(true);
-        setAuthRequired(true);
+        enterSignedOutState();
       } else {
         // A transport failure means the local half is not answering at all.
         setApiReachable(!(error instanceof TypeError));
@@ -575,7 +651,7 @@ export function Workspace() {
         if (text) setNotice({ kind: "error", text });
       }
     }
-  }, []);
+  }, [enterSignedOutState]);
 
   useEffect(() => {
     void refresh();
@@ -607,15 +683,24 @@ export function Workspace() {
     };
   }, []);
 
-  const act: ActionRunner = async (work, success, onSuccess) => {
+  const act: ActionRunner = async (work, success, onSuccess, afterSuccessSettles) => {
     setBusy(true);
     setNotice(null);
+    let completed: unknown;
+    let succeeded = false;
     try {
       const result = await work();
+      completed = result;
+      succeeded = true;
       onSuccess?.(result);
       await refresh();
-      setNotice({ kind: "ok", text: success });
+      setNotice({ kind: "ok", text: typeof success === "function" ? success(result) : success });
     } catch (error) {
+      if (error instanceof ApiError && error.code === "AUTHENTICATION_REQUIRED") {
+        setApiReachable(true);
+        enterSignedOutState();
+        return;
+      }
       // A transport failure has no notice of its own — the connection banner
       // says it better. But the banner only appears once `apiReachable` knows,
       // so record it here rather than leaving the candidate with no feedback at
@@ -625,6 +710,9 @@ export function Workspace() {
       if (text) setNotice({ kind: "error", text });
     } finally {
       setBusy(false);
+      if (succeeded) {
+        window.requestAnimationFrame(() => afterSuccessSettles?.(completed));
+      }
     }
   };
 
@@ -698,7 +786,7 @@ export function Workspace() {
     if (routeReady && sectionFromHash(window.location.hash) !== next) {
       window.location.hash = sectionHash(next);
     }
-    window.requestAnimationFrame(() => contentHeading.current?.focus());
+    window.requestAnimationFrame(focusSectionContent);
   };
   // Sections plus whatever the candidate is actually working on. Every entry is
   // a destination; none can carry an action.
@@ -793,8 +881,7 @@ export function Workspace() {
                 "Signed out.",
                 () => {
                   clearBootstrapSecret();
-                  setDashboard(null);
-                  setAuthRequired(true);
+                  enterSignedOutState();
                 },
               );
             }}
@@ -813,7 +900,7 @@ export function Workspace() {
       )}
 
       <main id="main" className="workspace-main">
-        <header className="workspace-header">
+        <header className="workspace-header" ref={workspaceHeader}>
           <button
             ref={menuButton}
             className="icon-button menu-button"
@@ -893,6 +980,10 @@ export function Workspace() {
               dashboard={dashboard}
               onAct={act}
               busy={busy}
+              draft={manualRoleDraft}
+              onDraftOpen={() => setManualRoleDraft((value) => value ?? emptyManualRoleDraft())}
+              onDraftChange={setManualRoleDraft}
+              onDraftClose={() => setManualRoleDraft(null)}
               onAddEvidence={(requirement) => {
                 setDraftClaim(requirement);
                 goToSection("evidence");
@@ -911,7 +1002,10 @@ export function Workspace() {
               dashboard={dashboard}
               onAct={act}
               busy={busy}
-              onDeleted={setDeletionReceipt}
+              onDeleted={(receipt) => {
+                setManualRoleDraft(null);
+                setDeletionReceipt(receipt);
+              }}
             />
           )}
         </div>
@@ -1296,16 +1390,19 @@ function Empty({
   icon: Icon,
   title,
   copy,
+  action,
 }: {
   icon: typeof Activity;
   title: string;
   copy: string;
+  action?: ReactNode;
 }) {
   return (
     <div className="empty">
       <Icon />
       <strong>{title}</strong>
       <p>{copy}</p>
+      {action}
     </div>
   );
 }
@@ -1328,6 +1425,11 @@ function EvidenceVault({
   const [authorization, setAuthorization] = useState(dashboard.profile?.authorizationWording ?? "");
   const [importPreview, setImportPreview] = useState<EvidenceImportPreview | null>(null);
   const claimField = useRef<HTMLTextAreaElement>(null);
+  const profileChanged = profileInputChanged(
+    dashboard.profile,
+    authorization,
+    dashboard.evidence.filter((claim) => claim.status === "confirmed").map((claim) => claim.id),
+  );
 
   /* Arrived here from an unmet requirement. Only the wording the candidate has
    * to answer is carried across — never the posting's source name or locator,
@@ -1593,11 +1695,14 @@ function EvidenceVault({
               event.preventDefault();
               void onAct(
                 () =>
-                  api("/v1/profile/versions", {
+                  api<ProfileVersionResponse>("/v1/profile/versions", {
                     method: "POST",
                     body: JSON.stringify({ authorizationWording: authorization }),
                   }),
-                "A new profile version was saved.",
+                (result) =>
+                  (result as ProfileVersionResponse).created
+                    ? "A new profile version was saved."
+                    : "No profile changes were found; stored history is unchanged.",
               );
             }}
           >
@@ -1618,8 +1723,8 @@ function EvidenceVault({
             <p className="field-note">
               Packet assurance blocks any silent wording change. This is not legal advice.
             </p>
-            <button className="button quiet" disabled={busy}>
-              Save profile version
+            <button className="button quiet" disabled={busy || !profileChanged}>
+              {profileChanged ? "Save profile version" : "No changes to save"}
             </button>
           </form>
         </div>
@@ -1632,20 +1737,29 @@ function Jobs({
   dashboard,
   onAct,
   busy,
+  draft,
+  onDraftOpen,
+  onDraftChange,
+  onDraftClose,
   onAddEvidence,
 }: {
   dashboard: Dashboard;
   onAct: ActionRunner;
   busy: boolean;
+  draft: ManualRoleDraft | null;
+  onDraftOpen: () => void;
+  onDraftChange: (draft: ManualRoleDraft) => void;
+  onDraftClose: () => void;
   onAddEvidence: (requirement: string) => void;
 }) {
-  const [adding, setAdding] = useState(false);
   const [sourceOpen, setSourceOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState("all");
   const [fitFilter, setFitFilter] = useState("all");
   const [trackingFilter, setTrackingFilter] = useState<"all" | "tracked" | "untracked">("all");
+  const addRoleButton = useRef<HTMLButtonElement>(null);
+  const roleTitleField = useRef<HTMLInputElement>(null);
   const deferredQuery = useDeferredValue(query);
   const latest = useMemo(
     () => new Map(dashboard.matches.map((match) => [match.jobId, match])),
@@ -1679,16 +1793,14 @@ function Jobs({
   );
   const addJob = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const requirements = String(data.get("requirements") ?? "")
-      .split("\n")
-      .filter(Boolean);
-    const benefits = String(data.get("benefits") ?? "")
+    if (!draft) return;
+    const requirements = draft.requirements.split("\n").filter(Boolean);
+    const benefits = draft.benefits
       .split("\n")
       .map((value) => value.trim())
       .filter(Boolean);
-    const numberOrNull = (value: FormDataEntryValue | null) => {
-      const text = String(value ?? "").trim();
+    const numberOrNull = (value: string) => {
+      const text = value.trim();
       return text ? Number(text) : null;
     };
     void onAct(
@@ -1696,22 +1808,29 @@ function Jobs({
         api("/v1/jobs", {
           method: "POST",
           body: JSON.stringify({
-            title: data.get("title"),
-            company: data.get("company"),
-            description: data.get("description"),
-            location: data.get("location"),
-            workMode: data.get("workMode"),
-            compensationMin: numberOrNull(data.get("compensationMin")),
-            compensationMax: numberOrNull(data.get("compensationMax")),
+            title: draft.title,
+            company: draft.company,
+            description: draft.description,
+            location: draft.location,
+            workMode: draft.workMode,
+            compensationMin: numberOrNull(draft.compensationMin),
+            compensationMax: numberOrNull(draft.compensationMax),
             benefits,
-            interviewEvidence: data.get("interviewEvidence"),
-            interviewSource: data.get("interviewSource"),
-            url: data.get("url"),
+            interviewEvidence: draft.interviewEvidence,
+            interviewSource: draft.interviewSource,
+            url: draft.url,
             requirements,
           }),
         }),
       "Role added.",
-    ).then(() => setAdding(false));
+      () => {
+        onDraftClose();
+        window.requestAnimationFrame(() => addRoleButton.current?.focus());
+      },
+    );
+  };
+  const updateDraft = <K extends keyof ManualRoleDraft>(field: K, value: ManualRoleDraft[K]) => {
+    if (draft) onDraftChange({ ...draft, [field]: value });
   };
   const importSource = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -1764,41 +1883,70 @@ function Jobs({
               <RefreshCw size={16} /> Import source
             </button>
             <button
+              ref={addRoleButton}
               className="button primary"
               type="button"
-              onClick={() => setAdding((value) => !value)}
+              aria-expanded={draft !== null}
+              aria-controls="manual-role-draft"
+              onClick={() => {
+                onDraftOpen();
+                window.requestAnimationFrame(() => roleTitleField.current?.focus());
+              }}
             >
-              <Plus size={16} /> Add role
+              <Plus size={16} /> {draft ? "Resume role draft" : "Add role"}
             </button>
           </div>
         }
       />
-      {(adding || sourceOpen || scheduleOpen) && (
+      {(draft || sourceOpen || scheduleOpen) && (
         <div className="inline-form-row">
-          {adding && (
-            <form className="work-panel form-panel" onSubmit={addJob}>
+          {draft && (
+            <form id="manual-role-draft" className="work-panel form-panel" onSubmit={addJob}>
               <div className="panel-heading">
                 <div>
                   <span>Manual intake</span>
                   <h2>Add a role</h2>
                 </div>
               </div>
+              <p className="field-note">
+                Kept only in this tab while this workspace remains signed in; reload or sign-out
+                clears it.
+              </p>
               <div className="field-grid">
                 <label>
                   Role title
-                  <input name="title" required />
+                  <input
+                    ref={roleTitleField}
+                    name="title"
+                    required
+                    value={draft.title}
+                    onChange={(event) => updateDraft("title", event.target.value)}
+                  />
                 </label>
                 <label>
                   Company
-                  <input name="company" required />
+                  <input
+                    name="company"
+                    required
+                    value={draft.company}
+                    onChange={(event) => updateDraft("company", event.target.value)}
+                  />
                 </label>
                 <label>
                   Location
-                  <input name="location" />
+                  <input
+                    name="location"
+                    value={draft.location}
+                    onChange={(event) => updateDraft("location", event.target.value)}
+                  />
                 </label>
                 <label>
                   Work mode
-                  <select name="workMode" defaultValue="unspecified">
+                  <select
+                    name="workMode"
+                    value={draft.workMode}
+                    onChange={(event) => updateDraft("workMode", event.target.value)}
+                  >
                     <option value="unspecified">Not specified</option>
                     <option value="remote">Remote</option>
                     <option value="hybrid">Hybrid</option>
@@ -1807,45 +1955,103 @@ function Jobs({
                 </label>
                 <label>
                   Posting URL
-                  <input name="url" type="url" />
+                  <input
+                    name="url"
+                    type="url"
+                    value={draft.url}
+                    onChange={(event) => updateDraft("url", event.target.value)}
+                  />
                 </label>
               </div>
               <label>
                 Description
-                <textarea name="description" required />
+                <textarea
+                  name="description"
+                  required
+                  value={draft.description}
+                  onChange={(event) => updateDraft("description", event.target.value)}
+                />
               </label>
               <label>
                 Requirements, one per line
-                <textarea name="requirements" required />
+                <textarea
+                  name="requirements"
+                  required
+                  value={draft.requirements}
+                  onChange={(event) => updateDraft("requirements", event.target.value)}
+                />
               </label>
               <div className="field-grid">
                 <label>
                   Posted annual minimum (USD)
-                  <input name="compensationMin" type="number" min="0" step="1000" />
+                  <input
+                    name="compensationMin"
+                    type="number"
+                    min="0"
+                    step="1000"
+                    value={draft.compensationMin}
+                    onChange={(event) => updateDraft("compensationMin", event.target.value)}
+                  />
                 </label>
                 <label>
                   Posted annual maximum (USD)
-                  <input name="compensationMax" type="number" min="0" step="1000" />
+                  <input
+                    name="compensationMax"
+                    type="number"
+                    min="0"
+                    step="1000"
+                    value={draft.compensationMax}
+                    onChange={(event) => updateDraft("compensationMax", event.target.value)}
+                  />
                 </label>
               </div>
               <label>
                 Stated benefits, one per line
-                <textarea name="benefits" />
+                <textarea
+                  name="benefits"
+                  value={draft.benefits}
+                  onChange={(event) => updateDraft("benefits", event.target.value)}
+                />
               </label>
               <label>
                 Interview-process evidence
                 <textarea
                   name="interviewEvidence"
                   placeholder="Only sourced or user-provided stages."
+                  value={draft.interviewEvidence}
+                  onChange={(event) => updateDraft("interviewEvidence", event.target.value)}
                 />
               </label>
               <label>
                 Interview source
-                <input name="interviewSource" placeholder="Official page or user-provided note" />
+                <input
+                  name="interviewSource"
+                  placeholder="Official page or user-provided note"
+                  value={draft.interviewSource}
+                  onChange={(event) => updateDraft("interviewSource", event.target.value)}
+                />
               </label>
-              <button className="button primary" disabled={busy}>
-                Save role
-              </button>
+              <div className="button-group">
+                <button className="button primary" disabled={busy}>
+                  Save role
+                </button>
+                <button
+                  className="button quiet"
+                  type="button"
+                  disabled={busy}
+                  onClick={(event) => {
+                    if (!window.confirm("Discard this unsaved role draft?")) {
+                      const trigger = event.currentTarget;
+                      window.requestAnimationFrame(() => trigger.focus());
+                      return;
+                    }
+                    onDraftClose();
+                    window.requestAnimationFrame(() => addRoleButton.current?.focus());
+                  }}
+                >
+                  Discard draft
+                </button>
+              </div>
             </form>
           )}
           {sourceOpen && (
@@ -2831,6 +3037,7 @@ function Applications({
   onGo: (section: Section) => void;
 }) {
   const [outcomeFor, setOutcomeFor] = useState<string | null>(null);
+  const outcomeTrigger = useRef<HTMLButtonElement | null>(null);
   const [view, setView] = useState<"board" | "table">("board");
   const [reviewOnly, setReviewOnly] = useState(false);
   const [cohortStart, setCohortStart] = useState(() => dateInputValue(new Date(), -30));
@@ -2855,14 +3062,15 @@ function Applications({
   });
   const cohortTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const cohortSources = [...new Set(dashboard.jobs.map((job) => job.source))].toSorted();
-  const submitOutcome = (event: FormEvent<HTMLFormElement>, id: string) => {
-    event.preventDefault();
-    const data = Object.fromEntries(new FormData(event.currentTarget));
-    void onAct(
-      () => api(`/v1/applications/${id}/outcomes`, { method: "POST", body: JSON.stringify(data) }),
-      "Outcome recorded.",
-    ).then(() => setOutcomeFor(null));
+  const openOutcome = (id: string, trigger: HTMLButtonElement) => {
+    outcomeTrigger.current = trigger;
+    setOutcomeFor((current) => (current === id ? null : id));
   };
+  const closeOutcome = () => {
+    setOutcomeFor(null);
+    window.requestAnimationFrame(() => outcomeTrigger.current?.focus());
+  };
+  const completeOutcome = () => setOutcomeFor(null);
 
   /* Moving a card is a claim about what the candidate did in the world, so the
    * consequential columns ask first. The server enforces legality independently
@@ -2915,7 +3123,10 @@ function Applications({
             <button
               className="button quiet mini"
               type="button"
-              onClick={() => setView(view === "board" ? "table" : "board")}
+              onClick={() => {
+                setOutcomeFor(null);
+                setView(view === "board" ? "table" : "board");
+              }}
             >
               {view === "board" ? "Table view" : "Board view"}
             </button>
@@ -2933,6 +3144,172 @@ function Applications({
           </div>
         }
       />
+      {view === "board" && visibleApplications.length > 0 && (
+        <section className="board" aria-label="Application pipeline">
+          {boardColumns(visibleApplications).map((column) => (
+            <div className="board-column" key={column.id}>
+              <header>
+                <h3>{column.label}</h3>
+                <span>{column.items.length}</span>
+              </header>
+              {column.items.map((application) => {
+                const note = followUpNote(application, now);
+                const role = application.job
+                  ? `${application.job.title} at ${application.job.company}`
+                  : "this application";
+                return (
+                  <article
+                    className="board-card"
+                    key={application.id}
+                    id={`board-card-${application.id}`}
+                    tabIndex={-1}
+                  >
+                    <strong>{application.job?.title ?? "Unknown role"}</strong>
+                    <span>{application.job?.company}</span>
+                    {note && (
+                      <span className="follow-up">
+                        <Clock3 size={12} aria-hidden="true" /> {note}
+                      </span>
+                    )}
+                    <RecordedTimeline application={application} />
+                    <button
+                      className="button mini quiet"
+                      type="button"
+                      disabled={busy}
+                      aria-expanded={outcomeFor === application.id}
+                      aria-controls={`outcome-editor-${application.id}`}
+                      onClick={(event) => openOutcome(application.id, event.currentTarget)}
+                    >
+                      <Plus size={15} /> Record outcome
+                    </button>
+                    {outcomeFor === application.id && (
+                      <OutcomeEditor
+                        application={application}
+                        onAct={onAct}
+                        busy={busy}
+                        onRecorded={completeOutcome}
+                        onClose={closeOutcome}
+                      />
+                    )}
+                    {/* Keyboard-operable by construction: buttons, not drag. */}
+                    <div className="board-move">
+                      <span className="board-move-label">Move to</span>
+                      {/* Same source as the row list's options, so the two
+                       * controls cannot drift into offering different moves. */}
+                      {legalTargets(application.status)
+                        .filter((id) => id !== application.status)
+                        .map((id) => BOARD_COLUMNS.find((column) => column.id === id)!)
+                        .map((target) => (
+                          <button
+                            key={target.id}
+                            type="button"
+                            disabled={busy}
+                            // Visually the column name is enough; heard on its own
+                            // in a list of twenty cards, "Prepared" is not.
+                            aria-label={`Move ${role} to ${target.label}`}
+                            onClick={() => move(application, target.id)}
+                          >
+                            {target.label}
+                          </button>
+                        ))}
+                    </div>
+                  </article>
+                );
+              })}
+              {column.items.length === 0 && <small className="field-note">Nothing here yet</small>}
+            </div>
+          ))}
+        </section>
+      )}
+
+      {visibleApplications.length > 0 && (
+        <section
+          className="application-table"
+          aria-label="Tracked applications"
+          hidden={view === "board"}
+        >
+          <div className="table-head" aria-hidden="true">
+            <span>Role</span>
+            <span>Status</span>
+            <span>Outcomes</span>
+            <span>Next step</span>
+          </div>
+          {visibleApplications.map((application) => (
+            <article key={application.id} className="table-row">
+              <div className="application-identity">
+                <strong>{application.job?.title ?? "Unknown role"}</strong>
+                <small>{application.job?.company}</small>
+              </div>
+              <label>
+                <span className="sr-only">Status for {application.job?.title}</span>
+                {/* Same guard as the board, and only the moves the domain allows.
+                 * Listing all five taught the candidate about illegal transitions
+                 * by way of a rejected request. On a declined confirmation the
+                 * value prop restores itself on the next render. */}
+                <select
+                  value={application.status}
+                  disabled={busy}
+                  onChange={(event) => move(application, event.target.value as ApplicationStatus)}
+                >
+                  {legalTargets(application.status).map((target) => (
+                    <option key={target} value={target}>
+                      {BOARD_COLUMNS.find((column) => column.id === target)!.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="outcome-chips">
+                {application.outcomes?.length ? (
+                  application.outcomes.map((outcome) => (
+                    <span key={outcome.id}>{human(outcome.type)}</span>
+                  ))
+                ) : (
+                  <small>No outcome recorded</small>
+                )}
+                <RecordedTimeline application={application} />
+              </div>
+              <button
+                className="button mini quiet"
+                type="button"
+                disabled={busy}
+                aria-expanded={outcomeFor === application.id}
+                aria-controls={`outcome-editor-${application.id}`}
+                onClick={(event) => openOutcome(application.id, event.currentTarget)}
+              >
+                <Plus size={15} /> Record outcome
+              </button>
+              {outcomeFor === application.id && (
+                <OutcomeEditor
+                  application={application}
+                  onAct={onAct}
+                  busy={busy}
+                  onRecorded={completeOutcome}
+                  onClose={closeOutcome}
+                />
+              )}
+            </article>
+          ))}
+        </section>
+      )}
+      {dashboard.applications.length === 0 && (
+        <Empty
+          icon={BriefcaseBusiness}
+          title="No applications tracked"
+          copy="Choose Track from Role discovery when a position is worth pursuing."
+          action={
+            <button className="button primary" type="button" onClick={() => onGo("jobs")}>
+              <Plus size={16} /> Track a role
+            </button>
+          }
+        />
+      )}
+      {dashboard.applications.length > 0 && visibleApplications.length === 0 && (
+        <Empty
+          icon={Clock3}
+          title="No records are due for review"
+          copy="Every active record has candidate-recorded activity within the last 336 elapsed hours."
+        />
+      )}
       <Funnel funnel={dashboard.personalFunnel} />
 
       <section className="record-review-strip" aria-labelledby="record-review-title">
@@ -3050,155 +3427,77 @@ function Applications({
           Counts only. They are not conversion rates, hiring probabilities, or causal evidence.
         </p>
       </section>
-
-      {view === "board" && (
-        <section className="board" aria-label="Application pipeline">
-          {boardColumns(visibleApplications).map((column) => (
-            <div className="board-column" key={column.id}>
-              <header>
-                <h3>{column.label}</h3>
-                <span>{column.items.length}</span>
-              </header>
-              {column.items.map((application) => {
-                const note = followUpNote(application, now);
-                const role = application.job
-                  ? `${application.job.title} at ${application.job.company}`
-                  : "this application";
-                return (
-                  <article
-                    className="board-card"
-                    key={application.id}
-                    id={`board-card-${application.id}`}
-                    tabIndex={-1}
-                  >
-                    <strong>{application.job?.title ?? "Unknown role"}</strong>
-                    <span>{application.job?.company}</span>
-                    {note && (
-                      <span className="follow-up">
-                        <Clock3 size={12} aria-hidden="true" /> {note}
-                      </span>
-                    )}
-                    <RecordedTimeline application={application} />
-                    {/* Keyboard-operable by construction: buttons, not drag. */}
-                    <div className="board-move">
-                      <span className="board-move-label">Move to</span>
-                      {/* Same source as the row list's options, so the two
-                       * controls cannot drift into offering different moves. */}
-                      {legalTargets(application.status)
-                        .filter((id) => id !== application.status)
-                        .map((id) => BOARD_COLUMNS.find((column) => column.id === id)!)
-                        .map((target) => (
-                          <button
-                            key={target.id}
-                            type="button"
-                            disabled={busy}
-                            // Visually the column name is enough; heard on its own
-                            // in a list of twenty cards, "Prepared" is not.
-                            aria-label={`Move ${role} to ${target.label}`}
-                            onClick={() => move(application, target.id)}
-                          >
-                            {target.label}
-                          </button>
-                        ))}
-                    </div>
-                  </article>
-                );
-              })}
-              {column.items.length === 0 && <small className="field-note">Nothing here yet</small>}
-            </div>
-          ))}
-        </section>
-      )}
-
-      <section
-        className="application-table"
-        aria-label="Tracked applications"
-        hidden={view === "board"}
-      >
-        <div className="table-head" aria-hidden="true">
-          <span>Role</span>
-          <span>Status</span>
-          <span>Outcomes</span>
-          <span>Next step</span>
-        </div>
-        {visibleApplications.map((application) => (
-          <article key={application.id} className="table-row">
-            <div className="application-identity">
-              <strong>{application.job?.title ?? "Unknown role"}</strong>
-              <small>{application.job?.company}</small>
-            </div>
-            <label>
-              <span className="sr-only">Status for {application.job?.title}</span>
-              {/* Same guard as the board, and only the moves the domain allows.
-               * Listing all five taught the candidate about illegal transitions
-               * by way of a rejected request. On a declined confirmation the
-               * value prop restores itself on the next render. */}
-              <select
-                value={application.status}
-                disabled={busy}
-                onChange={(event) => move(application, event.target.value as ApplicationStatus)}
-              >
-                {legalTargets(application.status).map((target) => (
-                  <option key={target} value={target}>
-                    {BOARD_COLUMNS.find((column) => column.id === target)!.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="outcome-chips">
-              {application.outcomes?.length ? (
-                application.outcomes.map((outcome) => (
-                  <span key={outcome.id}>{human(outcome.type)}</span>
-                ))
-              ) : (
-                <small>No outcome recorded</small>
-              )}
-              <RecordedTimeline application={application} />
-            </div>
-            <button
-              className="button mini quiet"
-              type="button"
-              onClick={() => setOutcomeFor(outcomeFor === application.id ? null : application.id)}
-            >
-              <Plus size={15} /> Outcome
-            </button>
-            {outcomeFor === application.id && (
-              <form
-                className="outcome-form"
-                onSubmit={(event) => submitOutcome(event, application.id)}
-              >
-                <select name="type">
-                  <option value="reply">Reply</option>
-                  <option value="screen">Screen</option>
-                  <option value="interview">Interview</option>
-                  <option value="offer">Offer</option>
-                  <option value="rejection">Rejection</option>
-                  <option value="withdrawal">Withdrawal</option>
-                </select>
-                <input name="note" placeholder="Optional note" />
-                <button className="button mini primary" disabled={busy}>
-                  Record
-                </button>
-              </form>
-            )}
-          </article>
-        ))}
-      </section>
-      {dashboard.applications.length === 0 && (
-        <Empty
-          icon={BriefcaseBusiness}
-          title="No applications tracked"
-          copy="Choose Track from Role discovery when a position is worth pursuing."
-        />
-      )}
-      {dashboard.applications.length > 0 && visibleApplications.length === 0 && (
-        <Empty
-          icon={Clock3}
-          title="No records are due for review"
-          copy="Every active record has candidate-recorded activity within the last 336 elapsed hours."
-        />
-      )}
     </>
+  );
+}
+
+function OutcomeEditor({
+  application,
+  onAct,
+  busy,
+  onRecorded,
+  onClose,
+}: {
+  application: Application;
+  onAct: ActionRunner;
+  busy: boolean;
+  onRecorded: () => void;
+  onClose: () => void;
+}) {
+  const [type, setType] = useState("reply");
+  const [note, setNote] = useState("");
+  const typeField = useRef<HTMLSelectElement>(null);
+  const editorId = `outcome-editor-${application.id}`;
+  const typeId = `${editorId}-type`;
+  const noteId = `${editorId}-note`;
+
+  useEffect(() => {
+    typeField.current?.focus();
+  }, []);
+
+  return (
+    <form
+      id={editorId}
+      className="outcome-form"
+      onSubmit={(event) => {
+        event.preventDefault();
+        void onAct(
+          () =>
+            api(`/v1/applications/${application.id}/outcomes`, {
+              method: "POST",
+              body: JSON.stringify({ type, note }),
+            }),
+          "Candidate-reported outcome recorded.",
+          onRecorded,
+          onClose,
+        );
+      }}
+    >
+      <label htmlFor={typeId}>Candidate-reported outcome</label>
+      <select
+        ref={typeField}
+        id={typeId}
+        value={type}
+        onChange={(event) => setType(event.target.value)}
+      >
+        <option value="reply">Reply</option>
+        <option value="screen">Screen</option>
+        <option value="interview">Interview</option>
+        <option value="offer">Offer</option>
+        <option value="rejection">Rejection</option>
+        <option value="withdrawal">Withdrawal</option>
+      </select>
+      <label htmlFor={noteId}>Optional note</label>
+      <input id={noteId} value={note} onChange={(event) => setNote(event.target.value)} />
+      <div className="button-group">
+        <button className="button mini primary" disabled={busy}>
+          Record outcome
+        </button>
+        <button className="button mini quiet" type="button" disabled={busy} onClick={onClose}>
+          Cancel
+        </button>
+      </div>
+    </form>
   );
 }
 
@@ -3281,11 +3580,11 @@ function Packets({
                     onClick={() =>
                       onAct(
                         () =>
-                          api("/v1/packets", {
+                          api<Packet>("/v1/packets", {
                             method: "POST",
                             body: JSON.stringify({ applicationId: application.id }),
                           }),
-                        "Packet generated in four formats.",
+                        (result) => packetInventoryNotice((result as Packet).artifactManifest),
                       )
                     }
                   >
@@ -3300,11 +3599,11 @@ function Packets({
                       onClick={() =>
                         onAct(
                           () =>
-                            api("/v1/packets", {
+                            api<Packet>("/v1/packets", {
                               method: "POST",
                               body: JSON.stringify({ applicationId: application.id }),
                             }),
-                          "A new packet generation is ready for review.",
+                          (result) => packetInventoryNotice((result as Packet).artifactManifest),
                         )
                       }
                     >
@@ -4065,10 +4364,10 @@ function DataControls({
             <span>Portable export</span>
             <h2>Download the workspace record</h2>
             <p>
-              Includes {dashboard.evidence.length} evidence items, {dashboard.applications.length}{" "}
-              applications, retained profile versions, match runs, assurance runs, the local receipt
-              trail, and packet manifests. Generated packet files remain available as individual
-              downloads.
+              Includes {countedNoun(dashboard.evidence.length, "evidence item")},{" "}
+              {countedNoun(dashboard.applications.length, "application")}, retained profile
+              versions, match runs, assurance runs, the local receipt trail, and packet manifests.
+              Generated packet files remain available as individual downloads.
             </p>
           </div>
           <label className="sensitive-confirmation">

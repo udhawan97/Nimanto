@@ -55,6 +55,86 @@ describe("tenant-scoped persistence public seam", () => {
     expect(await store.listEvidence(beta.tenantId)).toEqual([]);
   });
 
+  it("creates a profile version only when normalized tenant input changes", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nimanto-store-profile-version-"));
+    const store = await NimantoStore.open(join(root, "data"));
+    stores.push(store);
+    const alpha = await store.createLocalTenant("profile-alpha@example.test", "Profile Alpha");
+    const beta = await store.createLocalTenant("profile-beta@example.test", "Profile Beta");
+    const alphaClaim = await store.createEvidence(alpha.tenantId, {
+      kind: "skill",
+      value: "TypeScript",
+      sourceName: "Synthetic resume",
+      locator: "Skills",
+      confidence: "high",
+      status: "confirmed",
+    });
+    await store.createEvidence(beta.tenantId, {
+      kind: "skill",
+      value: "Private beta claim",
+      sourceName: "Synthetic resume",
+      locator: "Skills",
+      confidence: "high",
+      status: "confirmed",
+    });
+
+    const [first, equivalent] = await Promise.all([
+      store.saveProfileVersion(alpha.tenantId, "Caf\u00e9 eligible"),
+      store.saveProfileVersion(alpha.tenantId, "  Cafe\u0301 eligible  "),
+    ]);
+    expect([first.created, equivalent.created].toSorted()).toEqual([false, true]);
+    expect(first.version.id).toBe(equivalent.version.id);
+    expect(first.version.authorizationWording).toBe("Caf\u00e9 eligible");
+    expect(first.version.claimIds).toEqual([alphaClaim.id]);
+    expect((await store.listProfileVersions(alpha.tenantId)).items).toHaveLength(1);
+
+    const addedClaim = await store.createEvidence(alpha.tenantId, {
+      kind: "skill",
+      value: "PostgreSQL",
+      sourceName: "Synthetic resume",
+      locator: "Skills, line 2",
+      confidence: "high",
+      status: "pending",
+    });
+    await store.confirmEvidence(alpha.tenantId, addedClaim.id);
+    const changedClaims = await store.saveProfileVersion(alpha.tenantId, "Caf\u00e9 eligible");
+    expect(changedClaims.created).toBe(true);
+    expect(changedClaims.version.claimIds).toEqual([alphaClaim.id, addedClaim.id].toSorted());
+    expect((await store.listProfileVersions(alpha.tenantId)).items).toHaveLength(2);
+
+    const changedWording = await store.saveProfileVersion(alpha.tenantId, "Different wording");
+    expect(changedWording.created).toBe(true);
+    expect((await store.listProfileVersions(alpha.tenantId)).items).toHaveLength(3);
+
+    const betaVersion = await store.saveProfileVersion(beta.tenantId, "Caf\u00e9 eligible");
+    expect(betaVersion.created).toBe(true);
+    expect(betaVersion.version.id).not.toBe(first.version.id);
+    expect((await store.listProfileVersions(beta.tenantId)).items).toHaveLength(1);
+  });
+
+  it("serializes profile saves with tenant deletion and rejects every later save", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nimanto-store-profile-deletion-"));
+    const store = await NimantoStore.open(join(root, "data"));
+    stores.push(store);
+    const identity = await store.createLocalTenant("profile-delete@example.test", "Profile Delete");
+
+    const [deletion, save] = await Promise.allSettled([
+      store.beginTenantDeletion(identity.tenantId, []),
+      store.saveProfileVersion(identity.tenantId, "Concurrent wording"),
+    ]);
+    expect(deletion.status).toBe("fulfilled");
+    if (save.status === "rejected") {
+      expect(save.reason).toMatchObject({ message: "TENANT_NOT_ACTIVE" });
+    } else {
+      // The save acquired the tenant lock first and therefore linearized while
+      // the workspace was still active. Deletion then acquired the same lock.
+      expect(save.value.created).toBe(true);
+    }
+    await expect(
+      store.saveProfileVersion(identity.tenantId, "After deletion began"),
+    ).rejects.toThrow("TENANT_NOT_ACTIVE");
+  });
+
   it("revokes a local session and never stores its raw token", async () => {
     const root = await mkdtemp(join(tmpdir(), "nimanto-store-"));
     const store = await NimantoStore.open(join(root, "data"));

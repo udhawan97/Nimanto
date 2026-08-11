@@ -1,6 +1,6 @@
 # Third-party notices
 
-Nimanto uses open-source packages under their own licenses. The release lockfile is the install authority; the exact v0.4.0 machine-readable inventories are the [CycloneDX SBOM](docs/releases/nimanto-v0.4.0.cdx.json) and [SPDX SBOM](docs/releases/nimanto-v0.4.0.spdx.json). Authoritative copyright and license texts remain with each package and its source distribution.
+Nimanto uses open-source packages under their own licenses. The release lockfile is the install authority; the exact v0.4.1 machine-readable inventories are the [CycloneDX SBOM](docs/releases/nimanto-v0.4.1.cdx.json) and [SPDX SBOM](docs/releases/nimanto-v0.4.1.spdx.json). Authoritative copyright and license texts remain with each package and its source distribution.
 
 Notable runtime families include:
 
@@ -13,7 +13,7 @@ Notable runtime families include:
 | Brand rendering        | three.js                                                                    | MIT                            |
 | Verification           | Vitest, Playwright, CSpell, CycloneDX cdxgen                                | MIT, Apache-2.0                |
 
-Some transitive optional/native packages expose alternative or weak-copyleft license choices. Consult the SBOM and the package's distributed license before redistributing a modified binary bundle. Nimanto v0.4.0 publishes source and does not redistribute a signed native binary.
+Some transitive optional/native packages expose alternative or weak-copyleft license choices. Consult the SBOM and the package's distributed license before redistributing a modified binary bundle. Nimanto v0.4.1 publishes source and does not redistribute a signed native binary.
 
 No third-party application source code, proprietary job data, personal résumé,
 model weights, Ollama runtime, or government dataset is bundled in this repository.
