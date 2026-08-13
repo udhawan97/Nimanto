@@ -27,6 +27,26 @@ Open:
 
 The API binds to loopback by default. Do not change `NIMANTO_API_HOST` to a public interface without adding production authentication, secure cookies, TLS, and a reviewed deployment configuration.
 
+## Upgrade to v0.4.2
+
+Stop the API, copy the complete `.nimanto-data/` directory, update to the exact
+v0.4.2 source, and reinstall the locked graph before restarting:
+
+```bash
+corepack enable
+pnpm install --frozen-lockfile
+pnpm dev
+```
+
+Startup applies additive, idempotent schema version 3. It adds packet/assurance
+hash bindings, action-approval bindings, dataset editions, and the active-tenant
+write fence. Existing v0.4.1 candidate rows and packet files are preserved.
+Existing approved packets remain approved, but an approved action without the
+new exact binding returns to pending approval; run packet assurance again before
+approving a new or previously unapproved packet.
+There is no schema downgrade path; restore the stopped full-directory copy or
+fix forward rather than running older source against the migrated database.
+
 ## Private invitations
 
 Public signup is disabled. A local administrator can issue a 72-hour, email-bound, single-use invitation with the private launch key:
@@ -52,7 +72,7 @@ The digest-pinned container runs the same static web workbench and API with publ
 docker compose up --build
 ```
 
-Open `http://127.0.0.1:4300/`. Retrieve the generated admin key with `docker compose exec nimanto sh -c 'cat /data/launch-secret'`, then issue a private invitation as above. The named `nimanto-data` volume holds the database and artifacts. The image is built in CI; v0.4.1 has not been certified for internet exposure and should remain bound to loopback.
+Open `http://127.0.0.1:4300/`. Retrieve the generated admin key with `docker compose exec nimanto sh -c 'cat /data/launch-secret'`, then issue a private invitation as above. The named `nimanto-data` volume holds the database and artifacts. The image is built in CI; v0.4.2 has not been certified for internet exposure and should remain bound to loopback.
 
 ## Data locations
 
@@ -75,7 +95,7 @@ Stop the API before copying `.nimanto-data/`. Restore by replacing the entire di
 
 ## Reset the synthetic workspace
 
-Use **Data controls → Delete all data** and type the exact confirmation phrase. The deletion path removes database tenant rows, packet artifacts, local outbox files, and the session.
+Use **Data controls → Delete all data** and type the exact confirmation phrase. The deletion transaction first fences later tenant writes and captures the exact outbox cleanup inventory, then removes database tenant rows, packet artifacts, local outbox files, and the session. An authenticated write or provider effect either finishes before that fence or fails; it cannot create an untracked file afterward.
 
 Deletion signs you out, so the receipt appears on the sign-in screen that follows. It states which outcome was reached and shows a seven-day status token with a copy control. Keep the token: it is the only way to check or resume this deletion, and it works without a session, so treat it like a password.
 
@@ -142,6 +162,8 @@ The queue stores only provider and board identifiers. Scheduled work cannot prep
   content, `document_assurance_v1` checks, artifact hashes, and the latest stored
   assurance run. Inspection verifies structure and configured rules; it does not
   verify claim truth, writing quality, employer acceptance, or delivery.
+  Assurance is bound to the exact packet and manifest hashes, and approval fails
+  if either changed or a newer assurance superseded the reviewed run.
 - **Review packets → History** loads retained packet generations for one
   application on demand. The comparison lists literal changed canonical fields
   and artifact-manifest entries; it is history, not lineage. Status and manifests
@@ -161,7 +183,7 @@ The queue stores only provider and board identifiers. Scheduled work cannot prep
 
 Open **Data controls**, read the sensitive-data warning, and confirm it before
 downloading JSON. `nimanto-local-beta-v2` wraps `nimanto_export_v2`, including
-retained profile versions, match runs, assurance runs, packet manifests,
+retained profile versions, match runs, assurance runs, packet manifests, dataset editions,
 applications, and receipts. It excludes sessions, invitation secrets, deletion
 internals, and generated packet files.
 
@@ -199,6 +221,14 @@ Run assurance and read its required findings. Common causes are no confirmed evi
 
 The packet must be approved, the action must be separately approved, and the runtime switch must be on. The switch resets off whenever the API restarts.
 
+### An action is ambiguous
+
+Do not retry it. The provider effect may have completed before local outcome
+persistence became uncertain. Copy the action ID, inspect the local outbox file
+or mail-client state, and follow the provider-specific reconciliation procedure
+in [provider boundaries](provider-setup.md#reconcile-an-ambiguous-action). v0.4.2
+keeps the ambiguous record as a do-not-retry audit trail.
+
 ### Gmail or Outlook is unavailable
 
-Connected-account sending is not part of v0.4.1. Use the local test outbox or a user-opened deep link. See [provider boundaries](provider-setup.md).
+Connected-account sending is not part of v0.4.2. Use the local test outbox or a user-opened deep link. See [provider boundaries](provider-setup.md).

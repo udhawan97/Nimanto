@@ -1,5 +1,5 @@
-import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
-import { chmod, mkdir, readFile, rm } from "node:fs/promises";
+import { timingSafeEqual } from "node:crypto";
+import { chmod, mkdir } from "node:fs/promises";
 import path from "node:path";
 import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
@@ -9,46 +9,36 @@ import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
 import { NimantoStore, type SessionIdentity } from "@nimanto/database";
 import {
-  inspectPacketArtifacts,
-  type CanonicalPacket,
-  type DocumentInspection,
-  renderPacketArtifacts,
-} from "@nimanto/documents";
-import {
-  assurePacket,
   canonicalHash,
-  createReceipt,
-  evaluateEmployerResolution,
   freshH1bLabel,
   isApplicationTransitionLegal,
-  matchJob,
-  resolveEmployer,
-  transitionExternalAction,
   type ApplicationStatus,
   type EvidenceClaim,
   type ExternalActionProvider,
-  type ExternalActionState,
   type H1bSignalLabel,
   type OutcomeType,
 } from "@nimanto/domain";
-import { parseEvidenceFile, type ParsedEvidence } from "@nimanto/parsers";
 import {
   draftLocalSummary,
-  executeProviderAction,
   fetchAllowlistedJobPage,
-  fetchProviderJobs,
-  localModelStatus,
   localModelInventory,
-  reviewLocalPacket,
-  validateActionPayload,
+  localModelStatus,
 } from "@nimanto/providers";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import type { NimantoApiOptions } from "./config.js";
+import { DeletionCoordinator } from "./deletion-coordinator.js";
+import { DiscoveryCycle } from "./discovery-cycle.js";
+import { EvidenceIntake } from "./evidence-intake.js";
+import { ExternalActionLifecycle } from "./external-action-lifecycle.js";
+import { GovernmentDatasetIngestion } from "./government-dataset.js";
+import { publishMatch } from "./match-publication.js";
+import {
+  type ArtifactManifest,
+  PacketLifecycle,
+  verifiedArtifactBytes,
+} from "./packet-lifecycle.js";
 
 const SESSION_COOKIE = "nimanto_session";
-/* Preview and import must slice the same bounded array, or the preview promises
- * claims the import silently drops. */
-const EVIDENCE_IMPORT_LIMIT = 500;
 const H1B_LABELS: H1bSignalLabel[] = [
   "current_role_transfer_support",
   "current_company_policy_support",
@@ -68,10 +58,6 @@ declare module "fastify" {
 }
 
 type JsonObject = Record<string, unknown>;
-type ArtifactManifest = {
-  artifacts?: Array<{ format: string; filename: string; sha256: string }>;
-  documentInspection?: DocumentInspection;
-};
 
 function object(value: unknown): JsonObject {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -108,40 +94,6 @@ function historyOptions(query: unknown): { cursor?: string; limit: number } {
   return { ...(cursor ? { cursor } : {}), limit: parsed };
 }
 
-async function parseEvidenceUpload(value: unknown): Promise<{
-  filename: string;
-  mimeType?: string;
-  parsed: ParsedEvidence;
-}> {
-  const body = object(value);
-  const filename = string(body.filename, "filename");
-  const contentBase64 = string(body.contentBase64, "content_base64");
-  if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(contentBase64)) {
-    throw new Error("INVALID_CONTENT_BASE64");
-  }
-  const mimeType = typeof body.mimeType === "string" ? body.mimeType : undefined;
-  const parsed = await parseEvidenceFile({
-    filename,
-    ...(mimeType ? { mimeType } : {}),
-    bytes: Buffer.from(contentBase64, "base64"),
-  });
-  return { filename, ...(mimeType ? { mimeType } : {}), parsed };
-}
-
-function evidencePreviewHash(upload: {
-  filename: string;
-  mimeType?: string;
-  parsed: ParsedEvidence;
-}): string {
-  return canonicalHash({
-    filename: upload.filename,
-    mimeType: upload.mimeType ?? "",
-    claims: upload.parsed.claims,
-    warnings: upload.parsed.warnings,
-    preview: upload.parsed.preview ?? null,
-  });
-}
-
 function privateSourceUrl(value: unknown): string {
   if (value === undefined || value === null || value === "") return "";
   const raw = string(value, "url");
@@ -172,43 +124,6 @@ function secretsEqual(actual: unknown, expected: string): boolean {
 async function secureRuntimeDirectory(directory: string): Promise<void> {
   await mkdir(directory, { recursive: true, mode: 0o700 });
   await chmod(directory, 0o700);
-}
-
-async function verifiedArtifactBytes(
-  artifactDirectory: string,
-  tenantId: string,
-  packetId: string,
-  artifact: { filename: string; sha256: string },
-): Promise<Buffer> {
-  if (
-    path.basename(artifact.filename) !== artifact.filename ||
-    !/^[a-f0-9]{64}$/u.test(artifact.sha256)
-  ) {
-    throw new Error("ARTIFACT_INTEGRITY_FAILED");
-  }
-  let bytes: Buffer;
-  try {
-    bytes = await readFile(path.join(artifactDirectory, tenantId, packetId, artifact.filename));
-  } catch {
-    throw new Error("ARTIFACT_INTEGRITY_FAILED");
-  }
-  const actual = createHash("sha256").update(bytes).digest("hex");
-  if (actual !== artifact.sha256) throw new Error("ARTIFACT_INTEGRITY_FAILED");
-  return bytes;
-}
-
-async function verifyPacketArtifacts(
-  artifactDirectory: string,
-  tenantId: string,
-  packetId: string,
-  manifest: ArtifactManifest,
-): Promise<void> {
-  if (!manifest.artifacts?.length) throw new Error("ARTIFACT_INTEGRITY_FAILED");
-  await Promise.all(
-    manifest.artifacts.map((artifact) =>
-      verifiedArtifactBytes(artifactDirectory, tenantId, packetId, artifact),
-    ),
-  );
 }
 
 function messageForError(error: Error): { code: string; status: number; message: string } {
@@ -270,6 +185,22 @@ function messageForError(error: Error): { code: string; status: number; message:
       status: 409,
       message: "A packet artifact no longer matches its recorded SHA-256 hash.",
     };
+  if (
+    code === "DATASET_EDITION_CONFLICT" ||
+    code === "PACKET_APPROVAL_STALE" ||
+    code === "PACKET_CHANGED" ||
+    code === "PACKET_INPUT_CHANGED" ||
+    code === "ACTION_APPROVAL_STALE" ||
+    code === "ACTION_INTENT_CHANGED" ||
+    code === "ACTION_OUTCOME_AMBIGUOUS" ||
+    code === "TENANT_NOT_ACTIVE"
+  ) {
+    return {
+      code,
+      status: 409,
+      message: "The reviewed inputs changed or the workspace is no longer writable. Review again.",
+    };
+  }
   return { code, status: 500, message: "Nimanto could not complete that operation." };
 }
 
@@ -351,124 +282,31 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     secureRuntimeDirectory(options.outboxDirectory),
   ]);
   const store = await NimantoStore.open(options.dataDirectory);
-  const providerJobsFetcher = options.providerJobsFetcher ?? fetchProviderJobs;
-  const trustedEmployerEvaluation = options.trustedEmployerResolutionEvaluation;
-  if (trustedEmployerEvaluation) {
-    if (
-      !trustedEmployerEvaluation.reviewer.trim() ||
-      !Number.isFinite(new Date(trustedEmployerEvaluation.reviewedAt).getTime()) ||
-      canonicalHash(trustedEmployerEvaluation.fixtures) !==
-        trustedEmployerEvaluation.datasetChecksum
-    ) {
-      await store.close();
-      throw new Error("INVALID_TRUSTED_EMPLOYER_EVALUATION");
-    }
-  }
-  const removePath = options.removePath ?? rm;
-  const finishDeletion = async (run: {
-    id: string;
-    tenantId: string;
-    state: string;
-    actionIds: string[];
-  }): Promise<string> => {
-    if (run.state !== "database_deleted") {
-      await store.purgeTenantForDeletion(run.id, run.tenantId);
-    }
-    await removePath(path.join(options.artifactDirectory, run.tenantId), {
-      recursive: true,
-      force: true,
-    });
-    await Promise.all(
-      run.actionIds.map((actionId) =>
-        removePath(path.join(options.outboxDirectory, `${actionId}.json`), { force: true }),
-      ),
-    );
-    return store.completeDeletion(run.id);
-  };
-  type ScheduleWriteStore = Pick<
-    NimantoStore,
-    "upsertJob" | "listEvidence" | "latestProfileVersion" | "saveMatch" | "saveReceipt"
-  >;
-  const persistProviderSource = async (
-    database: ScheduleWriteStore,
-    tenantId: string,
-    remote: Awaited<ReturnType<typeof providerJobsFetcher>>,
-    scoreImportedJobs: boolean,
-  ): Promise<{
-    imported: number;
-    matched: number;
-    jobs: Awaited<ReturnType<ScheduleWriteStore["upsertJob"]>>[];
-  }> => {
-    const jobs = [];
-    for (const job of remote.slice(0, 500)) {
-      jobs.push(await database.upsertJob(tenantId, { ...job, capability: "deep_link" }));
-    }
-    if (!scoreImportedJobs || jobs.length === 0) return { imported: jobs.length, matched: 0, jobs };
-    const [evidence, profile] = await Promise.all([
-      database.listEvidence(tenantId),
-      database.latestProfileVersion(tenantId),
-    ]);
-    let matched = 0;
-    for (const job of jobs) {
-      const result = matchJob({
-        job: {
-          id: job.id,
-          title: job.title,
-          company: job.company,
-          description: job.description,
-          requirements: job.requirements,
-          location: job.location,
-          workMode: job.workMode,
-        },
-        evidence,
-      });
-      const saved = await database.saveMatch(tenantId, job.id, profile?.id ?? null, result);
-      const receipt = createReceipt({
-        id: randomUUID(),
-        type: "match.published",
-        occurredAt: new Date().toISOString(),
-        input: {
-          jobId: job.id,
-          profileVersionId: profile?.id ?? null,
-          inputHash: saved.inputHash,
-          source: "scheduled_discovery",
-        },
-        artifact: {
-          artifactHash: saved.artifactHash,
-          ruleVersion: saved.ruleVersion,
-          band: result.band,
-        },
-      });
-      await database.saveReceipt(tenantId, receipt, {
-        jobId: job.id,
-        matchRunId: saved.id,
-        evidenceIds: result.requirements.flatMap((requirement) => requirement.evidenceIds),
-      });
-      matched += 1;
-    }
-    return { imported: jobs.length, matched, jobs };
-  };
-  const importProviderSource = async (
-    tenantId: string,
-    provider: "greenhouse" | "lever" | "ashby",
-    board: string,
-    scoreImportedJobs: boolean,
-  ) =>
-    persistProviderSource(
+  const evidenceIntake = new EvidenceIntake(store);
+  const packetLifecycle = new PacketLifecycle(
+    store,
+    options.artifactDirectory,
+    options.assuranceModel,
+  );
+  const externalActionLifecycle = new ExternalActionLifecycle(store, options.outboxDirectory);
+  await externalActionLifecycle.recoverInterrupted();
+  const discoveryCycle = new DiscoveryCycle(store, options.providerJobsFetcher);
+  let governmentDataset: GovernmentDatasetIngestion;
+  try {
+    governmentDataset = new GovernmentDatasetIngestion(
       store,
-      tenantId,
-      await providerJobsFetcher({ provider, board }),
-      scoreImportedJobs,
+      options.trustedEmployerResolutionEvaluation,
     );
-  const scheduledErrorCode = (error: unknown): string => {
-    const message = error instanceof Error ? error.message : "";
-    return /^(?:PROVIDER_[A-Z0-9_]+|INVALID_BOARD_IDENTIFIER)$/u.test(message)
-      ? message
-      : "PROVIDER_REFRESH_FAILED";
-  };
-  const scheduleLeaseWasLost = (error: unknown): boolean =>
-    error instanceof Error && error.message === "SCHEDULE_LEASE_INVALID";
-  let externalActionsEnabled = false;
+  } catch (error) {
+    await store.close();
+    throw error;
+  }
+  const deletionCoordinator = new DeletionCoordinator(
+    store,
+    options.artifactDirectory,
+    options.outboxDirectory,
+    options.removePath,
+  );
   const app = Fastify({ logger: false, bodyLimit: 12 * 1024 * 1024, trustProxy: false });
 
   await app.register(cookie, { hook: "onRequest" });
@@ -483,7 +321,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     openapi: {
       info: {
         title: "Nimanto local beta API",
-        version: "0.4.1",
+        version: "0.4.2",
         description: "Candidate-side evidence and application workbench.",
       },
       servers: [{ url: `http://${options.host}:${options.port}` }],
@@ -501,12 +339,12 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     return payload;
   });
 
-  app.get("/health", async () => ({ status: "ok", version: "0.4.1" }));
+  app.get("/health", async () => ({ status: "ok", version: "0.4.2" }));
   app.get("/v1/meta", async () => ({
     name: "Nimanto",
-    version: "0.4.1",
+    version: "0.4.2",
     mode: "local_beta",
-    externalActionsEnabled,
+    externalActionsEnabled: externalActionLifecycle.runtime(),
     providers: {
       deepLink: true,
       testOutbox: true,
@@ -627,20 +465,15 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
   app.post("/v1/deletion/resume", async (request, reply) => {
     const body = object(request.body ?? {});
     const token = string(body.token, "token");
-    const run = await store.deletionRunByToken(token);
-    if (!run) throw new Error("DELETION_NOT_FOUND");
-    if (run.state === "completed") return { token, state: "completed" };
-    try {
-      const completedAt = await finishDeletion(run);
-      return { token, state: "completed", completedAt };
-    } catch {
-      await store.markDeletionCleanupPending(run.id, "FILESYSTEM_CLEANUP_FAILED");
+    const outcome = await deletionCoordinator.resume(token);
+    if (outcome.pending) {
       return reply.code(202).send({
         token,
         state: "cleanup_pending",
         message: "Database access is removed; local file cleanup is pending and can be resumed.",
       });
     }
+    return { token, state: "completed", completedAt: outcome.completedAt };
   });
 
   app.addHook("preHandler", async (request, reply) => {
@@ -687,39 +520,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     if (!secretsEqual(request.headers["x-nimanto-bootstrap-secret"], options.bootstrapSecret)) {
       throw new Error("INVALID_BOOTSTRAP_SECRET");
     }
-    const totals = { processed: 0, failed: 0, imported: 0, matched: 0 };
-    for (let index = 0; index < 3; index += 1) {
-      const claim = await store.claimDueSourceSchedule();
-      if (!claim) break;
-      totals.processed += 1;
-      try {
-        const remote = await providerJobsFetcher({
-          provider: claim.schedule.provider,
-          board: claim.schedule.board,
-        });
-        const execution = await store.executeSourceSchedule(
-          claim.schedule.id,
-          claim.leaseToken,
-          (transaction) =>
-            persistProviderSource(transaction, claim.schedule.tenantId, remote, true),
-        );
-        const result = execution.result;
-        totals.imported += result.imported;
-        totals.matched += result.matched;
-      } catch (error) {
-        totals.failed += 1;
-        try {
-          await store.failSourceSchedule(
-            claim.schedule.id,
-            claim.leaseToken,
-            scheduledErrorCode(error),
-          );
-        } catch (leaseError) {
-          if (!scheduleLeaseWasLost(leaseError)) throw leaseError;
-        }
-      }
-    }
-    return totals;
+    return discoveryCycle.runWorkerCycle();
   });
 
   app.get("/v1/schedules", async (request) => ({
@@ -851,7 +652,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
         ).length,
         scope: "Candidate-reported outcomes in this local workspace; not a hiring probability.",
       },
-      runtime: { externalActionsEnabled },
+      runtime: { externalActionsEnabled: externalActionLifecycle.runtime() },
     };
   });
 
@@ -886,45 +687,12 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
 
   app.post("/v1/evidence/preview", async (request) => {
     identity(request);
-    const upload = await parseEvidenceUpload(request.body);
-    // The contract promises a preview of every accepted field before ingestion.
-    // A count is not that: for anything but a LinkedIn archive it asked the
-    // candidate to accept claims they could not read. This is the same bounded
-    // slice the import will create, so the count has to be the slice's length —
-    // reporting the parsed total would promise claims the import then drops.
-    const claims = upload.parsed.claims.slice(0, EVIDENCE_IMPORT_LIMIT);
-    return {
-      claimCount: claims.length,
-      parsedCount: upload.parsed.claims.length,
-      claims: claims.map((claim) => ({
-        kind: claim.kind,
-        value: claim.value,
-        sourceName: claim.sourceName,
-        locator: claim.locator,
-      })),
-      warnings: upload.parsed.warnings,
-      preview: upload.parsed.preview ?? null,
-      previewHash: evidencePreviewHash(upload),
-    };
+    return evidenceIntake.preview(request.body);
   });
 
   app.post("/v1/evidence/import", async (request) => {
     const person = identity(request);
-    const body = object(request.body);
-    const upload = await parseEvidenceUpload(body);
-    if (
-      string(body.confirmedPreviewHash, "confirmed_preview_hash") !== evidencePreviewHash(upload)
-    ) {
-      throw new Error("EVIDENCE_PREVIEW_CHANGED");
-    }
-    const claims = [];
-    for (const claim of upload.parsed.claims.slice(0, EVIDENCE_IMPORT_LIMIT))
-      claims.push(await store.createEvidence(person.tenantId, claim));
-    return {
-      claims,
-      warnings: upload.parsed.warnings,
-      preview: upload.parsed.preview ?? null,
-    };
+    return evidenceIntake.commit(person.tenantId, request.body);
   });
 
   app.post("/v1/evidence/:id/confirm", async (request) => {
@@ -1046,11 +814,10 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     const body = object(request.body);
     const provider = string(body.provider, "provider") as "greenhouse" | "lever" | "ashby";
     if (!["greenhouse", "lever", "ashby"].includes(provider)) throw new Error("INVALID_PROVIDER");
-    const result = await importProviderSource(
+    const result = await discoveryCycle.directImport(
       person.tenantId,
       provider,
       string(body.board, "board"),
-      false,
     );
     return { imported: result.imported, jobs: result.jobs };
   });
@@ -1099,42 +866,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
   app.post("/v1/jobs/:id/match", async (request) => {
     const person = identity(request);
     const params = request.params as { id: string };
-    const [job, evidence, profile] = await Promise.all([
-      store.getJob(person.tenantId, params.id),
-      store.listEvidence(person.tenantId),
-      store.latestProfileVersion(person.tenantId),
-    ]);
-    if (!job) throw new Error("JOB_NOT_FOUND");
-    const result = matchJob({
-      job: {
-        id: job.id,
-        title: job.title,
-        company: job.company,
-        description: job.description,
-        requirements: job.requirements,
-        location: job.location,
-        workMode: job.workMode,
-      },
-      evidence,
-    });
-    const saved = await store.saveMatch(person.tenantId, job.id, profile?.id ?? null, result);
-    const receipt = createReceipt({
-      id: randomUUID(),
-      type: "match.published",
-      occurredAt: new Date().toISOString(),
-      input: { jobId: job.id, profileVersionId: profile?.id ?? null, inputHash: saved.inputHash },
-      artifact: {
-        artifactHash: saved.artifactHash,
-        ruleVersion: saved.ruleVersion,
-        band: result.band,
-      },
-    });
-    await store.saveReceipt(person.tenantId, receipt, {
-      jobId: job.id,
-      matchRunId: saved.id,
-      evidenceIds: result.requirements.flatMap((requirement) => requirement.evidenceIds),
-    });
-    return saved;
+    return publishMatch(store, person.tenantId, params.id, "manual");
   });
 
   app.post("/v1/h1b-signals", async (request) => {
@@ -1157,75 +889,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
 
   app.post("/v1/h1b-signals/government-import", async (request) => {
     const person = identity(request);
-    const body = object(request.body);
-    const sourceType = string(body.sourceType, "source_type");
-    if (!["dol_oflc_bulk", "uscis_h1b_employer_data"].includes(sourceType)) {
-      throw new Error("INVALID_SOURCE_TYPE");
-    }
-    const sourceEdition = string(body.sourceEdition, "source_edition");
-    if (body.resolutionEvaluation !== undefined) {
-      throw new Error("UNTRUSTED_RESOLUTION_EVALUATION");
-    }
-    if (!Array.isArray(body.rows) || body.rows.length < 1 || body.rows.length > 500) {
-      throw new Error("INVALID_DATASET_ROWS");
-    }
-    const rows = body.rows.map((value) => object(value));
-    const calculatedChecksum = canonicalHash(rows);
-    if (string(body.checksum, "checksum") !== calculatedChecksum) {
-      throw new Error("DATASET_CHECKSUM_MISMATCH");
-    }
-    const jobs = await store.listJobs(person.tenantId);
-    const companies = [...new Set(jobs.map((job) => job.company))].map((name) => ({
-      id: name,
-      name,
-    }));
-    const resolutionEvaluation = evaluateEmployerResolution(
-      trustedEmployerEvaluation?.fixtures ?? [],
-      companies,
-    );
-    const positive: H1bSignalLabel[] = [
-      "current_role_transfer_support",
-      "current_company_policy_support",
-      "recent_positive_history",
-    ];
-    const imported = [];
-    for (const [index, row] of rows.entries()) {
-      const company = string(row.company, "company");
-      const requestedLabel = string(row.label, "label") as H1bSignalLabel;
-      if (!H1B_LABELS.includes(requestedLabel)) throw new Error("INVALID_LABEL");
-      const resolution = resolveEmployer(company, companies);
-      const label =
-        positive.includes(requestedLabel) &&
-        (resolution.state !== "resolved" || !resolutionEvaluation.enabled)
-          ? "possible"
-          : requestedLabel;
-      imported.push(
-        await store.createH1bSignal(person.tenantId, {
-          company,
-          label,
-          sourceType,
-          sourceLocator: `${sourceEdition}:row:${index + 1}`,
-          sourcePeriod: string(row.sourcePeriod, "source_period"),
-          observedAt: string(row.observedAt, "observed_at"),
-          confidence:
-            resolution.state === "resolved" && resolutionEvaluation.enabled ? "high" : "low",
-          limitations: `Historical ${sourceType} evidence from ${sourceEdition}, checksum ${calculatedChecksum}; employer resolution ${resolution.state}; evaluation n=${resolutionEvaluation.sampleSize}, precision=${resolutionEvaluation.precision.toFixed(3)}, recall=${resolutionEvaluation.recall.toFixed(3)}, abstention=${resolutionEvaluation.abstentionRate.toFixed(3)}, enabled=${resolutionEvaluation.enabled}. Not legal advice or a current transfer guarantee.`,
-        }),
-      );
-    }
-    return {
-      imported: imported.length,
-      checksum: calculatedChecksum,
-      resolutionEvaluation,
-      resolutionEvaluationProvenance: trustedEmployerEvaluation
-        ? {
-            datasetChecksum: trustedEmployerEvaluation.datasetChecksum,
-            reviewedAt: trustedEmployerEvaluation.reviewedAt,
-            reviewer: trustedEmployerEvaluation.reviewer,
-          }
-        : null,
-      signals: imported,
-    };
+    return governmentDataset.import(person.tenantId, request.body);
   });
 
   app.post("/v1/applications", async (request) => {
@@ -1289,69 +953,14 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     const person = identity(request);
     const body = object(request.body);
     const applicationId = string(body.applicationId, "application_id");
-    const [applications, evidence, profile] = await Promise.all([
-      store.listApplications(person.tenantId),
-      store.listEvidence(person.tenantId),
-      store.latestProfileVersion(person.tenantId),
-    ]);
-    const application = applications.find((item) => item.id === applicationId);
-    if (!application?.job) throw new Error("APPLICATION_NOT_FOUND");
-    const confirmed = evidence.filter((claim) => claim.status === "confirmed");
-    const generatedAt = new Date().toISOString();
-    const packet: CanonicalPacket = {
-      schemaVersion: "packet_v1",
+    return packetLifecycle.create({
+      tenantId: person.tenantId,
+      applicationId,
       candidateName: person.displayName,
-      destination: {
-        company: application.job.company,
-        role: application.job.title,
-        ...(typeof body.contactEmail === "string" ? { contactEmail: body.contactEmail } : {}),
-      },
-      summary: `${person.displayName} brings ${confirmed.length} confirmed evidence item${confirmed.length === 1 ? "" : "s"} relevant to this application.`,
-      claims: confirmed
-        .slice(0, 8)
-        .map((claim) => ({ text: claim.value, evidenceIds: [claim.id] })),
-      authorizationWording: profile?.authorizationWording ?? "",
-      generatedAt,
-    };
-    const saved = await store.createPacket(person.tenantId, {
-      applicationId,
-      profileVersionId: profile?.id ?? null,
-      canonicalContent: packet as unknown as Record<string, unknown>,
-      artifactManifest: {},
+      ...(typeof body.contactEmail === "string"
+        ? { contactEmail: string(body.contactEmail, "contact_email") }
+        : {}),
     });
-    const artifacts = await renderPacketArtifacts(
-      saved.id,
-      packet,
-      path.join(options.artifactDirectory, person.tenantId, saved.id),
-    );
-    const documentInspection = await inspectPacketArtifacts(saved.id, packet, artifacts);
-    const updated = await store.updatePacketManifest(person.tenantId, saved.id, {
-      artifacts: artifacts.map(({ format, filename, sha256 }) => ({ format, filename, sha256 })),
-      documentInspection,
-    });
-    await store.setApplicationStatus(person.tenantId, applicationId, "prepared");
-    const receipt = createReceipt({
-      id: randomUUID(),
-      type: "packet.generated",
-      occurredAt: new Date().toISOString(),
-      input: {
-        applicationId,
-        profileVersionId: profile?.id ?? null,
-        evidenceIds: confirmed.map((claim) => claim.id),
-      },
-      artifact: {
-        packetId: saved.id,
-        packetHash: saved.artifactHash,
-        artifacts: artifacts.map(({ format, sha256 }) => ({ format, sha256 })),
-        documentInspection: documentInspection.status,
-      },
-    });
-    await store.saveReceipt(person.tenantId, receipt, {
-      packetId: saved.id,
-      applicationId,
-      artifactHashes: artifacts.map(({ format, sha256 }) => ({ format, sha256 })),
-    });
-    return updated;
   });
 
   app.get("/v1/applications/:id/packets", async (request) => {
@@ -1373,139 +982,12 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
   app.post("/v1/packets/:id/assure", async (request) => {
     const person = identity(request);
     const packetId = (request.params as { id: string }).id;
-    const [packet, evidence, profile] = await Promise.all([
-      store.getPacket(person.tenantId, packetId),
-      store.listEvidence(person.tenantId),
-      store.latestProfileVersion(person.tenantId),
-    ]);
-    if (!packet) throw new Error("PACKET_NOT_FOUND");
-    const manifest = packet.artifactManifest as ArtifactManifest;
-    await verifyPacketArtifacts(options.artifactDirectory, person.tenantId, packetId, manifest);
-    const content = packet.canonicalContent as unknown as CanonicalPacket;
-    const result = assurePacket({
-      authorizationWording: content.authorizationWording,
-      ...(profile ? { lockedAuthorizationWording: profile.authorizationWording } : {}),
-      claims: content.claims,
-      confirmedEvidenceIds: evidence
-        .filter((claim) => claim.status === "confirmed")
-        .map((claim) => claim.id),
-      destination: content.destination,
-    });
-    const documentFindings = (manifest.documentInspection?.checks ?? [])
-      .filter((check) => check.status === "blocked")
-      .map((check) => ({
-        code: check.code,
-        severity: "required" as const,
-        message: `${check.format ?? "packet"}: ${check.detail}`,
-      }));
-    if (!manifest.documentInspection) {
-      documentFindings.push({
-        code: "DOCUMENT_INSPECTION_REQUIRED",
-        severity: "required",
-        message: "The frozen packet is missing its deterministic document inspection report.",
-      });
-    }
-    const modelFindings: Array<{ code: string; severity: "required"; message: string }> = [];
-    let modelRule = "model_review_not_configured";
-    if (options.assuranceModel) {
-      try {
-        const inventory = await localModelInventory();
-        const configured = inventory.find((model) => model.name === options.assuranceModel);
-        if (!configured) {
-          modelFindings.push({
-            code: "MODEL_REVIEW_BLOCKED_UNAVAILABLE",
-            severity: "required",
-            message: `Configured local reviewer ${options.assuranceModel} is unavailable; no fallback was used.`,
-          });
-          modelRule = "ollama_packet_review_v1:blocked_unavailable";
-        } else {
-          const review = await reviewLocalPacket({ model: configured, packet: content });
-          modelRule = `${review.reviewerVersion}:${review.model}@${review.digest}`;
-          if (review.verdict === "block") {
-            modelFindings.push(
-              ...(review.findings.length
-                ? review.findings
-                : ["The local reviewer blocked approval."]
-              ).map((message) => ({
-                code: "MODEL_REVIEW_BLOCKED",
-                severity: "required" as const,
-                message,
-              })),
-            );
-          }
-        }
-      } catch {
-        modelFindings.push({
-          code: "MODEL_REVIEW_BLOCKED_UNAVAILABLE",
-          severity: "required",
-          message:
-            "The configured local reviewer did not return a valid result; no fallback was used.",
-        });
-        modelRule = "ollama_packet_review_v1:blocked_unavailable";
-      }
-    }
-    const savedAssurance = await store.saveAssurance(person.tenantId, packetId, {
-      status:
-        result.status === "passed" && documentFindings.length === 0 && modelFindings.length === 0
-          ? "passed"
-          : "blocked",
-      ruleVersion: `${result.ruleVersion}+document_assurance_v1+${modelRule}`,
-      findings: [...result.findings, ...documentFindings, ...modelFindings],
-    });
-    const receipt = createReceipt({
-      id: randomUUID(),
-      type: "packet.assured",
-      occurredAt: new Date().toISOString(),
-      input: { packetId, packetHash: packet.artifactHash },
-      artifact: {
-        assuranceId: savedAssurance.id,
-        status: savedAssurance.status,
-        ruleVersion: savedAssurance.ruleVersion,
-        findingCodes: (savedAssurance.findings as Array<{ code?: unknown }>).map((finding) =>
-          String(finding.code ?? "UNKNOWN"),
-        ),
-      },
-    });
-    await store.saveReceipt(person.tenantId, receipt, {
-      packetId,
-      assuranceId: savedAssurance.id,
-      status: savedAssurance.status,
-      ruleVersion: savedAssurance.ruleVersion,
-    });
-    return savedAssurance;
+    return packetLifecycle.assure(person.tenantId, packetId);
   });
   app.post("/v1/packets/:id/approve", async (request) => {
     const person = identity(request);
     const packetId = (request.params as { id: string }).id;
-    const pending = await store.getPacket(person.tenantId, packetId);
-    if (!pending) throw new Error("PACKET_NOT_FOUND");
-    await verifyPacketArtifacts(
-      options.artifactDirectory,
-      person.tenantId,
-      packetId,
-      pending.artifactManifest as ArtifactManifest,
-    );
-    const packet = await store.approvePacket(person.tenantId, packetId);
-    if (!packet) throw new Error("PACKET_NOT_FOUND");
-    await store.setApplicationStatus(person.tenantId, packet.applicationId, "approved_for_export");
-    const assurance = await store.latestAssurance(person.tenantId, packetId);
-    const receipt = createReceipt({
-      id: randomUUID(),
-      type: "packet.approved",
-      occurredAt: new Date().toISOString(),
-      input: { packetId, assuranceId: assurance?.id ?? null },
-      artifact: {
-        packetHash: packet.artifactHash,
-        manifest: packet.artifactManifest,
-        approvedAt: packet.approvedAt,
-      },
-    });
-    await store.saveReceipt(person.tenantId, receipt, {
-      packetId,
-      assuranceId: assurance?.id ?? null,
-      artifactManifest: packet.artifactManifest,
-    });
-    return packet;
+    return packetLifecycle.approve(person.tenantId, packetId);
   });
   app.get("/v1/packets/:id/artifacts/:format", async (request, reply) => {
     const person = identity(request);
@@ -1542,134 +1024,36 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
   app.put("/v1/actions/runtime", async (request) => {
     const body = object(request.body);
     if (typeof body.enabled !== "boolean") throw new Error("INVALID_ENABLED");
-    externalActionsEnabled = body.enabled;
-    return { externalActionsEnabled };
+    return externalActionLifecycle.setRuntime(body.enabled);
   });
   app.post("/v1/actions", async (request) => {
     const person = identity(request);
     const body = object(request.body);
     const packetId = string(body.packetId, "packet_id");
-    const packet = await store.getPacket(person.tenantId, packetId);
-    if (packet?.status !== "approved") throw new Error("APPROVED_PACKET_REQUIRED");
     const provider = string(body.provider, "provider") as ExternalActionProvider;
-    const providers: ExternalActionProvider[] = ["deep_link", "test_outbox"];
-    if (!providers.includes(provider)) throw new Error("INVALID_PROVIDER");
-    const to = string(body.to, "to");
-    const subject = string(body.subject, "subject");
-    const messageBody = string(body.body, "body");
-    validateActionPayload({
-      actionId: "pending",
-      provider,
-      to,
-      subject,
-      body: messageBody,
-    });
-    return store.createExternalAction(person.tenantId, {
+    return externalActionLifecycle.request({
+      tenantId: person.tenantId,
       packetId,
       provider,
-      target: { to },
-      payload: { subject, body: messageBody },
-      idempotencyKey: canonicalHash({ packetId, provider, to, subject, body: messageBody }),
+      to: string(body.to, "to"),
+      subject: string(body.subject, "subject"),
+      body: string(body.body, "body"),
     });
   });
   app.post("/v1/actions/:id/approve", async (request) => {
     const person = identity(request);
     const id = (request.params as { id: string }).id;
-    const current = await store.getExternalAction(person.tenantId, id);
-    if (!current) throw new Error("ACTION_NOT_FOUND");
-    try {
-      transitionExternalAction(current.state, "approve");
-    } catch {
-      throw new Error("INVALID_TRANSITION");
-    }
-    const updated = await store.transitionExternalAction(
-      person.tenantId,
-      id,
-      current.state,
-      "approved",
-    );
-    if (!updated) throw new Error("INVALID_TRANSITION");
-    return updated;
+    return externalActionLifecycle.approve(person.tenantId, id);
   });
   app.post("/v1/actions/:id/cancel", async (request) => {
     const person = identity(request);
     const id = (request.params as { id: string }).id;
-    const current = await store.getExternalAction(person.tenantId, id);
-    if (!current) throw new Error("ACTION_NOT_FOUND");
-    try {
-      transitionExternalAction(current.state, "cancel");
-    } catch {
-      throw new Error("INVALID_TRANSITION");
-    }
-    const updated = await store.transitionExternalAction(
-      person.tenantId,
-      id,
-      current.state,
-      "cancelled",
-    );
-    if (!updated) throw new Error("INVALID_TRANSITION");
-    return updated;
+    return externalActionLifecycle.cancel(person.tenantId, id);
   });
   app.post("/v1/actions/:id/execute", async (request) => {
     const person = identity(request);
-    if (!externalActionsEnabled) throw new Error("EXTERNAL_ACTIONS_DISABLED");
     const id = (request.params as { id: string }).id;
-    const current = await store.getExternalAction(person.tenantId, id);
-    if (!current) throw new Error("ACTION_NOT_FOUND");
-    try {
-      transitionExternalAction(current.state, "execute");
-    } catch {
-      throw new Error("INVALID_TRANSITION");
-    }
-    const executing = await store.transitionExternalAction(
-      person.tenantId,
-      id,
-      current.state,
-      "executing",
-    );
-    if (!executing) throw new Error("INVALID_TRANSITION");
-    try {
-      const target = executing.target as { to?: unknown };
-      const payload = executing.payload as { subject?: unknown; body?: unknown };
-      const result = await executeProviderAction(
-        {
-          actionId: id,
-          provider: executing.provider,
-          to: string(target.to, "to"),
-          subject: string(payload.subject, "subject"),
-          body: string(payload.body, "body"),
-        },
-        {
-          outboxDirectory: options.outboxDirectory,
-        },
-      );
-      transitionExternalAction("executing", "mark_succeeded");
-      const succeeded = await store.transitionExternalAction(
-        person.tenantId,
-        id,
-        "executing",
-        "succeeded",
-        result as unknown as Record<string, unknown>,
-      );
-      const receipt = createReceipt({
-        id: crypto.randomUUID(),
-        type: "external_action",
-        occurredAt: new Date().toISOString(),
-        input: executing,
-        artifact: result,
-      });
-      await store.saveReceipt(person.tenantId, receipt, { actionId: id, result });
-      return succeeded;
-    } catch (error) {
-      transitionExternalAction("executing", "mark_failed");
-      await store.transitionExternalAction(person.tenantId, id, "executing", "failed", {
-        errorCode:
-          error instanceof Error && /^[A-Z0-9_]+$/.test(error.message)
-            ? error.message
-            : "PROVIDER_ERROR",
-      });
-      throw error;
-    }
+    return externalActionLifecycle.execute(person.tenantId, id);
   });
 
   app.get("/v1/export", async (request, reply) => {
@@ -1691,28 +1075,21 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     const person = identity(request);
     const body = object(request.body);
     if (body.confirmation !== "DELETE MY NIMANTO DATA") throw new Error("INVALID_CONFIRMATION");
-    const actions = await store.listExternalActions(person.tenantId);
-    const run = await store.beginTenantDeletion(
-      person.tenantId,
-      actions.map((action) => action.id),
-    );
     reply.clearCookie(SESSION_COOKIE, { path: "/" });
-    try {
-      const completedAt = await finishDeletion(run);
-      return {
-        token: run.token,
-        state: "completed",
-        completedAt,
-        message: "All workspace data was deleted. Keep this status token for seven days.",
-      };
-    } catch {
-      await store.markDeletionCleanupPending(run.id, "FILESYSTEM_CLEANUP_FAILED");
+    const outcome = await deletionCoordinator.start(person.tenantId);
+    if (outcome.pending) {
       return reply.code(202).send({
-        token: run.token,
+        token: outcome.run.token,
         state: "cleanup_pending",
         message: "Database access is removed; local file cleanup is pending and can be resumed.",
       });
     }
+    return {
+      token: outcome.run.token,
+      state: "completed",
+      completedAt: outcome.completedAt,
+      message: "All workspace data was deleted. Keep this status token for seven days.",
+    };
   });
 
   return app;

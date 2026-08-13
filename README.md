@@ -31,7 +31,7 @@
   ·
   <a href="#what-it-actually-does"><strong>What it does</strong></a>
   ·
-  <a href="docs/releases/v0.4.1.md"><strong>v0.4.1 notes</strong></a>
+  <a href="docs/releases/v0.4.2.md"><strong>v0.4.2 notes</strong></a>
   ·
   <a href="docs/planning/product-contract.md"><strong>Product contract</strong></a>
 </p>
@@ -100,7 +100,7 @@ something that opens because you opened it.
 
 ## Run it
 
-Nimanto v0.4.1 is source-distributed. It does **not** ship a signed installer or
+Nimanto v0.4.2 is source-distributed. It does **not** ship a signed installer or
 desktop binary.
 
 | Path               | Best for                          | Start here                                                              |
@@ -151,7 +151,9 @@ issue a hashed, expiring, single-use invitation.
 - Fails closed on DOCX macros and embedded objects, malformed or expanding
   archives, scans with no text layer, files over 8 MiB, and PDFs over 50 pages.
   Raw uploads are discarded after extraction.
-- Every extracted claim stays **pending** until you confirm it. Confirmation is
+- Every extracted claim stays **pending** until you confirm it. Preview and
+  import share one bounded projection and hash; changed content, deletion, or a
+  failed batch writes no partial claim set. Confirmation is
   required before a claim can support a match or a packet. The import preview
   lists the claims a file would create — up to the 500 an import stores —
   before anything is written.
@@ -159,7 +161,8 @@ issue a hashed, expiring, single-use invitation.
   A normalized no-op save reuses the latest version instead of manufacturing a
   duplicate history row.
 - Deterministic `scoring_rules_v1` matching across four documented dimensions,
-  with sponsorship, citizenship, clearance and location blockers left visible.
+  published against one exact profile version and job-content snapshot, with
+  sponsorship, citizenship, clearance and location blockers left visible.
 - An unmet requirement offers to add evidence for itself. Only the requirement
   wording is carried into the claim form — never the posting's source name or
   locator — and the claim it creates is pending and user-attested like any other.
@@ -188,6 +191,9 @@ issue a hashed, expiring, single-use invitation.
 - Redirect refusal, fixed provider hosts, timeouts, bounded imports.
 - Disabled-by-default, terms-dated exact-host HTTPS intake with pinned public
   DNS, private-address and redirect rejection, and transient-body deletion.
+- Checksum-addressed, idempotent government dataset editions with transformation
+  version and trusted-resolution provenance. A conflicting checksum for the same
+  source edition is rejected before any signal is written.
 - Historical H-1B evidence with source type, locator, period, observation time,
   confidence, explicit freshness, any downgraded original label, and stated
   limitations. Current role wording remains controlling.
@@ -225,9 +231,9 @@ issue a hashed, expiring, single-use invitation.
   candidate selects the same or reverse-ordered records. Same-role match
   comparison shows stored run, profile, rule, input-hash, result-hash, band, and
   blocker values beside a clearly labeled current mutable job snapshot.
-- The stored match input hash identifies the job and profile-version references;
-  it is not a content hash. Comparisons do not claim causality, replay guarantees, or
-  immutable job history.
+- The stored match input hash covers the exact normalized job snapshot, profile
+  input hash, claim IDs, and rule version. Comparisons still do not claim
+  causality, replay guarantees, or immutable job history beyond that run.
 
 ### Grounded packets
 
@@ -249,6 +255,10 @@ issue a hashed, expiring, single-use invitation.
   the latest stored assurance rule and findings. These checks cover structure,
   integrity and configured rules—not claim truth, writing quality, employer
   acceptance or external delivery.
+- Packet files render in a private staging directory. The database commit
+  revalidates the exact application, profile, job and evidence inputs before the
+  complete artifact set is promoted, so interrupted creation leaves no draft row
+  with a partial manifest.
 - A candidate can generate another unapproved packet for the same application,
   then inspect paginated generations and literal canonical-content differences.
   The view calls them history, not lineage: no predecessor relationship is
@@ -259,9 +269,15 @@ issue a hashed, expiring, single-use invitation.
 ### Approval-gated actions
 
 - Email deep-link and local test-outbox providers.
-- Separate packet approval, action approval, and an in-memory execution switch.
+- Assurance records the exact packet-content and manifest hashes. Packet approval
+  compare-and-swaps the latest passing assurance against those same frozen hashes.
+- Separate packet approval, exact intent/packet binding at action approval, and an
+  in-memory execution switch.
 - The switch always starts **off** after an API restart.
-- Idempotency keys, explicit action states, local receipts, safe failure codes.
+- Idempotency keys, explicit action states, local receipts, safe failure codes,
+  and an `ambiguous` terminal state when a provider effect may have succeeded but
+  its local outcome could not be recorded. Ambiguous actions are never retried
+  automatically.
 - A local activity ledger verifies each stored receipt hash on read and exposes
   its input, artifact and receipt hashes with copy controls. It is tamper-evident
   internal history, not a signature or an employer acknowledgment.
@@ -272,12 +288,13 @@ issue a hashed, expiring, single-use invitation.
 flowchart LR
   UI["Next.js workbench / PWA"] --> API["Fastify local API"]
   API --> DB["PGlite PostgreSQL store"]
-  API --> Parse["Bounded evidence parsers"]
-  API --> Match["Deterministic domain rules"]
+  API --> Intake["Atomic evidence intake"]
+  API --> Publish["Exact-snapshot match publication"]
+  API --> Packet["Staged packet lifecycle"]
+  API --> Action["Exact-approved action lifecycle"]
   Worker["Durable discovery worker"] -->|"private bounded cycle"| API
-  API --> Docs["JSON · TXT · DOCX · PDF"]
-  API --> Gate["Assurance + approval state machine"]
-  Gate --> Local["Deep link / test outbox"]
+  Packet --> Docs["JSON · TXT · DOCX · PDF"]
+  Action --> Local["Deep link / test outbox"]
   API -. "loopback only" .-> Ollama["Optional Ollama draft"]
 ```
 
@@ -290,7 +307,8 @@ The monorepo keeps the deep seams separate:
 - `packages/documents` — canonical packet rendering.
 - `packages/providers` — job sources, local model, deep-link and test-outbox
   adapters.
-- `apps/api` — authenticated HTTP composition root and OpenAPI surface.
+- `apps/api` — authenticated HTTP composition root plus cohesive evidence,
+  publication, packet, action, discovery, deletion, and dataset lifecycles.
 - `apps/worker` — durable, leased board refresh and deterministic scoring loop.
 - `apps/web` — public website and the local workbench.
 
@@ -313,11 +331,11 @@ boundaries, provider allowlists, durable schedule leases, retries and dead
 letters, application transition legality, modern and ATS-safe packet formats,
 artifact tamper detection, assurance gating, resumable deletion, external-action
 transitions, literal history comparison, sensitive export confirmation,
-design-token contrast, API integration, and nine sequential WebKit journeys.
+design-token contrast, API integration, and ten sequential WebKit journeys.
 
 ## Beta boundaries
 
-Version `0.4.1` is a **local beta**:
+Version `0.4.2` is a **local beta**:
 
 - The local candidate workflow is implemented and tested.
 - Public website hosting carries product information and the static workbench
@@ -339,10 +357,12 @@ Version `0.4.1` is a **local beta**:
 - No analytics and no application telemetry.
 - Sessions store only a SHA-256 token hash.
 - Tenant IDs scope every product query; cross-tenant tests exercise the seam.
+- Beginning workspace deletion locks the tenant, captures the outbox cleanup
+  inventory, and fences every later tenant-owned insert or update.
 - External action payloads cannot execute from draft or pending states.
 - The runtime switch is in memory and resets off.
 - Versioned inspection exports contain identity, provenance, hashes, packet
-  manifests, and retained profile/match/assurance records. The workbench disables
+  manifests, dataset editions, and retained profile/match/assurance records. The workbench disables
   its download control until the candidate acknowledges the sensitive-data
   warning; the authenticated local API remains directly callable. Exports exclude
   sessions, invitation secrets, deletion internals, and generated packet files.
@@ -373,5 +393,5 @@ of scope.
 Apache License 2.0. See [LICENSE](LICENSE), [NOTICE](NOTICE),
 [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md),
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), and the release
-[CycloneDX](docs/releases/nimanto-v0.4.1.cdx.json) /
-[SPDX](docs/releases/nimanto-v0.4.1.spdx.json) inventories.
+[CycloneDX](docs/releases/nimanto-v0.4.2.cdx.json) /
+[SPDX](docs/releases/nimanto-v0.4.2.spdx.json) inventories.

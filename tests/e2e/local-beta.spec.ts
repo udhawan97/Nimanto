@@ -126,12 +126,34 @@ test("the public site reflows, links, and identifies itself in WebKit", async ({
   await expect(page).toHaveURL(/#main$/);
 
   // 640 CSS px is the effective reflow width of a 1280 px viewport at 200% zoom.
-  for (const width of [320, 375, 414, 640, 768, 1440]) {
-    await page.setViewportSize({ width, height: 900 });
+  for (const viewport of [
+    { width: 320, height: 900 },
+    { width: 375, height: 812 },
+    { width: 414, height: 900 },
+    { width: 640, height: 900 },
+    { width: 768, height: 900 },
+    { width: 1440, height: 900 },
+  ]) {
+    await page.setViewportSize(viewport);
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     );
-    expect(overflow, `public-site overflow at ${width}px`).toBeLessThanOrEqual(0);
+    expect(overflow, `public-site overflow at ${viewport.width}px`).toBeLessThanOrEqual(0);
+    const escapedHeaderLinks = await page.locator(".site-header nav a").evaluateAll((links) =>
+      links
+        .map((link) => {
+          const rect = link.getBoundingClientRect();
+          return { label: link.textContent?.trim(), left: rect.left, right: rect.right };
+        })
+        .filter(({ left, right }) => left < 0 || right > window.innerWidth),
+    );
+    expect(escapedHeaderLinks, `public navigation geometry at ${viewport.width}px`).toEqual([]);
+    if (viewport.width === 375) {
+      await page.evaluate(() => scrollTo(0, 0));
+      await expect(page.getByRole("link", { name: /Open the workbench/ })).toBeInViewport();
+      await page.locator("footer").scrollIntoViewIfNeeded();
+      await expect(page.getByRole("navigation", { name: "Footer" })).toBeInViewport();
+    }
   }
 
   await expect(page.getByRole("link", { name: "Run it" })).toHaveAttribute("href", "#run");
@@ -143,9 +165,9 @@ test("the public site reflows, links, and identifies itself in WebKit", async ({
     "href",
     "https://github.com/udhawan97/Nimanto/releases",
   );
-  await expect(page.getByRole("link", { name: "v0.4.1 notes" }).first()).toHaveAttribute(
+  await expect(page.getByRole("link", { name: "v0.4.2 notes" }).first()).toHaveAttribute(
     "href",
-    /docs\/releases\/v0\.4\.1\.md$/,
+    /docs\/releases\/v0\.4\.2\.md$/,
   );
   await expect(page.getByAltText(/Synthetic Nimanto Applications workbench/)).toHaveAttribute(
     "src",
@@ -297,10 +319,23 @@ test("a candidate starts a private workspace and receives deterministic role exp
   await page.getByRole("button", { name: "Save role" }).click();
   await expect(page.getByLabel("Role title")).toHaveValue("Saved Synthetic Role");
   await expect(page.getByLabel("Description")).toHaveValue("A role saved exactly once.");
-  const expectedFailureProblems = consoleProblems.splice(0);
-  expect(expectedFailureProblems).toHaveLength(1);
-  expect(expectedFailureProblems[0]).toContain("status of 400");
+  await expect(
+    page.getByText("The posted annual maximum must be greater than or equal to the minimum."),
+  ).toBeVisible();
+  await expect(page.getByLabel("Posted annual minimum (USD)")).toHaveAttribute(
+    "aria-invalid",
+    "true",
+  );
+  await expect(page.getByLabel("Posted annual maximum (USD)")).toHaveAttribute(
+    "aria-invalid",
+    "true",
+  );
+  await expect(page.getByLabel("Posted annual maximum (USD)")).toBeFocused();
+  expect(consoleProblems).toEqual([]);
   await page.getByLabel("Posted annual maximum (USD)").fill("220000");
+  await expect(
+    page.getByText("The posted annual maximum must be greater than or equal to the minimum."),
+  ).toHaveCount(0);
   await page.getByRole("button", { name: "Save role" }).click();
   await expect(page.getByRole("button", { name: "Add role" })).toBeFocused();
   await expect(page.getByRole("heading", { name: "Saved Synthetic Role" })).toHaveCount(1);
@@ -313,8 +348,11 @@ test("a candidate starts a private workspace and receives deterministic role exp
   const schedule = page.locator(".schedule-row").filter({ hasText: "northwind-careers" });
   await expect(schedule).toContainText("Every 6 hours");
   await expect(schedule).toContainText("Queued");
+  await page.setViewportSize({ width: 375, height: 812 });
   await schedule.getByRole("button", { name: "Pause schedule" }).click();
   await expect(schedule).toContainText("Paused");
+  const pauseNotice = page.getByRole("status").filter({ hasText: "northwind-careers is paused." });
+  await expect(pauseNotice).toBeInViewport();
   await schedule.getByRole("button", { name: "Resume schedule" }).click();
   await expect(schedule).toContainText("Queued");
 
@@ -326,20 +364,39 @@ test("a candidate starts a private workspace and receives deterministic role exp
     expect(overflow, `horizontal overflow at ${width}px`).toBeLessThanOrEqual(0);
   }
 
-  await page.setViewportSize({ width: 320, height: 900 });
+  await page.setViewportSize({ width: 375, height: 812 });
   const openNavigation = page.getByRole("button", { name: "Open navigation" });
   await openNavigation.click();
+  const navigationDialog = page.getByRole("dialog", { name: "Workspace navigation" });
+  await expect(navigationDialog).toBeVisible();
+  await expect(page.locator("#main")).toHaveAttribute("inert", "");
+  await expect(page.locator(".nav-scrim")).toHaveAttribute("tabindex", "-1");
   const closeNavigation = page.getByRole("button", { name: "Close navigation" }).first();
   await expect(closeNavigation).toBeVisible();
   await expect(closeNavigation).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: "Overview" })).toBeFocused();
+  const brandLink = navigationDialog.locator('a[href="../"]');
+  const signOut = navigationDialog.getByRole("button", { name: "Sign out" });
+  await signOut.focus();
+  await page.keyboard.press("Tab");
+  await expect(brandLink).toBeFocused();
+  await brandLink.focus();
+  await page.keyboard.press("Shift+Tab");
+  await expect(signOut).toBeFocused();
   await closeNavigation.focus();
   await closeNavigation.click();
   await expect(page.getByRole("navigation", { name: "Workbench" })).toBeHidden();
   await expect(openNavigation).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: "Refresh" })).toBeFocused();
+
+  await openNavigation.click();
+  await page.setViewportSize({ width: 900, height: 900 });
+  await expect(page.getByRole("navigation", { name: "Workbench" })).toBeVisible();
+  await expect(page.locator("#main")).not.toHaveAttribute("inert", "");
+  await page.setViewportSize({ width: 320, height: 900 });
+  await expect(page.getByRole("navigation", { name: "Workbench" })).toBeHidden();
 
   await openNavigation.click();
   await page.getByRole("button", { name: "Sign out" }).click();
@@ -633,11 +690,15 @@ test("retained history, record review, cohorts, and sensitive export stay bounde
   await page.getByLabel("Your email").fill("history@example.test");
   await page.getByRole("button", { name: "Start private workspace" }).click();
   await page.getByRole("button", { name: "Run starter matches" }).click();
+  await expect(page.locator(".metric").filter({ hasText: "Explained matches" })).toContainText("2");
 
   await page.getByRole("button", { name: "Evidence vault" }).click();
-  await page
-    .getByLabel("Candidate-approved statement")
-    .fill("I require employer support for an H-1B transfer.");
+  const authorizationWording = page.getByLabel("Candidate-approved statement");
+  await authorizationWording.fill("I require employer support for an H-1B transfer.");
+  await expect(authorizationWording).toHaveValue(
+    "I require employer support for an H-1B transfer.",
+  );
+  await expect(page.getByRole("button", { name: "Save profile version" })).toBeVisible();
   await page.getByRole("button", { name: "Save profile version" }).click();
   await expect(page.getByRole("button", { name: "No changes to save" })).toBeDisabled();
 

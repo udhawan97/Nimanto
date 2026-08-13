@@ -149,6 +149,7 @@ CREATE TABLE IF NOT EXISTS packets (
   canonical_content jsonb NOT NULL,
   artifact_manifest jsonb NOT NULL DEFAULT '{}'::jsonb,
   artifact_hash text NOT NULL,
+  manifest_hash text NOT NULL DEFAULT '',
   approved_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
@@ -163,6 +164,8 @@ CREATE TABLE IF NOT EXISTS assurance_runs (
   status text NOT NULL,
   rule_version text NOT NULL,
   findings jsonb NOT NULL,
+  packet_artifact_hash text NOT NULL DEFAULT '',
+  manifest_hash text NOT NULL DEFAULT '',
   run_sequence bigint NOT NULL DEFAULT nextval('assurance_runs_run_sequence_seq'),
   created_at timestamptz NOT NULL DEFAULT now()
 );
@@ -176,6 +179,9 @@ CREATE TABLE IF NOT EXISTS external_actions (
   target jsonb NOT NULL,
   payload jsonb NOT NULL,
   idempotency_key text NOT NULL,
+  intent_hash text NOT NULL DEFAULT '',
+  approved_intent_hash text,
+  approved_packet_hash text,
   approved_at timestamptz,
   attempted_at timestamptz,
   result jsonb,
@@ -235,6 +241,12 @@ ALTER TABLE scheduled_jobs ADD COLUMN IF NOT EXISTS lease_expires_at timestamptz
 ALTER TABLE scheduled_jobs ADD COLUMN IF NOT EXISTS last_run_at timestamptz;
 ALTER TABLE scheduled_jobs ADD COLUMN IF NOT EXISTS last_result jsonb;
 ALTER TABLE assurance_runs ADD COLUMN IF NOT EXISTS run_sequence bigint;
+ALTER TABLE packets ADD COLUMN IF NOT EXISTS manifest_hash text NOT NULL DEFAULT '';
+ALTER TABLE assurance_runs ADD COLUMN IF NOT EXISTS packet_artifact_hash text NOT NULL DEFAULT '';
+ALTER TABLE assurance_runs ADD COLUMN IF NOT EXISTS manifest_hash text NOT NULL DEFAULT '';
+ALTER TABLE external_actions ADD COLUMN IF NOT EXISTS intent_hash text NOT NULL DEFAULT '';
+ALTER TABLE external_actions ADD COLUMN IF NOT EXISTS approved_intent_hash text;
+ALTER TABLE external_actions ADD COLUMN IF NOT EXISTS approved_packet_hash text;
 WITH sequence_base AS (
   SELECT COALESCE(MAX(run_sequence), 0) AS value FROM assurance_runs
 ), ordered_runs AS (
@@ -270,9 +282,62 @@ CREATE TABLE IF NOT EXISTS deletion_runs (
   last_error_code text
 );
 
+CREATE TABLE IF NOT EXISTS dataset_editions (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  source_type text NOT NULL,
+  source_edition text NOT NULL,
+  checksum text NOT NULL,
+  transformation_version text NOT NULL,
+  evaluation jsonb NOT NULL,
+  evaluation_provenance jsonb,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (tenant_id, source_type, source_edition)
+);
+ALTER TABLE h1b_signals ADD COLUMN IF NOT EXISTS dataset_edition_id text;
+CREATE INDEX IF NOT EXISTS h1b_signals_dataset_edition_idx
+  ON h1b_signals(tenant_id, dataset_edition_id);
+
 ALTER TABLE deletion_runs ADD COLUMN IF NOT EXISTS cleanup_inventory jsonb NOT NULL DEFAULT '{}'::jsonb;
 ALTER TABLE deletion_runs ADD COLUMN IF NOT EXISTS last_error_code text;
 
+CREATE OR REPLACE FUNCTION nimanto_require_active_tenant()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  PERFORM id FROM tenants
+    WHERE id = NEW.tenant_id AND deletion_state = 'active'
+    FOR NO KEY UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'TENANT_NOT_ACTIVE';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DO $$
+DECLARE
+  table_name text;
+BEGIN
+  FOREACH table_name IN ARRAY ARRAY[
+    'memberships', 'sessions', 'evidence_claims', 'profile_versions', 'jobs',
+    'match_runs', 'h1b_signals', 'applications', 'outcomes', 'packets',
+    'assurance_runs', 'external_actions', 'receipts', 'source_settings',
+    'scheduled_jobs', 'dataset_editions'
+  ]
+  LOOP
+    EXECUTE format('DROP TRIGGER IF EXISTS nimanto_active_tenant_write ON %I', table_name);
+    EXECUTE format(
+      'CREATE TRIGGER nimanto_active_tenant_write BEFORE INSERT OR UPDATE ON %I
+       FOR EACH ROW EXECUTE FUNCTION nimanto_require_active_tenant()',
+      table_name
+    );
+  END LOOP;
+END;
+$$;
+
 INSERT INTO schema_versions(version) VALUES (1) ON CONFLICT (version) DO NOTHING;
 INSERT INTO schema_versions(version) VALUES (2) ON CONFLICT (version) DO NOTHING;
+INSERT INTO schema_versions(version) VALUES (3) ON CONFLICT (version) DO NOTHING;
 `;

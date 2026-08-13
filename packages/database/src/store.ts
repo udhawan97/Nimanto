@@ -115,6 +115,17 @@ export interface H1bSignalRecord {
   limitations: string;
 }
 
+export interface DatasetEditionRecord {
+  id: string;
+  sourceType: string;
+  sourceEdition: string;
+  checksum: string;
+  transformationVersion: string;
+  evaluation: Record<string, unknown>;
+  evaluationProvenance: Record<string, unknown> | null;
+  createdAt: string;
+}
+
 export interface ApplicationRecord {
   id: string;
   jobId: string;
@@ -143,6 +154,7 @@ export interface PacketRecord {
   canonicalContent: Record<string, unknown>;
   artifactManifest: Record<string, unknown>;
   artifactHash: string;
+  manifestHash: string;
   approvedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -154,6 +166,8 @@ export interface AssuranceRecord {
   status: "passed" | "blocked";
   ruleVersion: string;
   findings: unknown[];
+  packetArtifactHash: string;
+  manifestHash: string;
   createdAt: string;
 }
 
@@ -171,6 +185,9 @@ export interface ExternalActionRecord {
   target: Record<string, unknown>;
   payload: Record<string, unknown>;
   idempotencyKey: string;
+  intentHash: string;
+  approvedIntentHash: string | null;
+  approvedPacketHash: string | null;
   approvedAt: string | null;
   attemptedAt: string | null;
   result: Record<string, unknown> | null;
@@ -242,9 +259,11 @@ function mapEvidence(row: EvidenceRow): EvidenceClaim {
 
 export class NimantoStore {
   readonly #db: PGlite;
+  readonly #transactional: boolean;
 
-  private constructor(db: PGlite) {
+  private constructor(db: PGlite, transactional = false) {
     this.#db = db;
+    this.#transactional = transactional;
   }
 
   static async open(dataDirectory: string): Promise<NimantoStore> {
@@ -253,12 +272,82 @@ export class NimantoStore {
     }
     const db = await PGlite.create(dataDirectory);
     await db.exec(schemaSql);
+    const legacyPackets = await db.query<{
+      id: string;
+      artifact_manifest: Record<string, unknown>;
+    }>(
+      `SELECT packet.id, packet.artifact_manifest
+       FROM packets AS packet
+       JOIN tenants AS tenant ON tenant.id = packet.tenant_id
+       WHERE packet.manifest_hash = '' AND tenant.deletion_state = 'active'`,
+    );
+    for (const packet of legacyPackets.rows) {
+      await db.query("UPDATE packets SET manifest_hash = $2 WHERE id = $1", [
+        packet.id,
+        canonicalHash(packet.artifact_manifest),
+      ]);
+    }
+    const legacyActions = await db.query<{
+      id: string;
+      packet_id: string | null;
+      provider: ExternalActionProvider;
+      target: Record<string, unknown>;
+      payload: Record<string, unknown>;
+      state: ExternalActionState;
+    }>(
+      `SELECT action.id, action.packet_id, action.provider, action.target,
+         action.payload, action.state
+       FROM external_actions AS action
+       JOIN tenants AS tenant ON tenant.id = action.tenant_id
+       WHERE action.intent_hash = '' AND tenant.deletion_state = 'active'`,
+    );
+    for (const action of legacyActions.rows) {
+      const intentHash = canonicalHash({
+        packetId: action.packet_id,
+        provider: action.provider,
+        target: action.target,
+        payload: action.payload,
+      });
+      await db.query(
+        `UPDATE external_actions
+         SET intent_hash = $2,
+           state = CASE WHEN state = 'approved' THEN 'pending_approval' ELSE state END,
+           approved_at = CASE WHEN state = 'approved' THEN NULL ELSE approved_at END
+         WHERE id = $1`,
+        [action.id, intentHash],
+      );
+    }
     if (!dataDirectory.startsWith("memory://")) await tightenPosixPermissions(dataDirectory);
     return new NimantoStore(db);
   }
 
   async close(): Promise<void> {
     await this.#db.close();
+  }
+
+  async transaction<T>(work: (store: NimantoStore) => Promise<T>): Promise<T> {
+    if (this.#transactional) return work(this);
+    return this.#db.transaction((tx) => work(new NimantoStore(tx as unknown as PGlite, true)));
+  }
+
+  async assertTenantActive(tenantId: string): Promise<void> {
+    const active = await this.#db.query<{ id: string }>(
+      `SELECT id FROM tenants
+       WHERE id = $1 AND deletion_state = 'active'
+       FOR KEY SHARE`,
+      [tenantId],
+    );
+    if (!active.rows[0]) throw new Error("TENANT_NOT_ACTIVE");
+  }
+
+  async lockTenantActive(tenantId: string): Promise<void> {
+    const active = await this.#db.query<{ id: string }>(
+      `SELECT id FROM tenants
+       WHERE id = $1 AND deletion_state = 'active'
+       FOR UPDATE`,
+      [tenantId],
+    );
+    if (!active.rows[0]) throw new Error("TENANT_NOT_ACTIVE");
   }
 
   async createLocalTenant(email: string, displayName: string): Promise<LocalIdentity> {
@@ -634,12 +723,7 @@ export class NimantoStore {
   async executeSourceSchedule<T extends { imported: number; matched: number }>(
     id: string,
     leaseToken: string,
-    work: (
-      transaction: Pick<
-        NimantoStore,
-        "upsertJob" | "listEvidence" | "latestProfileVersion" | "saveMatch" | "saveReceipt"
-      >,
-    ) => Promise<T>,
+    work: (transaction: NimantoStore) => Promise<T>,
     completedAt = new Date().toISOString(),
   ): Promise<{ schedule: SourceScheduleRecord; result: T }> {
     if (!Number.isFinite(new Date(completedAt).getTime())) throw new Error("INVALID_COMPLETED_AT");
@@ -654,7 +738,7 @@ export class NimantoStore {
       const row = current.rows[0];
       if (!row) throw new Error("SCHEDULE_LEASE_INVALID");
       transitionScheduledJob(row.state as ScheduledJobState, "succeed");
-      const transactionalStore = new NimantoStore(tx as unknown as PGlite);
+      const transactionalStore = new NimantoStore(tx as unknown as PGlite, true);
       const result = await work(transactionalStore);
       const cadenceMinutes = Number(row.payload.cadenceMinutes);
       const notBefore = new Date(
@@ -775,6 +859,18 @@ export class NimantoStore {
     return mapEvidence(row);
   }
 
+  async createEvidenceBatch(
+    tenantId: string,
+    inputs: Array<Omit<EvidenceClaim, "id" | "userAttested"> & { userAttested?: boolean }>,
+  ): Promise<EvidenceClaim[]> {
+    return this.transaction(async (database) => {
+      await database.assertTenantActive(tenantId);
+      const claims: EvidenceClaim[] = [];
+      for (const input of inputs) claims.push(await database.createEvidence(tenantId, input));
+      return claims;
+    });
+  }
+
   async getEvidence(tenantId: string, id: string): Promise<EvidenceClaim | null> {
     const result = await this.#db.query<EvidenceRow>(
       `SELECT id, kind, value, status, confidence, source_name, locator, user_attested
@@ -790,6 +886,19 @@ export class NimantoStore {
       `SELECT id, kind, value, status, confidence, source_name, locator, user_attested
        FROM evidence_claims WHERE tenant_id = $1 ORDER BY created_at DESC, id`,
       [tenantId],
+    );
+    return result.rows.map(mapEvidence);
+  }
+
+  async listEvidenceByIds(tenantId: string, ids: readonly string[]): Promise<EvidenceClaim[]> {
+    const uniqueIds = [...new Set(ids)];
+    if (uniqueIds.length === 0) return [];
+    const result = await this.#db.query<EvidenceRow>(
+      `SELECT id, kind, value, status, confidence, source_name, locator, user_attested
+       FROM evidence_claims
+       WHERE tenant_id = $1 AND id = ANY($2::text[])
+       ORDER BY id`,
+      [tenantId, uniqueIds],
     );
     return result.rows.map(mapEvidence);
   }
@@ -918,6 +1027,30 @@ export class NimantoStore {
       `SELECT id, claim_ids, authorization_wording, input_hash, created_at
        FROM profile_versions WHERE tenant_id = $1 ORDER BY created_at DESC, id DESC LIMIT 1`,
       [tenantId],
+    );
+    const row = result.rows[0];
+    return row
+      ? {
+          id: row.id,
+          claimIds: row.claim_ids,
+          authorizationWording: row.authorization_wording ?? "",
+          inputHash: row.input_hash,
+          createdAt: iso(row.created_at)!,
+        }
+      : null;
+  }
+
+  async getProfileVersion(tenantId: string, id: string): Promise<ProfileVersionRecord | null> {
+    const result = await this.#db.query<{
+      id: string;
+      claim_ids: string[];
+      authorization_wording: string | null;
+      input_hash: string;
+      created_at: string | Date;
+    }>(
+      `SELECT id, claim_ids, authorization_wording, input_hash, created_at
+       FROM profile_versions WHERE tenant_id = $1 AND id = $2 LIMIT 1`,
+      [tenantId, id],
     );
     const row = result.rows[0];
     return row
@@ -1098,9 +1231,10 @@ export class NimantoStore {
     jobId: string,
     profileVersionId: string | null,
     result: MatchResult,
+    exactInputHash?: string,
   ): Promise<MatchRunRecord> {
     const id = randomUUID();
-    const inputHash = canonicalHash({ jobId, profileVersionId });
+    const inputHash = exactInputHash ?? canonicalHash({ jobId, profileVersionId });
     const artifactHash = canonicalHash(result);
     const saved = await this.#db.query<any>(
       `INSERT INTO match_runs(
@@ -1239,6 +1373,120 @@ export class NimantoStore {
       ],
     );
     return this.#mapSignal(result.rows[0]!);
+  }
+
+  async importH1bDatasetEdition(
+    tenantId: string,
+    input: {
+      sourceType: string;
+      sourceEdition: string;
+      checksum: string;
+      transformationVersion: string;
+      evaluation: Record<string, unknown>;
+      evaluationProvenance: Record<string, unknown> | null;
+      signals: Array<Omit<H1bSignalRecord, "id">>;
+    },
+  ): Promise<{ created: boolean; edition: DatasetEditionRecord; signals: H1bSignalRecord[] }> {
+    return this.transaction(async (database) => {
+      await database.lockTenantActive(tenantId);
+      const existing = await database.#db.query<any>(
+        `SELECT * FROM dataset_editions
+         WHERE tenant_id = $1 AND source_type = $2 AND source_edition = $3 LIMIT 1`,
+        [tenantId, input.sourceType, input.sourceEdition],
+      );
+      if (existing.rows[0]) {
+        if (
+          existing.rows[0].checksum !== input.checksum ||
+          existing.rows[0].transformation_version !== input.transformationVersion
+        ) {
+          throw new Error("DATASET_EDITION_CONFLICT");
+        }
+        const signals = await database.#db.query<any>(
+          `SELECT id, company, label, source_type, source_locator, source_period,
+             observed_at, confidence, limitations
+           FROM h1b_signals
+           WHERE tenant_id = $1 AND dataset_edition_id = $2
+           ORDER BY created_at, id`,
+          [tenantId, existing.rows[0].id],
+        );
+        return {
+          created: false,
+          edition: database.#mapDatasetEdition(existing.rows[0]),
+          signals: signals.rows.map((row) => database.#mapSignal(row)),
+        };
+      }
+      const editionId = randomUUID();
+      const editionResult = await database.#db.query<any>(
+        `INSERT INTO dataset_editions(
+           id, tenant_id, source_type, source_edition, checksum,
+           transformation_version, evaluation, evaluation_provenance
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb)
+         RETURNING *`,
+        [
+          editionId,
+          tenantId,
+          input.sourceType,
+          input.sourceEdition,
+          input.checksum,
+          input.transformationVersion,
+          JSON.stringify(input.evaluation),
+          input.evaluationProvenance ? JSON.stringify(input.evaluationProvenance) : null,
+        ],
+      );
+      const signals: H1bSignalRecord[] = [];
+      for (const signal of input.signals) {
+        const id = randomUUID();
+        const inserted = await database.#db.query<any>(
+          `INSERT INTO h1b_signals(
+             id, tenant_id, company, label, source_type, source_locator,
+             source_period, observed_at, confidence, limitations, dataset_edition_id
+           ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+           RETURNING id, company, label, source_type, source_locator, source_period,
+             observed_at, confidence, limitations`,
+          [
+            id,
+            tenantId,
+            signal.company,
+            signal.label,
+            signal.sourceType,
+            signal.sourceLocator,
+            signal.sourcePeriod,
+            signal.observedAt,
+            signal.confidence,
+            signal.limitations,
+            editionId,
+          ],
+        );
+        signals.push(database.#mapSignal(inserted.rows[0]));
+      }
+      return {
+        created: true,
+        edition: database.#mapDatasetEdition(editionResult.rows[0]),
+        signals,
+      };
+    });
+  }
+
+  #mapDatasetEdition(row: any): DatasetEditionRecord {
+    return {
+      id: row.id,
+      sourceType: row.source_type,
+      sourceEdition: row.source_edition,
+      checksum: row.checksum,
+      transformationVersion: row.transformation_version,
+      evaluation: row.evaluation,
+      evaluationProvenance: row.evaluation_provenance,
+      createdAt: iso(row.created_at)!,
+    };
+  }
+
+  async listDatasetEditions(tenantId: string): Promise<DatasetEditionRecord[]> {
+    const result = await this.#db.query<any>(
+      `SELECT * FROM dataset_editions
+       WHERE tenant_id = $1 ORDER BY created_at DESC, id DESC`,
+      [tenantId],
+    );
+    return result.rows.map((row) => this.#mapDatasetEdition(row));
   }
 
   #mapSignal(row: any): H1bSignalRecord {
@@ -1396,19 +1644,21 @@ export class NimantoStore {
   async createPacket(
     tenantId: string,
     input: {
+      id?: string;
       applicationId: string;
       profileVersionId: string | null;
       canonicalContent: Record<string, unknown>;
       artifactManifest: Record<string, unknown>;
     },
   ): Promise<PacketRecord> {
-    const id = randomUUID();
+    const id = input.id ?? randomUUID();
     const artifactHash = canonicalHash(input.canonicalContent);
+    const manifestHash = canonicalHash(input.artifactManifest);
     const result = await this.#db.query<any>(
       `INSERT INTO packets(
         id, tenant_id, application_id, profile_version_id, status,
-        canonical_content, artifact_manifest, artifact_hash
-       ) SELECT $1,$2,$3,$4,'draft',$5::jsonb,$6::jsonb,$7
+        canonical_content, artifact_manifest, artifact_hash, manifest_hash
+       ) SELECT $1,$2,$3,$4,'draft',$5::jsonb,$6::jsonb,$7,$8
        WHERE EXISTS (SELECT 1 FROM applications WHERE id = $3 AND tenant_id = $2)
        RETURNING *`,
       [
@@ -1419,6 +1669,7 @@ export class NimantoStore {
         JSON.stringify(input.canonicalContent),
         JSON.stringify(input.artifactManifest),
         artifactHash,
+        manifestHash,
       ],
     );
     if (!result.rows[0]) throw new Error("APPLICATION_NOT_FOUND");
@@ -1434,6 +1685,7 @@ export class NimantoStore {
       canonicalContent: row.canonical_content,
       artifactManifest: row.artifact_manifest,
       artifactHash: row.artifact_hash,
+      manifestHash: row.manifest_hash || canonicalHash(row.artifact_manifest),
       approvedAt: iso(row.approved_at),
       createdAt: iso(row.created_at)!,
       updatedAt: iso(row.updated_at)!,
@@ -1524,58 +1776,85 @@ export class NimantoStore {
   async saveAssurance(
     tenantId: string,
     packetId: string,
-    input: { status: "passed" | "blocked"; ruleVersion: string; findings: unknown[] },
+    input: {
+      status: "passed" | "blocked";
+      ruleVersion: string;
+      findings: unknown[];
+      packetArtifactHash?: string;
+      manifestHash?: string;
+    },
   ): Promise<AssuranceRecord> {
-    const id = randomUUID();
-    const result = await this.#db.query<any>(
-      `INSERT INTO assurance_runs(id, tenant_id, packet_id, status, rule_version, findings)
-       SELECT $1,$2,$3,$4,$5,$6::jsonb
-       WHERE EXISTS (SELECT 1 FROM packets WHERE id = $3 AND tenant_id = $2)
-       RETURNING id, packet_id, status, rule_version, findings, created_at`,
-      [id, tenantId, packetId, input.status, input.ruleVersion, JSON.stringify(input.findings)],
-    );
-    const row = result.rows[0];
-    if (!row) throw new Error("PACKET_NOT_FOUND");
-    await this.#db.query(
-      `UPDATE packets SET status = $3, updated_at = now() WHERE tenant_id = $1 AND id = $2`,
-      [tenantId, packetId, input.status === "passed" ? "assurance_passed" : "assurance_blocked"],
-    );
+    return this.transaction(async (database) => {
+      await database.assertTenantActive(tenantId);
+      const packet = await database.getPacket(tenantId, packetId);
+      if (!packet) throw new Error("PACKET_NOT_FOUND");
+      const packetArtifactHash = input.packetArtifactHash ?? packet.artifactHash;
+      const manifestHash = input.manifestHash ?? packet.manifestHash;
+      if (packet.artifactHash !== packetArtifactHash || packet.manifestHash !== manifestHash) {
+        throw new Error("PACKET_CHANGED");
+      }
+      const id = randomUUID();
+      const result = await database.#db.query<any>(
+        `INSERT INTO assurance_runs(
+           id, tenant_id, packet_id, status, rule_version, findings,
+           packet_artifact_hash, manifest_hash
+         ) VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8)
+         RETURNING id, packet_id, status, rule_version, findings,
+           packet_artifact_hash, manifest_hash, created_at`,
+        [
+          id,
+          tenantId,
+          packetId,
+          input.status,
+          input.ruleVersion,
+          JSON.stringify(input.findings),
+          packetArtifactHash,
+          manifestHash,
+        ],
+      );
+      const row = result.rows[0]!;
+      await database.#db.query(
+        `UPDATE packets SET status = $3, updated_at = now()
+         WHERE tenant_id = $1 AND id = $2`,
+        [tenantId, packetId, input.status === "passed" ? "assurance_passed" : "assurance_blocked"],
+      );
+      return database.#mapAssurance(row);
+    });
+  }
+
+  #mapAssurance(row: any): AssuranceRecord {
     return {
       id: row.id,
       packetId: row.packet_id,
       status: row.status,
       ruleVersion: row.rule_version,
       findings: row.findings,
+      packetArtifactHash: row.packet_artifact_hash ?? "",
+      manifestHash: row.manifest_hash ?? "",
       createdAt: iso(row.created_at)!,
     };
   }
 
   async latestAssurance(tenantId: string, packetId: string): Promise<AssuranceRecord | null> {
     const result = await this.#db.query<any>(
-      `SELECT id, packet_id, status, rule_version, findings, created_at
+      `SELECT id, packet_id, status, rule_version, findings,
+         packet_artifact_hash, manifest_hash, created_at
        FROM assurance_runs WHERE tenant_id = $1 AND packet_id = $2
        ORDER BY run_sequence DESC LIMIT 1`,
       [tenantId, packetId],
     );
     const row = result.rows[0];
-    return row
-      ? {
-          id: row.id,
-          packetId: row.packet_id,
-          status: row.status,
-          ruleVersion: row.rule_version,
-          findings: row.findings,
-          createdAt: iso(row.created_at)!,
-        }
-      : null;
+    return row ? this.#mapAssurance(row) : null;
   }
 
   async listLatestAssurances(tenantId: string): Promise<AssuranceRecord[]> {
     const result = await this.#db.query<any>(
-      `SELECT id, packet_id, status, rule_version, findings, created_at
+      `SELECT id, packet_id, status, rule_version, findings,
+         packet_artifact_hash, manifest_hash, created_at
        FROM (
          SELECT DISTINCT ON (packet_id)
-           id, packet_id, status, rule_version, findings, created_at
+           id, packet_id, status, rule_version, findings,
+           packet_artifact_hash, manifest_hash, created_at
          FROM assurance_runs
          WHERE tenant_id = $1
          ORDER BY packet_id, run_sequence DESC
@@ -1583,14 +1862,7 @@ export class NimantoStore {
        ORDER BY created_at DESC, id DESC`,
       [tenantId],
     );
-    return result.rows.map((row) => ({
-      id: row.id,
-      packetId: row.packet_id,
-      status: row.status,
-      ruleVersion: row.rule_version,
-      findings: row.findings,
-      createdAt: iso(row.created_at)!,
-    }));
+    return result.rows.map((row) => this.#mapAssurance(row));
   }
 
   async listLatestAssurancesForPackets(
@@ -1599,10 +1871,12 @@ export class NimantoStore {
   ): Promise<AssuranceRecord[]> {
     if (packetIds.length === 0) return [];
     const result = await this.#db.query<any>(
-      `SELECT id, packet_id, status, rule_version, findings, created_at
+      `SELECT id, packet_id, status, rule_version, findings,
+         packet_artifact_hash, manifest_hash, created_at
        FROM (
          SELECT DISTINCT ON (packet_id)
-           id, packet_id, status, rule_version, findings, created_at
+           id, packet_id, status, rule_version, findings,
+           packet_artifact_hash, manifest_hash, created_at
          FROM assurance_runs
          WHERE tenant_id = $1 AND packet_id = ANY($2::text[])
          ORDER BY packet_id, run_sequence DESC
@@ -1610,14 +1884,7 @@ export class NimantoStore {
        ORDER BY created_at DESC, id DESC`,
       [tenantId, [...packetIds]],
     );
-    return result.rows.map((row) => ({
-      id: row.id,
-      packetId: row.packet_id,
-      status: row.status,
-      ruleVersion: row.rule_version,
-      findings: row.findings,
-      createdAt: iso(row.created_at)!,
-    }));
+    return result.rows.map((row) => this.#mapAssurance(row));
   }
 
   async listAssuranceRuns(
@@ -1639,9 +1906,11 @@ export class NimantoStore {
       anchorSequence = Number(result.rows[0].run_sequence);
     }
     const result = await this.#db.query<any>(
-      `SELECT id, packet_id, status, rule_version, findings, created_at, packet_ordinal
+      `SELECT id, packet_id, status, rule_version, findings,
+         packet_artifact_hash, manifest_hash, created_at, packet_ordinal
        FROM (
-         SELECT id, packet_id, status, rule_version, findings, created_at, run_sequence,
+         SELECT id, packet_id, status, rule_version, findings,
+                packet_artifact_hash, manifest_hash, created_at, run_sequence,
                 ROW_NUMBER() OVER (PARTITION BY packet_id ORDER BY run_sequence ASC)::int AS packet_ordinal
          FROM assurance_runs WHERE tenant_id = $1 AND packet_id = $2
        ) AS history
@@ -1650,12 +1919,7 @@ export class NimantoStore {
       [tenantId, packetId, anchorSequence, limit + 1],
     );
     const items = result.rows.slice(0, limit).map((row) => ({
-      id: row.id,
-      packetId: row.packet_id,
-      status: row.status,
-      ruleVersion: row.rule_version,
-      findings: row.findings,
-      createdAt: iso(row.created_at)!,
+      ...this.#mapAssurance(row),
       packetOrdinal: Number(row.packet_ordinal),
     }));
     return {
@@ -1666,35 +1930,47 @@ export class NimantoStore {
 
   async listAssuranceHistory(tenantId: string): Promise<AssuranceHistoryRecord[]> {
     const result = await this.#db.query<any>(
-      `SELECT id, packet_id, status, rule_version, findings, created_at, packet_ordinal
+      `SELECT id, packet_id, status, rule_version, findings,
+         packet_artifact_hash, manifest_hash, created_at, packet_ordinal
        FROM (
-         SELECT id, packet_id, status, rule_version, findings, created_at,
+         SELECT id, packet_id, status, rule_version, findings,
+                packet_artifact_hash, manifest_hash, created_at,
                 ROW_NUMBER() OVER (PARTITION BY packet_id ORDER BY run_sequence ASC)::int AS packet_ordinal
          FROM assurance_runs WHERE tenant_id = $1
        ) AS history ORDER BY created_at DESC, id DESC`,
       [tenantId],
     );
     return result.rows.map((row) => ({
-      id: row.id,
-      packetId: row.packet_id,
-      status: row.status,
-      ruleVersion: row.rule_version,
-      findings: row.findings,
-      createdAt: iso(row.created_at)!,
+      ...this.#mapAssurance(row),
       packetOrdinal: Number(row.packet_ordinal),
     }));
   }
 
-  async approvePacket(tenantId: string, packetId: string): Promise<PacketRecord | null> {
-    const assurance = await this.latestAssurance(tenantId, packetId);
-    if (assurance?.status !== "passed") throw new Error("ASSURANCE_REQUIRED");
+  async approvePacketExact(
+    tenantId: string,
+    packetId: string,
+    assuranceId: string,
+    packetArtifactHash: string,
+    manifestHash: string,
+  ): Promise<PacketRecord> {
     const result = await this.#db.query<any>(
       `UPDATE packets SET status = 'approved', approved_at = now(), updated_at = now()
        WHERE tenant_id = $1 AND id = $2 AND status = 'assurance_passed'
+         AND artifact_hash = $4 AND manifest_hash = $5
+         AND EXISTS (
+           SELECT 1 FROM assurance_runs
+           WHERE id = $3 AND tenant_id = $1 AND packet_id = $2 AND status = 'passed'
+             AND packet_artifact_hash = $4 AND manifest_hash = $5
+             AND run_sequence = (
+               SELECT MAX(run_sequence) FROM assurance_runs
+               WHERE tenant_id = $1 AND packet_id = $2
+             )
+         )
        RETURNING *`,
-      [tenantId, packetId],
+      [tenantId, packetId, assuranceId, packetArtifactHash, manifestHash],
     );
-    return result.rows[0] ? this.#mapPacket(result.rows[0]) : this.getPacket(tenantId, packetId);
+    if (!result.rows[0]) throw new Error("PACKET_APPROVAL_STALE");
+    return this.#mapPacket(result.rows[0]);
   }
 
   async updatePacketManifest(
@@ -1703,9 +1979,9 @@ export class NimantoStore {
     artifactManifest: Record<string, unknown>,
   ): Promise<PacketRecord | null> {
     const result = await this.#db.query<any>(
-      `UPDATE packets SET artifact_manifest = $3::jsonb, updated_at = now()
-       WHERE tenant_id = $1 AND id = $2 RETURNING *`,
-      [tenantId, packetId, JSON.stringify(artifactManifest)],
+      `UPDATE packets SET artifact_manifest = $3::jsonb, manifest_hash = $4, updated_at = now()
+       WHERE tenant_id = $1 AND id = $2 AND status = 'draft' RETURNING *`,
+      [tenantId, packetId, JSON.stringify(artifactManifest), canonicalHash(artifactManifest)],
     );
     return result.rows[0] ? this.#mapPacket(result.rows[0]) : null;
   }
@@ -1721,10 +1997,16 @@ export class NimantoStore {
     },
   ): Promise<ExternalActionRecord> {
     const id = randomUUID();
+    const intentHash = canonicalHash({
+      packetId: input.packetId,
+      provider: input.provider,
+      target: input.target,
+      payload: input.payload,
+    });
     const result = await this.#db.query<any>(
       `INSERT INTO external_actions(
-         id, tenant_id, packet_id, provider, state, target, payload, idempotency_key
-       ) VALUES ($1,$2,$3,$4,'pending_approval',$5::jsonb,$6::jsonb,$7)
+         id, tenant_id, packet_id, provider, state, target, payload, idempotency_key, intent_hash
+       ) VALUES ($1,$2,$3,$4,'pending_approval',$5::jsonb,$6::jsonb,$7,$8)
        ON CONFLICT (tenant_id, idempotency_key) DO UPDATE SET updated_at = external_actions.updated_at
        RETURNING *`,
       [
@@ -1735,6 +2017,7 @@ export class NimantoStore {
         JSON.stringify(input.target),
         JSON.stringify(input.payload),
         input.idempotencyKey,
+        intentHash,
       ],
     );
     return this.#mapAction(result.rows[0]!);
@@ -1749,6 +2032,16 @@ export class NimantoStore {
       target: row.target,
       payload: row.payload,
       idempotencyKey: row.idempotency_key,
+      intentHash:
+        row.intent_hash ||
+        canonicalHash({
+          packetId: row.packet_id,
+          provider: row.provider,
+          target: row.target,
+          payload: row.payload,
+        }),
+      approvedIntentHash: row.approved_intent_hash,
+      approvedPacketHash: row.approved_packet_hash,
       approvedAt: iso(row.approved_at),
       attemptedAt: iso(row.attempted_at),
       result: row.result,
@@ -1780,15 +2073,57 @@ export class NimantoStore {
     to: ExternalActionState,
     resultValue?: Record<string, unknown>,
   ): Promise<ExternalActionRecord | null> {
+    if (to === "approved") throw new Error("EXACT_ACTION_APPROVAL_REQUIRED");
     const result = await this.#db.query<any>(
       `UPDATE external_actions SET state = $4,
-        approved_at = CASE WHEN $4 = 'approved' THEN now() ELSE approved_at END,
         attempted_at = CASE WHEN $4 = 'executing' THEN now() ELSE attempted_at END,
         result = COALESCE($5::jsonb, result), updated_at = now()
        WHERE tenant_id = $1 AND id = $2 AND state = $3 RETURNING *`,
       [tenantId, id, from, to, resultValue ? JSON.stringify(resultValue) : null],
     );
     return result.rows[0] ? this.#mapAction(result.rows[0]) : null;
+  }
+
+  async approveExternalActionExact(tenantId: string, id: string): Promise<ExternalActionRecord> {
+    return this.transaction(async (database) => {
+      await database.assertTenantActive(tenantId);
+      const action = await database.getExternalAction(tenantId, id);
+      if (!action) throw new Error("ACTION_NOT_FOUND");
+      if (!action.packetId) throw new Error("APPROVED_PACKET_REQUIRED");
+      const packet = await database.getPacket(tenantId, action.packetId);
+      if (packet?.status !== "approved") throw new Error("APPROVED_PACKET_REQUIRED");
+      const currentIntentHash = canonicalHash({
+        packetId: action.packetId,
+        provider: action.provider,
+        target: action.target,
+        payload: action.payload,
+      });
+      if (currentIntentHash !== action.intentHash) throw new Error("ACTION_INTENT_CHANGED");
+      const result = await database.#db.query<any>(
+        `UPDATE external_actions SET state = 'approved', approved_at = now(),
+           approved_intent_hash = $4, approved_packet_hash = $5, updated_at = now()
+         WHERE tenant_id = $1 AND id = $2 AND state = $3 AND intent_hash = $4
+         RETURNING *`,
+        [tenantId, id, "pending_approval", currentIntentHash, packet.artifactHash],
+      );
+      if (!result.rows[0]) throw new Error("INVALID_TRANSITION");
+      return database.#mapAction(result.rows[0]);
+    });
+  }
+
+  async markInterruptedActionsAmbiguous(): Promise<number> {
+    const result = await this.#db.query<{ id: string }>(
+      `UPDATE external_actions AS action
+       SET state = 'ambiguous',
+         result = jsonb_build_object('errorCode', 'EXECUTION_INTERRUPTED'),
+         updated_at = now()
+       FROM tenants
+       WHERE action.tenant_id = tenants.id
+         AND tenants.deletion_state = 'active'
+         AND action.state = 'executing'
+       RETURNING action.id`,
+    );
+    return result.rows.length;
   }
 
   async saveReceipt(
@@ -1851,6 +2186,7 @@ export class NimantoStore {
       profileVersionsPage,
       matchRunsPage,
       assuranceRuns,
+      datasetEditions,
     ] = await Promise.all([
       this.listEvidence(tenantId),
       this.latestProfileVersion(tenantId),
@@ -1865,6 +2201,7 @@ export class NimantoStore {
       this.listProfileVersions(tenantId, { limit: 50 }),
       this.listMatchRuns(tenantId, { limit: 50 }),
       this.listAssuranceHistory(tenantId),
+      this.listDatasetEditions(tenantId),
     ]);
     const profileVersions = [...profileVersionsPage.items];
     let profileCursor = profileVersionsPage.nextCursor;
@@ -1896,18 +2233,19 @@ export class NimantoStore {
       profileVersions,
       matchRuns,
       assuranceRuns,
+      datasetEditions,
     };
   }
 
   async beginTenantDeletion(
     tenantId: string,
-    actionIds: string[],
+    _legacyActionIds: string[] = [],
   ): Promise<{ id: string; token: string; tenantId: string; state: string; actionIds: string[] }> {
     const id = randomUUID();
     const token = randomBytes(24).toString("base64url");
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-    await this.#db.transaction(async (tx) => {
+    const actionIds = await this.#db.transaction(async (tx) => {
       const tenant = await tx.query<{ id: string }>(
         `UPDATE tenants SET deletion_state = 'deleting'
          WHERE id = $1 AND deletion_state = 'active'
@@ -1915,6 +2253,11 @@ export class NimantoStore {
         [tenantId],
       );
       if (!tenant.rows[0]) throw new Error("TENANT_NOT_ACTIVE");
+      const actions = await tx.query<{ id: string }>(
+        "SELECT id FROM external_actions WHERE tenant_id = $1 ORDER BY id",
+        [tenantId],
+      );
+      const capturedActionIds = actions.rows.map((action) => action.id);
       await tx.query(
         `INSERT INTO deletion_runs(
           id, tenant_id, status_token_hash, state, requested_at, expires_at, cleanup_inventory
@@ -1925,9 +2268,10 @@ export class NimantoStore {
           sha256(token),
           now.toISOString(),
           expiresAt.toISOString(),
-          JSON.stringify({ actionIds }),
+          JSON.stringify({ actionIds: capturedActionIds }),
         ],
       );
+      return capturedActionIds;
     });
     return { id, token, tenantId, state: "running", actionIds };
   }

@@ -270,6 +270,48 @@ describe("Nimanto beta API", () => {
     ).toBe("queued");
   });
 
+  it("imports a public-board role directly without publishing a match", async () => {
+    const { app, cookie } = await setup({
+      providerJobsFetcher: async ({ provider, board }) => [
+        {
+          source: provider,
+          sourceJobId: "direct-role-1",
+          title: "Direct Platform Engineer",
+          company: board,
+          description: "Build direct-import systems.",
+          location: "Remote",
+          workMode: "remote",
+          url: "https://example.test/jobs/direct-role-1",
+          requirements: ["TypeScript"],
+          contentHash: "direct-role-content-1",
+          sourceMeta: { fixture: true },
+        },
+      ],
+    });
+
+    const imported = await app.inject({
+      method: "POST",
+      url: "/v1/jobs/import",
+      headers: { cookie },
+      payload: { provider: "greenhouse", board: "direct-board" },
+    });
+    expect(imported.statusCode).toBe(200);
+    expect(imported.json()).toMatchObject({
+      imported: 1,
+      jobs: [{ sourceJobId: "direct-role-1", company: "direct-board" }],
+    });
+    const dashboard = (
+      await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } })
+    ).json();
+    const directJob = dashboard.jobs.find(
+      (job: { sourceJobId: string }) => job.sourceJobId === "direct-role-1",
+    );
+    expect(directJob).toBeDefined();
+    expect(dashboard.matches.some((match: { jobId: string }) => match.jobId === directJob.id)).toBe(
+      false,
+    );
+  });
+
   it("runs evidence through match, packet assurance, approval, and the test outbox", async () => {
     const { app, cookie } = await setup();
     const dashboard = await app.inject({
@@ -323,10 +365,53 @@ describe("Nimanto beta API", () => {
     expect(governmentImport.statusCode).toBe(200);
     expect(governmentImport.json()).toMatchObject({
       imported: 1,
+      created: true,
+      transformationVersion: "government_ingest_v1",
       resolutionEvaluation: { enabled: false, precision: 0, sampleSize: 0 },
       resolutionEvaluationProvenance: null,
       signals: [{ label: "possible", confidence: "low" }],
     });
+    const idempotentImport = await app.inject({
+      method: "POST",
+      url: "/v1/h1b-signals/government-import",
+      headers: { cookie },
+      payload: {
+        sourceType: "dol_oflc_bulk",
+        sourceEdition: "synthetic-fixture-fy2026q2",
+        checksum: canonicalHash(governmentRows),
+        rows: governmentRows,
+      },
+    });
+    expect(idempotentImport.statusCode).toBe(200);
+    expect(idempotentImport.json()).toMatchObject({ imported: 1, created: false });
+    const transformationConflict = await app.inject({
+      method: "POST",
+      url: "/v1/h1b-signals/government-import",
+      headers: { cookie },
+      payload: {
+        sourceType: "dol_oflc_bulk",
+        sourceEdition: "synthetic-fixture-fy2026q2",
+        checksum: canonicalHash(governmentRows),
+        transformationVersion: "government_ingest_v2",
+        rows: governmentRows,
+      },
+    });
+    expect(transformationConflict.statusCode).toBe(409);
+    expect(transformationConflict.json().error.code).toBe("DATASET_EDITION_CONFLICT");
+    const conflictingRows = [{ ...governmentRows[0], sourcePeriod: "FY2026 Q3" }];
+    const conflictingImport = await app.inject({
+      method: "POST",
+      url: "/v1/h1b-signals/government-import",
+      headers: { cookie },
+      payload: {
+        sourceType: "dol_oflc_bulk",
+        sourceEdition: "synthetic-fixture-fy2026q2",
+        checksum: canonicalHash(conflictingRows),
+        rows: conflictingRows,
+      },
+    });
+    expect(conflictingImport.statusCode).toBe(409);
+    expect(conflictingImport.json().error.code).toBe("DATASET_EDITION_CONFLICT");
 
     const evidencePayload = {
       filename: "resume.txt",

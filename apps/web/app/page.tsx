@@ -8,12 +8,12 @@ const METHOD = [
   {
     step: "01",
     title: "Collect",
-    body: "Import TXT, Markdown, JSON, DOCX, a text-layer PDF, or approved fields from a downloaded LinkedIn archive. Messages and contacts are ignored. Macros, embedded objects and image-only scans fail closed. Every new claim waits for you.",
+    body: "Review the exact bounded claim projection from TXT, Markdown, JSON, DOCX, a text-layer PDF, or approved LinkedIn archive fields. A changed preview or interrupted commit writes nothing; every new claim still waits for you.",
   },
   {
     step: "02",
     title: "Compare",
-    body: "Narrow roles with private, unsaved filters, then inspect deterministic matching against confirmed evidence only. Four documented dimensions, requirement by requirement, with coverage limits and blockers left visible rather than averaged away.",
+    body: "Narrow roles with private, unsaved filters, then publish deterministic matching against one exact profile version and job-content snapshot. Four documented dimensions, requirement by requirement, keep coverage limits and blockers visible.",
   },
   {
     step: "03",
@@ -23,7 +23,7 @@ const METHOD = [
   {
     step: "04",
     title: "Prepare",
-    body: "Inspect canonical claims, authorization wording, format checks and stored assurance findings before reviewable JSON, text, modern and ATS-safe DOCX/PDF leave the workbench.",
+    body: "Inspect canonical claims, authorization wording, format checks and assurance bound to the exact frozen artifact and manifest before reviewable JSON, text, modern and ATS-safe DOCX/PDF leave the workbench.",
   },
   {
     step: "05",
@@ -76,7 +76,7 @@ export default function Home() {
         {/* 00 — the invitation opens toward the literal product job. */}
         <section className="hero" aria-labelledby="hero-title">
           <div className="hero-copy">
-            <p className="placard">Source-distributed local beta · v0.4.1</p>
+            <p className="placard">Source-distributed local beta · v0.4.2</p>
             <h1 id="hero-title">Nimanto</h1>
             <h2>Build the evidence. Work the application. Keep the truth yours.</h2>
             <p className="hero-line">
@@ -155,7 +155,7 @@ export default function Home() {
                 alt="Synthetic Nimanto Applications workbench with the action-first pipeline and Record outcome controls"
               />
               <figcaption>
-                v0.4.1 · action-first Applications · synthetic local workspace
+                v0.4.2 · action-first Applications · synthetic local workspace
               </figcaption>
             </figure>
           </div>
@@ -291,7 +291,7 @@ export default function Home() {
                 workbench.
               </p>
               <p className="run-note">
-                Nimanto is source-distributed. v0.4.1 does not ship a signed installer or desktop
+                Nimanto is source-distributed. v0.4.2 does not ship a signed installer or desktop
                 binary.
               </p>
               <a className="text-link" href="https://github.com/udhawan97/Nimanto/releases">
@@ -302,9 +302,9 @@ export default function Home() {
               </a>
               <a
                 className="text-link"
-                href="https://github.com/udhawan97/Nimanto/blob/main/docs/releases/v0.4.1.md"
+                href="https://github.com/udhawan97/Nimanto/blob/main/docs/releases/v0.4.2.md"
               >
-                Read the v0.4.1 release notes <ArrowRight size={15} />
+                Read the v0.4.2 release notes <ArrowRight size={15} />
               </a>
             </div>
           </div>
@@ -320,8 +320,8 @@ export default function Home() {
           <nav aria-label="Footer">
             <a href="https://github.com/udhawan97/Nimanto">Source</a>
             <a href="https://github.com/udhawan97/Nimanto/blob/main/SECURITY.md">Security</a>
-            <a href="https://github.com/udhawan97/Nimanto/blob/main/docs/releases/v0.4.1.md">
-              v0.4.1 notes
+            <a href="https://github.com/udhawan97/Nimanto/blob/main/docs/releases/v0.4.2.md">
+              v0.4.2 notes
             </a>
             <a href="https://github.com/udhawan97/Nimanto/blob/main/LICENSE">Apache-2.0</a>
           </nav>

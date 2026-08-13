@@ -300,6 +300,7 @@ type ActionRunner = (
   success: string | ((result: unknown) => string),
   onSuccess?: (result: unknown) => void,
   afterSuccessSettles?: (result: unknown) => void,
+  onFailure?: (error: unknown) => boolean | void,
 ) => Promise<void>;
 /* `state` is "completed" or "cleanup_pending"; the token is a bearer capability
  * that reaches the deletion status and resume routes without a session. */
@@ -483,10 +484,14 @@ export function Workspace() {
   // so that panel unmounts before the candidate could copy the token.
   const [deletionReceipt, setDeletionReceipt] = useState<DeletionReceipt | null>(null);
   const menuButton = useRef<HTMLButtonElement>(null);
+  const navigationPanel = useRef<HTMLElement>(null);
   const closeNavigationButton = useRef<HTMLButtonElement>(null);
   const firstNavigationButton = useRef<HTMLButtonElement>(null);
   const refreshButton = useRef<HTMLButtonElement>(null);
   const workspaceHeader = useRef<HTMLElement>(null);
+  const workspaceMain = useRef<HTMLElement>(null);
+  const noticeRegion = useRef<HTMLDivElement>(null);
+  const focusNoticeOnRender = useRef(false);
   const contentHeading = useRef<HTMLDivElement>(null);
 
   const focusSectionContent = useCallback(() => {
@@ -599,11 +604,65 @@ export function Workspace() {
     if (!mobileNav) return;
     closeNavigationButton.current?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") closeMobileNavigation();
+      if (event.key === "Escape") {
+        closeMobileNavigation();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = [
+        ...(navigationPanel.current?.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ) ?? []),
+      ].filter((element) => !element.hidden && element.getClientRects().length > 0);
+      const first = focusable.at(0);
+      const last = focusable.at(-1);
+      if (!first || !last) return;
+      const active = document.activeElement;
+      if (event.shiftKey && (active === first || !navigationPanel.current?.contains(active))) {
+        event.preventDefault();
+        last.focus();
+      } else if (
+        !event.shiftKey &&
+        (active === last || !navigationPanel.current?.contains(active))
+      ) {
+        event.preventDefault();
+        first.focus();
+      }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [closeMobileNavigation, mobileNav]);
+
+  useEffect(() => {
+    const narrowViewport = window.matchMedia("(max-width: 880px)");
+    const closeAtDesktopWidth = () => {
+      if (!narrowViewport.matches) setMobileNav(false);
+    };
+    narrowViewport.addEventListener("change", closeAtDesktopWidth);
+    return () => narrowViewport.removeEventListener("change", closeAtDesktopWidth);
+  }, []);
+
+  useEffect(() => {
+    const header = workspaceHeader.current;
+    const main = workspaceMain.current;
+    if (!header || !main) return;
+    const recordHeaderHeight = () => {
+      main.style.setProperty(
+        "--workspace-header-height",
+        `${header.getBoundingClientRect().height}px`,
+      );
+    };
+    const observer = new ResizeObserver(recordHeaderHeight);
+    observer.observe(header);
+    recordHeaderHeight();
+    return () => observer.disconnect();
+  }, [dashboard?.identity.email]);
+
+  useEffect(() => {
+    if (notice?.kind !== "error" || !focusNoticeOnRender.current) return;
+    focusNoticeOnRender.current = false;
+    noticeRegion.current?.focus({ preventScroll: true });
+  }, [notice]);
 
   /* The API returns a precise `code` behind a deliberately generic message.
    * Only the client knows which screen the candidate is on, so this is where a
@@ -683,9 +742,10 @@ export function Workspace() {
     };
   }, []);
 
-  const act: ActionRunner = async (work, success, onSuccess, afterSuccessSettles) => {
+  const act: ActionRunner = async (work, success, onSuccess, afterSuccessSettles, onFailure) => {
     setBusy(true);
     setNotice(null);
+    focusNoticeOnRender.current = false;
     let completed: unknown;
     let succeeded = false;
     try {
@@ -707,7 +767,11 @@ export function Workspace() {
       // all until the next health probe.
       if (error instanceof TypeError) setApiReachable(false);
       const text = describeFailure(error);
-      if (text) setNotice({ kind: "error", text });
+      const fieldOwnsRecovery = onFailure?.(error) === true;
+      if (text) {
+        focusNoticeOnRender.current = !fieldOwnsRecovery;
+        setNotice({ kind: "error", text });
+      }
     } finally {
       setBusy(false);
       if (succeeded) {
@@ -813,8 +877,12 @@ export function Workspace() {
   return (
     <div className="workspace-shell" data-nav={mobileNav ? "open" : "closed"}>
       <aside
+        ref={navigationPanel}
         id="workspace-navigation"
         className={mobileNav ? "workspace-sidebar is-open" : "workspace-sidebar"}
+        role={mobileNav ? "dialog" : undefined}
+        aria-modal={mobileNav ? true : undefined}
+        aria-label={mobileNav ? "Workspace navigation" : undefined}
       >
         <div className="workspace-brand">
           <a href="../">
@@ -825,12 +893,6 @@ export function Workspace() {
             className="icon-button mobile-close"
             type="button"
             onClick={closeMobileNavigation}
-            onKeyDown={(event) => {
-              if (event.key === "Tab" && !event.shiftKey) {
-                event.preventDefault();
-                firstNavigationButton.current?.focus();
-              }
-            }}
             aria-label="Close navigation"
           >
             <X />
@@ -894,12 +956,19 @@ export function Workspace() {
         <button
           className="nav-scrim"
           type="button"
+          tabIndex={-1}
+          aria-hidden="true"
           aria-label="Close navigation"
           onClick={closeMobileNavigation}
         />
       )}
 
-      <main id="main" className="workspace-main">
+      <main
+        ref={workspaceMain}
+        id="main"
+        className="workspace-main"
+        inert={mobileNav ? true : undefined}
+      >
         <header className="workspace-header" ref={workspaceHeader}>
           <button
             ref={menuButton}
@@ -938,9 +1007,11 @@ export function Workspace() {
           // reader is already saying. The sign-in screen already made this
           // distinction; the workbench did not.
           <div
+            ref={noticeRegion}
             className={`notice ${notice.kind}`}
             role={notice.kind === "error" ? "alert" : "status"}
             aria-live={notice.kind === "error" ? "assertive" : "polite"}
+            tabIndex={-1}
           >
             {notice.kind === "ok" ? <Check size={17} /> : <CircleAlert size={17} />}
             <span>{notice.text}</span>
@@ -1758,8 +1829,10 @@ function Jobs({
   const [sourceFilter, setSourceFilter] = useState("all");
   const [fitFilter, setFitFilter] = useState("all");
   const [trackingFilter, setTrackingFilter] = useState<"all" | "tracked" | "untracked">("all");
+  const [compensationError, setCompensationError] = useState<string | null>(null);
   const addRoleButton = useRef<HTMLButtonElement>(null);
   const roleTitleField = useRef<HTMLInputElement>(null);
+  const compensationMaximumField = useRef<HTMLInputElement>(null);
   const deferredQuery = useDeferredValue(query);
   const latest = useMemo(
     () => new Map(dashboard.matches.map((match) => [match.jobId, match])),
@@ -1791,6 +1864,14 @@ function Jobs({
   const filtersActive = Boolean(
     query || sourceFilter !== "all" || fitFilter !== "all" || trackingFilter !== "all",
   );
+  const numberOrNull = (value: string) => {
+    const text = value.trim();
+    return text ? Number(text) : null;
+  };
+  const compensationFailure = () =>
+    failureMessage({ code: "INVALID_COMPENSATION" }) ?? "Check the posted compensation range.";
+  const focusCompensationMaximum = () =>
+    window.requestAnimationFrame(() => compensationMaximumField.current?.focus());
   const addJob = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!draft) return;
@@ -1799,10 +1880,13 @@ function Jobs({
       .split("\n")
       .map((value) => value.trim())
       .filter(Boolean);
-    const numberOrNull = (value: string) => {
-      const text = value.trim();
-      return text ? Number(text) : null;
-    };
+    const compensationMin = numberOrNull(draft.compensationMin);
+    const compensationMax = numberOrNull(draft.compensationMax);
+    if (compensationMin !== null && compensationMax !== null && compensationMin > compensationMax) {
+      setCompensationError(compensationFailure());
+      focusCompensationMaximum();
+      return;
+    }
     void onAct(
       () =>
         api("/v1/jobs", {
@@ -1813,8 +1897,8 @@ function Jobs({
             description: draft.description,
             location: draft.location,
             workMode: draft.workMode,
-            compensationMin: numberOrNull(draft.compensationMin),
-            compensationMax: numberOrNull(draft.compensationMax),
+            compensationMin,
+            compensationMax,
             benefits,
             interviewEvidence: draft.interviewEvidence,
             interviewSource: draft.interviewSource,
@@ -1824,13 +1908,29 @@ function Jobs({
         }),
       "Role added.",
       () => {
+        setCompensationError(null);
         onDraftClose();
         window.requestAnimationFrame(() => addRoleButton.current?.focus());
+      },
+      undefined,
+      (error) => {
+        if (!(error instanceof ApiError) || error.code !== "INVALID_COMPENSATION") return false;
+        setCompensationError(compensationFailure());
+        focusCompensationMaximum();
+        return true;
       },
     );
   };
   const updateDraft = <K extends keyof ManualRoleDraft>(field: K, value: ManualRoleDraft[K]) => {
     if (draft) onDraftChange({ ...draft, [field]: value });
+  };
+  const updateCompensationDraft = (field: "compensationMin" | "compensationMax", value: string) => {
+    if (!draft) return;
+    const next = { ...draft, [field]: value };
+    onDraftChange(next);
+    const minimum = numberOrNull(next.compensationMin);
+    const maximum = numberOrNull(next.compensationMax);
+    if (minimum === null || maximum === null || minimum <= maximum) setCompensationError(null);
   };
   const importSource = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -1990,21 +2090,39 @@ function Jobs({
                     min="0"
                     step="1000"
                     value={draft.compensationMin}
-                    onChange={(event) => updateDraft("compensationMin", event.target.value)}
+                    aria-invalid={compensationError ? true : undefined}
+                    aria-describedby={
+                      compensationError ? "manual-role-compensation-error" : undefined
+                    }
+                    onChange={(event) =>
+                      updateCompensationDraft("compensationMin", event.target.value)
+                    }
                   />
                 </label>
                 <label>
                   Posted annual maximum (USD)
                   <input
+                    ref={compensationMaximumField}
                     name="compensationMax"
                     type="number"
                     min="0"
                     step="1000"
                     value={draft.compensationMax}
-                    onChange={(event) => updateDraft("compensationMax", event.target.value)}
+                    aria-invalid={compensationError ? true : undefined}
+                    aria-describedby={
+                      compensationError ? "manual-role-compensation-error" : undefined
+                    }
+                    onChange={(event) =>
+                      updateCompensationDraft("compensationMax", event.target.value)
+                    }
                   />
                 </label>
               </div>
+              {compensationError && (
+                <p id="manual-role-compensation-error" className="field-error">
+                  {compensationError}
+                </p>
+              )}
               <label>
                 Stated benefits, one per line
                 <textarea

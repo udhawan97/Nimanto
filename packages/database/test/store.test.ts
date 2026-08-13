@@ -3,10 +3,134 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { PGlite } from "@electric-sql/pglite";
-import { createReceipt, matchJob } from "@nimanto/domain";
+import { canonicalHash, createReceipt, matchJob } from "@nimanto/domain";
 import { NimantoStore } from "../src/store.js";
 
 const stores: NimantoStore[] = [];
+
+const v041FixtureSql = String.raw`
+CREATE TABLE schema_versions (
+  version integer PRIMARY KEY,
+  applied_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE tenants (
+  id text PRIMARY KEY,
+  name text NOT NULL,
+  deletion_state text NOT NULL DEFAULT 'active',
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE profile_versions (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  claim_ids jsonb NOT NULL,
+  authorization_wording text,
+  input_hash text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE jobs (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  source text NOT NULL,
+  source_job_id text,
+  title text NOT NULL,
+  company text NOT NULL,
+  description text NOT NULL,
+  location text,
+  work_mode text,
+  url text,
+  requirements jsonb NOT NULL,
+  status text NOT NULL DEFAULT 'active',
+  capability text NOT NULL DEFAULT 'deep_link',
+  source_meta jsonb NOT NULL DEFAULT '{}'::jsonb,
+  content_hash text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (tenant_id, source, source_job_id)
+);
+CREATE TABLE applications (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  job_id text NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+  profile_version_id text REFERENCES profile_versions(id) ON DELETE SET NULL,
+  status text NOT NULL,
+  submitted_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE packets (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  application_id text NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+  profile_version_id text REFERENCES profile_versions(id) ON DELETE SET NULL,
+  status text NOT NULL,
+  canonical_content jsonb NOT NULL,
+  artifact_manifest jsonb NOT NULL DEFAULT '{}'::jsonb,
+  artifact_hash text NOT NULL,
+  approved_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE SEQUENCE assurance_runs_run_sequence_seq;
+CREATE TABLE assurance_runs (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  packet_id text NOT NULL REFERENCES packets(id) ON DELETE CASCADE,
+  status text NOT NULL,
+  rule_version text NOT NULL,
+  findings jsonb NOT NULL,
+  run_sequence bigint NOT NULL DEFAULT nextval('assurance_runs_run_sequence_seq'),
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE external_actions (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  packet_id text REFERENCES packets(id) ON DELETE SET NULL,
+  provider text NOT NULL,
+  state text NOT NULL,
+  target jsonb NOT NULL,
+  payload jsonb NOT NULL,
+  idempotency_key text NOT NULL,
+  approved_at timestamptz,
+  attempted_at timestamptz,
+  result jsonb,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (tenant_id, idempotency_key)
+);
+INSERT INTO schema_versions(version) VALUES (1), (2);
+INSERT INTO tenants(id, name) VALUES ('legacy-tenant', 'Legacy workspace');
+INSERT INTO jobs(
+  id, tenant_id, source, source_job_id, title, company, description,
+  requirements, content_hash
+) VALUES (
+  'legacy-job', 'legacy-tenant', 'manual', 'legacy-job', 'Upgrade Engineer',
+  'Northwind', 'Preserve local data', '[]'::jsonb, 'legacy-content'
+);
+INSERT INTO applications(id, tenant_id, job_id, status)
+VALUES ('legacy-application', 'legacy-tenant', 'legacy-job', 'approved_for_export');
+INSERT INTO packets(
+  id, tenant_id, application_id, status, canonical_content, artifact_manifest,
+  artifact_hash, approved_at
+) VALUES (
+  'legacy-packet', 'legacy-tenant', 'legacy-application', 'approved',
+  '{"claims":[]}'::jsonb, '{"artifacts":[]}'::jsonb, 'legacy-artifact-hash', now()
+);
+INSERT INTO assurance_runs(
+  id, tenant_id, packet_id, status, rule_version, findings
+) VALUES (
+  'legacy-assurance', 'legacy-tenant', 'legacy-packet', 'passed',
+  'application_assurance_v1', '[]'::jsonb
+);
+INSERT INTO external_actions(
+  id, tenant_id, packet_id, provider, state, target, payload,
+  idempotency_key, approved_at
+) VALUES (
+  'legacy-action', 'legacy-tenant', 'legacy-packet', 'test_outbox', 'approved',
+  '{"to":"jobs@example.test"}'::jsonb,
+  '{"subject":"Application","body":"Hello"}'::jsonb,
+  'legacy-action', now()
+);
+`;
 
 async function expectPrivateTree(directory: string): Promise<void> {
   expect((await stat(directory)).mode & 0o777).toBe(0o700);
@@ -194,9 +318,111 @@ describe("tenant-scoped persistence public seam", () => {
     await store.beginTenantDeletion(identity.tenantId, []);
     expect(await store.resolveSession(session.token)).toBeNull();
   });
+
+  it("captures cleanup inventory atomically and fences every later tenant write", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nimanto-store-deletion-fence-"));
+    const store = await NimantoStore.open(join(root, "data"));
+    stores.push(store);
+    const identity = await store.createLocalTenant("fence@example.test", "Fence");
+    const action = await store.createExternalAction(identity.tenantId, {
+      packetId: null,
+      provider: "test_outbox",
+      target: { to: "jobs@example.test" },
+      payload: { subject: "Application", body: "Hello" },
+      idempotencyKey: "before-deletion",
+    });
+    const run = await store.beginTenantDeletion(identity.tenantId);
+    expect(run.actionIds).toEqual([action.id]);
+    await expect(
+      store.createExternalAction(identity.tenantId, {
+        packetId: null,
+        provider: "test_outbox",
+        target: { to: "jobs@example.test" },
+        payload: { subject: "Late", body: "Must not persist" },
+        idempotencyKey: "after-deletion",
+      }),
+    ).rejects.toThrow("TENANT_NOT_ACTIVE");
+  });
+
+  it("waits for an in-flight tenant write before capturing deletion cleanup inventory", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nimanto-store-deletion-race-"));
+    const store = await NimantoStore.open(join(root, "data"));
+    stores.push(store);
+    const identity = await store.createLocalTenant("race@example.test", "Race");
+    let releaseWrite!: () => void;
+    let reportInserted!: () => void;
+    const writeMayCommit = new Promise<void>((resolve) => {
+      releaseWrite = resolve;
+    });
+    const inserted = new Promise<void>((resolve) => {
+      reportInserted = resolve;
+    });
+    const actionPromise = store.transaction(async (database) => {
+      const action = await database.createExternalAction(identity.tenantId, {
+        packetId: null,
+        provider: "test_outbox",
+        target: { to: "jobs@example.test" },
+        payload: { subject: "Racing action", body: "Must be inventoried" },
+        idempotencyKey: "in-flight-before-deletion",
+      });
+      reportInserted();
+      await writeMayCommit;
+      return action;
+    });
+    await inserted;
+
+    let deletionSettled = false;
+    const deletionPromise = store.beginTenantDeletion(identity.tenantId).then((run) => {
+      deletionSettled = true;
+      return run;
+    });
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    expect(deletionSettled).toBe(false);
+
+    releaseWrite();
+    const [action, run] = await Promise.all([actionPromise, deletionPromise]);
+    expect(run.actionIds).toEqual([action.id]);
+  });
 });
 
 describe("beta workflow persistence", () => {
+  it("upgrades a genuine v0.4.1 schema twice without losing data or approval safety", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nimanto-store-v041-upgrade-"));
+    const data = join(root, "data");
+    const legacy = await PGlite.create(data);
+    await legacy.exec(v041FixtureSql);
+    await legacy.close();
+
+    const upgraded = await NimantoStore.open(data);
+    expect(await upgraded.getPacket("legacy-tenant", "legacy-packet")).toMatchObject({
+      manifestHash: canonicalHash({ artifacts: [] }),
+      status: "approved",
+    });
+    expect(await upgraded.getExternalAction("legacy-tenant", "legacy-action")).toMatchObject({
+      state: "pending_approval",
+      intentHash: expect.stringMatching(/^[a-f0-9]{64}$/u),
+      approvedIntentHash: null,
+      approvedPacketHash: null,
+    });
+    expect(await upgraded.listJobs("legacy-tenant")).toEqual([
+      expect.objectContaining({ id: "legacy-job", title: "Upgrade Engineer" }),
+    ]);
+    await upgraded.close();
+
+    const reopened = await NimantoStore.open(data);
+    stores.push(reopened);
+    expect(await reopened.getPacket("legacy-tenant", "legacy-packet")).toMatchObject({
+      manifestHash: canonicalHash({ artifacts: [] }),
+      status: "approved",
+    });
+    expect(await reopened.getExternalAction("legacy-tenant", "legacy-action")).toMatchObject({
+      state: "pending_approval",
+      approvedIntentHash: null,
+      approvedPacketHash: null,
+    });
+    expect(await reopened.listDatasetEditions("legacy-tenant")).toEqual([]);
+  });
+
   it("pages tenant-owned history without exposing another tenant or a global assurance sequence", async () => {
     const root = await mkdtemp(join(tmpdir(), "nimanto-store-history-"));
     const store = await NimantoStore.open(join(root, "data"));
@@ -409,7 +635,21 @@ describe("beta workflow persistence", () => {
       canonicalContent: { schemaVersion: "packet_v1", claims: [{ text: "Preserved" }] },
       artifactManifest: { artifacts: [] },
     });
-    expect((await reopened.approvePacket(identity.tenantId, packet.id))?.status).toBe("approved");
+    const currentPacket = await reopened.getPacket(identity.tenantId, packet.id);
+    const currentAssurance = await reopened.latestAssurance(identity.tenantId, packet.id);
+    expect(currentPacket).not.toBeNull();
+    expect(currentAssurance).not.toBeNull();
+    expect(
+      (
+        await reopened.approvePacketExact(
+          identity.tenantId,
+          packet.id,
+          currentAssurance!.id,
+          currentPacket!.artifactHash,
+          currentPacket!.manifestHash,
+        )
+      ).status,
+    ).toBe("approved");
   });
 
   it("rejects a schedule that its provider adapter could never execute", async () => {
@@ -801,10 +1041,7 @@ describe("beta workflow persistence", () => {
       canonicalContent: { claims: [] },
       artifactManifest: {},
     });
-    await expect(store.approvePacket(identity.tenantId, packet.id)).rejects.toThrow(
-      "ASSURANCE_REQUIRED",
-    );
-    await store.saveAssurance(identity.tenantId, packet.id, {
+    const olderPassing = await store.saveAssurance(identity.tenantId, packet.id, {
       status: "passed",
       ruleVersion: "application_assurance_v1",
       findings: [],
@@ -821,12 +1058,38 @@ describe("beta workflow persistence", () => {
         ruleVersion: "application_assurance_v2",
       }),
     ]);
-    await store.saveAssurance(identity.tenantId, packet.id, {
+    const passing = await store.saveAssurance(identity.tenantId, packet.id, {
       status: "passed",
       ruleVersion: "application_assurance_v1",
       findings: [],
     });
-    expect((await store.approvePacket(identity.tenantId, packet.id))?.status).toBe("approved");
+    expect(passing).toMatchObject({
+      packetArtifactHash: packet.artifactHash,
+      manifestHash: packet.manifestHash,
+    });
+    await expect(
+      store.approvePacketExact(
+        identity.tenantId,
+        packet.id,
+        olderPassing.id,
+        packet.artifactHash,
+        packet.manifestHash,
+      ),
+    ).rejects.toThrow("PACKET_APPROVAL_STALE");
+    expect(
+      (
+        await store.approvePacketExact(
+          identity.tenantId,
+          packet.id,
+          passing.id,
+          packet.artifactHash,
+          packet.manifestHash,
+        )
+      ).status,
+    ).toBe("approved");
+    expect(
+      await store.updatePacketManifest(identity.tenantId, packet.id, { changed: true }),
+    ).toBeNull();
 
     const action = await store.createExternalAction(identity.tenantId, {
       packetId: packet.id,
@@ -836,15 +1099,18 @@ describe("beta workflow persistence", () => {
       idempotencyKey: "action-1",
     });
     expect(action.state).toBe("pending_approval");
-    expect(
-      (
-        await store.transitionExternalAction(
-          identity.tenantId,
-          action.id,
-          "pending_approval",
-          "approved",
-        )
-      )?.state,
-    ).toBe("approved");
+    await expect(
+      store.transitionExternalAction(identity.tenantId, action.id, "pending_approval", "approved"),
+    ).rejects.toThrow("EXACT_ACTION_APPROVAL_REQUIRED");
+    expect(await store.getExternalAction(identity.tenantId, action.id)).toMatchObject({
+      state: "pending_approval",
+      approvedIntentHash: null,
+      approvedPacketHash: null,
+    });
+    expect(await store.approveExternalActionExact(identity.tenantId, action.id)).toMatchObject({
+      state: "approved",
+      approvedIntentHash: action.intentHash,
+      approvedPacketHash: packet.artifactHash,
+    });
   });
 });

@@ -616,6 +616,12 @@ describe("failure messages", () => {
     expect(text).not.toBe("generic");
   });
 
+  it("turns an invalid compensation range into a field-level correction", () => {
+    expect(failureMessage({ code: "INVALID_COMPENSATION", message: "generic" })).toBe(
+      "The posted annual maximum must be greater than or equal to the minimum.",
+    );
+  });
+
   it("keeps the server wording when the code is not one it can improve on", () => {
     expect(failureMessage({ code: "SOMETHING_NEW", message: "Server said this." })).toBe(
       "Server said this.",

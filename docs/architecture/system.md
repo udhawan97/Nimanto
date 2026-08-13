@@ -16,13 +16,16 @@ Nimanto is a candidate-side evidence and application workbench. Its architecture
 flowchart TB
   Browser["Static Next.js workbench"] -->|"HttpOnly local session"| API["Fastify API"]
   API --> Store["PGlite PostgreSQL"]
-  API --> Parsers["Bounded TXT · MD · JSON · OOXML DOCX · text-layer PDF"]
-  API --> Domain["Matching · assurance · receipts"]
-  API --> Documents["JSON · TXT · DOCX · PDF renderers"]
+  API --> Intake["Candidate-approved evidence intake"]
+  Intake --> Parsers["Bounded TXT · MD · JSON · OOXML DOCX · text-layer PDF"]
+  API --> Publication["Exact-snapshot match publication"]
+  Publication --> Domain["Matching · assurance · receipts"]
+  API --> Packet["Staged packet lifecycle"]
+  Packet --> Documents["JSON · TXT · DOCX · PDF renderers"]
   Worker["Durable refresh worker"] -->|"private loopback cycle"| API
   API -. "fixed public hosts" .-> ATS["Greenhouse · Lever · Ashby"]
   API -. "loopback only" .-> Model["Ollama"]
-  API --> Gate["External action state machine"]
+  API --> Gate["Exact-approved action lifecycle"]
   Gate --> Outbox["Deep link · local test outbox"]
 ```
 
@@ -47,30 +50,35 @@ stateDiagram-v2
   ActionApproved --> Executing: runtime switch is on
   Executing --> Succeeded
   Executing --> Failed
+  Executing --> Ambiguous: provider may have succeeded; never auto-retry
   Succeeded --> Receipt
 ```
 
 ## Package seams
 
-| Seam                 | Owns                                                                    | Must not own                             |
-| -------------------- | ----------------------------------------------------------------------- | ---------------------------------------- |
-| `@nimanto/domain`    | Pure matching, assurance, canonical hashes, receipts, state transitions | Network or database access               |
-| `@nimanto/database`  | Tenant-scoped persistence and lifecycle operations                      | Provider requests or UI copy             |
-| `@nimanto/parsers`   | Bounded text extraction into pending claims                             | Confirmation decisions                   |
-| `@nimanto/documents` | Canonical packet rendering and artifact hashes                          | Arbitrary model-authored claims          |
-| `@nimanto/providers` | Fixed-host ATS, local model, and mail adapters                          | Approval state                           |
-| `@nimanto/api`       | Authentication, orchestration, validation, rate limiting, safe errors   | Employer screening or outcome prediction |
-| `@nimanto/web`       | Candidate decisions and explanations                                    | Secrets or direct provider credentials   |
+| Seam                 | Owns                                                                      | Must not own                             |
+| -------------------- | ------------------------------------------------------------------------- | ---------------------------------------- |
+| `@nimanto/domain`    | Pure matching, assurance, canonical hashes, receipts, state transitions   | Network or database access               |
+| `@nimanto/database`  | Tenant-scoped persistence and lifecycle operations                        | Provider requests or UI copy             |
+| `@nimanto/parsers`   | Bounded text extraction into pending claims                               | Confirmation decisions                   |
+| `@nimanto/documents` | Canonical packet rendering and artifact hashes                            | Arbitrary model-authored claims          |
+| `@nimanto/providers` | Fixed-host ATS, local model, and mail adapters                            | Approval state                           |
+| `@nimanto/api`       | Authentication, lifecycle modules, validation, rate limiting, safe errors | Employer screening or outcome prediction |
+| `@nimanto/web`       | Candidate decisions and explanations                                      | Secrets or direct provider credentials   |
 
 ## Persistence
 
 The local beta uses PGlite, which runs PostgreSQL in-process and gives a zero-install local database. The repository boundary uses PostgreSQL SQL and JSONB so a hosted implementation can move to managed PostgreSQL later.
 
-Tenant isolation is enforced in every public repository method and exercised through cross-tenant tests. This is defense in depth for the local beta, not a claim of production PostgreSQL row-level security.
+Tenant isolation is enforced in every public repository method and exercised through cross-tenant tests. A database trigger also takes the active tenant row's no-key-update lock before every tenant-owned insert or update. Beginning deletion takes the conflicting row lock, flips the tenant to `deleting`, and captures the external-action cleanup inventory in that same transaction. An authenticated write or provider effect therefore linearizes before deletion or fails `TENANT_NOT_ACTIVE`; it cannot create an untracked packet or outbox artifact after the inventory snapshot. This is defense in depth for the local beta, not a claim of production PostgreSQL row-level security.
 
-Assurance runs carry a database-generated monotonic sequence. Packet review and
-packet approval both resolve the latest run by that sequence, so two runs sharing
-the same wall-clock timestamp cannot be reordered by their random IDs. Stored
+Assurance runs carry a database-generated monotonic sequence plus the exact
+packet-content and manifest hashes they reviewed. Packet approval compare-and-swaps
+the latest passing run against both hashes, so a later run or changed artifact set
+cannot inherit an older approval. Packet rendering uses a private staging
+directory, revalidates the exact application/profile/job/evidence snapshot while
+holding the tenant lock, then promotes the complete artifact set and writes the
+packet, application state and receipt atomically. Stored
 execution receipts are verified against their canonical hashes on dashboard read;
 the workbench exposes those internal hashes without treating them as signatures.
 
@@ -83,6 +91,11 @@ cursor is the identifier of a record owned by the same tenant and scope, so a
 foreign cursor fails closed. Assurance pages translate the internal global
 sequence into an ordinal scoped to one packet and never return the global value.
 
+Match publication reads only the claim IDs frozen by the exact profile version.
+Its input hash covers normalized job content, the job content hash, the profile
+input hash, frozen claim IDs, and rule version. The match run and receipt commit
+together, and the receipt includes evidence IDs from requirements and dimensions.
+
 Profile-version creation is serialized by a tenant-row lock. Confirmed claim IDs
 and NFC-trimmed authorization wording are compared with the latest literal
 record inside that transaction; unchanged input reuses the latest version. The
@@ -92,11 +105,20 @@ Manual role drafts deliberately stay outside persistence. The client holds one
 owner-bounded draft above section routing, clears it at authentication and
 deletion boundaries, and writes a role only after an explicit successful save.
 
-`nimanto_export_v2` adds complete retained profile-version, match-run, and
-assurance-run datasets to the explicit JSON inspection export. It intentionally
+`nimanto_export_v2` adds complete retained profile-version, match-run,
+assurance-run, and government dataset-edition records to the explicit JSON inspection export. It intentionally
 omits session and invitation credentials, deletion internals, and generated
 packet files. It is not a restore protocol, immutable job-history snapshot, or
 execution replay format.
+
+Evidence preview and import share one bounded projection and canonical hash.
+The candidate can read every accepted claim before import, the raw upload is not
+retained, and the whole pending claim batch commits or rolls back together.
+
+Government imports are stored as source-type/source-edition records with a
+checksum, transformation version, evaluation result, and trusted evaluation
+provenance. Replaying the same edition and checksum is idempotent; a different
+checksum or transformation for an existing edition fails before signal writes.
 
 ## Authentication
 
@@ -106,13 +128,13 @@ There is no public hosted sign-up flow. Email-bound, hashed, single-use invitati
 
 ## Durable discovery
 
-Candidates can schedule Greenhouse, Lever, and Ashby public-board refreshes from the workbench. Schedules are tenant-owned database records with bounded cadence, a single hashed lease, retry backoff, pause/resume/run-now/cancel controls, and a visible dead-letter state after five consecutive failures. After the network read, each job/match/receipt batch and its recurring-state advance commit in one lease-locked transaction; cancellation before that phase leaves no imported artifacts, and expiry recovery cannot overlap the locked write. A worker cycle claims at most three due schedules through the private bootstrap-authenticated API seam, imports at most 500 roles per source, and publishes deterministic match receipts. Its payload contains provider and board identifiers only; it cannot prepare packets, approve, email, or submit.
+Candidates can schedule Greenhouse, Lever, and Ashby public-board refreshes from the workbench. The `DiscoveryCycle` owns separate direct-import and scheduled-refresh operations. Direct import fetches before its database transaction and commits the role batch without scoring. Scheduled refresh first claims a durable lease, then fetches, then publishes through the same exact-snapshot `MatchPublication` used by manual scoring. Schedules are tenant-owned database records with bounded cadence, a single hashed lease, retry backoff, pause/resume/run-now/cancel controls, and a visible dead-letter state after five consecutive failures. Each job/match/receipt batch and recurring-state advance commits in one lease-locked transaction. A worker cycle claims at most three due schedules, imports at most 500 roles per source, and cannot prepare packets, approve, email, or submit.
 
 ## External actions
 
-The database state machine and domain state machine must agree. The API refuses execution unless the action is `approved` and the in-memory runtime switch is on. The switch has no environment override and resets to off with every API restart.
+The database state machine and domain state machine must agree. Action approval binds the immutable target/payload intent hash and the exact approved packet hash. Execution revalidates both, requires the in-memory runtime switch, and compare-and-swaps `approved` to `executing`. Provider failure becomes `failed`; a provider success followed by uncertain local persistence becomes `ambiguous`, and an interrupted `executing` record is recovered as ambiguous on restart. Neither state is retried automatically. The switch has no environment override and resets to off with every API restart.
 
-Version 0.4.1 has no connected-account provider. Verification uses only a user-opened deep link and the local test outbox. Gmail, Outlook, form submission, and desktop delivery remain behind the separately approved Slice 4 boundary.
+Version 0.4.2 has no connected-account provider. Verification uses only a user-opened deep link and the local test outbox. Gmail, Outlook, form submission, and desktop delivery remain behind the separately approved Slice 4 boundary.
 
 ## Scaling path
 

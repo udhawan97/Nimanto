@@ -451,6 +451,7 @@ svg {
 }
 .site-header nav a {
   color: var(--text-muted);
+  white-space: nowrap;
 }
 .site-header nav a:hover {
   color: var(--text);
@@ -1929,12 +1930,19 @@ select:focus-visible,
 textarea:focus-visible {
   border-color: var(--focus);
 }
+input[aria-invalid="true"] {
+  border-color: var(--live-edge);
+}
 textarea {
   min-height: 7rem;
   resize: vertical;
 }
 .field-note {
   margin-block-start: var(--space-2xs);
+}
+.field-error {
+  color: var(--live-text);
+  font-size: var(--text-sm);
 }
 .file-button,
 .launch-secret-field {
@@ -1945,6 +1953,9 @@ textarea {
 /* ── Notices, connection, funnel ─────────────────────────────────────────── */
 
 .notice {
+  position: sticky;
+  inset-block-start: calc(var(--workspace-header-height, 5rem) + var(--space-lg));
+  z-index: var(--z-sticky);
   display: flex;
   align-items: center;
   gap: var(--space-md);
@@ -2658,7 +2669,8 @@ textarea {
     order: 3;
     width: 100%;
     margin-inline-start: 0;
-    gap: var(--space-lg);
+    flex-wrap: wrap;
+    gap: var(--space-sm) var(--space-lg);
   }
   .spine li {
     grid-template-columns: minmax(0, 1fr);

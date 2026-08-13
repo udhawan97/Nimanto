@@ -1,3 +1,9 @@
+import {
+  applicationTransitionNeedsConfirmation,
+  isApplicationTransitionLegal,
+  type ApplicationStatus,
+} from "@nimanto/domain";
+
 /* Pure derived logic for the workbench.
  *
  * Nothing here imports React or the workspace component: the parameter types are
@@ -6,8 +12,7 @@
  * "never infer an outcome from silence" rule is enforced in code rather than in
  * copy — see followUpNote below. */
 
-export type ApplicationStatus =
-  "tracked" | "prepared" | "approved_for_export" | "submitted_externally" | "withdrawn";
+export type { ApplicationStatus };
 
 export type Section =
   | "overview"
@@ -478,32 +483,12 @@ export function boardColumns<T extends ApplicationLike>(
   }));
 }
 
-/* Mirrors packages/domain/src/applications.ts. Duplicated rather than imported
- * because apps/web is a static export with no server bundle — the server-side
- * guard in the API is the enforcement point, and this copy only decides which
- * drop targets to offer. The test asserts the two stay in step. */
-const legalMoves: Record<ApplicationStatus, readonly ApplicationStatus[]> = {
-  tracked: ["prepared", "withdrawn"],
-  prepared: ["tracked", "approved_for_export", "withdrawn"],
-  approved_for_export: ["prepared", "submitted_externally", "withdrawn"],
-  submitted_externally: ["approved_for_export", "withdrawn"],
-  withdrawn: ["tracked"],
-};
-
-const consequential: readonly ApplicationStatus[] = [
-  "approved_for_export",
-  "submitted_externally",
-  "withdrawn",
-];
-
 export function canMove(from: ApplicationStatus, to: ApplicationStatus): boolean {
-  if (from === to) return true;
-  return (legalMoves[from] ?? []).includes(to);
+  return isApplicationTransitionLegal(from, to);
 }
 
 export function needsConfirmation(from: ApplicationStatus, to: ApplicationStatus): boolean {
-  if (from === to) return false;
-  return consequential.includes(to);
+  return applicationTransitionNeedsConfirmation(from, to);
 }
 
 /* Every status control offers this list and nothing else. Derived from the same
@@ -533,6 +518,7 @@ export function confirmationPrompt(to: ApplicationStatus, application: Applicati
  * holds the code and is the only place that knows which screen the candidate is
  * looking at, so this is where a rejection becomes something to act on. */
 const FAILURE_COPY: Record<string, string> = {
+  INVALID_COMPENSATION: "The posted annual maximum must be greater than or equal to the minimum.",
   INVALID_APPLICATION_TRANSITION:
     "An application moves Tracked → Prepared → Approved for export → Submitted externally. Move it to the next stage first, or withdraw it.",
   INVALID_CONFIRMATION: "Type the confirmation phrase exactly as shown, including capitals.",

@@ -26,11 +26,49 @@ No network request is made.
 
 ## Connected accounts
 
-Gmail and Microsoft Outlook sending are not implemented or configurable in v0.4.1. No access-token environment variable is read. Connected-account effects require the separately reviewed Slice 4 plan and exact approval before code or onboarding documentation is added.
+Gmail and Microsoft Outlook sending are not implemented or configurable in v0.4.2. No access-token environment variable is read. Connected-account effects require the separately reviewed Slice 4 plan and exact approval before code or onboarding documentation is added.
 
 ## Verification rule
 
-Project tests and release verification never call an email provider. The local test outbox is the only execution path; the deep link leaves the final send in the user's mail client.
+Project tests and release verification never call an email provider. The local test outbox is the only execution path; the deep link leaves the final send in the user's mail client. An action approval binds the exact target/payload intent and approved packet hash. If a provider effect may have succeeded but local receipt persistence is uncertain, the action becomes `ambiguous` and is never retried automatically.
+
+### Reconcile an ambiguous action
+
+Do not execute it again. Copy its action ID from **Approved actions** and inspect
+the provider surface first:
+
+- For `test_outbox`, look for `.nimanto-data/outbox/<action-id>.json`. Its
+  presence means the local effect was written; preserve it with the workspace
+  backup and do not create a replacement.
+- For `deep_link`, Nimanto only prepared a `mailto:` link. Check the mail
+  client's Drafts and Sent folders; Nimanto cannot establish whether you later
+  pressed Send.
+
+v0.4.2 intentionally has no “mark resolved” or retry transition. If you can
+establish that no effect occurred and still want to proceed, review the current
+packet and create a new, separately approved action with revised candidate-
+controlled content. Keep the ambiguous record as the audit trail.
+
+## Government dataset editions (advanced API-only input)
+
+`POST /v1/h1b-signals/government-import` accepts one candidate-workspace edition
+at a time. The authenticated JSON body must contain:
+
+- `sourceType`: exactly `dol_oflc_bulk` or `uscis_h1b_employer_data`;
+- `sourceEdition`: the upstream release/period identifier;
+- `rows`: 1–500 objects with `company`, `label`, `sourcePeriod`, and ISO
+  `observedAt`;
+- `checksum`: `canonicalHash(rows)` from `@nimanto/domain` over the exact JSON
+  rows; and
+- optional `transformationVersion` (default `government_ingest_v1`).
+
+Validate the upstream download and retain its license/provenance outside
+Nimanto before constructing those bounded rows. The same edition/checksum/
+transformation is idempotent; changing either checksum or transformation for an
+existing edition returns a conflict. Caller-supplied resolution evaluations are
+rejected. Only a server-configured, checksum-verified evaluation can enable a
+measured employer resolution, and historical rows remain historical context—not
+current employer policy or legal advice.
 
 ## Optional Ollama companion
 

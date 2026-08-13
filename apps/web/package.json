@@ -1,6 +1,6 @@
 {
   "name": "@nimanto/web",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "private": true,
   "type": "module",
   "scripts": {
@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@nimanto/domain": "workspace:*",
     "@fontsource-variable/archivo": "^5.3.0",
     "@fontsource/ibm-plex-mono": "^5.3.0",
     "@fontsource/instrument-serif": "^5.3.0",
@@ -22,7 +23,6 @@
     "three": "^0.185.1"
   },
   "devDependencies": {
-    "@nimanto/domain": "workspace:*",
     "@types/node": "^26.1.2",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
