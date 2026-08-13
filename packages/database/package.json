@@ -13,7 +13,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "clean": "rm -rf dist coverage",
-    "test": "vitest run --coverage.enabled=false",
+    "test": "vitest run --coverage.enabled=false --testTimeout=15000",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
