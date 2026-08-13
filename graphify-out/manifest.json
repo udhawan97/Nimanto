@@ -165,7 +165,7 @@
     "semantic_hash": ""
   },
   "package.json": {
-    "mtime": 1786636382.3100293,
+    "mtime": 1786646990.9135854,
     "ast_hash": "e5157a784ddaa5e3541d5951cb8bf78f",
     "semantic_hash": ""
   },
@@ -455,8 +455,8 @@
     "semantic_hash": ""
   },
   "pnpm-workspace.yaml": {
-    "mtime": 1785973290.3540974,
-    "ast_hash": "97bfd07d5df8efc0f2a856e5ce836f96",
+    "mtime": 1786646990.9145355,
+    "ast_hash": "774b157da6d61c754d8e3f75c288a69e",
     "semantic_hash": ""
   },
   "apps/web/public/assets/icon.svg": {
@@ -495,8 +495,8 @@
     "semantic_hash": ""
   },
   "tests/e2e/local-beta.spec.ts": {
-    "mtime": 1786637022.1278195,
-    "ast_hash": "a2f3f6244411f70a2e91bf54fa598c87",
+    "mtime": 1786647423.7541928,
+    "ast_hash": "7455fdf88d06f87fdfc2d08a9f6b9534",
     "semantic_hash": ""
   },
   "docs/releases/v0.1.0-slice-matrix.md": {
@@ -780,18 +780,18 @@
     "semantic_hash": ""
   },
   "docs/releases/nimanto-v0.4.2.cdx.json": {
-    "mtime": 1786636382.3028953,
-    "ast_hash": "c910ace9ed9f0ec5b11283808fa3a5f9",
+    "mtime": 1786647098.029869,
+    "ast_hash": "bf5eba0d8f51c2ef0afd848e33671856",
     "semantic_hash": ""
   },
   "docs/releases/nimanto-v0.4.2.spdx.json": {
-    "mtime": 1786636382.3078842,
-    "ast_hash": "23ca8fa15628808d0c94d6d773da88be",
+    "mtime": 1786647098.5017953,
+    "ast_hash": "6cb494d1b476e5b22e26284350bb4c70",
     "semantic_hash": ""
   },
   "docs/releases/nimanto-v0.4.2-SHA256SUMS.txt": {
-    "mtime": 1786636382.2999618,
-    "ast_hash": "edc0d62964f22eadb8319a4e33a13218",
+    "mtime": 1786647112.6198723,
+    "ast_hash": "5c25d3bc3d39f9a621b4d5a00d1dca65",
     "semantic_hash": ""
   },
   "docs/releases/v0.4.2-surface-ledger.md": {

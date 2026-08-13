@@ -850,6 +850,10 @@ test("deletion hands back a receipt that outlives the session, and does not outl
   await page.getByLabel("Your name").fill("Erase Me");
   await page.getByLabel("Your email").fill("erase@example.test");
   await page.getByRole("button", { name: "Start private workspace" }).click();
+  // The workspace can render from an overlapping authentication refresh before
+  // the start action's own refresh has settled. Wait for its completion notice
+  // so that rerender cannot replace this controlled destructive input mid-entry.
+  await expect(page.locator(".notice.ok")).toContainText("Your private beta workspace is ready.");
   await page.getByRole("button", { name: "Data controls" }).click();
   await page.setViewportSize({ width: 320, height: 900 });
 

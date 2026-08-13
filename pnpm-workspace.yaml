@@ -4,6 +4,9 @@ packages:
   - apps/worker
   - packages/*
 
+overrides:
+  "nanoid@<3.3.18": 3.3.18
+
 allowBuilds:
   "@next/swc-darwin-arm64": true
   "@next/swc-linux-x64-gnu": true
