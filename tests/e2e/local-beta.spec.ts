@@ -376,6 +376,10 @@ test("a candidate starts a private workspace and receives deterministic role exp
   await expect(closeNavigation).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: "Overview" })).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect(closeNavigation).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("button", { name: "Overview" })).toBeFocused();
   const brandLink = navigationDialog.locator('a[href="../"]');
   const signOut = navigationDialog.getByRole("button", { name: "Sign out" });
   await signOut.focus();

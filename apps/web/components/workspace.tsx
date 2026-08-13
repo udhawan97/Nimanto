@@ -618,6 +618,16 @@ export function Workspace() {
       const last = focusable.at(-1);
       if (!first || !last) return;
       const active = document.activeElement;
+      if (!event.shiftKey && active === closeNavigationButton.current) {
+        event.preventDefault();
+        firstNavigationButton.current?.focus();
+        return;
+      }
+      if (event.shiftKey && active === firstNavigationButton.current) {
+        event.preventDefault();
+        closeNavigationButton.current?.focus();
+        return;
+      }
       if (event.shiftKey && (active === first || !navigationPanel.current?.contains(active))) {
         event.preventDefault();
         last.focus();

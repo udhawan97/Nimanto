@@ -1,16 +1,16 @@
 # Graph Report - Nimanto  (2026-08-13)
 
 ## Corpus Check
-- 145 files · ~2,873,345 words
+- 145 files · ~2,873,380 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1370 nodes · 2158 edges · 92 communities (81 shown, 11 thin omitted)
+- 1370 nodes · 2158 edges · 93 communities (82 shown, 11 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 19 edges (avg confidence: 0.79)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `ebf58ac5`
+- Built from commit: `3783a166`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -90,6 +90,7 @@
 - CODE_OF_CONDUCT.md
 - GOVERNANCE.md
 - workspace/page.tsx
+- engines
 - EvidenceClaim
 - Nimanto v0.4.1 — Action Before Analysis
 - render-social-card.mjs
@@ -136,7 +137,7 @@
 - **Confirmed Evidence to Match Flow** — docs_planning_architecture_confirmed_evidence_lifecycle, docs_planning_product_contract_career_evidence_vault, docs_planning_product_contract_evidence_states, docs_planning_product_contract_overall_match_bands, docs_planning_backend_plan_slice_1_evidence_to_match [INFERRED 0.85]
 - **Review Before External Action** — docs_planning_architecture_no_external_effects_through_slice_3, docs_planning_product_contract_source_action_contract, docs_planning_product_contract_frozen_artifact_approval, docs_planning_backend_plan_slice_3_grounded_packet [INFERRED 0.95]
 
-## Communities (92 total, 11 thin omitted)
+## Communities (93 total, 11 thin omitted)
 
 ### Community 0 - "Nimanto Sources Licenses and Provider Gate"
 Cohesion: 0.14
@@ -267,8 +268,8 @@ Cohesion: 0.18
 Nodes (10): compilerOptions, declaration, emitDeclarationOnly, noEmit, outDir, rootDir, extends, include (+2 more)
 
 ### Community 35 - "package.json"
-Cohesion: 0.14
-Nodes (13): author, bugs, url, description, engines, node, pnpm, homepage (+5 more)
+Cohesion: 0.18
+Nodes (10): author, bugs, url, description, homepage, license, name, packageManager (+2 more)
 
 ### Community 36 - "compilerOptions"
 Cohesion: 0.18
@@ -397,6 +398,10 @@ Nodes (8): 2. Where the candidate actually stalls, S1 — "I imported. Now what?
 ### Community 68 - "domain/src/index.ts"
 Cohesion: 0.16
 Nodes (8): stores, v041FixtureSql, AssuranceFinding, AssuranceFindingCode, assurePacket(), PacketAssuranceResult, ExternalActionEvent, transitions
+
+### Community 78 - "engines"
+Cohesion: 0.67
+Nodes (3): engines, node, pnpm
 
 ### Community 79 - "EvidenceClaim"
 Cohesion: 0.42

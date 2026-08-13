@@ -100,8 +100,8 @@
     "semantic_hash": ""
   },
   "apps/web/components/workspace.tsx": {
-    "mtime": 1786636382.2935078,
-    "ast_hash": "f74519951a44a233d6cac8f1622199e7",
+    "mtime": 1786636858.6514692,
+    "ast_hash": "7ba129b5ab0083d4d7a229a0be98e0cf",
     "semantic_hash": ""
   },
   "apps/web/next-env.d.ts": {
@@ -495,8 +495,8 @@
     "semantic_hash": ""
   },
   "tests/e2e/local-beta.spec.ts": {
-    "mtime": 1786636382.3117833,
-    "ast_hash": "60a6f3222d0ce2feeb8f977930d12e21",
+    "mtime": 1786637022.1278195,
+    "ast_hash": "a2f3f6244411f70a2e91bf54fa598c87",
     "semantic_hash": ""
   },
   "docs/releases/v0.1.0-slice-matrix.md": {
