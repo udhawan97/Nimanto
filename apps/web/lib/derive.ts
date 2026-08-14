@@ -1,8 +1,5 @@
-import {
-  applicationTransitionNeedsConfirmation,
-  isApplicationTransitionLegal,
-  type ApplicationStatus,
-} from "@nimanto/domain";
+import { applicationTransitions, type ApplicationStatus } from "@nimanto/domain";
+import type { Section } from "./navigation-transitions.js";
 
 /* Pure derived logic for the workbench.
  *
@@ -14,16 +11,7 @@ import {
 
 export type { ApplicationStatus };
 
-export type Section =
-  | "overview"
-  | "evidence"
-  | "jobs"
-  | "applications"
-  | "packets"
-  | "history"
-  | "actions"
-  | "activity"
-  | "data";
+export type { Section } from "./navigation-transitions.js";
 
 type EvidenceLike = { status: string };
 type JobLike = { id: string };
@@ -484,11 +472,15 @@ export function boardColumns<T extends ApplicationLike>(
 }
 
 export function canMove(from: ApplicationStatus, to: ApplicationStatus): boolean {
-  return isApplicationTransitionLegal(from, to);
+  const decision = applicationTransitions.candidate(from).decide(to);
+  return decision.kind !== "illegal";
 }
 
 export function needsConfirmation(from: ApplicationStatus, to: ApplicationStatus): boolean {
-  return applicationTransitionNeedsConfirmation(from, to);
+  return (
+    applicationTransitions.candidate(from).options.find((option) => option.to === to)
+      ?.confirmation === "required"
+  );
 }
 
 /* Every status control offers this list and nothing else. Derived from the same
@@ -521,6 +513,8 @@ const FAILURE_COPY: Record<string, string> = {
   INVALID_COMPENSATION: "The posted annual maximum must be greater than or equal to the minimum.",
   INVALID_APPLICATION_TRANSITION:
     "An application moves Tracked → Prepared → Approved for export → Submitted externally. Move it to the next stage first, or withdraw it.",
+  APPLICATION_TRANSITION_CONFIRMATION_REQUIRED:
+    "Confirm this consequential application change before Nimanto records it.",
   INVALID_CONFIRMATION: "Type the confirmation phrase exactly as shown, including capitals.",
   EVIDENCE_PREVIEW_CHANGED: "The file changed since you previewed it. Review the preview again.",
   PROHIBITED_DOCUMENT_CONTENT:
@@ -547,34 +541,6 @@ export function failureMessage(input: {
 }
 
 /* ── Section routing ─────────────────────────────────────────────────────── */
-
-export const SECTIONS: readonly Section[] = [
-  "overview",
-  "evidence",
-  "jobs",
-  "applications",
-  "packets",
-  "history",
-  "actions",
-  "activity",
-  "data",
-];
-
-export function sectionHash(section: Section): string {
-  return `#${section}`;
-}
-
-/* The hash is already load-bearing: `#bootstrap=` and `#invite=` carry a
- * credential that the workbench scrubs out of the address bar on arrival. This
- * reads a section only from a bare, known name — so a credential hash can never
- * be mistaken for a route, and a section can never be written on top of one. No
- * application, role, packet or action id belongs here: the URL is history, and
- * this product's identifiers are employer-shaped. */
-export function sectionFromHash(hash: string): Section | null {
-  const value = hash.replace(/^#/, "");
-  if (!value || value.includes("=")) return null;
-  return (SECTIONS as readonly string[]).includes(value) ? (value as Section) : null;
-}
 
 /* ── F5 · funnel ─────────────────────────────────────────────────────────── */
 

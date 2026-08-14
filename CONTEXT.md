@@ -22,6 +22,10 @@ _Avoid_: Sponsorship truth, current employer policy
 
 ## Preparation and action
 
+**Application**:
+A candidate-owned current record of preparation, external submission, and candidate-reported outcomes. Packet lifecycle may apply explicit preparation consequences, but never overwrites a candidate-recorded external submission or withdrawal; the record does not reconstruct an employer process.
+_Avoid_: Employer workflow, hiring stage
+
 **Packet**:
 A frozen candidate artifact set prepared for one application from confirmed evidence.
 _Avoid_: Submission, application send
@@ -33,6 +37,16 @@ _Avoid_: Approval, guarantee
 **Action Intent**:
 The exact Packet, implementation, target, and payload a candidate may separately approve before any local handoff is attempted.
 _Avoid_: Send permission, standing approval
+
+## Role intake
+
+**Role Observation**:
+One source adapter's current role content, source identity, source hash, and provenance before common intake normalization.
+_Avoid_: Immutable role history, deduplicated posting
+
+**Current Role**:
+The mutable tenant-owned working role record produced from a Role Observation.
+_Avoid_: Role snapshot, historical posting version
 
 ## Operations
 

@@ -270,20 +270,80 @@ describe("Nimanto beta API", () => {
     ).toBe("queued");
   });
 
+  it("rejects an invalid scheduled provider batch before writing any roles", async () => {
+    const { app, cookie } = await setup({
+      providerJobsFetcher: async ({ provider, board }) => [
+        {
+          source: provider,
+          sourceJobId: "scheduled-atomic-valid",
+          title: "Platform Engineer",
+          company: board,
+          description: "Build dependable services.",
+          location: "Remote",
+          workMode: "remote",
+          url: "https://example.test/jobs/scheduled-atomic-valid",
+          requirements: ["TypeScript"],
+          contentHash: "scheduled-atomic-valid-content",
+          sourceMeta: { fixture: true },
+        },
+        {
+          source: provider,
+          sourceJobId: "scheduled-atomic-invalid",
+          title: " ",
+          company: board,
+          description: "This invalid row follows a valid one.",
+          location: "Remote",
+          workMode: "remote",
+          url: "https://example.test/jobs/scheduled-atomic-invalid",
+          requirements: [],
+          contentHash: "scheduled-atomic-invalid-content",
+          sourceMeta: { fixture: true },
+        },
+      ],
+    });
+    expect(
+      (
+        await app.inject({
+          method: "POST",
+          url: "/v1/schedules",
+          headers: { cookie },
+          payload: { provider: "greenhouse", board: "atomic-board", cadenceMinutes: 60 },
+        })
+      ).statusCode,
+    ).toBe(200);
+
+    const cycle = await app.inject({
+      method: "POST",
+      url: "/v1/worker/cycle",
+      headers: { "x-nimanto-bootstrap-secret": bootstrapSecret },
+    });
+    expect(cycle.statusCode).toBe(200);
+    expect(cycle.json()).toEqual({ processed: 1, failed: 1, imported: 0, matched: 0 });
+
+    const dashboard = (
+      await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } })
+    ).json();
+    expect(
+      dashboard.jobs.filter((job: { sourceJobId: string }) =>
+        job.sourceJobId.startsWith("scheduled-atomic-"),
+      ),
+    ).toEqual([]);
+  });
+
   it("imports a public-board role directly without publishing a match", async () => {
     const { app, cookie } = await setup({
       providerJobsFetcher: async ({ provider, board }) => [
         {
           source: provider,
-          sourceJobId: "direct-role-1",
-          title: "Direct Platform Engineer",
-          company: board,
+          sourceJobId: " direct-role-1 ",
+          title: " Direct Platform Engineer ",
+          company: ` ${board} `,
           description: "Build direct-import systems.",
-          location: "Remote",
+          location: " Remote ",
           workMode: "remote",
           url: "https://example.test/jobs/direct-role-1",
-          requirements: ["TypeScript"],
-          contentHash: "direct-role-content-1",
+          requirements: [" TypeScript ", ""],
+          contentHash: " direct-role-content-1 ",
           sourceMeta: { fixture: true },
         },
       ],
@@ -298,7 +358,15 @@ describe("Nimanto beta API", () => {
     expect(imported.statusCode).toBe(200);
     expect(imported.json()).toMatchObject({
       imported: 1,
-      jobs: [{ sourceJobId: "direct-role-1", company: "direct-board" }],
+      jobs: [
+        {
+          sourceJobId: "direct-role-1",
+          company: "direct-board",
+          location: "Remote",
+          requirements: ["TypeScript"],
+          contentHash: "direct-role-content-1",
+        },
+      ],
     });
     const dashboard = (
       await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } })
@@ -310,6 +378,83 @@ describe("Nimanto beta API", () => {
     expect(dashboard.matches.some((match: { jobId: string }) => match.jobId === directJob.id)).toBe(
       false,
     );
+  });
+
+  it("rejects an invalid direct provider batch before writing any roles", async () => {
+    const { app, cookie } = await setup({
+      providerJobsFetcher: async ({ provider, board }) => [
+        {
+          source: provider,
+          sourceJobId: "direct-atomic-valid",
+          title: "Platform Engineer",
+          company: board,
+          description: "Build dependable services.",
+          location: "Remote",
+          workMode: "remote",
+          url: "https://example.test/jobs/direct-atomic-valid",
+          requirements: ["TypeScript"],
+          contentHash: "direct-atomic-valid-content",
+          sourceMeta: { fixture: true },
+        },
+        {
+          source: provider,
+          sourceJobId: "direct-atomic-invalid",
+          title: " ",
+          company: board,
+          description: "This invalid row follows a valid one.",
+          location: "Remote",
+          workMode: "remote",
+          url: "https://example.test/jobs/direct-atomic-invalid",
+          requirements: [],
+          contentHash: "direct-atomic-invalid-content",
+          sourceMeta: { fixture: true },
+        },
+      ],
+    });
+
+    const imported = await app.inject({
+      method: "POST",
+      url: "/v1/jobs/import",
+      headers: { cookie },
+      payload: { provider: "greenhouse", board: "atomic-board" },
+    });
+    expect(imported.statusCode).toBe(400);
+    expect(imported.json()).toMatchObject({ error: { code: "ROLE_TITLE_REQUIRED" } });
+
+    const dashboard = (
+      await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } })
+    ).json();
+    expect(
+      dashboard.jobs.filter((job: { sourceJobId: string }) =>
+        job.sourceJobId.startsWith("direct-atomic-"),
+      ),
+    ).toEqual([]);
+  });
+
+  it("uses the same current-role normalization for manual intake", async () => {
+    const { app, cookie } = await setup();
+    const created = await app.inject({
+      method: "POST",
+      url: "/v1/jobs",
+      headers: { cookie },
+      payload: {
+        title: " Staff Engineer ",
+        company: " Northwind ",
+        description: " Build trustworthy systems. ",
+        location: " Chicago ",
+        workMode: " hybrid ",
+        requirements: [" TypeScript ", "", " Evidence design "],
+      },
+    });
+    expect(created.statusCode).toBe(200);
+    expect(created.json()).toMatchObject({
+      title: "Staff Engineer",
+      company: "Northwind",
+      description: "Build trustworthy systems.",
+      location: "Chicago",
+      workMode: "hybrid",
+      requirements: ["TypeScript", "Evidence design"],
+    });
   });
 
   it("runs evidence through match, packet assurance, approval, and the test outbox", async () => {
@@ -861,6 +1006,39 @@ describe("Nimanto beta API", () => {
     expect(skipped.statusCode).toBe(409);
     expect(skipped.json().error.code).toBe("INVALID_APPLICATION_TRANSITION");
     expect(skipped.json().error.message).toContain("Prepared");
+  });
+
+  it("requires an explicit API confirmation for a consequential candidate move", async () => {
+    const { app, cookie } = await setup();
+    const dashboard = await app.inject({
+      method: "GET",
+      url: "/v1/dashboard",
+      headers: { cookie },
+    });
+    const tracked = await app.inject({
+      method: "POST",
+      url: "/v1/applications",
+      headers: { cookie },
+      payload: { jobId: dashboard.json().jobs[0].id },
+    });
+
+    const unconfirmed = await app.inject({
+      method: "PUT",
+      url: `/v1/applications/${tracked.json().id}/status`,
+      headers: { cookie },
+      payload: { status: "withdrawn" },
+    });
+    expect(unconfirmed.statusCode).toBe(409);
+    expect(unconfirmed.json().error.code).toBe("APPLICATION_TRANSITION_CONFIRMATION_REQUIRED");
+
+    const confirmed = await app.inject({
+      method: "PUT",
+      url: `/v1/applications/${tracked.json().id}/status`,
+      headers: { cookie },
+      payload: { status: "withdrawn", confirmed: true },
+    });
+    expect(confirmed.statusCode).toBe(200);
+    expect(confirmed.json().status).toBe("withdrawn");
   });
 
   it("previews the claims an import would create, not just how many", async () => {

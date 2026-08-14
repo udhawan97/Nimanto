@@ -34,7 +34,7 @@ async function requestPinned(url: URL, target: Address): Promise<Response> {
       url,
       {
         method: "GET",
-        headers: { accept: "text/html,text/plain;q=0.9", "user-agent": "Nimanto/0.1" },
+        headers: { accept: "text/html,text/plain;q=0.9", "user-agent": "Nimanto/0.5.0" },
         lookup: (_hostname, _options, callback) => callback(null, target.address, target.family),
         servername: url.hostname,
         timeout: 10_000,

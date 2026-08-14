@@ -178,6 +178,51 @@ describe("packet lifecycle staging", () => {
     await expect(access(join(artifactDirectory, identity.tenantId))).rejects.toThrow();
   });
 
+  it("does not erase candidate-recorded submission or withdrawal facts", async () => {
+    const { store, identity, application, artifactDirectory } =
+      await packetFixture("packet-candidate-facts");
+    const lifecycle = new PacketLifecycle(store, artifactDirectory);
+    const submitted = await store.setApplicationStatus(
+      identity.tenantId,
+      application.id,
+      "submitted_externally",
+    );
+    expect(submitted?.submittedAt).toEqual(expect.any(String));
+
+    const packet = await lifecycle.create({
+      tenantId: identity.tenantId,
+      applicationId: application.id,
+      candidateName: "Packet Candidate Facts",
+    });
+    const afterGeneration = (await store.listApplications(identity.tenantId)).find(
+      (candidate) => candidate.id === application.id,
+    );
+    expect(afterGeneration).toMatchObject({
+      status: "submitted_externally",
+      submittedAt: submitted?.submittedAt,
+    });
+
+    await expect(lifecycle.assure(identity.tenantId, packet.id)).resolves.toMatchObject({
+      status: "passed",
+    });
+    await expect(
+      store.transitionCandidateApplicationStatus(
+        identity.tenantId,
+        application.id,
+        "withdrawn",
+        true,
+      ),
+    ).resolves.toMatchObject({ status: "withdrawn" });
+    await expect(lifecycle.approve(identity.tenantId, packet.id)).resolves.toMatchObject({
+      status: "approved",
+    });
+    await expect(store.listApplications(identity.tenantId)).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: application.id, status: "withdrawn", submittedAt: null }),
+      ]),
+    );
+  });
+
   it("removes promoted artifacts when the database transaction fails", async () => {
     const fixture = await packetFixture("packet-transaction-failure");
     stores.pop();

@@ -5,7 +5,14 @@ SCRIPT_DIR=${0:A:h}
 cd "$SCRIPT_DIR"
 
 if ! command -v node >/dev/null 2>&1; then
-  echo "Nimanto needs Node.js 24 or newer. Install it from https://nodejs.org/"
+  echo "Nimanto needs Node.js 24 through 26. Install it from https://nodejs.org/"
+  read -r "?Press Return to close."
+  exit 1
+fi
+
+NIMANTO_NODE_MAJOR=$(node -p "Number(process.versions.node.split('.')[0])")
+if (( NIMANTO_NODE_MAJOR < 24 || NIMANTO_NODE_MAJOR > 26 )); then
+  echo "Nimanto needs Node.js 24 through 26; found $(node --version)."
   read -r "?Press Return to close."
   exit 1
 fi

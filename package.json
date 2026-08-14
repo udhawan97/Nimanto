@@ -1,6 +1,6 @@
 {
   "name": "nimanto",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "private": true,
   "description": "An evidence-first, candidate-controlled job search and application workbench for H-1B professionals.",
   "author": "Umang Dhawan",
@@ -37,7 +37,7 @@
     "lint": "cspell --no-progress --no-summary . && pnpm format:check",
     "licenses:check": "pnpm licenses list --prod --json",
     "sbom:check": "env -u NODE_PATH node node_modules/@cyclonedx/cdxgen/bin/cdxgen.js -t js --exclude '.claude/**' --no-install-deps --profile license-compliance --spec-version 1.6 --format cyclonedx -o /tmp/nimanto.cdx.json . && node scripts/sanitize-sbom.mjs /tmp/nimanto.cdx.json && node scripts/validate-sbom.mjs /tmp/nimanto.cdx.json",
-    "sbom:release": "env -u NODE_PATH node node_modules/@cyclonedx/cdxgen/bin/cdxgen.js -t js --exclude '.claude/**' --no-install-deps --profile license-compliance --spec-version 1.6 --json-pretty --format cyclonedx -o docs/releases/nimanto-v0.4.2.cdx.json . && env -u NODE_PATH node node_modules/@cyclonedx/cdxgen/bin/cdxgen.js -t js --exclude '.claude/**' --no-install-deps --profile license-compliance --json-pretty --format spdx -o docs/releases/nimanto-v0.4.2.spdx.json . && node scripts/sanitize-sbom.mjs docs/releases/nimanto-v0.4.2.cdx.json docs/releases/nimanto-v0.4.2.spdx.json && prettier --write docs/releases/nimanto-v0.4.2.cdx.json docs/releases/nimanto-v0.4.2.spdx.json && node scripts/validate-sbom.mjs docs/releases/nimanto-v0.4.2.cdx.json docs/releases/nimanto-v0.4.2.spdx.json",
+    "sbom:release": "env -u NODE_PATH node node_modules/@cyclonedx/cdxgen/bin/cdxgen.js -t js --exclude '.claude/**' --no-install-deps --profile license-compliance --spec-version 1.6 --json-pretty --format cyclonedx -o docs/releases/nimanto-v0.5.0.cdx.json . && env -u NODE_PATH node node_modules/@cyclonedx/cdxgen/bin/cdxgen.js -t js --exclude '.claude/**' --no-install-deps --profile license-compliance --json-pretty --format spdx -o docs/releases/nimanto-v0.5.0.spdx.json . && node scripts/sanitize-sbom.mjs docs/releases/nimanto-v0.5.0.cdx.json docs/releases/nimanto-v0.5.0.spdx.json && prettier --write docs/releases/nimanto-v0.5.0.cdx.json docs/releases/nimanto-v0.5.0.spdx.json && node scripts/validate-sbom.mjs docs/releases/nimanto-v0.5.0.cdx.json docs/releases/nimanto-v0.5.0.spdx.json && node scripts/write-sbom-checksums.mjs docs/releases/nimanto-v0.5.0-SHA256SUMS.txt docs/releases/nimanto-v0.5.0.cdx.json docs/releases/nimanto-v0.5.0.spdx.json",
     "start": "concurrently --kill-others --names api,web --prefix-colors blue,magenta \"pnpm --filter @nimanto/api start\" \"pnpm --filter @nimanto/web start\"",
     "start:all": "concurrently --kill-others --names api,worker,web --prefix-colors blue,cyan,magenta \"pnpm --filter @nimanto/api start\" \"pnpm --filter @nimanto/worker start\" \"pnpm --filter @nimanto/web start\"",
     "test": "pnpm -r --if-present run test",
@@ -47,7 +47,7 @@
   "devDependencies": {
     "@cyclonedx/cdxgen": "12.8.2",
     "@playwright/test": "1.62.1",
-    "@types/node": "26.1.2",
+    "@types/node": "26.2.0",
     "concurrently": "10.0.4",
     "cspell": "10.0.1",
     "prettier": "3.9.6",

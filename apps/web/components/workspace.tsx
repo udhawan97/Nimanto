@@ -66,11 +66,26 @@ import {
   profileVersionDiff,
   recordReviewQueue,
   recordedOutcomeTimeline,
-  sectionFromHash,
-  sectionHash,
   type ApplicationStatus,
   type Section,
 } from "../lib/derive.js";
+import {
+  workspaceIdentityTransitions,
+  type DeletionReceipt,
+  type IdentityTransitionEvent,
+} from "../lib/identity-transitions.js";
+import {
+  createWorkspaceNavigationTransitions,
+  focusSectionBelowHeader,
+  sectionFromHash,
+  trapMobileNavigationKey,
+} from "../lib/navigation-transitions.js";
+import {
+  createWorkbenchMutations,
+  type RefreshOutcome,
+  type WorkbenchMutations,
+} from "../lib/workbench-mutations.js";
+import { createScopedRequestGate } from "../lib/scoped-request-gate.js";
 
 const API = process.env.NEXT_PUBLIC_NIMANTO_API_ORIGIN ?? "http://127.0.0.1:4310";
 
@@ -295,20 +310,7 @@ type Dashboard = {
   };
   runtime: { externalActionsEnabled: boolean };
 };
-type ActionRunner = (
-  work: () => Promise<unknown>,
-  success: string | ((result: unknown) => string),
-  onSuccess?: (result: unknown) => void,
-  afterSuccessSettles?: (result: unknown) => void,
-  onFailure?: (error: unknown) => boolean | void,
-) => Promise<void>;
-/* `state` is "completed" or "cleanup_pending"; the token is a bearer capability
- * that reaches the deletion status and resume routes without a session. */
-type DeletionReceipt = {
-  token: string;
-  state: "completed" | "cleanup_pending";
-  message: string;
-};
+type ActionRunner = WorkbenchMutations;
 type EvidenceImportPreview = {
   filename: string;
   mimeType: string;
@@ -495,29 +497,35 @@ export function Workspace() {
   const contentHeading = useRef<HTMLDivElement>(null);
 
   const focusSectionContent = useCallback(() => {
-    const target = contentHeading.current;
-    if (!target) return;
-    target.focus({ preventScroll: true });
-    const header = workspaceHeader.current?.getBoundingClientRect();
-    const targetTop = window.scrollY + target.getBoundingClientRect().top;
-    // `scrollIntoView` can legally keep the viewport inside a tall target. The
-    // workbench content is exactly such a target, so use its document offset
-    // and the measured header height to make the destination deterministic.
-    const root = document.documentElement;
-    const previousScrollBehavior = root.style.scrollBehavior;
-    root.style.scrollBehavior = "auto";
-    window.scrollTo(0, Math.max(0, targetTop - (header?.height ?? 0) - 8));
-    window.requestAnimationFrame(() => {
-      const heading = target.querySelector("h1") ?? target;
-      const headerBottom = workspaceHeader.current?.getBoundingClientRect().bottom ?? 0;
-      const headingTop = heading.getBoundingClientRect().top;
-      const clearance = 8;
-      if (headingTop < headerBottom + clearance) {
-        window.scrollBy(0, headingTop - headerBottom - clearance);
-      }
-      root.style.scrollBehavior = previousScrollBehavior;
+    focusSectionBelowHeader({
+      target: contentHeading.current,
+      header: workspaceHeader.current,
+      root: document.documentElement,
+      scrollY: window.scrollY,
+      scrollTo: (top) => window.scrollTo(0, top),
+      scrollBy: (delta) => window.scrollBy(0, delta),
+      schedule: (work) => window.requestAnimationFrame(work),
     });
   }, []);
+
+  const navigationTransitions = useMemo(
+    () =>
+      createWorkspaceNavigationTransitions({
+        routeReady: () => routeReady,
+        currentHash: () => window.location.hash,
+        writeHash: (hash) => {
+          window.location.hash = hash;
+        },
+        setSection,
+        clearNotice: () => setNotice(null),
+        setMobileOpen: setMobileNav,
+        schedule: (work) => window.requestAnimationFrame(work),
+        focusSection: focusSectionContent,
+        focusMenu: () => menuButton.current?.focus(),
+        focusNotice: () => noticeRegion.current?.focus({ preventScroll: true }),
+      }),
+    [focusSectionContent, routeReady],
+  );
 
   /* Consume the hash, then scrub it — in that order, and never one without the
    * other. A credential can arrive on load or long after it, by pasting an
@@ -526,37 +534,37 @@ export function Workspace() {
    * of the address bar and the back stack before anything read it, leaving the
    * candidate with an invitation they can no longer accept. */
   const readHash = useCallback(() => {
-    const fragment = new URLSearchParams(window.location.hash.slice(1));
-    const invitation = fragment.get("invite") ?? "";
-    const value = fragment.get("bootstrap") ?? "";
-    const scrub = () =>
-      window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
-
-    if (invitation) {
-      setInviteToken(invitation);
-      scrub();
-      return;
+    try {
+      const disposition = workspaceIdentityTransitions.consumeLocation({
+        hash: window.location.hash,
+        rememberBootstrap: (value) => window.sessionStorage.setItem("nimanto_bootstrap", value),
+        scrub: () =>
+          window.history.replaceState(
+            null,
+            "",
+            `${window.location.pathname}${window.location.search}`,
+          ),
+      });
+      if (disposition.kind === "invite") setInviteToken(disposition.token);
+      if (disposition.kind === "bootstrap") setBootstrapSecret(disposition.secret);
+      if (disposition.kind === "route") {
+        const opened = sectionFromHash(disposition.hash);
+        if (opened) setSection(opened);
+      }
+      return disposition;
+    } catch {
+      setNotice({
+        kind: "error",
+        text: "Nimanto could not safely consume the private workspace link. Open a fresh local launch link.",
+      });
+      return { kind: "blocked" } as const;
     }
-    if (value) {
-      window.sessionStorage.setItem("nimanto_bootstrap", value);
-      setBootstrapSecret(value);
-      scrub();
-      return;
-    }
-    // Any other hash carrying "=" is not ours; drop it rather than display it.
-    if (window.location.hash.includes("=")) {
-      scrub();
-      return;
-    }
-    // Only a bare, known section name is honoured.
-    const opened = sectionFromHash(window.location.hash);
-    if (opened) setSection(opened);
   }, []);
 
   useEffect(() => {
     setBootstrapSecret(window.sessionStorage.getItem("nimanto_bootstrap") ?? "");
-    readHash();
-    setRouteReady(true);
+    const disposition = readHash();
+    setRouteReady(disposition.kind !== "blocked");
   }, [readHash]);
 
   /* Back, forward and a pasted link all arrive here. Without it the section
@@ -565,22 +573,35 @@ export function Workspace() {
   useEffect(() => {
     if (!routeReady) return;
     const onHashChange = () => {
-      const wasCredential = window.location.hash.includes("=");
-      readHash();
-      // A scrubbed credential is not a route change; leave the section alone.
-      if (wasCredential) return;
-      setSection(sectionFromHash(window.location.hash) ?? "overview");
-      setNotice(null);
-      window.requestAnimationFrame(focusSectionContent);
+      const disposition = readHash();
+      // Identity gets first refusal. A consumed or discarded credential is not
+      // a navigation event and must leave the current section alone.
+      if (disposition.kind !== "route" && disposition.kind !== "empty") return;
+      navigationTransitions.restore(window.location.hash);
     };
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
-  }, [focusSectionContent, readHash, routeReady]);
+  }, [navigationTransitions, readHash, routeReady]);
 
-  const clearBootstrapSecret = useCallback(() => {
-    window.sessionStorage.removeItem("nimanto_bootstrap");
-    setBootstrapSecret("");
-    setInviteToken("");
+  const applyIdentityTransition = useCallback((event: IdentityTransitionEvent) => {
+    const plan = workspaceIdentityTransitions.plan(event);
+    if (plan.clearCredentials) {
+      window.sessionStorage.removeItem("nimanto_bootstrap");
+      setBootstrapSecret("");
+      setInviteToken("");
+    }
+    if (plan.clearDrafts) {
+      setManualRoleDraft(null);
+      setDraftClaim(null);
+    }
+    if (plan.closeMobileNavigation) setMobileNav(false);
+    if (plan.clearDashboard) setDashboard(null);
+    if (plan.requireAuthentication) setAuthRequired(true);
+    if (plan.receipt === "retire_completed") {
+      setDeletionReceipt((receipt) => (receipt?.state === "completed" ? null : receipt));
+    } else if (plan.receipt) {
+      setDeletionReceipt(plan.receipt);
+    }
   }, []);
 
   /* Opening a workspace retires a *finished* deletion receipt. Signing out does
@@ -589,55 +610,23 @@ export function Workspace() {
    * that now exists. A cleanup_pending receipt is kept: its token is the only
    * handle on an unfinished cleanup, and nothing else in the app holds it. */
   const startFresh = useCallback(() => {
-    clearBootstrapSecret();
-    setManualRoleDraft(null);
-    setDraftClaim(null);
-    setDeletionReceipt((receipt) => (receipt?.state === "completed" ? null : receipt));
-  }, [clearBootstrapSecret]);
+    applyIdentityTransition("workspace_opened");
+  }, [applyIdentityTransition]);
 
   const closeMobileNavigation = useCallback(() => {
-    setMobileNav(false);
-    window.requestAnimationFrame(() => menuButton.current?.focus());
-  }, []);
+    navigationTransitions.closeMobile();
+  }, [navigationTransitions]);
 
   useEffect(() => {
     if (!mobileNav) return;
     closeNavigationButton.current?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        closeMobileNavigation();
-        return;
-      }
-      if (event.key !== "Tab") return;
-      const focusable = [
-        ...(navigationPanel.current?.querySelectorAll<HTMLElement>(
-          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-        ) ?? []),
-      ].filter((element) => !element.hidden && element.getClientRects().length > 0);
-      const first = focusable.at(0);
-      const last = focusable.at(-1);
-      if (!first || !last) return;
-      const active = document.activeElement;
-      if (!event.shiftKey && active === closeNavigationButton.current) {
-        event.preventDefault();
-        firstNavigationButton.current?.focus();
-        return;
-      }
-      if (event.shiftKey && active === firstNavigationButton.current) {
-        event.preventDefault();
-        closeNavigationButton.current?.focus();
-        return;
-      }
-      if (event.shiftKey && (active === first || !navigationPanel.current?.contains(active))) {
-        event.preventDefault();
-        last.focus();
-      } else if (
-        !event.shiftKey &&
-        (active === last || !navigationPanel.current?.contains(active))
-      ) {
-        event.preventDefault();
-        first.focus();
-      }
+      trapMobileNavigationKey(event, {
+        panel: navigationPanel.current,
+        closeButton: closeNavigationButton.current,
+        firstNavigationButton: firstNavigationButton.current,
+        close: closeMobileNavigation,
+      });
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -646,11 +635,11 @@ export function Workspace() {
   useEffect(() => {
     const narrowViewport = window.matchMedia("(max-width: 880px)");
     const closeAtDesktopWidth = () => {
-      if (!narrowViewport.matches) setMobileNav(false);
+      if (!narrowViewport.matches) navigationTransitions.closeForDesktop();
     };
     narrowViewport.addEventListener("change", closeAtDesktopWidth);
     return () => narrowViewport.removeEventListener("change", closeAtDesktopWidth);
-  }, []);
+  }, [navigationTransitions]);
 
   useEffect(() => {
     const header = workspaceHeader.current;
@@ -671,56 +660,65 @@ export function Workspace() {
   useEffect(() => {
     if (notice?.kind !== "error" || !focusNoticeOnRender.current) return;
     focusNoticeOnRender.current = false;
-    noticeRegion.current?.focus({ preventScroll: true });
-  }, [notice]);
+    navigationTransitions.presentGlobalError();
+  }, [navigationTransitions, notice]);
 
   /* The API returns a precise `code` behind a deliberately generic message.
    * Only the client knows which screen the candidate is on, so this is where a
    * rejection becomes something to act on — and where a raw `TypeError` is
    * swallowed, because the connection banner already explains that failure
    * better than "Failed to fetch" ever could. */
-  const describeFailure = (error: unknown): string | null =>
-    failureMessage({
-      code: error instanceof ApiError ? error.code : null,
-      message: error instanceof Error ? error.message : null,
-      transport: error instanceof TypeError,
-    });
+  const describeFailure = useCallback(
+    (error: unknown): string | null =>
+      failureMessage({
+        code: error instanceof ApiError ? error.code : null,
+        message: error instanceof Error ? error.message : null,
+        transport: error instanceof TypeError,
+      }),
+    [],
+  );
 
   const enterSignedOutState = useCallback(() => {
     // An expired or revoked session is an identity transition even when it is
     // discovered by an action rather than a dashboard refresh. Nothing drafted
     // for the previous candidate may survive into the next session.
-    setManualRoleDraft(null);
-    setDraftClaim(null);
-    setMobileNav(false);
-    setDashboard(null);
-    setAuthRequired(true);
-  }, []);
+    applyIdentityTransition("session_lost");
+  }, [applyIdentityTransition]);
 
-  const refresh = useCallback(async () => {
+  const requireAuthentication = useCallback(() => {
+    // An incoming bootstrap or invitation is not a credential from a lost
+    // identity. Preserve it through the initial unauthenticated status check;
+    // workspace_opened retires it immediately after a successful handshake.
+    applyIdentityTransition("authentication_required");
+  }, [applyIdentityTransition]);
+
+  const refresh = useCallback(async (): Promise<RefreshOutcome> => {
     try {
       const status = await api<{ authenticated: boolean }>("/v1/auth/status");
       setApiReachable(true);
       if (!status.authenticated) {
-        enterSignedOutState();
-        return;
+        requireAuthentication();
+        return "signed_out";
       }
       const value = await api<Dashboard>("/v1/dashboard");
       setDashboard(value);
       setAuthRequired(false);
+      return "ready";
     } catch (error) {
       if (error instanceof ApiError && error.code === "AUTHENTICATION_REQUIRED") {
         // The API answered, it just refused. That is a reachable service.
         setApiReachable(true);
-        enterSignedOutState();
+        requireAuthentication();
+        return "signed_out";
       } else {
         // A transport failure means the local half is not answering at all.
         setApiReachable(!(error instanceof TypeError));
         const text = describeFailure(error);
         if (text) setNotice({ kind: "error", text });
+        return error instanceof TypeError ? "unreachable" : "failed";
       }
     }
-  }, [enterSignedOutState]);
+  }, [describeFailure, requireAuthentication]);
 
   useEffect(() => {
     void refresh();
@@ -752,51 +750,31 @@ export function Workspace() {
     };
   }, []);
 
-  const act: ActionRunner = async (work, success, onSuccess, afterSuccessSettles, onFailure) => {
-    setBusy(true);
-    setNotice(null);
-    focusNoticeOnRender.current = false;
-    let completed: unknown;
-    let succeeded = false;
-    try {
-      const result = await work();
-      completed = result;
-      succeeded = true;
-      onSuccess?.(result);
-      await refresh();
-      setNotice({ kind: "ok", text: typeof success === "function" ? success(result) : success });
-    } catch (error) {
-      if (error instanceof ApiError && error.code === "AUTHENTICATION_REQUIRED") {
-        setApiReachable(true);
-        enterSignedOutState();
-        return;
-      }
-      // A transport failure has no notice of its own — the connection banner
-      // says it better. But the banner only appears once `apiReachable` knows,
-      // so record it here rather than leaving the candidate with no feedback at
-      // all until the next health probe.
-      if (error instanceof TypeError) setApiReachable(false);
-      const text = describeFailure(error);
-      const fieldOwnsRecovery = onFailure?.(error) === true;
-      if (text) {
-        focusNoticeOnRender.current = !fieldOwnsRecovery;
-        setNotice({ kind: "error", text });
-      }
-    } finally {
-      setBusy(false);
-      if (succeeded) {
-        window.requestAnimationFrame(() => afterSuccessSettles?.(completed));
-      }
-    }
-  };
+  const mutations = useMemo(
+    () =>
+      createWorkbenchMutations({
+        setBusy,
+        clearNotice: () => setNotice(null),
+        setNoticeFocus: (focus) => {
+          focusNoticeOnRender.current = focus;
+        },
+        setReachable: setApiReachable,
+        enterSignedOutState,
+        refresh,
+        describeFailure,
+        publishNotice: (kind, text) => setNotice({ kind, text }),
+        schedule: navigationTransitions.scheduleFocus,
+      }),
+    [describeFailure, enterSignedOutState, navigationTransitions, refresh],
+  );
 
   if (authRequired || (!dashboard && !notice)) {
     return (
       <WorkspaceStart
         unavailable={!authRequired}
-        onStart={(identity) =>
-          act(
-            () =>
+        onStart={(identity) => {
+          void mutations.run({
+            request: () =>
               inviteToken
                 ? api("/v1/auth/invitations/accept", {
                     method: "POST",
@@ -807,22 +785,22 @@ export function Workspace() {
                     body: JSON.stringify(identity),
                     headers: { "x-nimanto-bootstrap-secret": bootstrapSecret },
                   }),
-            "Your private beta workspace is ready.",
-            startFresh,
-          )
-        }
-        onDemo={() =>
-          act(
-            () =>
+            success: "Your private beta workspace is ready.",
+            commit: startFresh,
+          });
+        }}
+        onDemo={() => {
+          void mutations.run({
+            request: () =>
               api("/v1/auth/demo", {
                 method: "POST",
                 body: "{}",
                 headers: { "x-nimanto-bootstrap-secret": bootstrapSecret },
               }),
-            "The synthetic Priya Shah workspace is ready.",
-            startFresh,
-          )
-        }
+            success: "The synthetic Priya Shah workspace is ready.",
+            commit: startFresh,
+          });
+        }}
         bootstrapSecret={bootstrapSecret}
         inviteMode={Boolean(inviteToken)}
         onBootstrapSecret={setBootstrapSecret}
@@ -853,14 +831,7 @@ export function Workspace() {
    * section to the hash so Back and reload work, and moves focus to the new
    * heading so a keyboard or screen-reader user is told where they landed. */
   const goToSection = (id: string) => {
-    const next = id as Section;
-    setSection(next);
-    setNotice(null);
-    setMobileNav(false);
-    if (routeReady && sectionFromHash(window.location.hash) !== next) {
-      window.location.hash = sectionHash(next);
-    }
-    window.requestAnimationFrame(focusSectionContent);
+    navigationTransitions.go(id as Section);
   };
   // Sections plus whatever the candidate is actually working on. Every entry is
   // a destination; none can carry an action.
@@ -948,14 +919,11 @@ export function Workspace() {
             type="button"
             className="workspace-nav-item"
             onClick={() => {
-              void act(
-                () => api("/v1/session", { method: "DELETE" }),
-                "Signed out.",
-                () => {
-                  clearBootstrapSecret();
-                  enterSignedOutState();
-                },
-              );
+              void mutations.run({
+                request: () => api("/v1/session", { method: "DELETE" }),
+                success: "Signed out.",
+                commit: () => applyIdentityTransition("signed_out"),
+              });
             }}
           >
             <LogOut size={18} /> Sign out
@@ -984,7 +952,7 @@ export function Workspace() {
             ref={menuButton}
             className="icon-button menu-button"
             type="button"
-            onClick={() => setMobileNav(true)}
+            onClick={navigationTransitions.openMobile}
             onKeyDown={(event) => {
               if (event.key === "Tab" && !event.shiftKey && !mobileNav && !busy) {
                 event.preventDefault();
@@ -1045,12 +1013,12 @@ export function Workspace() {
           aria-labelledby="workspace-section-name"
         >
           {section === "overview" && (
-            <Overview dashboard={dashboard} onGo={goToSection} onAct={act} busy={busy} />
+            <Overview dashboard={dashboard} onGo={goToSection} onAct={mutations} busy={busy} />
           )}
           {section === "evidence" && (
             <EvidenceVault
               dashboard={dashboard}
-              onAct={act}
+              onAct={mutations}
               busy={busy}
               draftClaim={draftClaim}
               onDraftUsed={clearDraftClaim}
@@ -1059,7 +1027,7 @@ export function Workspace() {
           {section === "jobs" && (
             <Jobs
               dashboard={dashboard}
-              onAct={act}
+              onAct={mutations}
               busy={busy}
               draft={manualRoleDraft}
               onDraftOpen={() => setManualRoleDraft((value) => value ?? emptyManualRoleDraft())}
@@ -1072,20 +1040,19 @@ export function Workspace() {
             />
           )}
           {section === "applications" && (
-            <Applications dashboard={dashboard} onAct={act} busy={busy} onGo={goToSection} />
+            <Applications dashboard={dashboard} onAct={mutations} busy={busy} onGo={goToSection} />
           )}
-          {section === "packets" && <Packets dashboard={dashboard} onAct={act} busy={busy} />}
+          {section === "packets" && <Packets dashboard={dashboard} onAct={mutations} busy={busy} />}
           {section === "history" && <StoredHistory />}
-          {section === "actions" && <Actions dashboard={dashboard} onAct={act} busy={busy} />}
+          {section === "actions" && <Actions dashboard={dashboard} onAct={mutations} busy={busy} />}
           {section === "activity" && <ActivityLedger dashboard={dashboard} />}
           {section === "data" && (
             <DataControls
               dashboard={dashboard}
-              onAct={act}
+              onAct={mutations}
               busy={busy}
               onDeleted={(receipt) => {
-                setManualRoleDraft(null);
-                setDeletionReceipt(receipt);
+                applyIdentityTransition({ kind: "deletion_recorded", receipt });
               }}
             />
           )}
@@ -1452,12 +1419,15 @@ function Overview({
             className="button inverted"
             type="button"
             disabled={busy}
-            onClick={() =>
-              onAct(async () => {
-                for (const job of dashboard.jobs)
-                  await api(`/v1/jobs/${job.id}/match`, { method: "POST" });
-              }, "Role explanations are ready.")
-            }
+            onClick={() => {
+              void onAct.run({
+                request: async () => {
+                  for (const job of dashboard.jobs)
+                    await api(`/v1/jobs/${job.id}/match`, { method: "POST" });
+                },
+                success: "Role explanations are ready.",
+              });
+            }}
           >
             Run starter matches
           </button>
@@ -1528,10 +1498,11 @@ function EvidenceVault({
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    void onAct(
-      () => api("/v1/evidence", { method: "POST", body: JSON.stringify({ kind, value }) }),
-      "Claim added to the review queue.",
-    ).then(() => setValue(""));
+    void onAct.run({
+      request: () => api("/v1/evidence", { method: "POST", body: JSON.stringify({ kind, value }) }),
+      success: "Claim added to the review queue.",
+      commit: () => setValue(""),
+    });
   };
   return (
     <>
@@ -1555,8 +1526,8 @@ function EvidenceVault({
                 onChange={(event) => {
                   const file = event.target.files?.[0];
                   if (!file) return;
-                  void onAct(
-                    async () => {
+                  void onAct.run({
+                    request: async () => {
                       const contentBase64 = await fileBase64(file);
                       const preview = await api<
                         Omit<EvidenceImportPreview, "filename" | "mimeType" | "contentBase64">
@@ -1575,9 +1546,9 @@ function EvidenceVault({
                         ...preview,
                       } satisfies EvidenceImportPreview;
                     },
-                    `${file.name} is ready for your import decision.`,
-                    (result) => setImportPreview(result as EvidenceImportPreview),
-                  );
+                    success: `${file.name} is ready for your import decision.`,
+                    commit: setImportPreview,
+                  });
                   event.target.value = "";
                 }}
               />
@@ -1653,9 +1624,9 @@ function EvidenceVault({
                   className="button primary"
                   type="button"
                   disabled={busy || importPreview.claimCount === 0}
-                  onClick={() =>
-                    onAct(
-                      () =>
+                  onClick={() => {
+                    void onAct.run({
+                      request: () =>
                         api("/v1/evidence/import", {
                           method: "POST",
                           body: JSON.stringify({
@@ -1665,10 +1636,10 @@ function EvidenceVault({
                             confirmedPreviewHash: importPreview.previewHash,
                           }),
                         }),
-                      `${importPreview.filename} was imported as pending evidence.`,
-                      () => setImportPreview(null),
-                    )
-                  }
+                      success: `${importPreview.filename} was imported as pending evidence.`,
+                      commit: () => setImportPreview(null),
+                    });
+                  }}
                 >
                   <Check size={16} /> Confirm import
                 </button>
@@ -1705,12 +1676,13 @@ function EvidenceVault({
                         className="icon-button positive"
                         type="button"
                         disabled={busy}
-                        onClick={() =>
-                          onAct(
-                            () => api(`/v1/evidence/${claim.id}/confirm`, { method: "POST" }),
-                            "Claim confirmed.",
-                          )
-                        }
+                        onClick={() => {
+                          void onAct.run({
+                            request: () =>
+                              api(`/v1/evidence/${claim.id}/confirm`, { method: "POST" }),
+                            success: "Claim confirmed.",
+                          });
+                        }}
                         aria-label={`Confirm ${claim.value}`}
                       >
                         <Check size={16} />
@@ -1719,12 +1691,13 @@ function EvidenceVault({
                         className="icon-button"
                         type="button"
                         disabled={busy}
-                        onClick={() =>
-                          onAct(
-                            () => api(`/v1/evidence/${claim.id}/reject`, { method: "POST" }),
-                            "Claim rejected.",
-                          )
-                        }
+                        onClick={() => {
+                          void onAct.run({
+                            request: () =>
+                              api(`/v1/evidence/${claim.id}/reject`, { method: "POST" }),
+                            success: "Claim rejected.",
+                          });
+                        }}
                         aria-label={`Reject ${claim.value}`}
                       >
                         <X size={16} />
@@ -1774,17 +1747,17 @@ function EvidenceVault({
             className="work-panel form-panel"
             onSubmit={(event) => {
               event.preventDefault();
-              void onAct(
-                () =>
+              void onAct.run({
+                request: () =>
                   api<ProfileVersionResponse>("/v1/profile/versions", {
                     method: "POST",
                     body: JSON.stringify({ authorizationWording: authorization }),
                   }),
-                (result) =>
-                  (result as ProfileVersionResponse).created
+                success: (result) =>
+                  result.created
                     ? "A new profile version was saved."
                     : "No profile changes were found; stored history is unchanged.",
-              );
+              });
             }}
           >
             <div className="panel-heading">
@@ -1897,8 +1870,8 @@ function Jobs({
       focusCompensationMaximum();
       return;
     }
-    void onAct(
-      () =>
+    void onAct.run({
+      request: () =>
         api("/v1/jobs", {
           method: "POST",
           body: JSON.stringify({
@@ -1916,20 +1889,19 @@ function Jobs({
             requirements,
           }),
         }),
-      "Role added.",
-      () => {
+      success: "Role added.",
+      commit: () => {
         setCompensationError(null);
         onDraftClose();
-        window.requestAnimationFrame(() => addRoleButton.current?.focus());
       },
-      undefined,
-      (error) => {
+      focus: () => addRoleButton.current?.focus(),
+      recover: (error) => {
         if (!(error instanceof ApiError) || error.code !== "INVALID_COMPENSATION") return false;
         setCompensationError(compensationFailure());
         focusCompensationMaximum();
         return true;
       },
-    );
+    });
   };
   const updateDraft = <K extends keyof ManualRoleDraft>(field: K, value: ManualRoleDraft[K]) => {
     if (draft) onDraftChange({ ...draft, [field]: value });
@@ -1945,20 +1917,21 @@ function Jobs({
   const importSource = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    void onAct(
-      () =>
+    void onAct.run({
+      request: () =>
         api("/v1/jobs/import", {
           method: "POST",
           body: JSON.stringify({ provider: data.get("provider"), board: data.get("board") }),
         }),
-      "Allowlisted source refreshed.",
-    ).then(() => setSourceOpen(false));
+      success: "Allowlisted source refreshed.",
+      commit: () => setSourceOpen(false),
+    });
   };
   const createSchedule = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    void onAct(
-      () =>
+    void onAct.run({
+      request: () =>
         api("/v1/schedules", {
           method: "POST",
           body: JSON.stringify({
@@ -1967,8 +1940,9 @@ function Jobs({
             cadenceMinutes: Number(data.get("cadenceMinutes")),
           }),
         }),
-      "Discovery schedule started.",
-    ).then(() => setScheduleOpen(false));
+      success: "Discovery schedule started.",
+      commit: () => setScheduleOpen(false),
+    });
   };
   return (
     <>
@@ -2316,12 +2290,13 @@ function Jobs({
                           type="button"
                           aria-label="Run schedule now"
                           disabled={busy}
-                          onClick={() =>
-                            onAct(
-                              () => api(`/v1/schedules/${schedule.id}/run-now`, { method: "POST" }),
-                              `${schedule.board} is queued now.`,
-                            )
-                          }
+                          onClick={() => {
+                            void onAct.run({
+                              request: () =>
+                                api(`/v1/schedules/${schedule.id}/run-now`, { method: "POST" }),
+                              success: `${schedule.board} is queued now.`,
+                            });
+                          }}
                         >
                           <Play size={14} /> Run now
                         </button>
@@ -2330,12 +2305,13 @@ function Jobs({
                           type="button"
                           aria-label="Pause schedule"
                           disabled={busy}
-                          onClick={() =>
-                            onAct(
-                              () => api(`/v1/schedules/${schedule.id}/pause`, { method: "POST" }),
-                              `${schedule.board} is paused.`,
-                            )
-                          }
+                          onClick={() => {
+                            void onAct.run({
+                              request: () =>
+                                api(`/v1/schedules/${schedule.id}/pause`, { method: "POST" }),
+                              success: `${schedule.board} is paused.`,
+                            });
+                          }}
                         >
                           <Pause size={15} />
                         </button>
@@ -2347,12 +2323,13 @@ function Jobs({
                         type="button"
                         aria-label="Resume schedule"
                         disabled={busy}
-                        onClick={() =>
-                          onAct(
-                            () => api(`/v1/schedules/${schedule.id}/resume`, { method: "POST" }),
-                            `${schedule.board} is queued again.`,
-                          )
-                        }
+                        onClick={() => {
+                          void onAct.run({
+                            request: () =>
+                              api(`/v1/schedules/${schedule.id}/resume`, { method: "POST" }),
+                            success: `${schedule.board} is queued again.`,
+                          });
+                        }}
                       >
                         <RotateCcw size={14} /> Resume
                       </button>
@@ -2363,12 +2340,13 @@ function Jobs({
                         type="button"
                         aria-label="Cancel schedule"
                         disabled={busy}
-                        onClick={() =>
-                          onAct(
-                            () => api(`/v1/schedules/${schedule.id}`, { method: "DELETE" }),
-                            `${schedule.board} schedule was cancelled.`,
-                          )
-                        }
+                        onClick={() => {
+                          void onAct.run({
+                            request: () =>
+                              api(`/v1/schedules/${schedule.id}`, { method: "DELETE" }),
+                            success: `${schedule.board} schedule was cancelled.`,
+                          });
+                        }}
                       >
                         <Trash2 size={15} />
                       </button>
@@ -2492,12 +2470,12 @@ function Jobs({
                   className="button mini quiet"
                   type="button"
                   disabled={busy}
-                  onClick={() =>
-                    onAct(
-                      () => api(`/v1/jobs/${job.id}/match`, { method: "POST" }),
-                      `Explanation ready for ${job.title}.`,
-                    )
-                  }
+                  onClick={() => {
+                    void onAct.run({
+                      request: () => api(`/v1/jobs/${job.id}/match`, { method: "POST" }),
+                      success: `Explanation ready for ${job.title}.`,
+                    });
+                  }}
                 >
                   <SlidersHorizontal size={15} /> Explain fit
                 </button>
@@ -2505,16 +2483,16 @@ function Jobs({
                   className="button mini primary"
                   type="button"
                   disabled={busy || dashboard.applications.some((item) => item.jobId === job.id)}
-                  onClick={() =>
-                    onAct(
-                      () =>
+                  onClick={() => {
+                    void onAct.run({
+                      request: () =>
                         api("/v1/applications", {
                           method: "POST",
                           body: JSON.stringify({ jobId: job.id }),
                         }),
-                      `${job.title} is now tracked.`,
-                    )
-                  }
+                      success: `${job.title} is now tracked.`,
+                    });
+                  }}
                 >
                   <Plus size={15} />{" "}
                   {dashboard.applications.some((item) => item.jobId === job.id)
@@ -2655,8 +2633,8 @@ function Signals({
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(event.currentTarget));
-    void onAct(
-      () =>
+    void onAct.run({
+      request: () =>
         api("/v1/h1b-signals", {
           method: "POST",
           body: JSON.stringify({
@@ -2665,8 +2643,9 @@ function Signals({
             observedAt: new Date().toISOString(),
           }),
         }),
-      "Historical sponsorship evidence added.",
-    ).then(() => setOpen(false));
+      success: "Historical sponsorship evidence added.",
+      commit: () => setOpen(false),
+    });
   };
   return (
     <section className="signals">
@@ -3210,33 +3189,23 @@ function Applications({
    * could be walked around without leaving the screen. */
   const move = (application: Application, to: ApplicationStatus) => {
     if (to === application.status || !canMove(application.status, to)) return;
+    let confirmed = false;
     if (
       needsConfirmation(application.status, to) &&
       !window.confirm(confirmationPrompt(to, application))
     )
       return;
-    /* The card unmounts into another column, so focus has to be put back on it
-     * where it landed rather than left to fall to the top of the document.
-     * Both signals are needed: `onSuccess` fires only when the move was
-     * accepted but runs before the dashboard reloads, and the settled promise
-     * runs after the reload but also resolves on failure — where stealing
-     * focus would pull the candidate off the error they need to read. */
-    let moved = false;
-    void onAct(
-      () =>
+    if (needsConfirmation(application.status, to)) confirmed = true;
+    void onAct.run({
+      request: () =>
         api(`/v1/applications/${application.id}/status`, {
           method: "PUT",
-          body: JSON.stringify({ status: to }),
+          body: JSON.stringify({ status: to, confirmed }),
         }),
-      "Application status updated.",
-      () => {
-        moved = true;
+      success: "Application status updated.",
+      focus: () => {
+        document.getElementById(`board-card-${application.id}`)?.focus();
       },
-    ).then(() => {
-      if (!moved) return;
-      window.requestAnimationFrame(() =>
-        document.getElementById(`board-card-${application.id}`)?.focus(),
-      );
     });
   };
 
@@ -3589,16 +3558,16 @@ function OutcomeEditor({
       className="outcome-form"
       onSubmit={(event) => {
         event.preventDefault();
-        void onAct(
-          () =>
+        void onAct.run({
+          request: () =>
             api(`/v1/applications/${application.id}/outcomes`, {
               method: "POST",
               body: JSON.stringify({ type, note }),
             }),
-          "Candidate-reported outcome recorded.",
-          onRecorded,
-          onClose,
-        );
+          success: "Candidate-reported outcome recorded.",
+          commit: onRecorded,
+          focus: onClose,
+        });
       }}
     >
       <label htmlFor={typeId}>Candidate-reported outcome</label>
@@ -3705,16 +3674,16 @@ function Packets({
                     className="button mini primary"
                     type="button"
                     disabled={busy}
-                    onClick={() =>
-                      onAct(
-                        () =>
+                    onClick={() => {
+                      void onAct.run({
+                        request: () =>
                           api<Packet>("/v1/packets", {
                             method: "POST",
                             body: JSON.stringify({ applicationId: application.id }),
                           }),
-                        (result) => packetInventoryNotice((result as Packet).artifactManifest),
-                      )
-                    }
+                        success: (result) => packetInventoryNotice(result.artifactManifest),
+                      });
+                    }}
                   >
                     <FileOutput size={15} /> Generate
                   </button>
@@ -3724,16 +3693,16 @@ function Packets({
                       className="button mini quiet"
                       type="button"
                       disabled={busy}
-                      onClick={() =>
-                        onAct(
-                          () =>
+                      onClick={() => {
+                        void onAct.run({
+                          request: () =>
                             api<Packet>("/v1/packets", {
                               method: "POST",
                               body: JSON.stringify({ applicationId: application.id }),
                             }),
-                          (result) => packetInventoryNotice((result as Packet).artifactManifest),
-                        )
-                      }
+                          success: (result) => packetInventoryNotice(result.artifactManifest),
+                        });
+                      }}
                     >
                       <FileOutput size={15} /> Generate new
                     </button>
@@ -3741,12 +3710,12 @@ function Packets({
                       className="button mini quiet"
                       type="button"
                       disabled={busy || packet.status === "approved"}
-                      onClick={() =>
-                        onAct(
-                          () => api(`/v1/packets/${packet.id}/assure`, { method: "POST" }),
-                          "Assurance check complete.",
-                        )
-                      }
+                      onClick={() => {
+                        void onAct.run({
+                          request: () => api(`/v1/packets/${packet.id}/assure`, { method: "POST" }),
+                          success: "Assurance check complete.",
+                        });
+                      }}
                     >
                       <ShieldCheck size={15} /> Assure
                     </button>
@@ -3754,21 +3723,25 @@ function Packets({
                       className="button mini primary"
                       type="button"
                       disabled={busy || packet.status !== "assurance_passed"}
-                      onClick={() =>
-                        onAct(
-                          () => api(`/v1/packets/${packet.id}/approve`, { method: "POST" }),
-                          "Packet approved for export.",
-                        )
-                      }
+                      onClick={() => {
+                        void onAct.run({
+                          request: () =>
+                            api(`/v1/packets/${packet.id}/approve`, { method: "POST" }),
+                          success: "Packet approved for export.",
+                        });
+                      }}
                     >
                       <Check size={15} /> Approve
                     </button>
                     <button
                       className="button mini quiet"
                       type="button"
+                      disabled={busy}
                       aria-expanded={historyFor === application.id}
                       onClick={() =>
-                        setHistoryFor(historyFor === application.id ? null : application.id)
+                        setHistoryFor((current) =>
+                          current === application.id ? null : application.id,
+                        )
                       }
                     >
                       <FileClock size={15} /> History
@@ -3925,10 +3898,18 @@ function PacketHistoryPanel({ applicationId }: { applicationId: string }) {
   const [page, setPage] = useState<HistoryPage<PacketHistoryRecord> | null>(null);
   const [assuranceFor, setAssuranceFor] = useState<string | null>(null);
   const [assurances, setAssurances] = useState<HistoryPage<AssuranceHistoryRun> | null>(null);
+  const [loadingOlderPackets, setLoadingOlderPackets] = useState(false);
+  const [loadingOlderAssurances, setLoadingOlderAssurances] = useState(false);
   const [error, setError] = useState("");
+  const packetRequests = useRef(createScopedRequestGate<string>()).current;
+  const assuranceRequests = useRef(createScopedRequestGate<string>()).current;
 
   useEffect(() => {
     let cancelled = false;
+    packetRequests.select(applicationId);
+    setLoadingOlderPackets(false);
+    setPage(null);
+    setError("");
     void api<HistoryPage<PacketHistoryRecord>>(
       `/v1/applications/${encodeURIComponent(applicationId)}/packets?limit=20`,
     )
@@ -3941,11 +3922,13 @@ function PacketHistoryPanel({ applicationId }: { applicationId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [applicationId]);
+  }, [applicationId, packetRequests]);
 
   useEffect(() => {
+    assuranceRequests.select(assuranceFor);
+    setLoadingOlderAssurances(false);
+    setAssurances(null);
     if (!assuranceFor) {
-      setAssurances(null);
       return;
     }
     let cancelled = false;
@@ -3961,7 +3944,7 @@ function PacketHistoryPanel({ applicationId }: { applicationId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [assuranceFor]);
+  }, [assuranceFor, assuranceRequests]);
 
   const packets = page?.items ?? [];
   const latest = packets[0];
@@ -3970,17 +3953,61 @@ function PacketHistoryPanel({ applicationId }: { applicationId: string }) {
   const manifestDelta = latest && previous ? packetManifestDelta(previous, latest) : [];
   const loadOlderPackets = async () => {
     if (!page?.nextCursor) return;
-    const older = await api<HistoryPage<PacketHistoryRecord>>(
-      `/v1/applications/${encodeURIComponent(applicationId)}/packets?limit=20&cursor=${encodeURIComponent(page.nextCursor)}`,
-    );
-    setPage({ items: [...page.items, ...older.items], nextCursor: older.nextCursor });
+    const cursor = page.nextCursor;
+    const request = packetRequests.begin(applicationId);
+    if (!request) return;
+    setLoadingOlderPackets(true);
+    try {
+      const older = await api<HistoryPage<PacketHistoryRecord>>(
+        `/v1/applications/${encodeURIComponent(applicationId)}/packets?limit=20&cursor=${encodeURIComponent(cursor)}`,
+      );
+      if (!packetRequests.isCurrent(request)) return;
+      setPage((current) =>
+        current?.nextCursor === cursor
+          ? { items: [...current.items, ...older.items], nextCursor: older.nextCursor }
+          : current,
+      );
+    } catch {
+      if (packetRequests.isCurrent(request)) {
+        setError("Older packet history could not be loaded.");
+      }
+    } finally {
+      if (packetRequests.finish(request)) setLoadingOlderPackets(false);
+    }
   };
   const loadOlderAssurances = async () => {
     if (!assurances?.nextCursor || !assuranceFor) return;
-    const older = await api<HistoryPage<AssuranceHistoryRun>>(
-      `/v1/packets/${encodeURIComponent(assuranceFor)}/assurance-runs?limit=20&cursor=${encodeURIComponent(assurances.nextCursor)}`,
-    );
-    setAssurances({ items: [...assurances.items, ...older.items], nextCursor: older.nextCursor });
+    const packetId = assuranceFor;
+    const cursor = assurances.nextCursor;
+    const request = assuranceRequests.begin(packetId);
+    if (!request) return;
+    setLoadingOlderAssurances(true);
+    try {
+      const older = await api<HistoryPage<AssuranceHistoryRun>>(
+        `/v1/packets/${encodeURIComponent(packetId)}/assurance-runs?limit=20&cursor=${encodeURIComponent(cursor)}`,
+      );
+      if (!assuranceRequests.isCurrent(request)) return;
+      setAssurances((current) =>
+        current?.nextCursor === cursor
+          ? { items: [...current.items, ...older.items], nextCursor: older.nextCursor }
+          : current,
+      );
+    } catch {
+      if (assuranceRequests.isCurrent(request)) {
+        setError("Older assurance history could not be loaded.");
+      }
+    } finally {
+      if (assuranceRequests.finish(request)) setLoadingOlderAssurances(false);
+    }
+  };
+  const toggleAssuranceHistory = (packetId: string) => {
+    const nextPacketId = assuranceFor === packetId ? null : packetId;
+    // Invalidate the old selection synchronously; an older response cannot win
+    // the interval before React runs the effect for the new selection.
+    assuranceRequests.select(nextPacketId);
+    setLoadingOlderAssurances(false);
+    setAssurances(null);
+    setAssuranceFor(nextPacketId);
   };
 
   return (
@@ -4074,7 +4101,7 @@ function PacketHistoryPanel({ applicationId }: { applicationId: string }) {
               className="button mini quiet"
               type="button"
               aria-expanded={assuranceFor === packet.id}
-              onClick={() => setAssuranceFor(assuranceFor === packet.id ? null : packet.id)}
+              onClick={() => toggleAssuranceHistory(packet.id)}
             >
               <ShieldCheck size={14} /> Assurance history
             </button>
@@ -4082,8 +4109,13 @@ function PacketHistoryPanel({ applicationId }: { applicationId: string }) {
         ))}
       </div>
       {page?.nextCursor && (
-        <button className="button mini quiet" type="button" onClick={() => void loadOlderPackets()}>
-          Load older packets
+        <button
+          className="button mini quiet"
+          type="button"
+          disabled={loadingOlderPackets}
+          onClick={() => void loadOlderPackets()}
+        >
+          {loadingOlderPackets ? "Loading older packets…" : "Load older packets"}
         </button>
       )}
       {assuranceFor && (
@@ -4116,9 +4148,12 @@ function PacketHistoryPanel({ applicationId }: { applicationId: string }) {
             <button
               className="button mini quiet"
               type="button"
+              disabled={loadingOlderAssurances}
               onClick={() => void loadOlderAssurances()}
             >
-              Load older assurance runs
+              {loadingOlderAssurances
+                ? "Loading older assurance runs…"
+                : "Load older assurance runs"}
             </button>
           )}
         </div>
@@ -4159,10 +4194,11 @@ function Actions({
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(event.currentTarget));
-    void onAct(
-      () => api("/v1/actions", { method: "POST", body: JSON.stringify(data) }),
-      "Action created and waiting for approval.",
-    ).then(() => setOpen(false));
+    void onAct.run({
+      request: () => api("/v1/actions", { method: "POST", body: JSON.stringify(data) }),
+      success: "Action created and waiting for approval.",
+      commit: () => setOpen(false),
+    });
   };
   return (
     <>
@@ -4203,18 +4239,18 @@ function Actions({
           }
           type="button"
           disabled={busy}
-          onClick={() =>
-            onAct(
-              () =>
+          onClick={() => {
+            void onAct.run({
+              request: () =>
                 api("/v1/actions/runtime", {
                   method: "PUT",
                   body: JSON.stringify({ enabled: !dashboard.runtime.externalActionsEnabled }),
                 }),
-              dashboard.runtime.externalActionsEnabled
+              success: dashboard.runtime.externalActionsEnabled
                 ? "Execution switch turned off."
                 : "Execution switch turned on for this runtime.",
-            )
-          }
+            });
+          }}
         >
           {dashboard.runtime.externalActionsEnabled ? (
             <>
@@ -4302,12 +4338,12 @@ function Actions({
                     className="button mini primary"
                     type="button"
                     disabled={busy}
-                    onClick={() =>
-                      onAct(
-                        () => api(`/v1/actions/${action.id}/approve`, { method: "POST" }),
-                        "Action approved. Execution is still separate.",
-                      )
-                    }
+                    onClick={() => {
+                      void onAct.run({
+                        request: () => api(`/v1/actions/${action.id}/approve`, { method: "POST" }),
+                        success: "Action approved. Execution is still separate.",
+                      });
+                    }}
                   >
                     <Check size={15} /> Approve
                   </button>
@@ -4315,12 +4351,12 @@ function Actions({
                     className="button mini quiet"
                     type="button"
                     disabled={busy}
-                    onClick={() =>
-                      onAct(
-                        () => api(`/v1/actions/${action.id}/cancel`, { method: "POST" }),
-                        "Action cancelled.",
-                      )
-                    }
+                    onClick={() => {
+                      void onAct.run({
+                        request: () => api(`/v1/actions/${action.id}/cancel`, { method: "POST" }),
+                        success: "Action cancelled.",
+                      });
+                    }}
                   >
                     <X size={15} /> Cancel
                   </button>
@@ -4331,14 +4367,15 @@ function Actions({
                   className="button mini primary"
                   type="button"
                   disabled={busy || !dashboard.runtime.externalActionsEnabled}
-                  onClick={() =>
-                    onAct(
-                      () => api(`/v1/actions/${action.id}/execute`, { method: "POST" }),
-                      action.provider === "deep_link"
-                        ? "Email deep link prepared."
-                        : "Approved action executed.",
-                    )
-                  }
+                  onClick={() => {
+                    void onAct.run({
+                      request: () => api(`/v1/actions/${action.id}/execute`, { method: "POST" }),
+                      success:
+                        action.provider === "deep_link"
+                          ? "Email deep link prepared."
+                          : "Approved action executed.",
+                    });
+                  }}
                 >
                   <Send size={15} /> Execute
                 </button>
@@ -4513,7 +4550,9 @@ function DataControls({
             className="button primary"
             type="button"
             disabled={busy || !exportConfirmed}
-            onClick={() => onAct(download, "Export downloaded.")}
+            onClick={() => {
+              void onAct.run({ request: download, success: "Export downloaded." });
+            }}
           >
             <Download size={16} /> Download JSON
           </button>
@@ -4541,19 +4580,23 @@ function DataControls({
             className="button danger-button"
             type="button"
             disabled={busy || confirmation !== "DELETE MY NIMANTO DATA"}
-            onClick={() =>
-              onAct(
-                () => api("/v1/data", { method: "DELETE", body: JSON.stringify({ confirmation }) }),
+            onClick={() => {
+              void onAct.run({
+                request: () =>
+                  api<DeletionReceipt>("/v1/data", {
+                    method: "DELETE",
+                    body: JSON.stringify({ confirmation }),
+                  }),
                 // Outcome-neutral on purpose: the server decides whether file
                 // cleanup finished, and the receipt below states which. A fixed
                 // "deleted" here would contradict a cleanup_pending receipt
                 // sitting directly beside it.
-                "Deletion recorded. Keep the status token.",
+                success: "Deletion recorded. Keep the status token.",
                 // Deletion clears the session, so this panel unmounts moments
                 // later. The receipt is handed upward to outlive it.
-                (result) => onDeleted(result as DeletionReceipt),
-              )
-            }
+                commit: onDeleted,
+              });
+            }}
           >
             <Trash2 size={16} /> Delete all data
           </button>

@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  APPLICATION_STATUSES,
-  applicationTransitionNeedsConfirmation,
-  isApplicationTransitionLegal,
-} from "@nimanto/domain";
+import { APPLICATION_STATUSES, applicationTransitions } from "@nimanto/domain";
 import {
   BOARD_COLUMNS,
   APPLICATION_MATCH_BUCKETS,
@@ -27,10 +23,9 @@ import {
   profileVersionDiff,
   recordReviewQueue,
   recordedOutcomeTimeline,
-  sectionFromHash,
-  sectionHash,
   type ApplicationStatus,
 } from "../lib/derive.js";
+import { sectionFromHash, sectionHash } from "../lib/navigation-transitions.js";
 
 const NOW = new Date("2026-08-05T12:00:00.000Z");
 const daysAgo = (n: number) => new Date(NOW.getTime() - n * 86_400_000).toISOString();
@@ -552,13 +547,18 @@ describe("pipeline board", () => {
         expect([from, to, canMove(from as ApplicationStatus, to as ApplicationStatus)]).toEqual([
           from,
           to,
-          isApplicationTransitionLegal(from, to),
+          applicationTransitions.candidate(from).decide(to).kind !== "illegal",
         ]);
         expect([
           from,
           to,
           needsConfirmation(from as ApplicationStatus, to as ApplicationStatus),
-        ]).toEqual([from, to, applicationTransitionNeedsConfirmation(from, to)]);
+        ]).toEqual([
+          from,
+          to,
+          applicationTransitions.candidate(from).options.find((option) => option.to === to)
+            ?.confirmation === "required",
+        ]);
       }
     }
   });
@@ -596,7 +596,7 @@ describe("legal targets", () => {
     for (const from of APPLICATION_STATUSES) {
       const offered = legalTargets(from as ApplicationStatus).filter((to) => to !== from);
       const allowed = APPLICATION_STATUSES.filter(
-        (to) => to !== from && isApplicationTransitionLegal(from, to),
+        (to) => to !== from && applicationTransitions.candidate(from).decide(to).kind !== "illegal",
       );
       expect([from, offered.toSorted()]).toEqual([from, allowed.toSorted()]);
     }
@@ -614,6 +614,15 @@ describe("failure messages", () => {
     const text = failureMessage({ code: "INVALID_APPLICATION_TRANSITION", message: "generic" })!;
     expect(text).toContain("Prepared");
     expect(text).not.toBe("generic");
+  });
+
+  it("explains a missing server-side consequential confirmation", () => {
+    expect(
+      failureMessage({
+        code: "APPLICATION_TRANSITION_CONFIRMATION_REQUIRED",
+        message: "generic",
+      }),
+    ).toContain("Confirm");
   });
 
   it("turns an invalid compensation range into a field-level correction", () => {

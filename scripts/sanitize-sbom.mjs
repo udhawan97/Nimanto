@@ -5,7 +5,8 @@ if (paths.length === 0) throw new Error("Pass at least one SBOM path.");
 
 function hasMachineLocalPath(value) {
   return Object.values(value ?? {}).some(
-    (entry) => typeof entry === "string" && /^\/(?:Users|home\/runner)\//u.test(entry),
+    (entry) =>
+      typeof entry === "string" && (entry.startsWith("/") || /^[A-Za-z]:[\\/]/u.test(entry)),
   );
 }
 
@@ -26,9 +27,22 @@ function sanitize(value) {
   return value;
 }
 
-for (const path of paths) {
-  const document = JSON.parse(await readFile(path, "utf8"));
-  await writeFile(path, `${JSON.stringify(sanitize(document), null, 2)}\n`, { mode: 0o600 });
+function normalizeDocumentIdentity(document) {
+  if (document["@context"] !== "https://spdx.org/rdf/3.0.1/spdx-context.jsonld") {
+    return document;
+  }
+  return {
+    ...document,
+    "@graph": document["@graph"]?.map((entry) =>
+      entry.type === "SpdxDocument" ? { ...entry, name: "Nimanto" } : entry,
+    ),
+  };
 }
 
-console.log(`Removed machine-local package paths from ${paths.length} SBOM file(s).`);
+for (const path of paths) {
+  const document = JSON.parse(await readFile(path, "utf8"));
+  const releaseDocument = normalizeDocumentIdentity(sanitize(document));
+  await writeFile(path, `${JSON.stringify(releaseDocument, null, 2)}\n`, { mode: 0o600 });
+}
+
+console.log(`Normalized ${paths.length} release SBOM file(s).`);

@@ -1,94 +1,84 @@
 import { describe, expect, it } from "vitest";
-import {
-  APPLICATION_STATUSES,
-  applicationTransitionNeedsConfirmation,
-  isApplicationTransitionLegal,
-  transitionApplication,
-} from "../src/applications.js";
+import { APPLICATION_STATUSES, applicationTransitions } from "../src/applications.js";
 
-describe("application status transitions", () => {
-  it("allows the ordinary preparation path to move in both directions", () => {
-    expect(transitionApplication("tracked", "prepared")).toEqual({
-      status: "prepared",
-      clearSubmittedAt: false,
+describe("application transition policy", () => {
+  it("exposes only legal candidate options and their confirmation requirement", () => {
+    expect(applicationTransitions.candidate("tracked").options).toEqual([
+      { to: "prepared", confirmation: "none" },
+      { to: "withdrawn", confirmation: "required" },
+    ]);
+    expect(applicationTransitions.candidate("prepared").options).toEqual([
+      { to: "tracked", confirmation: "none" },
+      { to: "approved_for_export", confirmation: "required" },
+      { to: "withdrawn", confirmation: "required" },
+    ]);
+  });
+
+  it("distinguishes unchanged, allowed, confirmation-required, and illegal moves", () => {
+    const tracked = applicationTransitions.candidate("tracked");
+    expect(tracked.decide("tracked")).toEqual({ kind: "unchanged", status: "tracked" });
+    expect(tracked.decide("prepared")).toEqual({
+      kind: "allowed",
+      transition: { to: "prepared" },
     });
-    expect(transitionApplication("prepared", "tracked")).toEqual({
-      status: "tracked",
-      clearSubmittedAt: false,
+    expect(tracked.decide("withdrawn")).toEqual({
+      kind: "confirmation_required",
+      to: "withdrawn",
+    });
+    expect(tracked.decide("withdrawn", { confirmed: true })).toEqual({
+      kind: "allowed",
+      transition: { to: "withdrawn" },
+    });
+    expect(tracked.decide("submitted_externally", { confirmed: true })).toEqual({
+      kind: "illegal",
+      code: "INVALID_APPLICATION_TRANSITION",
     });
   });
 
-  it("refuses to skip preparation on the way to an external submission", () => {
-    expect(() => transitionApplication("tracked", "submitted_externally")).toThrow(
-      /tracked -> submitted_externally/,
+  it("keeps packet consequences separate from candidate legality", () => {
+    expect(applicationTransitions.packet("tracked", "packet_generated")).toEqual({
+      kind: "system_consequence",
+      to: "prepared",
+    });
+    expect(applicationTransitions.packet("prepared", "packet_approved")).toEqual({
+      kind: "system_consequence",
+      to: "approved_for_export",
+    });
+    expect(applicationTransitions.candidate("withdrawn").decide("prepared")).toEqual({
+      kind: "illegal",
+      code: "INVALID_APPLICATION_TRANSITION",
+    });
+    expect(() => applicationTransitions.packet("tracked", "unknown" as never)).toThrow(
+      "INVALID_PACKET_APPLICATION_EFFECT",
     );
-    expect(isApplicationTransitionLegal("tracked", "submitted_externally")).toBe(false);
   });
 
-  it("clears the submission timestamp when an application leaves submitted_externally", () => {
-    // The store stamps submitted_at on entry and previously never cleared it, so a
-    // corrected mis-drop left a false submission record on the candidate's own file.
-    expect(transitionApplication("submitted_externally", "approved_for_export")).toEqual({
-      status: "approved_for_export",
-      clearSubmittedAt: true,
-    });
-    expect(transitionApplication("submitted_externally", "withdrawn")).toEqual({
-      status: "withdrawn",
-      clearSubmittedAt: true,
-    });
-  });
-
-  it("keeps the submission timestamp for every transition that is not an exit", () => {
-    for (const status of APPLICATION_STATUSES) {
-      for (const next of APPLICATION_STATUSES) {
-        if (!isApplicationTransitionLegal(status, next)) continue;
-        if (status === "submitted_externally" && next !== "submitted_externally") continue;
-        expect(transitionApplication(status, next).clearSubmittedAt).toBe(false);
-      }
-    }
-  });
-
-  it("treats a no-op as legal and inert", () => {
-    for (const status of APPLICATION_STATUSES) {
-      expect(transitionApplication(status, status)).toEqual({
+  it("preserves candidate-recorded submissions and withdrawals from packet effects", () => {
+    for (const status of ["submitted_externally", "withdrawn"] as const) {
+      expect(applicationTransitions.packet(status, "packet_generated")).toEqual({
+        kind: "candidate_status_preserved",
         status,
-        clearSubmittedAt: false,
       });
-      expect(applicationTransitionNeedsConfirmation(status, status)).toBe(false);
+      expect(applicationTransitions.packet(status, "packet_approved")).toEqual({
+        kind: "candidate_status_preserved",
+        status,
+      });
     }
   });
 
-  it("requires confirmation for every status that records a consequential fact", () => {
-    expect(applicationTransitionNeedsConfirmation("prepared", "approved_for_export")).toBe(true);
-    expect(
-      applicationTransitionNeedsConfirmation("approved_for_export", "submitted_externally"),
-    ).toBe(true);
-    expect(applicationTransitionNeedsConfirmation("tracked", "withdrawn")).toBe(true);
-  });
-
-  it("lets the candidate move freely between tracked and prepared", () => {
-    expect(applicationTransitionNeedsConfirmation("tracked", "prepared")).toBe(false);
-    expect(applicationTransitionNeedsConfirmation("prepared", "tracked")).toBe(false);
-  });
-
-  it("lets a withdrawn application be reopened", () => {
-    expect(transitionApplication("withdrawn", "tracked")).toEqual({
-      status: "tracked",
-      clearSubmittedAt: false,
+  it("rejects unknown statuses without throwing from ordinary policy decisions", () => {
+    expect(applicationTransitions.isStatus("hired")).toBe(false);
+    expect(applicationTransitions.isStatus("tracked")).toBe(true);
+    expect(applicationTransitions.candidate("nonsense" as never).options).toEqual([]);
+    expect(applicationTransitions.candidate("nonsense" as never).decide("tracked")).toEqual({
+      kind: "illegal",
+      code: "INVALID_APPLICATION_TRANSITION",
     });
   });
 
-  it("rejects a status outside the union", () => {
-    expect(() => transitionApplication("tracked", "hired" as never)).toThrow(/Unknown/);
-    expect(isApplicationTransitionLegal("nonsense" as never, "tracked")).toBe(false);
-  });
-
-  it("never leaves a status stranded with no legal exit", () => {
+  it("never strands a known status", () => {
     for (const status of APPLICATION_STATUSES) {
-      const exits = APPLICATION_STATUSES.filter(
-        (next) => next !== status && isApplicationTransitionLegal(status, next),
-      );
-      expect(exits.length).toBeGreaterThan(0);
+      expect(applicationTransitions.candidate(status).options.length).toBeGreaterThan(0);
     }
   });
 });

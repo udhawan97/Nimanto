@@ -981,11 +981,57 @@ describe("beta workflow persistence", () => {
     expect(corrected?.submittedAt).toBeNull();
   });
 
-  it("still lets packet flows set a status from any prior state", async () => {
-    // Packet creation writes "prepared" and packet approval writes
-    // "approved_for_export" as system consequences. Candidate-facing transition
-    // policy lives in the API route, so these internal writers must stay
-    // unblocked whatever state the application is in.
+  it("owns candidate policy and timestamp changes in one persistence transaction", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nimanto-store-"));
+    const store = await NimantoStore.open(join(root, "data"));
+    stores.push(store);
+    const identity = await store.createLocalTenant("candidate@example.test", "Candidate");
+    const job = await store.upsertJob(identity.tenantId, {
+      source: "manual",
+      sourceJobId: "candidate-policy",
+      title: "Engineer",
+      company: "Northwind",
+      description: "Build services",
+      location: "",
+      workMode: "unspecified",
+      url: "",
+      requirements: [],
+      capability: "deep_link",
+      sourceMeta: {},
+      contentHash: "candidate-policy-hash",
+    });
+    const application = await store.createApplication(identity.tenantId, job.id, null);
+
+    await expect(
+      store.transitionCandidateApplicationStatus(
+        identity.tenantId,
+        application.id,
+        "withdrawn",
+        false,
+      ),
+    ).rejects.toThrow("APPLICATION_TRANSITION_CONFIRMATION_REQUIRED");
+    await expect(
+      store.transitionCandidateApplicationStatus(
+        identity.tenantId,
+        application.id,
+        "submitted_externally",
+        true,
+      ),
+    ).rejects.toThrow("INVALID_APPLICATION_TRANSITION");
+
+    const withdrawn = await store.transitionCandidateApplicationStatus(
+      identity.tenantId,
+      application.id,
+      "withdrawn",
+      true,
+    );
+    expect(withdrawn?.status).toBe("withdrawn");
+  });
+
+  it("keeps the packet persistence primitive separate from candidate intent", async () => {
+    // PacketLifecycle decides its named system consequence inside its owning
+    // transaction. This low-level write deliberately does not run candidate
+    // confirmation policy or own the lifecycle's authority decision.
     const root = await mkdtemp(join(tmpdir(), "nimanto-store-"));
     const store = await NimantoStore.open(join(root, "data"));
     stores.push(store);
@@ -1006,7 +1052,6 @@ describe("beta workflow persistence", () => {
       contentHash: "content-sys",
     });
     const application = await store.createApplication(identity.tenantId, job.id, profile.id);
-    await store.setApplicationStatus(identity.tenantId, application.id, "withdrawn");
     const prepared = await store.setApplicationStatus(
       identity.tenantId,
       application.id,

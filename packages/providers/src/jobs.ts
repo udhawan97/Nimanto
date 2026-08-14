@@ -60,7 +60,7 @@ function digest(value: unknown): string {
 
 async function getJson(url: string, fetcher: Fetcher): Promise<unknown> {
   const response = await fetcher(url, {
-    headers: { accept: "application/json", "user-agent": "Nimanto/0.1" },
+    headers: { accept: "application/json", "user-agent": "Nimanto/0.5.0" },
     redirect: "error",
     signal: AbortSignal.timeout(10_000),
   });

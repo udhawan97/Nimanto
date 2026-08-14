@@ -18,7 +18,11 @@ export default defineConfig({
   webServer: {
     command: "pnpm start",
     url: "http://127.0.0.1:4300/workspace/",
-    reuseExistingServer: false,
+    // CI always owns a disposable server. Local debugging may opt into an
+    // already-ready disposable server so a single late-suite journey does not
+    // race PGlite startup without the public-site warm-up that precedes it in
+    // the complete release run.
+    reuseExistingServer: process.env.NIMANTO_REUSE_SERVER === "true",
     timeout: 60_000,
     env: {
       NIMANTO_BOOTSTRAP_SECRET: bootstrapSecret,

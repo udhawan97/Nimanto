@@ -1,9 +1,17 @@
 import type { NimantoStore } from "@nimanto/database";
+import { normalizeRoleObservation, type CurrentRole } from "@nimanto/domain";
 import { fetchProviderJobs } from "@nimanto/providers";
 import { publishMatch } from "./match-publication.js";
 
 export type ProviderJobsFetcher = typeof fetchProviderJobs;
 type Provider = "greenhouse" | "lever" | "ashby";
+
+function normalizeProviderRole(job: Awaited<ReturnType<ProviderJobsFetcher>>[number]): CurrentRole {
+  return normalizeRoleObservation({
+    ...job,
+    sourceRoleId: job.sourceJobId,
+  });
+}
 
 export class DiscoveryCycle {
   constructor(
@@ -14,12 +22,12 @@ export class DiscoveryCycle {
   private async persist(
     database: NimantoStore,
     tenantId: string,
-    remote: Awaited<ReturnType<ProviderJobsFetcher>>,
+    roles: readonly CurrentRole[],
     publish: boolean,
   ) {
     const jobs = [];
-    for (const job of remote.slice(0, 500)) {
-      jobs.push(await database.upsertJob(tenantId, { ...job, capability: "deep_link" }));
+    for (const role of roles) {
+      jobs.push(await database.upsertJob(tenantId, role));
     }
     if (!publish || jobs.length === 0) return { imported: jobs.length, matched: 0, jobs };
     for (const job of jobs) {
@@ -30,9 +38,10 @@ export class DiscoveryCycle {
 
   async directImport(tenantId: string, provider: Provider, board: string) {
     const remote = await this.fetchJobs({ provider, board });
+    const roles = remote.slice(0, 500).map(normalizeProviderRole);
     return this.store.transaction(async (database) => {
       await database.assertTenantActive(tenantId);
-      return this.persist(database, tenantId, remote, false);
+      return this.persist(database, tenantId, roles, false);
     });
   }
 
@@ -54,10 +63,11 @@ export class DiscoveryCycle {
           provider: claim.schedule.provider,
           board: claim.schedule.board,
         });
+        const roles = remote.slice(0, 500).map(normalizeProviderRole);
         const execution = await this.store.executeSourceSchedule(
           claim.schedule.id,
           claim.leaseToken,
-          (database) => this.persist(database, claim.schedule.tenantId, remote, true),
+          (database) => this.persist(database, claim.schedule.tenantId, roles, true),
         );
         totals.imported += execution.result.imported;
         totals.matched += execution.result.matched;

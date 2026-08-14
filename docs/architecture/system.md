@@ -2,13 +2,14 @@
 
 ## Purpose
 
-Nimanto is a candidate-side evidence and application workbench. Its architecture keeps five trust boundaries explicit:
+Nimanto is a candidate-side evidence and application workbench. Its architecture keeps six trust boundaries explicit:
 
 1. imported material is not confirmed evidence;
 2. historical sponsorship evidence is not a current employer promise;
-3. a match explanation is not a hiring probability;
-4. generated text is not an approved packet;
-5. an approved packet is not permission to perform an external action.
+3. a current Role record is not immutable posting history;
+4. a match explanation is not a hiring probability;
+5. generated text is not an approved packet;
+6. an approved packet is not permission to perform an external action.
 
 ## Runtime topology
 
@@ -19,7 +20,7 @@ flowchart TB
   API --> Intake["Candidate-approved evidence intake"]
   Intake --> Parsers["Bounded TXT · MD · JSON · OOXML DOCX · text-layer PDF"]
   API --> Publication["Exact-snapshot match publication"]
-  Publication --> Domain["Matching · assurance · receipts"]
+  Publication --> Domain["Matching · assurance · transitions · receipts"]
   API --> Packet["Staged packet lifecycle"]
   Packet --> Documents["JSON · TXT · DOCX · PDF renderers"]
   Worker["Durable refresh worker"] -->|"private loopback cycle"| API
@@ -56,15 +57,15 @@ stateDiagram-v2
 
 ## Package seams
 
-| Seam                 | Owns                                                                      | Must not own                             |
-| -------------------- | ------------------------------------------------------------------------- | ---------------------------------------- |
-| `@nimanto/domain`    | Pure matching, assurance, canonical hashes, receipts, state transitions   | Network or database access               |
-| `@nimanto/database`  | Tenant-scoped persistence and lifecycle operations                        | Provider requests or UI copy             |
-| `@nimanto/parsers`   | Bounded text extraction into pending claims                               | Confirmation decisions                   |
-| `@nimanto/documents` | Canonical packet rendering and artifact hashes                            | Arbitrary model-authored claims          |
-| `@nimanto/providers` | Fixed-host ATS, local model, and mail adapters                            | Approval state                           |
-| `@nimanto/api`       | Authentication, lifecycle modules, validation, rate limiting, safe errors | Employer screening or outcome prediction |
-| `@nimanto/web`       | Candidate decisions and explanations                                      | Secrets or direct provider credentials   |
+| Seam                 | Owns                                                                        | Must not own                             |
+| -------------------- | --------------------------------------------------------------------------- | ---------------------------------------- |
+| `@nimanto/domain`    | Pure matching, assurance, Role normalization, hashes, receipts, transitions | Network or database access               |
+| `@nimanto/database`  | Tenant-scoped persistence and lifecycle operations                          | Provider requests or UI copy             |
+| `@nimanto/parsers`   | Bounded text extraction into pending claims                                 | Confirmation decisions                   |
+| `@nimanto/documents` | Canonical packet rendering and artifact hashes                              | Arbitrary model-authored claims          |
+| `@nimanto/providers` | Fixed-host ATS, local model, and mail adapters                              | Approval state                           |
+| `@nimanto/api`       | Authentication, lifecycle modules, validation, rate limiting, safe errors   | Employer screening or outcome prediction |
+| `@nimanto/web`       | Candidate decisions, mutation sequencing, identity, navigation and focus    | Direct provider access or domain effects |
 
 ## Persistence
 
@@ -105,6 +106,29 @@ Manual role drafts deliberately stay outside persistence. The client holds one
 owner-bounded draft above section routing, clears it at authentication and
 deletion boundaries, and writes a role only after an explicit successful save.
 
+Manual, allowlisted URL, Greenhouse, Lever, and Ashby adapters each own their
+source-specific retrieval, parsing, identity, provenance, and content hash. They
+then pass a complete Role Observation through the domain normalizer before any
+write. Common NFC/trim/default rules therefore stay consistent, and an invalid
+provider item rejects the complete bounded batch before its transaction begins.
+Persistence still updates or inserts one current mutable row under exact
+`(tenant, source, sourceJobId)` identity. It does not retain immutable Role
+observations or deduplicate across sources. A Match Publication separately
+freezes the exact normalized role input it used. Historical planning documents
+describe possible snapshot/history/deduplication systems; those remain future
+proposals, not the implemented model documented here.
+
+Candidate Application transitions use the domain legal-edge and confirmation
+policy. The database locks the active tenant and current Application row, repeats
+the policy decision, and updates status plus `submittedAt` in one transaction.
+Packet generation and approval do not impersonate candidate intent: the Packet
+lifecycle names them as system consequences and writes `prepared` or
+`approved_for_export` inside its larger packet/receipt transaction while the
+Application is still in a preparation state. If the candidate has recorded
+`submitted_externally` or `withdrawn`, the policy preserves that status and the
+lifecycle performs no Application write. Persistence, not the pure policy
+module, owns timestamp atomicity.
+
 `nimanto_export_v2` adds complete retained profile-version, match-run,
 assurance-run, and government dataset-edition records to the explicit JSON inspection export. It intentionally
 omits session and invitation credentials, deletion internals, and generated
@@ -126,6 +150,15 @@ checksum or transformation for an existing edition fails before signal writes.
 
 There is no public hosted sign-up flow. Email-bound, hashed, single-use invitations create isolated local/self-hosted candidate workspaces. Passkeys, managed recovery, production cookie security, and hosted identity remain hosted-beta gates.
 
+The browser gives Identity transitions first refusal on every URL fragment. An
+invitation or bootstrap credential is captured before the address is scrubbed;
+unknown key/value fragments are scrubbed and never routed. Authentication loss
+clears identity-owned drafts without echoing credential values. A separate
+navigation/focus module owns only known section hashes, mobile-dialog focus,
+sticky-header scroll correction, and post-render error or success focus. The
+Workbench mutation coordinator composes these modules for UI sequencing while
+keeping each request opaque; it is not a domain command bus or Action Intent.
+
 ## Durable discovery
 
 Candidates can schedule Greenhouse, Lever, and Ashby public-board refreshes from the workbench. The `DiscoveryCycle` owns separate direct-import and scheduled-refresh operations. Direct import fetches before its database transaction and commits the role batch without scoring. Scheduled refresh first claims a durable lease, then fetches, then publishes through the same exact-snapshot `MatchPublication` used by manual scoring. Schedules are tenant-owned database records with bounded cadence, a single hashed lease, retry backoff, pause/resume/run-now/cancel controls, and a visible dead-letter state after five consecutive failures. Each job/match/receipt batch and recurring-state advance commits in one lease-locked transaction. A worker cycle claims at most three due schedules, imports at most 500 roles per source, and cannot prepare packets, approve, email, or submit.
@@ -134,7 +167,7 @@ Candidates can schedule Greenhouse, Lever, and Ashby public-board refreshes from
 
 The database state machine and domain state machine must agree. Action approval binds the immutable target/payload intent hash and the exact approved packet hash. Execution revalidates both, requires the in-memory runtime switch, and compare-and-swaps `approved` to `executing`. Provider failure becomes `failed`; a provider success followed by uncertain local persistence becomes `ambiguous`, and an interrupted `executing` record is recovered as ambiguous on restart. Neither state is retried automatically. The switch has no environment override and resets to off with every API restart.
 
-Version 0.4.2 has no connected-account provider. Verification uses only a user-opened deep link and the local test outbox. Gmail, Outlook, form submission, and desktop delivery remain behind the separately approved Slice 4 boundary.
+Version 0.5.0 has no connected-account provider. Verification uses only a user-opened deep link and the local test outbox. Gmail, Outlook, form submission, and desktop delivery remain behind the separately approved Slice 4 boundary.
 
 ## Scaling path
 

@@ -9,9 +9,10 @@ import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
 import { NimantoStore, type SessionIdentity } from "@nimanto/database";
 import {
+  applicationTransitions,
   canonicalHash,
   freshH1bLabel,
-  isApplicationTransitionLegal,
+  normalizeRoleObservation,
   type ApplicationStatus,
   type EvidenceClaim,
   type ExternalActionProvider,
@@ -155,6 +156,12 @@ function messageForError(error: Error): { code: string; status: number; message:
       status: 409,
       message:
         "An application moves Tracked to Prepared to Approved for export to Submitted externally. Move it to the next stage first, or withdraw it.",
+    };
+  if (code === "APPLICATION_TRANSITION_CONFIRMATION_REQUIRED")
+    return {
+      code,
+      status: 409,
+      message: "Confirm this consequential application change, then try again.",
     };
   if (
     code.includes("REQUIRED") ||
@@ -321,7 +328,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     openapi: {
       info: {
         title: "Nimanto local beta API",
-        version: "0.4.2",
+        version: "0.5.0",
         description: "Candidate-side evidence and application workbench.",
       },
       servers: [{ url: `http://${options.host}:${options.port}` }],
@@ -339,10 +346,10 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     return payload;
   });
 
-  app.get("/health", async () => ({ status: "ok", version: "0.4.2" }));
+  app.get("/health", async () => ({ status: "ok", version: "0.5.0" }));
   app.get("/v1/meta", async () => ({
     name: "Nimanto",
-    version: "0.4.2",
+    version: "0.5.0",
     mode: "local_beta",
     externalActionsEnabled: externalActionLifecycle.runtime(),
     providers: {
@@ -764,49 +771,53 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     ) {
       throw new Error("INVALID_COMPENSATION");
     }
-    return store.upsertJob(person.tenantId, {
-      source: "manual",
-      sourceJobId: canonicalHash({ title, company, description }).slice(0, 24),
-      title,
-      company,
-      description,
-      location: typeof body.location === "string" ? body.location : "",
-      workMode: typeof body.workMode === "string" ? body.workMode : "unspecified",
-      url: privateSourceUrl(body.url),
-      requirements,
-      capability: "deep_link",
-      sourceMeta: {
-        manual: true,
-        compensation:
-          compensationMin !== null || compensationMax !== null
-            ? {
-                minimum: compensationMin,
-                maximum: compensationMax,
-                currency: "USD",
-                period: "annual",
-                source: "user_supplied_posting",
-              }
-            : null,
-        benefits: Array.isArray(body.benefits)
-          ? body.benefits.filter((value): value is string => typeof value === "string").slice(0, 30)
-          : [],
-        interviewEvidence:
-          typeof body.interviewEvidence === "string" && body.interviewEvidence.trim()
-            ? {
-                text: body.interviewEvidence.normalize("NFC").trim(),
-                sourceLocator:
-                  typeof body.interviewSource === "string"
-                    ? body.interviewSource.normalize("NFC").trim()
-                    : "user supplied",
-                observedAt: new Date().toISOString(),
-                confidence: "user_supplied",
-                limitations:
-                  "Applies only to the recorded role/location context; verify freshness.",
-              }
-            : null,
-      },
-      contentHash: canonicalHash({ title, company, description, requirements }),
-    });
+    return store.upsertJob(
+      person.tenantId,
+      normalizeRoleObservation({
+        source: "manual",
+        sourceRoleId: canonicalHash({ title, company, description }).slice(0, 24),
+        title,
+        company,
+        description,
+        location: typeof body.location === "string" ? body.location : "",
+        workMode: typeof body.workMode === "string" ? body.workMode : "unspecified",
+        url: privateSourceUrl(body.url),
+        requirements,
+        sourceMeta: {
+          manual: true,
+          compensation:
+            compensationMin !== null || compensationMax !== null
+              ? {
+                  minimum: compensationMin,
+                  maximum: compensationMax,
+                  currency: "USD",
+                  period: "annual",
+                  source: "user_supplied_posting",
+                }
+              : null,
+          benefits: Array.isArray(body.benefits)
+            ? body.benefits
+                .filter((value): value is string => typeof value === "string")
+                .slice(0, 30)
+            : [],
+          interviewEvidence:
+            typeof body.interviewEvidence === "string" && body.interviewEvidence.trim()
+              ? {
+                  text: body.interviewEvidence.normalize("NFC").trim(),
+                  sourceLocator:
+                    typeof body.interviewSource === "string"
+                      ? body.interviewSource.normalize("NFC").trim()
+                      : "user supplied",
+                  observedAt: new Date().toISOString(),
+                  confidence: "user_supplied",
+                  limitations:
+                    "Applies only to the recorded role/location context; verify freshness.",
+                }
+              : null,
+        },
+        contentHash: canonicalHash({ title, company, description, requirements }),
+      }),
+    );
   });
 
   app.post("/v1/jobs/import", async (request) => {
@@ -835,32 +846,34 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     const title = string(body.title, "title");
     const company = string(body.company, "company");
     const requirements = strings(body.requirements ?? [], "requirements");
-    return store.upsertJob(person.tenantId, {
-      source: "allowlisted_url",
-      sourceJobId: canonicalHash(page.canonicalUrl).slice(0, 24),
-      title,
-      company,
-      description: page.text,
-      location: typeof body.location === "string" ? body.location : "",
-      workMode: typeof body.workMode === "string" ? body.workMode : "unspecified",
-      url: page.canonicalUrl,
-      requirements,
-      capability: "deep_link",
-      sourceMeta: {
-        retrievalMethod: "allowlisted_https_get",
-        observedAt: page.observedAt,
-        termsReviewedAt: options.urlTermsReviewedAt,
-        transientBodyDeleted: true,
-        redistribution: "tenant_private_normalized_text_only",
-      },
-      contentHash: canonicalHash({
+    return store.upsertJob(
+      person.tenantId,
+      normalizeRoleObservation({
+        source: "allowlisted_url",
+        sourceRoleId: canonicalHash(page.canonicalUrl).slice(0, 24),
         title,
         company,
         description: page.text,
-        requirements,
+        location: typeof body.location === "string" ? body.location : "",
+        workMode: typeof body.workMode === "string" ? body.workMode : "unspecified",
         url: page.canonicalUrl,
+        requirements,
+        sourceMeta: {
+          retrievalMethod: "allowlisted_https_get",
+          observedAt: page.observedAt,
+          termsReviewedAt: options.urlTermsReviewedAt,
+          transientBodyDeleted: true,
+          redistribution: "tenant_private_normalized_text_only",
+        },
+        contentHash: canonicalHash({
+          title,
+          company,
+          description: page.text,
+          requirements,
+          url: page.canonicalUrl,
+        }),
       }),
-    });
+    );
   });
 
   app.post("/v1/jobs/:id/match", async (request) => {
@@ -905,27 +918,15 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
   app.put("/v1/applications/:id/status", async (request) => {
     const person = identity(request);
     const body = object(request.body);
-    const status = string(body.status, "status") as ApplicationStatus;
-    const statuses: ApplicationStatus[] = [
-      "tracked",
-      "prepared",
-      "approved_for_export",
-      "submitted_externally",
-      "withdrawn",
-    ];
-    if (!statuses.includes(status)) throw new Error("INVALID_STATUS");
+    const requestedStatus = string(body.status, "status");
+    if (!applicationTransitions.isStatus(requestedStatus)) throw new Error("INVALID_STATUS");
     const id = (request.params as { id: string }).id;
-    const existing = (await store.listApplications(person.tenantId)).find(
-      (application) => application.id === id,
+    const record = await store.transitionCandidateApplicationStatus(
+      person.tenantId,
+      id,
+      requestedStatus,
+      body.confirmed === true,
     );
-    if (!existing) throw new Error("APPLICATION_NOT_FOUND");
-    // Membership in the union is not enough: the board must not be able to
-    // record a submission that skipped preparation, and leaving
-    // submitted_externally has to clear the timestamp the store stamped.
-    if (!isApplicationTransitionLegal(existing.status, status)) {
-      throw new Error("INVALID_APPLICATION_TRANSITION");
-    }
-    const record = await store.setApplicationStatus(person.tenantId, id, status);
     if (!record) throw new Error("APPLICATION_NOT_FOUND");
     return record;
   });

@@ -25,13 +25,25 @@ const requiredPurls = [
   "pkg:npm/%40fastify/cookie@11.1.2",
 ];
 
+function containsAbsoluteFilesystemPath(value) {
+  if (typeof value === "string") {
+    return value.startsWith("/") || /^[A-Za-z]:[\\/]/u.test(value);
+  }
+  if (Array.isArray(value)) return value.some(containsAbsoluteFilesystemPath);
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    Object.values(value).some(containsAbsoluteFilesystemPath)
+  );
+}
+
 for (const path of paths) {
   const document = JSON.parse(await readFile(path, "utf8"));
   const serialized = JSON.stringify(document);
   if (serialized.includes(".claude/worktrees/")) {
     throw new Error(`${path} contains dependencies from a nested Claude worktree`);
   }
-  if (/\/(?:Users|home\/runner)\//u.test(serialized)) {
+  if (containsAbsoluteFilesystemPath(document)) {
     throw new Error(`${path} contains a machine-local absolute path`);
   }
   for (const purl of requiredPurls) {
@@ -66,6 +78,10 @@ for (const path of paths) {
   }
 
   if (document["@context"] === "https://spdx.org/rdf/3.0.1/spdx-context.jsonld") {
+    const spdxDocument = document["@graph"]?.find((entry) => entry.type === "SpdxDocument");
+    if (spdxDocument?.name !== "Nimanto") {
+      throw new Error(`${path} does not use the stable Nimanto SPDX document name`);
+    }
     const packages = document["@graph"]?.filter((entry) => entry.type === "software_Package");
     if (!Array.isArray(packages) || packages.length < 200) {
       throw new Error(`${path} has an incomplete SPDX package inventory`);

@@ -13,7 +13,7 @@ const METHOD = [
   {
     step: "02",
     title: "Compare",
-    body: "Narrow roles with private, unsaved filters, then publish deterministic matching against one exact profile version and job-content snapshot. Four documented dimensions, requirement by requirement, keep coverage limits and blockers visible.",
+    body: "Bring manual, allowlisted URL, Greenhouse, Lever, and Ashby roles into one normalized current-record shape, then publish deterministic matching against one exact profile version and job-content snapshot. Four documented dimensions keep coverage limits and blockers visible.",
   },
   {
     step: "03",
@@ -76,7 +76,7 @@ export default function Home() {
         {/* 00 — the invitation opens toward the literal product job. */}
         <section className="hero" aria-labelledby="hero-title">
           <div className="hero-copy">
-            <p className="placard">Source-distributed local beta · v0.4.2</p>
+            <p className="placard">Source-distributed local beta · v0.5.0</p>
             <h1 id="hero-title">Nimanto</h1>
             <h2>Build the evidence. Work the application. Keep the truth yours.</h2>
             <p className="hero-line">
@@ -137,9 +137,9 @@ export default function Home() {
               <p className="placard">02 — Workbench</p>
               <h2 id="workbench-title">The next action comes before the analytics.</h2>
               <p className="band-lede">
-                Applications opens on the record you can work: move a candidate-recorded stage,
-                record an outcome from either view, or return to a role. Cohort counts and review
-                observations stay below that surface.
+                Applications opens on the record you can work: choose only a legal candidate move,
+                explicitly confirm a consequential one, record an outcome from either view, or
+                return to a role. The API checks the same transition before it commits.
               </p>
               <p className="quiet">
                 The screen is synthetic current-runtime evidence. Outcomes are records entered by
@@ -155,7 +155,7 @@ export default function Home() {
                 alt="Synthetic Nimanto Applications workbench with the action-first pipeline and Record outcome controls"
               />
               <figcaption>
-                v0.4.2 · action-first Applications · synthetic local workspace
+                v0.5.0 · server-confirmed Applications · synthetic local workspace
               </figcaption>
             </figure>
           </div>
@@ -291,7 +291,7 @@ export default function Home() {
                 workbench.
               </p>
               <p className="run-note">
-                Nimanto is source-distributed. v0.4.2 does not ship a signed installer or desktop
+                Nimanto is source-distributed. v0.5.0 does not ship a signed installer or desktop
                 binary.
               </p>
               <a className="text-link" href="https://github.com/udhawan97/Nimanto/releases">
@@ -302,9 +302,9 @@ export default function Home() {
               </a>
               <a
                 className="text-link"
-                href="https://github.com/udhawan97/Nimanto/blob/main/docs/releases/v0.4.2.md"
+                href="https://github.com/udhawan97/Nimanto/blob/main/docs/releases/v0.5.0.md"
               >
-                Read the v0.4.2 release notes <ArrowRight size={15} />
+                Read the v0.5.0 release notes <ArrowRight size={15} />
               </a>
             </div>
           </div>
@@ -320,8 +320,8 @@ export default function Home() {
           <nav aria-label="Footer">
             <a href="https://github.com/udhawan97/Nimanto">Source</a>
             <a href="https://github.com/udhawan97/Nimanto/blob/main/SECURITY.md">Security</a>
-            <a href="https://github.com/udhawan97/Nimanto/blob/main/docs/releases/v0.4.2.md">
-              v0.4.2 notes
+            <a href="https://github.com/udhawan97/Nimanto/blob/main/docs/releases/v0.5.0.md">
+              v0.5.0 notes
             </a>
             <a href="https://github.com/udhawan97/Nimanto/blob/main/LICENSE">Apache-2.0</a>
           </nav>

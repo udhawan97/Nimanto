@@ -8,7 +8,14 @@ import {
   type DocumentInspection,
   renderPacketArtifacts,
 } from "@nimanto/documents";
-import { assurePacket, canonicalHash, createReceipt } from "@nimanto/domain";
+import {
+  applicationTransitions,
+  assurePacket,
+  canonicalHash,
+  createReceipt,
+  type ApplicationStatus,
+  type PacketApplicationEffect,
+} from "@nimanto/domain";
 import { localModelInventory, reviewLocalPacket } from "@nimanto/providers";
 
 export type ArtifactManifest = {
@@ -65,6 +72,19 @@ export class PacketLifecycle {
     private readonly renderArtifacts: PacketArtifactRenderer = renderPacketArtifacts,
     private readonly inspectArtifacts: PacketArtifactInspector = inspectPacketArtifacts,
   ) {}
+
+  private async applyApplicationEffect(
+    database: NimantoStore,
+    tenantId: string,
+    applicationId: string,
+    currentStatus: ApplicationStatus,
+    effect: PacketApplicationEffect,
+  ): Promise<void> {
+    const decision = applicationTransitions.packet(currentStatus, effect);
+    if (decision.kind === "candidate_status_preserved") return;
+    const application = await database.setApplicationStatus(tenantId, applicationId, decision.to);
+    if (!application) throw new Error("APPLICATION_NOT_FOUND");
+  }
 
   private async inputs(database: NimantoStore, tenantId: string, applicationId: string) {
     const application = (await database.listApplications(tenantId)).find(
@@ -150,7 +170,13 @@ export class PacketLifecycle {
           canonicalContent: packet as unknown as Record<string, unknown>,
           artifactManifest: manifest as unknown as Record<string, unknown>,
         });
-        await database.setApplicationStatus(input.tenantId, input.applicationId, "prepared");
+        await this.applyApplicationEffect(
+          database,
+          input.tenantId,
+          input.applicationId,
+          current.application.status,
+          "packet_generated",
+        );
         const receipt = createReceipt({
           id: randomUUID(),
           type: "packet.generated",
@@ -296,6 +322,10 @@ export class PacketLifecycle {
       await database.lockTenantActive(tenantId);
       const pending = await database.getPacket(tenantId, packetId);
       if (!pending) throw new Error("PACKET_NOT_FOUND");
+      const application = (await database.listApplications(tenantId)).find(
+        (candidate) => candidate.id === pending.applicationId,
+      );
+      if (!application) throw new Error("APPLICATION_NOT_FOUND");
       await verifyPacketArtifacts(
         this.artifactDirectory,
         tenantId,
@@ -311,7 +341,13 @@ export class PacketLifecycle {
         pending.artifactHash,
         pending.manifestHash,
       );
-      await database.setApplicationStatus(tenantId, packet.applicationId, "approved_for_export");
+      await this.applyApplicationEffect(
+        database,
+        tenantId,
+        packet.applicationId,
+        application.status,
+        "packet_approved",
+      );
       const receipt = createReceipt({
         id: randomUUID(),
         type: "packet.approved",

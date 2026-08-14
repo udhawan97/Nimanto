@@ -31,7 +31,7 @@
   ·
   <a href="#what-it-actually-does"><strong>What it does</strong></a>
   ·
-  <a href="docs/releases/v0.4.2.md"><strong>v0.4.2 notes</strong></a>
+  <a href="docs/releases/v0.5.0.md"><strong>v0.5.0 notes</strong></a>
   ·
   <a href="docs/planning/product-contract.md"><strong>Product contract</strong></a>
 </p>
@@ -65,6 +65,25 @@ half-finished forms. Nimanto gives that work one inspectable path:
 Nimanto is a **candidate tool**. It does not screen you for employers, estimate
 your hiring odds, give legal advice, or promise that a company sponsors transfers
 today.
+
+## New in v0.5.0
+
+- **Application changes commit as one candidate decision.** The board and table
+  read the same legal transition policy as the API. Consequential moves require
+  an explicit server-checked confirmation, while the tenant-scoped transaction
+  locks the current row and owns `submittedAt` stamping or clearing.
+- **Packet work cannot rewrite candidate-recorded facts.** Generation and
+  approval remain named system consequences for preparation, but preserve an
+  existing external-submission or withdrawal status and its timestamp truth.
+- **Every role route produces the same current-record shape.** Manual entry,
+  allowlisted URLs, Greenhouse, Lever, and Ashby now share NFC/trim/default
+  normalization after each adapter establishes its own identity, provenance, and
+  content hash. This remains a mutable current Role—not immutable posting history
+  or cross-source deduplication.
+- **Workbench mutations settle predictably.** One UI-only coordinator sequences
+  request, local commit, refresh, notice, and post-render focus. Authentication
+  and credential cleanup stay in a separate Identity transition module;
+  navigation, mobile focus, and sticky-header scrolling stay in their own module.
 
 ## What it actually does
 
@@ -100,7 +119,7 @@ something that opens because you opened it.
 
 ## Run it
 
-Nimanto v0.4.2 is source-distributed. It does **not** ship a signed installer or
+Nimanto v0.5.0 is source-distributed. It does **not** ship a signed installer or
 desktop binary.
 
 | Path               | Best for                          | Start here                                                              |
@@ -178,7 +197,9 @@ issue a hashed, expiring, single-use invitation.
 
 ### Discovery and application memory
 
-- Manual job intake, plus allowlisted Greenhouse, Lever and Ashby adapters.
+- Manual job intake, plus allowlisted URL, Greenhouse, Lever and Ashby adapters.
+  All five paths share common current-Role normalization after source-specific
+  retrieval, parsing, identity, provenance, and hashing.
 - Manual role drafts stay in the signed-in browser tab across workbench section
   changes. Reload, sign-out, identity change, successful save, or confirmed
   discard clears them; failed saves preserve them.
@@ -205,7 +226,11 @@ issue a hashed, expiring, single-use invitation.
 - A five-stage application pipeline with candidate-recorded replies, screens,
   interviews, offers, rejections and withdrawals. Every status control — board
   card or row list — offers only the moves the domain allows, asks before a
-  consequential one, and the transition is enforced server-side regardless.
+  consequential one, and the API requires that confirmation again. Candidate
+  read-policy-write and submission timestamps commit in one tenant-scoped
+  transaction. Packet generation and approval remain separately named system
+  consequences inside the Packet lifecycle; neither overwrites a
+  candidate-recorded external submission or withdrawal.
 - The actionable board/table surface precedes funnel, review-queue, and cohort
   analytics. Both views use the same labeled, deliberate outcome editor.
 - A recorded-outcome timeline shows application creation and the candidate's
@@ -300,8 +325,8 @@ flowchart LR
 
 The monorepo keeps the deep seams separate:
 
-- `packages/domain` — matching, assurance, receipts, and the application and
-  external-action state machines.
+- `packages/domain` — matching, assurance, receipts, current-Role normalization,
+  and the application and external-action state machines.
 - `packages/database` — tenant-scoped Postgres schema and repository boundary.
 - `packages/parsers` — bounded evidence extraction.
 - `packages/documents` — canonical packet rendering.
@@ -310,7 +335,8 @@ The monorepo keeps the deep seams separate:
 - `apps/api` — authenticated HTTP composition root plus cohesive evidence,
   publication, packet, action, discovery, deletion, and dataset lifecycles.
 - `apps/worker` — durable, leased board refresh and deterministic scoring loop.
-- `apps/web` — public website and the local workbench.
+- `apps/web` — public website and the local workbench, with separate UI mutation,
+  Identity, and navigation/focus transition modules.
 
 Read the [system architecture](docs/architecture/system.md), the
 [trust and security model](docs/planning/trust-and-security.md), or the generated
@@ -335,7 +361,7 @@ design-token contrast, API integration, and ten sequential WebKit journeys.
 
 ## Beta boundaries
 
-Version `0.4.2` is a **local beta**:
+Version `0.5.0` is a **local beta**:
 
 - The local candidate workflow is implemented and tested.
 - Public website hosting carries product information and the static workbench
@@ -393,5 +419,5 @@ of scope.
 Apache License 2.0. See [LICENSE](LICENSE), [NOTICE](NOTICE),
 [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md),
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), and the release
-[CycloneDX](docs/releases/nimanto-v0.4.2.cdx.json) /
-[SPDX](docs/releases/nimanto-v0.4.2.spdx.json) inventories.
+[CycloneDX](docs/releases/nimanto-v0.5.0.cdx.json) /
+[SPDX](docs/releases/nimanto-v0.5.0.spdx.json) inventories.

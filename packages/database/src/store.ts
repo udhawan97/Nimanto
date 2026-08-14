@@ -4,6 +4,7 @@ import path from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import {
   canonicalHash,
+  applicationTransitions,
   scheduledFailureEvent,
   scheduledRetryDelayMinutes,
   verifyReceipt,
@@ -1547,33 +1548,60 @@ export class NimantoStore {
     id: string,
     status: ApplicationStatus,
   ): Promise<ApplicationRecord | null> {
-    const current = await this.#db.query<any>(
-      `SELECT status FROM applications WHERE tenant_id = $1 AND id = $2`,
-      [tenantId, id],
-    );
-    if (!current.rows[0]) return null;
-    /* This method serves two different callers and only one of them is the
-     * candidate. Packet creation and packet approval write "prepared" and
-     * "approved_for_export" as system consequences, and they must keep working
-     * for an application in any prior state. So the *policy* question — may the
-     * candidate move this card here — is enforced in the API route, and what
-     * stays here is the *data* invariant that applies no matter who writes:
-     * leaving submitted_externally clears the submission timestamp, which the
-     * previous COALESCE-only version never did. */
-    const from = current.rows[0].status as ApplicationStatus;
-    const clearSubmittedAt = from === "submitted_externally" && status !== "submitted_externally";
+    /* Packet lifecycle and candidate intent are distinct actors, but both use
+     * this persistence primitive. The old SELECT followed by UPDATE could race
+     * and derive submitted_at from stale state. PostgreSQL evaluates this CASE
+     * against the row being updated, so stamping and clearing stay atomic. */
     const result = await this.#db.query<any>(
       `UPDATE applications SET status = $3,
          submitted_at = CASE
-           WHEN $4 THEN NULL
+           WHEN status = 'submitted_externally' AND $3 <> 'submitted_externally' THEN NULL
            WHEN $3 = 'submitted_externally' THEN COALESCE(submitted_at, now())
            ELSE submitted_at END,
          updated_at = now()
        WHERE tenant_id = $1 AND id = $2
        RETURNING id, job_id, profile_version_id, status, submitted_at, created_at, updated_at`,
-      [tenantId, id, status, clearSubmittedAt],
+      [tenantId, id, status],
     );
     return result.rows[0] ? this.#mapApplication(result.rows[0]) : null;
+  }
+
+  /** Candidate-only read-policy-write transaction. Packet consequences bypass
+   * this method and call setApplicationStatus inside PacketLifecycle's larger
+   * transaction. */
+  async transitionCandidateApplicationStatus(
+    tenantId: string,
+    id: string,
+    status: ApplicationStatus,
+    confirmed: boolean,
+  ): Promise<ApplicationRecord | null> {
+    return this.transaction(async (database) => {
+      await database.lockTenantActive(tenantId);
+      const current = await database.#db.query<{ status: ApplicationStatus }>(
+        `SELECT status FROM applications
+         WHERE tenant_id = $1 AND id = $2
+         FOR UPDATE`,
+        [tenantId, id],
+      );
+      const from = current.rows[0]?.status;
+      if (!from) return null;
+      const decision = applicationTransitions
+        .candidate(from)
+        .decide(status, confirmed ? { confirmed: true } : undefined);
+      if (decision.kind === "confirmation_required") {
+        throw new Error("APPLICATION_TRANSITION_CONFIRMATION_REQUIRED");
+      }
+      if (decision.kind === "illegal") throw new Error(decision.code);
+      if (decision.kind === "unchanged") {
+        const unchanged = await database.#db.query<any>(
+          `SELECT id, job_id, profile_version_id, status, submitted_at, created_at, updated_at
+           FROM applications WHERE tenant_id = $1 AND id = $2`,
+          [tenantId, id],
+        );
+        return unchanged.rows[0] ? database.#mapApplication(unchanged.rows[0]) : null;
+      }
+      return database.setApplicationStatus(tenantId, id, decision.transition.to);
+    });
   }
 
   async addOutcome(
