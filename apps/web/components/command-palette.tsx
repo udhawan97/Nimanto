@@ -63,6 +63,10 @@ export function CommandPalette({
   );
 
   const show = () => {
+    if (dialog.current?.open) {
+      input.current?.focus();
+      return;
+    }
     setQuery("");
     setActive(0);
     setOpen(true);
@@ -72,7 +76,7 @@ export function CommandPalette({
 
   const close = () => {
     setOpen(false);
-    dialog.current?.close();
+    if (dialog.current?.open) dialog.current.close();
   };
 
   const choose = (entry: PaletteEntry | undefined) => {

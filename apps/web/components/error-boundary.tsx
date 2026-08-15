@@ -18,10 +18,13 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { error: E
       <div className="crash" role="alert">
         <h1>The workbench stopped rendering.</h1>
         <p>
-          Your data is untouched — this is a display fault, not a data fault. Nothing was sent, and
-          nothing was deleted. Reloading usually clears it.
+          This is a display fault. It does not establish whether the last action completed. Reload,
+          then review the current record before retrying an action.
         </p>
-        <pre>{error.message}</pre>
+        <details>
+          <summary>Technical details</summary>
+          <pre>{error.message}</pre>
+        </details>
         <div className="button-group">
           <button className="button primary" type="button" onClick={() => location.reload()}>
             Reload the workbench

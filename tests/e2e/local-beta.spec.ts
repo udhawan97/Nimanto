@@ -173,6 +173,11 @@ test("the public site reflows, links, and identifies itself in WebKit", async ({
     "src",
     /assets\/nimanto-workbench\.png$/,
   );
+  // Assert after hydration and the full page journey so a delayed effect cannot
+  // make a false-zero loopback registration pass.
+  expect(
+    await page.evaluate(async () => (await navigator.serviceWorker.getRegistrations()).length),
+  ).toBe(0);
 });
 
 test("a candidate starts a private workspace and receives deterministic role explanations", async ({

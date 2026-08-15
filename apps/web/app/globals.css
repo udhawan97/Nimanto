@@ -906,6 +906,12 @@ svg {
 .copy-button:hover {
   color: var(--text-link);
 }
+.copy-button[data-state="copied"] {
+  color: var(--ok-text);
+}
+.copy-button[data-state="failed"] {
+  color: var(--live-text);
+}
 .run-note {
   font-size: var(--text-sm);
   color: var(--text-muted);
@@ -2457,6 +2463,18 @@ textarea {
 .crash p,
 .connection-banner p {
   color: var(--text-body);
+}
+.crash details {
+  width: 100%;
+  color: var(--text-muted);
+}
+.crash summary {
+  width: fit-content;
+  cursor: pointer;
+  color: var(--text-link);
+}
+.crash details[open] summary {
+  margin-block-end: var(--space-sm);
 }
 .connection-banner strong {
   color: var(--live-text);

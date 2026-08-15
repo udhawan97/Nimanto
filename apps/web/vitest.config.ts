@@ -1,11 +1,13 @@
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
+  oxc: {
+    jsx: { runtime: "automatic", importSource: "react" },
+  },
   test: {
-    // happy-dom is here for future component tests. The current suite is pure
-    // logic and token arithmetic; note that NO DOM environment performs layout,
-    // which is why the spacing contract is verified in Playwright, not here.
+    // happy-dom covers component behavior but performs no layout, which is why
+    // the spacing contract is verified in Playwright rather than here.
     environment: "happy-dom",
-    include: ["test/**/*.test.ts"],
+    include: ["test/**/*.test.{ts,tsx}"],
   },
 });
