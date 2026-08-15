@@ -10,6 +10,9 @@ import { ArrowRight, Command, Search, X } from "lucide-react";
  * point: Nimanto gates packet approval, action approval, the runtime switch and
  * deletion behind explicit affordances, and "the palette only navigates" has to
  * be a property of the type rather than a promise in a comment. */
+/* Enough to scan without turning an unfiltered open into a wall of rows. */
+const VISIBLE_RESULTS = 40;
+
 export type PaletteEntry = {
   label: string;
   detail: string;
@@ -56,11 +59,16 @@ export function CommandPalette({
     ...siteCommands,
   ];
 
-  const filtered = commands.filter((item) =>
+  /* Search the whole list, then cap what reaches the DOM. The cap is on the
+   * rendered result, never on what is searchable — capping before the filter is
+   * what made a specific record unfindable by typing its exact title. */
+  const matched = commands.filter((item) =>
     `${item.label} ${item.detail}`
       .toLocaleLowerCase("en-US")
       .includes(query.toLocaleLowerCase("en-US")),
   );
+  const filtered = matched.slice(0, VISIBLE_RESULTS);
+  const hidden = matched.length - filtered.length;
 
   const show = () => {
     if (dialog.current?.open) {
@@ -181,6 +189,11 @@ export function CommandPalette({
                 </a>
               ))}
               {filtered.length === 0 && <p className="command-empty">Nothing matches that.</p>}
+              {hidden > 0 && (
+                <p className="command-empty">
+                  Showing {filtered.length} of {matched.length}. Keep typing to narrow it.
+                </p>
+              )}
             </div>
           )}
         </div>

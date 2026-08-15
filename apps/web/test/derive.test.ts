@@ -20,6 +20,7 @@ import {
   countedNoun,
   packetInventoryNotice,
   profileInputChanged,
+  unscoredConfirmedClaims,
   profileVersionDiff,
   recordReviewQueue,
   recordedOutcomeTimeline,
@@ -80,6 +81,30 @@ describe("profile input comparison", () => {
   it("detects wording and confirmed-claim changes", () => {
     expect(profileInputChanged(profile, "Different wording", ["a", "b"])).toBe(true);
     expect(profileInputChanged(profile, "Caf\u00e9 eligible", ["a", "c"])).toBe(true);
+  });
+});
+
+describe("unscored confirmed claims", () => {
+  const profile = { authorizationWording: "Caf\u00e9 eligible", claimIds: ["b", "a"] };
+
+  it("counts nothing when the saved version already covers every confirmed claim", () => {
+    expect(unscoredConfirmedClaims(profile, ["a", "b"])).toBe(0);
+  });
+
+  /* `profileInputChanged` is also true for a wording edit or a claim removal.
+   * Copy that names a count of unscored claims would be wrong in both cases,
+   * so this counts added claims only. */
+  it("ignores a claim removal, which changes the version without adding scoreable evidence", () => {
+    expect(unscoredConfirmedClaims(profile, ["a"])).toBe(0);
+  });
+
+  it("counts only claims missing from the saved version", () => {
+    expect(unscoredConfirmedClaims(profile, ["a", "b", "c"])).toBe(1);
+    expect(unscoredConfirmedClaims(profile, ["a", "b", "c", "d"])).toBe(2);
+  });
+
+  it("counts every confirmed claim when no version has been saved yet", () => {
+    expect(unscoredConfirmedClaims(null, ["a", "b"])).toBe(2);
   });
 });
 

@@ -63,6 +63,7 @@ import {
   nextSteps,
   packetInventoryNotice,
   profileInputChanged,
+  unscoredConfirmedClaims,
   profileVersionDiff,
   recordReviewQueue,
   recordedOutcomeTimeline,
@@ -93,6 +94,9 @@ const API = process.env.NEXT_PUBLIC_NIMANTO_API_ORIGIN ?? "http://127.0.0.1:4310
  * before they try to use it; rarely enough to stay invisible on a laptop
  * battery. The probe writes `apiReachable` and nothing else. */
 const HEALTH_PROBE_MS = 15_000;
+/* Long enough to read a one-line confirmation without hurrying, short enough
+ * that it is gone before the candidate scrolls to the thing it announced. */
+const NOTICE_DISMISS_MS = 6_000;
 
 type Evidence = {
   id: string;
@@ -463,7 +467,11 @@ export function Workspace() {
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [authRequired, setAuthRequired] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
+  const [notice, setNotice] = useState<{
+    kind: "ok" | "error";
+    text: string;
+    transient?: boolean;
+  } | null>(null);
   const [mobileNav, setMobileNav] = useState(false);
   const [apiReachable, setApiReachable] = useState(true);
   // Declared with the other hooks: the component returns early for the auth and
@@ -482,6 +490,11 @@ export function Workspace() {
   // A manual role can be long. Keep it above the section boundary so navigation
   // cannot erase it, but never persist it or carry it into another identity.
   const [manualRoleDraft, setManualRoleDraft] = useState<ManualRoleDraft | null>(null);
+  /* Sections unmount on navigation, so a view chosen inside Applications died
+   * on the way to any other section. React state only: this is a view
+   * preference for the signed-in session, not stored data, and the one storage
+   * key this app owns holds the bootstrap secret. */
+  const [applicationsView, setApplicationsView] = useState<"board" | "table">("board");
   // Held here, not in Data controls: deleting the workspace clears the session,
   // so that panel unmounts before the candidate could copy the token.
   const [deletionReceipt, setDeletionReceipt] = useState<DeletionReceipt | null>(null);
@@ -663,6 +676,23 @@ export function Workspace() {
     navigationTransitions.presentGlobalError();
   }, [navigationTransitions, notice]);
 
+  /* Retire a transient confirmation once it has been read, so it stops riding
+   * the scroll over the content it announced.
+   *
+   * Three guards, each load-bearing:
+   *  - only `transient` notices, so instructions the candidate must act on stay;
+   *  - only while a dashboard exists, because without one the notice is part of
+   *    what the entry screen is showing and retiring it would change the view;
+   *  - never while it holds focus, which would drop focus to <body>. */
+  useEffect(() => {
+    if (!notice?.transient || !dashboard) return;
+    const timer = window.setTimeout(() => {
+      if (noticeRegion.current?.contains(document.activeElement)) return;
+      setNotice((current) => (current?.transient ? null : current));
+    }, NOTICE_DISMISS_MS);
+    return () => window.clearTimeout(timer);
+  }, [dashboard, notice]);
+
   /* The API returns a precise `code` behind a deliberately generic message.
    * Only the client knows which screen the candidate is on, so this is where a
    * rejection becomes something to act on — and where a raw `TypeError` is
@@ -762,16 +792,24 @@ export function Workspace() {
         enterSignedOutState,
         refresh,
         describeFailure,
-        publishNotice: (kind, text) => setNotice({ kind, text }),
+        publishNotice: (kind, text, transient) =>
+          setNotice({ kind, text, transient: transient === true }),
         schedule: navigationTransitions.scheduleFocus,
       }),
     [describeFailure, enterSignedOutState, navigationTransitions, refresh],
   );
 
-  if (authRequired || (!dashboard && !notice)) {
+  /* `notice` is a message, never a screen selector. It used to sit in this
+   * predicate, so clearing it — which three modules do as routine cleanup —
+   * silently swapped which screen rendered. Both branches paint the same
+   * "Try again" button, but this one POSTs an identity while the `!dashboard`
+   * branch below re-reads the dashboard, so the swap changed what the button
+   * did without changing a pixel. The screen now depends only on whether
+   * identity is required and whether a dashboard exists. */
+  if (authRequired) {
     return (
       <WorkspaceStart
-        unavailable={!authRequired}
+        unavailable={false}
         onStart={(identity) => {
           void mutations.run({
             request: () =>
@@ -841,18 +879,26 @@ export function Workspace() {
       detail: "Section",
       section: item.id,
     })),
-    ...dashboard.jobs.slice(0, 20).map((job) => ({
+    /* Build from the whole list. Slicing here meant the search filtered an
+     * already-truncated array, so the 21st role or application could not be
+     * found by typing its exact title — and both lists are ordered by most
+     * recently touched, so what fell off the end was the stalest work, which is
+     * exactly what the candidate loses track of. The palette caps what it
+     * *renders* instead. Applications have no other search surface. */
+    ...dashboard.jobs.map((job) => ({
       label: `${job.title} · ${job.company}`,
       detail: "Role",
       section: "jobs",
     })),
-    ...dashboard.applications.slice(0, 20).map((application) => ({
-      label: application.job
-        ? `${application.job.title} · ${application.job.company}`
-        : application.id,
-      detail: "Application",
-      section: "applications",
-    })),
+    /* A job-less application would only contribute a raw identifier, which is
+     * not something a candidate can search for. */
+    ...dashboard.applications
+      .filter((application) => application.job)
+      .map((application) => ({
+        label: `${application.job!.title} · ${application.job!.company}`,
+        detail: "Application",
+        section: "applications",
+      })),
   ];
 
   return (
@@ -980,29 +1026,38 @@ export function Workspace() {
           </button>
         </header>
         <ConnectionBanner state={connection} onRetry={() => void refresh()} />
-        {notice && (
-          // A failure announced politely waits behind whatever the screen
-          // reader is already saying. The sign-in screen already made this
-          // distinction; the workbench did not.
-          <div
-            ref={noticeRegion}
-            className={`notice ${notice.kind}`}
-            role={notice.kind === "error" ? "alert" : "status"}
-            aria-live={notice.kind === "error" ? "assertive" : "polite"}
-            tabIndex={-1}
-          >
-            {notice.kind === "ok" ? <Check size={17} /> : <CircleAlert size={17} />}
-            <span>{notice.text}</span>
-            <button
-              className="icon-button"
-              type="button"
-              onClick={() => setNotice(null)}
-              aria-label="Dismiss message"
-            >
-              <X size={15} />
-            </button>
-          </div>
-        )}
+        {/* The container stays mounted whether or not there is a message.
+         * Rendering it conditionally made it a positional sibling of the
+         * section below, so retiring a notice shifted the sibling list and
+         * React remounted the open section — discarding whatever the candidate
+         * had typed into it. A stable element keeps reconciliation boring.
+         *
+         * A failure announced politely waits behind whatever the screen reader
+         * is already saying. The sign-in screen already made this distinction;
+         * the workbench did not. */}
+        <div
+          ref={noticeRegion}
+          className={notice ? `notice ${notice.kind}` : "notice-empty"}
+          role={notice?.kind === "error" ? "alert" : "status"}
+          aria-live={notice?.kind === "error" ? "assertive" : "polite"}
+          tabIndex={-1}
+          hidden={!notice}
+        >
+          {notice && (
+            <>
+              {notice.kind === "ok" ? <Check size={17} /> : <CircleAlert size={17} />}
+              <span>{notice.text}</span>
+              <button
+                className="icon-button"
+                type="button"
+                onClick={() => setNotice(null)}
+                aria-label="Dismiss message"
+              >
+                <X size={15} />
+              </button>
+            </>
+          )}
+        </div>
         {/* Focus target for every section change. Without it, choosing a
          * destination — from the sidebar or from quick navigation — dropped
          * focus to <body> and a keyboard user restarted from the top. */}
@@ -1040,7 +1095,14 @@ export function Workspace() {
             />
           )}
           {section === "applications" && (
-            <Applications dashboard={dashboard} onAct={mutations} busy={busy} onGo={goToSection} />
+            <Applications
+              dashboard={dashboard}
+              onAct={mutations}
+              busy={busy}
+              onGo={goToSection}
+              view={applicationsView}
+              onViewChange={setApplicationsView}
+            />
           )}
           {section === "packets" && <Packets dashboard={dashboard} onAct={mutations} busy={busy} />}
           {section === "history" && <StoredHistory />}
@@ -1077,7 +1139,7 @@ function WorkspaceStart({
   onStart: (identity: { displayName: string; email: string }) => void;
   onDemo: () => void;
   busy: boolean;
-  notice: { kind: "ok" | "error"; text: string } | null;
+  notice: { kind: "ok" | "error"; text: string; transient?: boolean } | null;
   bootstrapSecret: string;
   inviteMode: boolean;
   onBootstrapSecret: (value: string) => void;
@@ -1476,11 +1538,11 @@ function EvidenceVault({
   const [authorization, setAuthorization] = useState(dashboard.profile?.authorizationWording ?? "");
   const [importPreview, setImportPreview] = useState<EvidenceImportPreview | null>(null);
   const claimField = useRef<HTMLTextAreaElement>(null);
-  const profileChanged = profileInputChanged(
-    dashboard.profile,
-    authorization,
-    dashboard.evidence.filter((claim) => claim.status === "confirmed").map((claim) => claim.id),
-  );
+  const confirmedClaimIds = dashboard.evidence
+    .filter((claim) => claim.status === "confirmed")
+    .map((claim) => claim.id);
+  const profileChanged = profileInputChanged(dashboard.profile, authorization, confirmedClaimIds);
+  const unscoredClaims = unscoredConfirmedClaims(dashboard.profile, confirmedClaimIds);
 
   /* Arrived here from an unmet requirement. Only the wording the candidate has
    * to answer is carried across — never the posting's source name or locator,
@@ -1501,9 +1563,26 @@ function EvidenceVault({
     void onAct.run({
       request: () => api("/v1/evidence", { method: "POST", body: JSON.stringify({ kind, value }) }),
       success: "Claim added to the review queue.",
+      transient: true,
       commit: () => setValue(""),
     });
   };
+
+  /* One request, two affordances. Saving a Profile Version stays a deliberate
+   * candidate action wherever it is offered from — this is never called from an
+   * effect, so confirming a claim still mints nothing on its own. */
+  const saveProfileVersion = () =>
+    void onAct.run({
+      request: () =>
+        api<ProfileVersionResponse>("/v1/profile/versions", {
+          method: "POST",
+          body: JSON.stringify({ authorizationWording: authorization }),
+        }),
+      success: (result) =>
+        result.created
+          ? "A new profile version was saved."
+          : "No profile changes were found; stored history is unchanged.",
+    });
   return (
     <>
       <PageIntro
@@ -1554,6 +1633,25 @@ function EvidenceVault({
               />
             </label>
           </div>
+          {unscoredClaims > 0 && (
+            <div className="unscored-claims" role="status">
+              <div>
+                <strong>
+                  {countedNoun(unscoredClaims, "confirmed claim")}{" "}
+                  {unscoredClaims === 1 ? "is" : "are"} not scored yet.
+                </strong>
+                <span>Matching uses your last saved profile version.</span>
+              </div>
+              <button
+                type="button"
+                className="button mini primary"
+                disabled={busy}
+                onClick={saveProfileVersion}
+              >
+                Save profile version
+              </button>
+            </div>
+          )}
           {importPreview && (
             <section className="import-preview" aria-labelledby="import-preview-title">
               <div>
@@ -1660,8 +1758,13 @@ function EvidenceVault({
                 <div className="evidence-kind">{human(claim.kind)}</div>
                 <div>
                   <strong>{claim.value}</strong>
+                  {/* Show the locator only when it says something the source
+                   * name does not. Printing one token twice reads as a bug in
+                   * the one place the record asks to be trusted. */}
                   <small>
-                    {claim.sourceName} · {claim.locator}
+                    {claim.locator && claim.locator !== claim.sourceName
+                      ? `${claim.sourceName} · ${claim.locator}`
+                      : claim.sourceName}
                   </small>
                 </div>
                 <div className="evidence-controls">
@@ -1681,6 +1784,7 @@ function EvidenceVault({
                             request: () =>
                               api(`/v1/evidence/${claim.id}/confirm`, { method: "POST" }),
                             success: "Claim confirmed.",
+                            transient: true,
                           });
                         }}
                         aria-label={`Confirm ${claim.value}`}
@@ -1696,6 +1800,7 @@ function EvidenceVault({
                             request: () =>
                               api(`/v1/evidence/${claim.id}/reject`, { method: "POST" }),
                             success: "Claim rejected.",
+                            transient: true,
                           });
                         }}
                         aria-label={`Reject ${claim.value}`}
@@ -1747,17 +1852,7 @@ function EvidenceVault({
             className="work-panel form-panel"
             onSubmit={(event) => {
               event.preventDefault();
-              void onAct.run({
-                request: () =>
-                  api<ProfileVersionResponse>("/v1/profile/versions", {
-                    method: "POST",
-                    body: JSON.stringify({ authorizationWording: authorization }),
-                  }),
-                success: (result) =>
-                  result.created
-                    ? "A new profile version was saved."
-                    : "No profile changes were found; stored history is unchanged.",
-              });
+              saveProfileVersion();
             }}
           >
             <div className="panel-heading">
@@ -1808,6 +1903,12 @@ function Jobs({
 }) {
   const [sourceOpen, setSourceOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  /* Same derivation as the evidence vault: a claim can be confirmed and still
+   * be absent from the Profile Version this explanation was scored against. */
+  const unscoredClaims = unscoredConfirmedClaims(
+    dashboard.profile,
+    dashboard.evidence.filter((claim) => claim.status === "confirmed").map((claim) => claim.id),
+  );
   const [query, setQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState("all");
   const [fitFilter, setFitFilter] = useState("all");
@@ -1890,6 +1991,7 @@ function Jobs({
           }),
         }),
       success: "Role added.",
+      transient: true,
       commit: () => {
         setCompensationError(null);
         onDraftClose();
@@ -2341,6 +2443,19 @@ function Jobs({
                         aria-label="Cancel schedule"
                         disabled={busy}
                         onClick={() => {
+                          /* Cancelling is one-way: the row survives as
+                           * `cancelled`, but resume only accepts paused or
+                           * dead_letter, so there is no path back short of
+                           * recreating the schedule. Client-side friction on a
+                           * terminal action — the route takes no confirmation
+                           * flag and none is sent. */
+                          if (
+                            !window.confirm(
+                              `Cancel the ${schedule.board} schedule? This cannot be undone — you would have to create a new schedule.`,
+                            )
+                          ) {
+                            return;
+                          }
                           void onAct.run({
                             request: () =>
                               api(`/v1/schedules/${schedule.id}`, { method: "DELETE" }),
@@ -2511,6 +2626,17 @@ function Jobs({
                       </div>
                       <code>{match.result.ruleVersion}</code>
                     </div>
+                    {/* Without this, adding the evidence a requirement asks for and
+                     * re-explaining returns an identical result, and the loop looks
+                     * broken. The claim is confirmed; it is simply not in the Profile
+                     * Version this explanation was scored against. */}
+                    {unscoredClaims > 0 && (
+                      <p className="unscored-claims inline" role="status">
+                        {countedNoun(unscoredClaims, "confirmed claim")}{" "}
+                        {unscoredClaims === 1 ? "is" : "are"} not in this explanation yet. Save a
+                        profile version in the evidence vault, then explain again.
+                      </p>
+                    )}
                     <div className="dimension-grid" aria-label="Weighted match dimensions">
                       {match.result.dimensions.map((dimension) => (
                         <article key={dimension.name}>
@@ -3137,15 +3263,18 @@ function Applications({
   onAct,
   busy,
   onGo,
+  view,
+  onViewChange,
 }: {
   dashboard: Dashboard;
   onAct: ActionRunner;
   busy: boolean;
   onGo: (section: Section) => void;
+  view: "board" | "table";
+  onViewChange: (view: "board" | "table") => void;
 }) {
   const [outcomeFor, setOutcomeFor] = useState<string | null>(null);
   const outcomeTrigger = useRef<HTMLButtonElement | null>(null);
-  const [view, setView] = useState<"board" | "table">("board");
   const [reviewOnly, setReviewOnly] = useState(false);
   const [cohortStart, setCohortStart] = useState(() => dateInputValue(new Date(), -30));
   const [cohortEnd, setCohortEnd] = useState(() => dateInputValue(new Date()));
@@ -3203,6 +3332,7 @@ function Applications({
           body: JSON.stringify({ status: to, confirmed }),
         }),
       success: "Application status updated.",
+      transient: true,
       focus: () => {
         document.getElementById(`board-card-${application.id}`)?.focus();
       },
@@ -3222,7 +3352,7 @@ function Applications({
               type="button"
               onClick={() => {
                 setOutcomeFor(null);
-                setView(view === "board" ? "table" : "board");
+                onViewChange(view === "board" ? "table" : "board");
               }}
             >
               {view === "board" ? "Table view" : "Board view"}
@@ -3565,6 +3695,7 @@ function OutcomeEditor({
               body: JSON.stringify({ type, note }),
             }),
           success: "Candidate-reported outcome recorded.",
+          transient: true,
           commit: onRecorded,
           focus: onClose,
         });

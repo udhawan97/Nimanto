@@ -687,7 +687,11 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
         typeof body.sourceName === "string"
           ? string(body.sourceName, "source_name")
           : "Manual entry",
-      locator: typeof body.locator === "string" ? string(body.locator, "locator") : "Manual entry",
+      /* A manual claim has no locator to record, and the form has no field for
+       * one. Storing the source name again would put a value Nimanto invented
+       * into a provenance field that travels into packets, exports and stored
+       * history. Absence is the honest record; the column stays NOT NULL. */
+      locator: typeof body.locator === "string" ? string(body.locator, "locator") : "",
       userAttested: true,
     });
   });

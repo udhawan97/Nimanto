@@ -1257,6 +1257,38 @@ svg {
   background: var(--surface-raised);
   min-width: 0;
 }
+/* The confirmed-but-unscored strip. It sits with the claim list because that is
+ * where confirming happens, and repeats inline in the match anatomy because that
+ * is where the consequence is read. */
+.unscored-claims {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--pad-card);
+  border: 1px solid var(--brass-300);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+.unscored-claims > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.unscored-claims strong {
+  color: var(--text-strong);
+  font-weight: 500;
+}
+.unscored-claims span {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.unscored-claims.inline {
+  display: block;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
 .danger-zone,
 .runtime-gate {
   border-color: var(--live-edge);

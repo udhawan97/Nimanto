@@ -337,6 +337,23 @@ export function profileInputChanged(
   );
 }
 
+/** How many confirmed claims are not in the latest Profile Version yet.
+ *
+ * Matching scores the claim set frozen into a Profile Version, so a claim the
+ * candidate just confirmed changes nothing until a version is saved. This is
+ * deliberately narrower than `profileInputChanged`, which is also true for an
+ * authorization-wording edit or a claim removal — neither of which adds
+ * scoreable evidence, so neither may be described to the candidate as a claim
+ * waiting to be scored. */
+export function unscoredConfirmedClaims(
+  profile: ProfileVersionLike | null,
+  confirmedClaimIds: readonly string[],
+): number {
+  if (!profile) return confirmedClaimIds.length;
+  const saved = new Set(profile.claimIds);
+  return confirmedClaimIds.filter((id) => !saved.has(id)).length;
+}
+
 /** Literal set and string comparison only; it makes no claim about why a
  * profile changed or whether a later match result was caused by that change. */
 export function profileVersionDiff(before: ProfileVersionLike, after: ProfileVersionLike) {

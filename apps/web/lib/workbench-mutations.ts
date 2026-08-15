@@ -4,6 +4,12 @@ export type WorkbenchMutation<T> = Readonly<{
   commit?: (value: T) => void;
   focus?: (value: T) => void;
   recover?: (error: unknown) => boolean | void;
+  /* Opt in per call site, never by notice kind. Several successes are
+   * instructions the candidate is meant to read and act on — the deletion
+   * status token, an executed action, a packet file inventory — and dismissing
+   * those on a timer would take the instruction away while it still applies.
+   * Silence defaults to persisting. */
+  transient?: boolean;
 }>;
 
 export type WorkbenchMutationOutcome<T> =
@@ -27,7 +33,7 @@ type MutationAdapters = {
   enterSignedOutState: () => void;
   refresh: () => Promise<RefreshOutcome>;
   describeFailure: (error: unknown) => string | null;
-  publishNotice: (kind: "ok" | "error", text: string) => void;
+  publishNotice: (kind: "ok" | "error", text: string, transient?: boolean) => void;
   schedule: (work: () => void) => void;
 };
 
@@ -65,6 +71,7 @@ export function createWorkbenchMutations(adapters: MutationAdapters): WorkbenchM
         adapters.publishNotice(
           "ok",
           typeof mutation.success === "function" ? mutation.success(value) : mutation.success,
+          mutation.transient === true,
         );
         settled = true;
         return { kind: "committed", value };
