@@ -89,6 +89,42 @@ describe("quick navigation", () => {
     expect(dialog.open).toBe(true);
     expect(view.querySelector('input[aria-label="Search Nimanto"]')).toBe(document.activeElement);
   });
+
+  /* The palette used to cap the list *before* filtering, so a record past the
+   * cap could not be found by typing its exact title — in a product whose
+   * stated case is "one application among forty". The cap belongs on what
+   * reaches the DOM, never on what is searchable. */
+  it("searches every entry while capping what it renders", async () => {
+    const entries = Array.from({ length: 52 }, (_, index) => ({
+      label: `Role ${index + 1}`,
+      detail: `Company ${index + 1}`,
+      section: "jobs",
+    }));
+    const view = await render(createElement(CommandPalette, { entries }));
+
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }));
+    });
+
+    expect(view.querySelectorAll('[role="option"]')).toHaveLength(40);
+    expect(view.textContent).toContain("Showing 40 of 52");
+
+    const input = view.querySelector('input[aria-label="Search Nimanto"]') as HTMLInputElement;
+    /* A controlled input ignores a plain `value` write, so go through the native
+     * setter React's onChange actually observes. */
+    const setValue = Object.getOwnPropertyDescriptor(
+      window.HTMLInputElement.prototype,
+      "value",
+    )!.set!;
+    await act(async () => {
+      setValue.call(input, "Role 47");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    const results = [...view.querySelectorAll('[role="option"]')];
+    expect(results).toHaveLength(1);
+    expect(results[0]?.textContent).toContain("Role 47");
+  });
 });
 
 describe("service worker registration policy", () => {

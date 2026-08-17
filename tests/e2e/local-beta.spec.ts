@@ -594,6 +594,10 @@ test("one guarded control owns every status change, and the two views are exclus
    * status the record still has. The select's snap-back is React restoring a
    * controlled value with no re-render behind it, which is exactly the kind of
    * thing that holds until someone changes the component and no test notices. */
+  /* ⚠ If this confirmation ever becomes an in-product dialog, rewrite this block
+   * to click that dialog's decline control. Dismissing a native dialog that no
+   * longer exists still leaves `writes` empty, so this assertion would keep
+   * passing while the decline path stopped running entirely. */
   page.removeAllListeners("dialog");
   page.on("dialog", (dialog) => void dialog.dismiss());
   const writes: string[] = [];
@@ -1009,4 +1013,39 @@ test("the match band is never covered, and the section survives back and reload"
   // A deep link opens on its section rather than on Overview.
   await page.goto("/workspace/#packets");
   await expect(page.getByRole("heading", { name: /Generate once/ })).toBeVisible();
+});
+
+/* When a mutation fails, focus moves to the message announcing it. Only a real
+ * browser can assert this: jsdom has no layout, so `focus()` still succeeds
+ * there on a target that cannot actually take focus — which is precisely how a
+ * `display: contents` wrapper silently disabled this path once, with the whole
+ * unit suite green. */
+test("a failed mutation moves focus to the error it announced", async ({ page }) => {
+  await page.goto(`/workspace/#bootstrap=${bootstrapSecret}`);
+  /* Entry depends on what earlier tests left behind on the shared local API, so
+   * take whichever door this run is actually shown rather than assuming one. */
+  const nameField = page.getByLabel("Your name");
+  const evidenceNav = page.getByRole("button", { name: "Evidence vault" });
+  await expect(nameField.or(evidenceNav).first()).toBeVisible();
+  if (await nameField.isVisible()) {
+    await nameField.fill("Focus Probe");
+    await page.getByLabel("Your email").fill("focus-probe@example.test");
+    await page.getByRole("button", { name: "Start private workspace" }).click();
+    await expect(page.locator(".notice.ok")).toBeVisible();
+  }
+
+  await evidenceNav.click();
+  await page.getByLabel("Exact claim").fill("A claim whose save will fail");
+  await page.route("**/v1/evidence", (route) =>
+    route.fulfill({
+      status: 500,
+      contentType: "application/json",
+      body: JSON.stringify({ code: "INTERNAL_ERROR", message: "forced for this test" }),
+    }),
+  );
+  await page.getByRole("button", { name: "Add pending claim" }).click();
+
+  const error = page.locator(".notice.error");
+  await expect(error).toBeVisible();
+  await expect(error).toBeFocused();
 });

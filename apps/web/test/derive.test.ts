@@ -19,6 +19,7 @@ import {
   nextSteps,
   countedNoun,
   packetInventoryNotice,
+  explanationFreshness,
   profileInputChanged,
   unscoredConfirmedClaims,
   profileVersionDiff,
@@ -105,6 +106,46 @@ describe("unscored confirmed claims", () => {
 
   it("counts every confirmed claim when no version has been saved yet", () => {
     expect(unscoredConfirmedClaims(null, ["a", "b"])).toBe(2);
+  });
+});
+
+describe("explanation freshness", () => {
+  const profile = { id: "v2", authorizationWording: "Café eligible", claimIds: ["a", "b"] };
+
+  it("is current when the explanation was scored against the saved version", () => {
+    expect(explanationFreshness({ profileVersionId: "v2" }, profile, ["a", "b"])).toBe("current");
+  });
+
+  it("reports an earlier version when the explanation predates the saved one", () => {
+    expect(explanationFreshness({ profileVersionId: "v1" }, profile, ["a", "b"])).toBe(
+      "scored_against_earlier_version",
+    );
+  });
+
+  /* The case the whole loop exists for: the claim is confirmed but no version
+   * carries it, so re-explaining produces an identical result. A freshness check
+   * that only compares version ids cannot see this — a fresh explanation is
+   * always stamped with the current version. */
+  it("reports unsaved evidence even when the explanation is on the current version", () => {
+    expect(explanationFreshness({ profileVersionId: "v2" }, profile, ["a", "b", "c"])).toBe(
+      "confirmed_evidence_unsaved",
+    );
+  });
+
+  it("prefers the unsaved-evidence remedy when both are true", () => {
+    expect(explanationFreshness({ profileVersionId: "v1" }, profile, ["a", "b", "c"])).toBe(
+      "confirmed_evidence_unsaved",
+    );
+  });
+
+  it("reports unsaved evidence when no version has ever been saved", () => {
+    expect(explanationFreshness({ profileVersionId: null }, null, ["a"])).toBe(
+      "confirmed_evidence_unsaved",
+    );
+  });
+
+  it("says nothing when there is no evidence and no version", () => {
+    expect(explanationFreshness({ profileVersionId: null }, null, [])).toBe("current");
   });
 });
 

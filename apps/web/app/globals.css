@@ -1258,8 +1258,9 @@ svg {
   min-width: 0;
 }
 /* The confirmed-but-unscored strip. It sits with the claim list because that is
- * where confirming happens, and repeats inline in the match anatomy because that
- * is where the consequence is read. */
+ * where confirming happens. The match anatomy states its own freshness
+ * separately — see `.explanation-freshness` — because an explanation can be
+ * stale for a second reason this strip cannot express. */
 .unscored-claims {
   display: flex;
   flex-wrap: wrap;
@@ -1284,7 +1285,9 @@ svg {
   color: var(--text-muted);
   font-size: var(--text-sm);
 }
-.unscored-claims.inline {
+/* Why an explanation may not reflect current evidence. Muted rather than
+ * alarming: the explanation is correct for what it was scored against. */
+.explanation-freshness {
   display: block;
   color: var(--text-muted);
   font-size: var(--text-sm);

@@ -169,9 +169,12 @@ export function CommandPalette({
            * of every claim would put unconfirmed evidence text in the DOM. */}
           {open && (
             <div className="command-results" role="listbox" aria-label="Navigation results">
+              {/* Index in the key: the same posting can appear on two boards, and
+               * since the list stopped being pre-sliced those duplicates now reach
+               * the DOM together. */}
               {filtered.map((item, index) => (
                 <a
-                  key={`${item.section ?? item.href}-${item.label}`}
+                  key={`${item.section ?? item.href}-${item.label}-${index}`}
                   href={item.href ?? "#"}
                   className={index === active ? "command-result is-active" : "command-result"}
                   role="option"

@@ -354,6 +354,32 @@ export function unscoredConfirmedClaims(
   return confirmedClaimIds.filter((id) => !saved.has(id)).length;
 }
 
+export type ExplanationFreshness =
+  "current" | "scored_against_earlier_version" | "confirmed_evidence_unsaved";
+
+/** Why an explanation may not reflect the candidate's evidence, and which
+ * remedy applies. Two different things can be stale, and they need opposite
+ * actions:
+ *
+ *  - the explanation predates the saved Profile Version → explain again;
+ *  - confirmed claims are in no saved version at all → save one first, because
+ *    explaining again would return an identical result.
+ *
+ * Comparing version ids alone cannot see the second case: a freshly published
+ * match is always stamped with the current version, so the very sequence this
+ * exists for — confirm a claim, explain again, get the same score — reads as
+ * current. Unsaved evidence is reported first because explaining again without
+ * saving does nothing. */
+export function explanationFreshness(
+  match: { profileVersionId: string | null },
+  profile: (ProfileVersionLike & { id: string }) | null,
+  confirmedClaimIds: readonly string[],
+): ExplanationFreshness {
+  if (unscoredConfirmedClaims(profile, confirmedClaimIds) > 0) return "confirmed_evidence_unsaved";
+  if (profile && match.profileVersionId !== profile.id) return "scored_against_earlier_version";
+  return "current";
+}
+
 /** Literal set and string comparison only; it makes no claim about why a
  * profile changed or whether a later match result was caused by that change. */
 export function profileVersionDiff(before: ProfileVersionLike, after: ProfileVersionLike) {

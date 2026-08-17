@@ -691,7 +691,13 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
        * one. Storing the source name again would put a value Nimanto invented
        * into a provenance field that travels into packets, exports and stored
        * history. Absence is the honest record; the column stays NOT NULL. */
-      locator: typeof body.locator === "string" ? string(body.locator, "locator") : "",
+      /* `allowEmpty` so the value this route now stores can be sent back to it.
+       * Without it a manual claim could be read but not round-tripped: the empty
+       * locator it was given would be rejected as INVALID_LOCATOR. */
+      locator:
+        typeof body.locator === "string"
+          ? string(body.locator, "locator", { allowEmpty: true })
+          : "",
       userAttested: true,
     });
   });

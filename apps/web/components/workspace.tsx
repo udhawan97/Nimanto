@@ -63,6 +63,7 @@ import {
   nextSteps,
   packetInventoryNotice,
   profileInputChanged,
+  explanationFreshness,
   unscoredConfirmedClaims,
   profileVersionDiff,
   recordReviewQueue,
@@ -681,9 +682,15 @@ export function Workspace() {
    *
    * Three guards, each load-bearing:
    *  - only `transient` notices, so instructions the candidate must act on stay;
-   *  - only while a dashboard exists, because without one the notice is part of
-   *    what the entry screen is showing and retiring it would change the view;
-   *  - never while it holds focus, which would drop focus to <body>. */
+   *  - only while a dashboard exists. This is no longer about screen selection —
+   *    a notice cannot change which screen renders any more. It is that the entry
+   *    screens carry their notice as their only explanation of what just happened,
+   *    and nothing there is transient anyway, so retiring one could only ever
+   *    remove information;
+   *  - never while it holds focus, which would drop focus to <body>. A notice
+   *    focused at the deadline is kept for good rather than rescheduled: the
+   *    candidate is reading it, and a notice that vanishes from under the cursor
+   *    is worse than one that outstays. */
   useEffect(() => {
     if (!notice?.transient || !dashboard) return;
     const timer = window.setTimeout(() => {
@@ -801,11 +808,11 @@ export function Workspace() {
 
   /* `notice` is a message, never a screen selector. It used to sit in this
    * predicate, so clearing it — which three modules do as routine cleanup —
-   * silently swapped which screen rendered. Both branches paint the same
-   * "Try again" button, but this one POSTs an identity while the `!dashboard`
-   * branch below re-reads the dashboard, so the swap changed what the button
-   * did without changing a pixel. The screen now depends only on whether
-   * identity is required and whether a dashboard exists. */
+   * silently swapped which screen rendered: the button kept its pixels and
+   * changed what it did, POSTing an identity where it had re-read the
+   * dashboard. The screen now depends only on whether identity is required and
+   * whether a dashboard exists, so the two branches below are distinct
+   * surfaces rather than one surface with two behaviours. */
   if (authRequired) {
     return (
       <WorkspaceStart
@@ -1034,30 +1041,50 @@ export function Workspace() {
          *
          * A failure announced politely waits behind whatever the screen reader
          * is already saying. The sign-in screen already made this distinction;
-         * the workbench did not. */}
-        <div
-          ref={noticeRegion}
-          className={notice ? `notice ${notice.kind}` : "notice-empty"}
-          role={notice?.kind === "error" ? "alert" : "status"}
-          aria-live={notice?.kind === "error" ? "assertive" : "polite"}
-          tabIndex={-1}
-          hidden={!notice}
-        >
-          {notice && (
-            <>
-              {notice.kind === "ok" ? <Check size={17} /> : <CircleAlert size={17} />}
-              <span>{notice.text}</span>
-              <button
-                className="icon-button"
-                type="button"
-                onClick={() => setNotice(null)}
-                aria-label="Dismiss message"
-              >
-                <X size={15} />
-              </button>
-            </>
-          )}
-        </div>
+         * the workbench did not.
+         *
+         * Two regions rather than one that changes `role`: assistive technology
+         * registers a live region's politeness when the element enters the tree,
+         * so flipping status/alert on a mounted node is unreliably honoured —
+         * which would lose exactly the urgency this distinction buys. Each
+         * politeness gets its own stable element and the message goes to the
+         * matching one. */}
+        {/* No `hidden`: an element hidden until its message arrives is not in the
+         * accessibility tree beforehand, which is the whole reason for keeping
+         * these stable. Empty, they carry no rule and so occupy nothing.
+         *
+         * The ref follows the live region rather than sitting on a wrapper. A
+         * wrapper would need `display: contents` to keep `.notice` sticky against
+         * the main column — and an element with `display: contents` generates no
+         * box, so it cannot take focus at all. That silently killed
+         * `focusNotice`, which is how a keyboard user reaches a failed mutation's
+         * message. With the ref here it targets a real box, and it is null while
+         * there is nothing to read, so both callers correctly do nothing. */}
+        {(["ok", "error"] as const).map((kind) => (
+          <div
+            key={kind}
+            ref={notice?.kind === kind ? noticeRegion : null}
+            tabIndex={notice?.kind === kind ? -1 : undefined}
+            className={notice?.kind === kind ? `notice ${kind}` : "notice-empty"}
+            role={kind === "error" ? "alert" : "status"}
+            aria-live={kind === "error" ? "assertive" : "polite"}
+          >
+            {notice?.kind === kind && (
+              <>
+                {kind === "ok" ? <Check size={17} /> : <CircleAlert size={17} />}
+                <span>{notice.text}</span>
+                <button
+                  className="icon-button"
+                  type="button"
+                  onClick={() => setNotice(null)}
+                  aria-label="Dismiss message"
+                >
+                  <X size={15} />
+                </button>
+              </>
+            )}
+          </div>
+        ))}
         {/* Focus target for every section change. Without it, choosing a
          * destination — from the sidebar or from quick navigation — dropped
          * focus to <body> and a keyboard user restarted from the top. */}
@@ -1538,6 +1565,7 @@ function EvidenceVault({
   const [authorization, setAuthorization] = useState(dashboard.profile?.authorizationWording ?? "");
   const [importPreview, setImportPreview] = useState<EvidenceImportPreview | null>(null);
   const claimField = useRef<HTMLTextAreaElement>(null);
+  const saveVersionControl = useRef<HTMLButtonElement>(null);
   const confirmedClaimIds = dashboard.evidence
     .filter((claim) => claim.status === "confirmed")
     .map((claim) => claim.id);
@@ -1642,13 +1670,24 @@ function EvidenceVault({
                 </strong>
                 <span>Matching uses your last saved profile version.</span>
               </div>
+              {/* Takes the candidate to the wording rather than committing it. A
+               * Profile Version freezes the authorization statement too, so a
+               * claims-scoped control must not mint one from a textarea it never
+               * showed — but leaving the candidate to find that panel unaided is
+               * the gap this strip exists to close. Guide, do not submit. */}
               <button
                 type="button"
                 className="button mini primary"
+                /* Mid-mutation the target is disabled, and focusing a disabled
+                 * control is a silent no-op — so refuse the trip rather than
+                 * appear to do nothing. */
                 disabled={busy}
-                onClick={saveProfileVersion}
+                onClick={() => {
+                  saveVersionControl.current?.scrollIntoView({ block: "center" });
+                  saveVersionControl.current?.focus({ preventScroll: true });
+                }}
               >
-                Save profile version
+                Review and save
               </button>
             </div>
           )}
@@ -1872,7 +1911,12 @@ function EvidenceVault({
             <p className="field-note">
               Packet assurance blocks any silent wording change. This is not legal advice.
             </p>
-            <button className="button quiet" disabled={busy || !profileChanged}>
+            <button
+              ref={saveVersionControl}
+              id="save-profile-version"
+              className="button quiet"
+              disabled={busy || !profileChanged}
+            >
               {profileChanged ? "Save profile version" : "No changes to save"}
             </button>
           </form>
@@ -1903,12 +1947,9 @@ function Jobs({
 }) {
   const [sourceOpen, setSourceOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
-  /* Same derivation as the evidence vault: a claim can be confirmed and still
-   * be absent from the Profile Version this explanation was scored against. */
-  const unscoredClaims = unscoredConfirmedClaims(
-    dashboard.profile,
-    dashboard.evidence.filter((claim) => claim.status === "confirmed").map((claim) => claim.id),
-  );
+  const confirmedClaimIds = dashboard.evidence
+    .filter((claim) => claim.status === "confirmed")
+    .map((claim) => claim.id);
   const [query, setQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState("all");
   const [fitFilter, setFitFilter] = useState("all");
@@ -2626,17 +2667,26 @@ function Jobs({
                       </div>
                       <code>{match.result.ruleVersion}</code>
                     </div>
-                    {/* Without this, adding the evidence a requirement asks for and
-                     * re-explaining returns an identical result, and the loop looks
-                     * broken. The claim is confirmed; it is simply not in the Profile
-                     * Version this explanation was scored against. */}
-                    {unscoredClaims > 0 && (
-                      <p className="unscored-claims inline" role="status">
-                        {countedNoun(unscoredClaims, "confirmed claim")}{" "}
-                        {unscoredClaims === 1 ? "is" : "are"} not in this explanation yet. Save a
-                        profile version in the evidence vault, then explain again.
-                      </p>
-                    )}
+                    {/* Two different things go stale here and they need opposite
+                     * actions, so both are reported. Explaining again fixes an old
+                     * version; it does nothing at all when the confirmed evidence is
+                     * in no version yet — that returns an identical result, which is
+                     * the failure this whole loop was built to explain. */}
+                    {(() => {
+                      const freshness = explanationFreshness(
+                        match,
+                        dashboard.profile,
+                        confirmedClaimIds,
+                      );
+                      if (freshness === "current") return null;
+                      return (
+                        <p className="explanation-freshness" role="status">
+                          {freshness === "confirmed_evidence_unsaved"
+                            ? "Confirmed evidence is not in any saved profile version yet, so explaining again returns the same result. Save a profile version in the evidence vault first."
+                            : "This explanation was scored against an earlier profile version. Explain again to use your current confirmed evidence."}
+                        </p>
+                      );
+                    })()}
                     <div className="dimension-grid" aria-label="Weighted match dimensions">
                       {match.result.dimensions.map((dimension) => (
                         <article key={dimension.name}>
