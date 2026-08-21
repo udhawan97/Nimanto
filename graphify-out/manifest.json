@@ -165,8 +165,8 @@
     "semantic_hash": ""
   },
   "package.json": {
-    "mtime": 1787333348.2447715,
-    "ast_hash": "2c133d253af9bb765c62ed2d19125d61",
+    "mtime": 1787334515.4393501,
+    "ast_hash": "fe07d46235e85d2eae0c6ec8315aeaf3",
     "semantic_hash": ""
   },
   "packages/database/package.json": {
@@ -470,12 +470,12 @@
     "semantic_hash": ""
   },
   "docs/assets/nimanto-landing.png": {
-    "mtime": 1787332796.3765442,
+    "mtime": 1787334611.4671068,
     "ast_hash": "3f25046ef6ac8a94f010559ad548ddde",
     "semantic_hash": ""
   },
   "docs/assets/nimanto-workbench.png": {
-    "mtime": 1787332796.3769767,
+    "mtime": 1787334611.467419,
     "ast_hash": "16e4c5ad08e33c47268c201959eef8e7",
     "semantic_hash": ""
   },
@@ -725,7 +725,7 @@
     "semantic_hash": ""
   },
   "apps/web/public/assets/nimanto-workbench.png": {
-    "mtime": 1787332796.3772058,
+    "mtime": 1787334611.4676945,
     "ast_hash": "16e4c5ad08e33c47268c201959eef8e7",
     "semantic_hash": ""
   },
@@ -930,13 +930,13 @@
     "semantic_hash": ""
   },
   "docs/releases/nimanto-v0.5.2.cdx.json": {
-    "mtime": 1787333478.6031113,
-    "ast_hash": "ea8369b10b6c1395c1892d3e5f7ec919",
+    "mtime": 1787334794.861298,
+    "ast_hash": "3d22204ec5d8f2dea53935a945877d1a",
     "semantic_hash": ""
   },
   "docs/releases/nimanto-v0.5.2.spdx.json": {
-    "mtime": 1787333479.0417252,
-    "ast_hash": "90aba5d8f963c18f0c26f5e4266a6646",
+    "mtime": 1787334795.3777108,
+    "ast_hash": "f25ff56e32af2ed3286c7dcd59812cbf",
     "semantic_hash": ""
   },
   "packages/providers/src/version.ts": {
@@ -945,8 +945,8 @@
     "semantic_hash": ""
   },
   "scripts/check-screenshots.mjs": {
-    "mtime": 1787332992.2028472,
-    "ast_hash": "277b143798709d4461c7a3104f0a07a7",
+    "mtime": 1787334507.832384,
+    "ast_hash": "a26123679deb7148ca003eced4467d0f",
     "semantic_hash": ""
   },
   "scripts/release-assets.test.mjs": {
@@ -970,18 +970,18 @@
     "semantic_hash": ""
   },
   "docs/releases/nimanto-v0.5.2-SHA256SUMS.txt": {
-    "mtime": 1787333479.1584551,
-    "ast_hash": "7484ad980d90398032854429052c5cb2",
+    "mtime": 1787334795.5122273,
+    "ast_hash": "3ca33ef9e8a029a7b2c7700c5eec934d",
     "semantic_hash": ""
   },
   "docs/releases/v0.5.2-surface-ledger.md": {
-    "mtime": 1787333355.6472104,
-    "ast_hash": "a0ca2d272a93938eab2d9dbb1fe07b99",
+    "mtime": 1787334598.1228802,
+    "ast_hash": "5227a08f97ce3d4bb6d3427d4953d992",
     "semantic_hash": ""
   },
   "docs/releases/v0.5.2.md": {
-    "mtime": 1787332992.2034297,
-    "ast_hash": "1e7a9a9d9a983f79651c29ea0556a20e",
+    "mtime": 1787334507.8328402,
+    "ast_hash": "dc4fa01f6953d7fb1aaeb743b50f1f32",
     "semantic_hash": ""
   },
   "scripts/sbom-freshness.test.mjs": {
@@ -992,6 +992,21 @@
   "scripts/verify-sbom-freshness.mjs": {
     "mtime": 1787333324.530769,
     "ast_hash": "118bc7b03ac1e64f89f97b59ad657d25",
+    "semantic_hash": ""
+  },
+  "docs/assets/nimanto-screenshots.json": {
+    "mtime": 1787334611.4793992,
+    "ast_hash": "72804e226ded0c8a9e3adcac4e693bc8",
+    "semantic_hash": ""
+  },
+  "scripts/screenshot-evidence.mjs": {
+    "mtime": 1787334598.1493702,
+    "ast_hash": "9d3e92ab8dc59e050be70d5747f0f13b",
+    "semantic_hash": ""
+  },
+  "scripts/screenshot-evidence.test.mjs": {
+    "mtime": 1787334578.315898,
+    "ast_hash": "4127d20b4d7d9c02e58f9d6b9245d0fe",
     "semantic_hash": ""
   }
 }

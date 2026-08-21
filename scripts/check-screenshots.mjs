@@ -4,10 +4,16 @@ import { createConnection } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  assertScreenshotVisuallyMatches,
+  verifyScreenshotEvidence,
+  writeScreenshotEvidence,
+} from "./screenshot-evidence.mjs";
 
 const repository = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const scratch = await mkdtemp(path.join(tmpdir(), "nimanto-screenshot-check-"));
 const secret = "nimanto-synthetic-screenshot-check-secret";
+const evidenceManifest = "docs/assets/nimanto-screenshots.json";
 let service;
 let serviceLog = "";
 const update = process.argv.includes("--update");
@@ -132,19 +138,24 @@ try {
       path.join(publicAssets, "nimanto-workbench.png"),
       path.join(repository, "apps/web/public/assets/nimanto-workbench.png"),
     );
-    console.log("Updated committed screenshots from disposable synthetic captures.");
+    await writeScreenshotEvidence(repository, evidenceManifest);
+    console.log("Updated committed screenshots and their source evidence manifest.");
   } else {
-    if (!landing.equals(committedLanding)) {
-      throw new Error("Committed landing screenshot is stale; run pnpm screenshots:render");
-    }
-    if (!workbench.equals(committedWorkbench)) {
-      throw new Error("Committed documentation workbench screenshot is stale");
-    }
-    if (!workbench.equals(committedPublicWorkbench)) {
-      throw new Error("Committed public workbench screenshot is stale");
-    }
+    await verifyScreenshotEvidence(repository, evidenceManifest);
+    const landingComparison = await assertScreenshotVisuallyMatches(
+      landing,
+      committedLanding,
+      "Fresh landing screenshot",
+    );
+    const workbenchComparison = await assertScreenshotVisuallyMatches(
+      workbench,
+      committedWorkbench,
+      "Fresh workbench screenshot",
+    );
     console.log(
-      "Verified committed landing and workbench screenshots against disposable synthetic captures.",
+      "Verified exact screenshot source/asset evidence and bounded cross-host visual captures " +
+        `(landing mean delta ${landingComparison.meanAbsoluteError.toFixed(3)}, ` +
+        `workbench ${workbenchComparison.meanAbsoluteError.toFixed(3)}).`,
     );
   }
 } finally {

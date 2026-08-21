@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.6",
-  "serialNumber": "urn:uuid:cc8d30dc-43ff-4114-a35c-9f747552a477",
+  "serialNumber": "urn:uuid:5903ece5-4d9d-4019-ba64-31fd13991232",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-08-21T17:30:36Z",
+    "timestamp": "2026-08-21T17:52:25Z",
     "tools": {
       "components": [
         {
@@ -29472,6 +29472,10 @@
         {
           "name": "SrcFile",
           "value": "pnpm-lock.yaml"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
         },
         {
           "name": "cdx:npm:scripts",
@@ -106797,11 +106801,16 @@
       }
     },
     {
+      "authors": [
+        {
+          "name": "Lovell Fuller <npm@lovell.info>"
+        }
+      ],
       "group": "",
       "name": "sharp",
       "version": "0.35.3",
       "description": "High performance Node.js image processing, the fastest module to resize JPEG, PNG, WebP, GIF, AVIF and TIFF images",
-      "scope": "optional",
+      "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
@@ -106855,6 +106864,18 @@
         {
           "name": "cdx:npm:package:optional",
           "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:scripts",
+          "value": "build, build:dist, clean, test, lint, lint-cpp, lint-js, lint-publish, lint-types, test-leak, test-unit, package-from-local-build, package-wasm-wrappers, package-release-notes, docs-build, docs-serve, docs-publish"
+        },
+        {
+          "name": "cdx:npm:buildScripts",
+          "value": "build, build:dist, package-from-local-build, docs-build"
         },
         {
           "name": "cdx:npm:packageCreatedTime",
@@ -106949,6 +106970,10 @@
           "value": "https://registry.npmjs.org/-/npm/v1/attestations/sharp@0.35.3"
         },
         {
+          "name": "ImportedModules",
+          "value": "sharp"
+        },
+        {
           "name": "cdx:license:category",
           "value": "Permissive"
         }
@@ -106966,6 +106991,40 @@
               }
             ],
             "concludedValue": "pnpm-lock.yaml"
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "scripts/screenshot-evidence.mjs",
+            "line": 4
+          },
+          {
+            "location": "scripts/screenshot-evidence.mjs",
+            "line": 112
+          },
+          {
+            "location": "scripts/screenshot-evidence.mjs",
+            "line": 113
+          },
+          {
+            "location": "scripts/screenshot-evidence.mjs",
+            "line": 126
+          },
+          {
+            "location": "scripts/screenshot-evidence.test.mjs",
+            "line": 6
+          },
+          {
+            "location": "scripts/screenshot-evidence.test.mjs",
+            "line": 53
+          },
+          {
+            "location": "scripts/screenshot-evidence.test.mjs",
+            "line": 58
+          },
+          {
+            "location": "scripts/screenshot-evidence.test.mjs",
+            "line": 59
           }
         ]
       },
@@ -125700,7 +125759,7 @@
           ]
         }
       },
-      "timestamp": "2026-08-21T17:30:36Z",
+      "timestamp": "2026-08-21T17:52:25Z",
       "text": "This Software Bill-of-Materials (SBOM) document was created on Friday, August 21, 2026 with cdxgen. The data was captured during the pre-build lifecycle phase without building the application. The document describes an application named 'nimanto' with version '0.5.2'. The application also has 8 child modules/components. Trusted publishing metadata is present for 287 npm component(s) and 0 PyPI component(s). The package type in this SBOM is npm with 34 purl namespaces described under components. The components were identified from the source files: pnpm-lock.yaml."
     }
   ]
