@@ -453,7 +453,7 @@ boundaries, provider allowlists, durable schedule leases, retries and dead
 letters, application transition legality, modern and ATS-safe packet formats,
 artifact tamper detection, assurance gating, resumable deletion, external-action
 transitions, literal history comparison, sensitive export confirmation,
-design-token contrast, API integration, and eighteen sequential WebKit journeys.
+design-token contrast, API integration, and nineteen sequential WebKit journeys.
 
 ## Beta boundaries
 

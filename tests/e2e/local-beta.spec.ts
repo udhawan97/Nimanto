@@ -1288,6 +1288,64 @@ test("retained history, record review, cohorts, and sensitive export stay bounde
   await expectSurfaceContained(page, page.locator(".data-grid"), "data controls at 320px");
 });
 
+test("outcome drafts remain with each application until recorded or discarded", async ({
+  page,
+}) => {
+  await expect
+    .poll(
+      async () => {
+        try {
+          return (await page.request.get("http://127.0.0.1:4310/health")).ok();
+        } catch {
+          return false;
+        }
+      },
+      { message: "local API health before the outcome-draft journey", timeout: 20_000 },
+    )
+    .toBe(true);
+  await page.goto(`/workspace/#bootstrap=${bootstrapSecret}`);
+  await page.getByLabel("Your name").fill("Outcome Draft Check");
+  await page.getByLabel("Your email").fill("outcome-drafts@example.test");
+  await page.getByRole("button", { name: "Start private workspace" }).click();
+  await page.getByRole("button", { name: "Run starter matches" }).click();
+  await page.getByRole("button", { name: "Role discovery" }).click();
+  const roles = page.locator(".job-row");
+  const firstRoleTitle = (await roles
+    .nth(0)
+    .getByRole("heading", { level: 2 })
+    .textContent())!.trim();
+  const secondRoleTitle = (await roles
+    .nth(1)
+    .getByRole("heading", { level: 2 })
+    .textContent())!.trim();
+  await roles.nth(0).getByRole("button", { name: "Track", exact: true }).click();
+  await expect(roles.nth(0).getByRole("button", { name: "Tracked", exact: true })).toBeVisible();
+  await roles.nth(1).getByRole("button", { name: "Track", exact: true }).click();
+  await expect(roles.nth(1).getByRole("button", { name: "Tracked", exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Applications" }).click();
+  const cards = page.locator(".board-card");
+  await expect(cards).toHaveCount(2);
+  const first = cards.filter({ hasText: firstRoleTitle });
+  const second = cards.filter({ hasText: secondRoleTitle });
+  await first.getByRole("button", { name: "Record outcome" }).click();
+  await first.getByLabel("Optional note").fill("First application keeps this exact note.");
+  await second.getByRole("button", { name: "Record outcome" }).click();
+  await second.getByLabel("Candidate-reported outcome").selectOption("interview");
+  await second.getByLabel("Optional note").fill("Second application has different work.");
+
+  await first.getByRole("button", { name: "Record outcome" }).click();
+  await expect(first.getByLabel("Candidate-reported outcome")).toHaveValue("reply");
+  await expect(first.getByLabel("Optional note")).toHaveValue(
+    "First application keeps this exact note.",
+  );
+  await second.getByRole("button", { name: "Record outcome" }).click();
+  await expect(second.getByLabel("Candidate-reported outcome")).toHaveValue("interview");
+  await expect(second.getByLabel("Optional note")).toHaveValue(
+    "Second application has different work.",
+  );
+});
+
 test("long action references keep their Copy control clear at 320px", async ({ page }) => {
   await installClipboardRecorder(page);
   await expect

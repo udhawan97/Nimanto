@@ -253,6 +253,14 @@ type OutcomeDraft = {
   type: string;
   note: string;
 };
+type OutcomeDraftState = {
+  activeApplicationId: string | null;
+  byApplication: Record<string, OutcomeDraft>;
+};
+const emptyOutcomeDraftState = (): OutcomeDraftState => ({
+  activeApplicationId: null,
+  byApplication: {},
+});
 type ApplicationViewState = {
   reviewOnly: boolean;
   cohortStart: string;
@@ -591,14 +599,26 @@ export function Workspace() {
   const [evidenceDraft, setEvidenceDraft] = useState<EvidenceDraft | null>(null);
   const [roleFilters, setRoleFilters] = useState<RoleFilters>(emptyRoleFilters);
   const [actionDraft, setActionDraft] = useState<ActionDraft | null>(null);
-  const [outcomeDraft, setOutcomeDraft] = useState<OutcomeDraft | null>(null);
+  const [outcomeDraftState, setOutcomeDraftState] =
+    useState<OutcomeDraftState>(emptyOutcomeDraftState);
   const commitActionDraft = useCallback((submitted: ActionDraft) => {
     setActionDraft((current) => (current && sameActionDraft(current, submitted) ? null : current));
   }, []);
   const commitOutcomeDraft = useCallback((submitted: OutcomeDraft) => {
-    setOutcomeDraft((current) =>
-      current && sameOutcomeDraft(current, submitted) ? null : current,
-    );
+    setOutcomeDraftState((current) => {
+      const submittedApplicationId = submitted.applicationId;
+      const retained = current.byApplication[submittedApplicationId];
+      if (!retained || !sameOutcomeDraft(retained, submitted)) return current;
+      const byApplication = { ...current.byApplication };
+      delete byApplication[submittedApplicationId];
+      return {
+        activeApplicationId:
+          current.activeApplicationId === submittedApplicationId
+            ? null
+            : current.activeApplicationId,
+        byApplication,
+      };
+    });
   }, []);
   const [applicationViewState, setApplicationViewState] =
     useState<ApplicationViewState>(emptyApplicationViewState);
@@ -728,7 +748,7 @@ export function Workspace() {
       setEvidenceDraft(null);
       setRoleFilters(emptyRoleFilters());
       setActionDraft(null);
-      setOutcomeDraft(null);
+      setOutcomeDraftState(emptyOutcomeDraftState());
       setApplicationViewState(emptyApplicationViewState());
       setApplicationsView("board");
       // Remount the active section too: import previews and other child-local
@@ -1308,8 +1328,8 @@ export function Workspace() {
               onViewChange={setApplicationsView}
               workingView={applicationViewState}
               onWorkingViewChange={setApplicationViewState}
-              outcomeDraft={outcomeDraft}
-              onOutcomeDraftChange={setOutcomeDraft}
+              outcomeDraftState={outcomeDraftState}
+              onOutcomeDraftStateChange={setOutcomeDraftState}
               onOutcomeCommitted={commitOutcomeDraft}
             />
           )}
@@ -3710,8 +3730,8 @@ function Applications({
   onViewChange,
   workingView,
   onWorkingViewChange,
-  outcomeDraft,
-  onOutcomeDraftChange,
+  outcomeDraftState,
+  onOutcomeDraftStateChange,
   onOutcomeCommitted,
 }: {
   dashboard: Dashboard;
@@ -3722,11 +3742,12 @@ function Applications({
   onViewChange: (view: "board" | "table") => void;
   workingView: ApplicationViewState;
   onWorkingViewChange: (view: ApplicationViewState) => void;
-  outcomeDraft: OutcomeDraft | null;
-  onOutcomeDraftChange: (draft: OutcomeDraft | null) => void;
+  outcomeDraftState: OutcomeDraftState;
+  onOutcomeDraftStateChange: Dispatch<SetStateAction<OutcomeDraftState>>;
   onOutcomeCommitted: (submitted: OutcomeDraft) => void;
 }) {
-  const outcomeFor = outcomeDraft?.applicationId ?? null;
+  const outcomeFor = outcomeDraftState.activeApplicationId;
+  const outcomeDraft = outcomeFor ? (outcomeDraftState.byApplication[outcomeFor] ?? null) : null;
   const [pendingMove, setPendingMove] = useState<{ id: string; to: ApplicationStatus } | null>(
     null,
   );
@@ -3750,11 +3771,40 @@ function Applications({
   const cohortTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const cohortSources = [...new Set(dashboard.jobs.map((job) => job.source))].toSorted();
   const openOutcome = (id: string) => {
-    if (outcomeDraft?.applicationId === id) {
+    if (outcomeFor === id) {
       document.getElementById(`outcome-editor-${id}-type`)?.focus();
       return;
     }
-    onOutcomeDraftChange({ applicationId: id, type: "reply", note: "" });
+    // Capture the live controlled fields at the switching boundary too. A
+    // second trigger can be pressed in the same render turn as the last input
+    // event; the candidate's visible value is authoritative and must not wait
+    // for React's parent update before it is retained.
+    const activeDraft = outcomeFor ? outcomeDraftState.byApplication[outcomeFor] : null;
+    const liveActiveDraft = activeDraft
+      ? {
+          ...activeDraft,
+          type:
+            (
+              document.getElementById(
+                `outcome-editor-${outcomeFor}-type`,
+              ) as HTMLSelectElement | null
+            )?.value ?? activeDraft.type,
+          note:
+            (
+              document.getElementById(
+                `outcome-editor-${outcomeFor}-note`,
+              ) as HTMLInputElement | null
+            )?.value ?? activeDraft.note,
+        }
+      : null;
+    onOutcomeDraftStateChange((current) => {
+      const byApplication = { ...current.byApplication };
+      if (liveActiveDraft) byApplication[liveActiveDraft.applicationId] = liveActiveDraft;
+      if (!byApplication[id]) {
+        byApplication[id] = { applicationId: id, type: "reply", note: "" };
+      }
+      return { activeApplicationId: id, byApplication };
+    });
   };
   const focusOutcomeTrigger = (id: string) => {
     window.requestAnimationFrame(() =>
@@ -3764,8 +3814,22 @@ function Applications({
     );
   };
   const closeOutcome = (id: string) => {
-    onOutcomeDraftChange(null);
+    onOutcomeDraftStateChange((current) => {
+      const byApplication = { ...current.byApplication };
+      delete byApplication[id];
+      return {
+        activeApplicationId:
+          current.activeApplicationId === id ? null : current.activeApplicationId,
+        byApplication,
+      };
+    });
     focusOutcomeTrigger(id);
+  };
+  const changeOutcomeDraft = (draft: OutcomeDraft) => {
+    onOutcomeDraftStateChange((current) => ({
+      ...current,
+      byApplication: { ...current.byApplication, [draft.applicationId]: draft },
+    }));
   };
   useEffect(() => {
     if (pendingMove || !returnPendingMoveFocus.current) return;
@@ -3925,7 +3989,7 @@ function Applications({
                         onAct={onAct}
                         busy={busy}
                         draft={outcomeDraft!}
-                        onDraftChange={onOutcomeDraftChange}
+                        onDraftChange={changeOutcomeDraft}
                         onRecorded={onOutcomeCommitted}
                         onFocusTrigger={() => focusOutcomeTrigger(application.id)}
                         onClose={() => closeOutcome(application.id)}
@@ -4059,7 +4123,7 @@ function Applications({
                   onAct={onAct}
                   busy={busy}
                   draft={outcomeDraft!}
-                  onDraftChange={onOutcomeDraftChange}
+                  onDraftChange={changeOutcomeDraft}
                   onRecorded={onOutcomeCommitted}
                   onFocusTrigger={() => focusOutcomeTrigger(application.id)}
                   onClose={() => closeOutcome(application.id)}
@@ -4235,7 +4299,7 @@ function OutcomeEditor({
   onAct: ActionRunner;
   busy: boolean;
   draft: OutcomeDraft;
-  onDraftChange: (draft: OutcomeDraft | null) => void;
+  onDraftChange: (draft: OutcomeDraft) => void;
   onRecorded: (submitted: OutcomeDraft) => void;
   onFocusTrigger: () => void;
   onClose: () => void;

@@ -100,8 +100,8 @@
     "semantic_hash": ""
   },
   "apps/web/components/workspace.tsx": {
-    "mtime": 1787352212.75685,
-    "ast_hash": "e7723d681ce3104f7d007b25406b9ff3",
+    "mtime": 1787353678.6009922,
+    "ast_hash": "79f099975259321cd40a656ce999bbe9",
     "semantic_hash": ""
   },
   "apps/web/next-env.d.ts": {
@@ -410,8 +410,8 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1787352644.6806092,
-    "ast_hash": "f0e62c5f273de10150e18db99dc45f8f",
+    "mtime": 1787353406.2067263,
+    "ast_hash": "27587c6513e14744d26313c67c2beddc",
     "semantic_hash": ""
   },
   "SECURITY.md": {
@@ -470,12 +470,12 @@
     "semantic_hash": ""
   },
   "docs/assets/nimanto-landing.png": {
-    "mtime": 1787352242.6427886,
+    "mtime": 1787353004.523117,
     "ast_hash": "29d078d9bb86ce7b98011c329096cebf",
     "semantic_hash": ""
   },
   "docs/assets/nimanto-workbench.png": {
-    "mtime": 1787352242.6430364,
+    "mtime": 1787353004.5233946,
     "ast_hash": "16e4c5ad08e33c47268c201959eef8e7",
     "semantic_hash": ""
   },
@@ -495,8 +495,8 @@
     "semantic_hash": ""
   },
   "tests/e2e/local-beta.spec.ts": {
-    "mtime": 1787352837.6907938,
-    "ast_hash": "d31b23253393c00aaf86ca8938c2b351",
+    "mtime": 1787353678.6014838,
+    "ast_hash": "0856f7f926eb223bc669d58d68af2d7a",
     "semantic_hash": ""
   },
   "docs/releases/v0.1.0-slice-matrix.md": {
@@ -725,7 +725,7 @@
     "semantic_hash": ""
   },
   "apps/web/public/assets/nimanto-workbench.png": {
-    "mtime": 1787352242.643236,
+    "mtime": 1787353004.5237074,
     "ast_hash": "16e4c5ad08e33c47268c201959eef8e7",
     "semantic_hash": ""
   },
@@ -995,8 +995,8 @@
     "semantic_hash": ""
   },
   "docs/assets/nimanto-screenshots.json": {
-    "mtime": 1787352242.6547065,
-    "ast_hash": "29a53cde13eb0dcab5d9f6ce07695ea6",
+    "mtime": 1787353004.5363235,
+    "ast_hash": "0f07087b37693e8e8d513a18a35a74b5",
     "semantic_hash": ""
   },
   "scripts/screenshot-evidence.mjs": {
@@ -1055,8 +1055,8 @@
     "semantic_hash": ""
   },
   "docs/releases/v0.5.4.md": {
-    "mtime": 1787352644.6795614,
-    "ast_hash": "b6f806d4c265757df81bf2b1c9be6c28",
+    "mtime": 1787353702.197323,
+    "ast_hash": "a2647fe95a7a9dde71f7c8d594140c8a",
     "semantic_hash": ""
   }
 }
