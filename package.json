@@ -45,10 +45,10 @@
     "typecheck": "pnpm -r --if-present run typecheck"
   },
   "devDependencies": {
-    "@cyclonedx/cdxgen": "12.8.2",
+    "@cyclonedx/cdxgen": "12.8.3",
     "@playwright/test": "1.62.1",
     "@types/node": "26.2.0",
-    "concurrently": "10.0.4",
+    "concurrently": "10.0.5",
     "cspell": "10.0.1",
     "prettier": "3.9.6",
     "typescript": "7.0.2",
