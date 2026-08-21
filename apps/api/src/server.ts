@@ -334,7 +334,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     openapi: {
       info: {
         title: "Nimanto local beta API",
-        version: "0.5.0",
+        version: "0.5.1",
         description: "Candidate-side evidence and application workbench.",
       },
       servers: [{ url: `http://${options.host}:${options.port}` }],
@@ -376,10 +376,10 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     return payload;
   });
 
-  app.get("/health", async () => ({ status: "ok", version: "0.5.0" }));
+  app.get("/health", async () => ({ status: "ok", version: "0.5.1" }));
   app.get("/v1/meta", async () => ({
     name: "Nimanto",
-    version: "0.5.0",
+    version: "0.5.1",
     mode: "local_beta",
     externalActionsEnabled: externalActionLifecycle.runtime(),
     providers: {

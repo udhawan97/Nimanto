@@ -76,7 +76,7 @@ export default function Home() {
         {/* 00 — the invitation opens toward the literal product job. */}
         <section className="hero" aria-labelledby="hero-title">
           <div className="hero-copy">
-            <p className="placard">Source-distributed local beta · v0.5.0</p>
+            <p className="placard">Source-distributed local beta · v0.5.1</p>
             <h1 id="hero-title">Nimanto</h1>
             <h2>Build the evidence. Work the application. Keep the truth yours.</h2>
             <p className="hero-line">
@@ -155,7 +155,7 @@ export default function Home() {
                 alt="Synthetic Nimanto Applications workbench with the action-first pipeline and Record outcome controls"
               />
               <figcaption>
-                v0.5.0 · server-confirmed Applications · synthetic local workspace
+                v0.5.1 · server-confirmed Applications · synthetic local workspace
               </figcaption>
             </figure>
           </div>
@@ -291,7 +291,7 @@ export default function Home() {
                 workbench.
               </p>
               <p className="run-note">
-                Nimanto is source-distributed. v0.5.0 does not ship a signed installer or desktop
+                Nimanto is source-distributed. v0.5.1 does not ship a signed installer or desktop
                 binary.
               </p>
               <a className="text-link" href="https://github.com/udhawan97/Nimanto/releases">
@@ -302,9 +302,9 @@ export default function Home() {
               </a>
               <a
                 className="text-link"
-                href="https://github.com/udhawan97/Nimanto/blob/main/docs/releases/v0.5.0.md"
+                href="https://github.com/udhawan97/Nimanto/blob/main/docs/releases/v0.5.1.md"
               >
-                Read the v0.5.0 release notes <ArrowRight size={15} />
+                Read the v0.5.1 release notes <ArrowRight size={15} />
               </a>
             </div>
           </div>
@@ -320,8 +320,8 @@ export default function Home() {
           <nav aria-label="Footer">
             <a href="https://github.com/udhawan97/Nimanto">Source</a>
             <a href="https://github.com/udhawan97/Nimanto/blob/main/SECURITY.md">Security</a>
-            <a href="https://github.com/udhawan97/Nimanto/blob/main/docs/releases/v0.5.0.md">
-              v0.5.0 notes
+            <a href="https://github.com/udhawan97/Nimanto/blob/main/docs/releases/v0.5.1.md">
+              v0.5.1 notes
             </a>
             <a href="https://github.com/udhawan97/Nimanto/blob/main/LICENSE">Apache-2.0</a>
           </nav>

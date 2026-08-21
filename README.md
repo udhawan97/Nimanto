@@ -31,7 +31,7 @@
   ·
   <a href="#what-it-actually-does"><strong>What it does</strong></a>
   ·
-  <a href="docs/releases/v0.5.0.md"><strong>v0.5.0 notes</strong></a>
+  <a href="docs/releases/v0.5.1.md"><strong>v0.5.1 notes</strong></a>
   ·
   <a href="docs/planning/product-contract.md"><strong>Product contract</strong></a>
 </p>
@@ -65,6 +65,37 @@ half-finished forms. Nimanto gives that work one inspectable path:
 Nimanto is a **candidate tool**. It does not screen you for employers, estimate
 your hiring odds, give legal advice, or promise that a company sponsors transfers
 today.
+
+## New in v0.5.1
+
+- **The workbench stops stranding people.** Signing out no longer leaves an entry
+  screen whose only two buttons are disabled with nothing saying why; the screen
+  names the private launch key it needs and where the file lives. The gate itself
+  is unchanged — the API enforces it too.
+- **Consequential decisions ask in Nimanto's own words.** Status moves, discarding
+  a role draft, and cancelling a schedule replaced `window.confirm` with an
+  in-product confirmation whose buttons name the outcome. The prompts are
+  unchanged; a browser dialog could only ever offer OK and Cancel, and a
+  suppressed one turned the control into a silent no-op.
+- **Rejecting a claim is labelled and asks once.** It is terminal in the store, so
+  the screen now says so before and after, and the keep/discard pair is
+  distinguishable without relying on colour.
+- **Keyboard work keeps its place.** A successful action returns focus to the
+  control that started it instead of dropping to the top of the document; the
+  failure path still lands on the message it announced.
+- **The application pipeline admits what it is hiding.** Below roughly 1560px the
+  five stages are wider than the content column, so the board is a focusable
+  region that states its hidden extent, and a card moved to a clipped stage is
+  scrolled into view.
+- **Typed characters stop disappearing.** Section focus is scheduled an animation
+  frame after a section change and could land after you had started typing,
+  swallowing the rest of the keystrokes. It now yields once focus is inside the
+  section.
+- **Throttling reports itself as throttling.** A rate-limit rejection returned
+  `500 INTERNAL_ERROR`, including on `/health`, so the workbench told candidates
+  their local service had failed and to restart a backend that was running. It
+  now returns `429 RATE_LIMITED` with a wait-and-retry message, and the ceiling
+  bounds a runaway loop rather than a person.
 
 ## New in v0.5.0
 
@@ -119,7 +150,7 @@ something that opens because you opened it.
 
 ## Run it
 
-Nimanto v0.5.0 is source-distributed. It does **not** ship a signed installer or
+Nimanto v0.5.1 is source-distributed. It does **not** ship a signed installer or
 desktop binary.
 
 | Path               | Best for                          | Start here                                                              |
@@ -357,11 +388,11 @@ boundaries, provider allowlists, durable schedule leases, retries and dead
 letters, application transition legality, modern and ATS-safe packet formats,
 artifact tamper detection, assurance gating, resumable deletion, external-action
 transitions, literal history comparison, sensitive export confirmation,
-design-token contrast, API integration, and ten sequential WebKit journeys.
+design-token contrast, API integration, and fifteen sequential WebKit journeys.
 
 ## Beta boundaries
 
-Version `0.5.0` is a **local beta**:
+Version `0.5.1` is a **local beta**:
 
 - The local candidate workflow is implemented and tested.
 - Public website hosting carries product information and the static workbench
@@ -419,5 +450,5 @@ of scope.
 Apache License 2.0. See [LICENSE](LICENSE), [NOTICE](NOTICE),
 [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md),
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), and the release
-[CycloneDX](docs/releases/nimanto-v0.5.0.cdx.json) /
-[SPDX](docs/releases/nimanto-v0.5.0.spdx.json) inventories.
+[CycloneDX](docs/releases/nimanto-v0.5.1.cdx.json) /
+[SPDX](docs/releases/nimanto-v0.5.1.spdx.json) inventories.

@@ -165,9 +165,9 @@ test("the public site reflows, links, and identifies itself in WebKit", async ({
     "href",
     "https://github.com/udhawan97/Nimanto/releases",
   );
-  await expect(page.getByRole("link", { name: "v0.5.0 notes" }).first()).toHaveAttribute(
+  await expect(page.getByRole("link", { name: "v0.5.1 notes" }).first()).toHaveAttribute(
     "href",
-    /docs\/releases\/v0\.5\.0\.md$/,
+    /docs\/releases\/v0\.5\.1\.md$/,
   );
   await expect(page.getByAltText(/Synthetic Nimanto Applications workbench/)).toHaveAttribute(
     "src",

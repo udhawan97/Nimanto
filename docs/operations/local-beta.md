@@ -25,12 +25,18 @@ Open:
 - API health: `http://127.0.0.1:4310/health`
 - OpenAPI explorer: `http://127.0.0.1:4310/docs`
 
+Both ways into the workbench need the private launch key. The macOS launcher
+opens Nimanto with it already supplied, and `pnpm dev` prints the same URL on
+startup. Opening the bare workbench URL — or returning to it after signing out —
+shows the entry screen with its controls disabled until the key is supplied; the
+screen names `.nimanto-data/launch-secret` as the file that holds it.
+
 The API binds to loopback by default. Do not change `NIMANTO_API_HOST` to a public interface without adding production authentication, secure cookies, TLS, and a reviewed deployment configuration.
 
-## Upgrade to v0.5.0
+## Upgrade to v0.5.1
 
 Stop the API, copy the complete `.nimanto-data/` directory, update to the exact
-v0.5.0 source, and reinstall the locked graph before restarting:
+v0.5.1 source, and reinstall the locked graph before restarting:
 
 ```bash
 corepack enable
@@ -38,7 +44,7 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-v0.5.0 adds no schema migration: startup remains on additive, idempotent schema
+v0.5.1 adds no schema migration: startup remains on additive, idempotent schema
 version 3. Existing candidate rows, packet files, approvals, and exact bindings
 are preserved. The release changes candidate transition enforcement, common
 current-Role normalization, and browser-local mutation/identity/navigation
@@ -71,7 +77,7 @@ The digest-pinned container runs the same static web workbench and API with publ
 docker compose up --build
 ```
 
-Open `http://127.0.0.1:4300/`. Retrieve the generated admin key with `docker compose exec nimanto sh -c 'cat /data/launch-secret'`, then issue a private invitation as above. The named `nimanto-data` volume holds the database and artifacts. The image is built in CI; v0.5.0 has not been certified for internet exposure and should remain bound to loopback.
+Open `http://127.0.0.1:4300/`. Retrieve the generated admin key with `docker compose exec nimanto sh -c 'cat /data/launch-secret'`, then issue a private invitation as above. The named `nimanto-data` volume holds the database and artifacts. The image is built in CI; v0.5.1 has not been certified for internet exposure and should remain bound to loopback.
 
 ## Data locations
 
@@ -210,7 +216,10 @@ pnpm start
 
 ### The workbench says “Connect the local service”
 
-Confirm `http://127.0.0.1:4310/health` returns `{"status":"ok"}`. If a different process owns port 4310, stop it or set matching `NIMANTO_API_PORT` and `NEXT_PUBLIC_NIMANTO_API_ORIGIN` values before rebuilding the web app.
+Confirm `http://127.0.0.1:4310/health` returns `{"status":"ok"}`. A burst of
+requests no longer produces this message: the API answers `429 RATE_LIMITED`
+with a wait-and-retry message of its own rather than reporting itself as a
+failed service. If a different process owns port 4310, stop it or set matching `NIMANTO_API_PORT` and `NEXT_PUBLIC_NIMANTO_API_ORIGIN` values before rebuilding the web app.
 
 ### A packet is blocked
 
@@ -225,9 +234,9 @@ The packet must be approved, the action must be separately approved, and the run
 Do not retry it. The provider effect may have completed before local outcome
 persistence became uncertain. Copy the action ID, inspect the local outbox file
 or mail-client state, and follow the provider-specific reconciliation procedure
-in [provider boundaries](provider-setup.md#reconcile-an-ambiguous-action). v0.5.0
+in [provider boundaries](provider-setup.md#reconcile-an-ambiguous-action). v0.5.1
 keeps the ambiguous record as a do-not-retry audit trail.
 
 ### Gmail or Outlook is unavailable
 
-Connected-account sending is not part of v0.5.0. Use the local test outbox or a user-opened deep link. See [provider boundaries](provider-setup.md).
+Connected-account sending is not part of v0.5.1. Use the local test outbox or a user-opened deep link. See [provider boundaries](provider-setup.md).
