@@ -862,11 +862,50 @@ svg {
 }
 
 /* 06 — run it */
+.run-paths {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-block-start: var(--space-4xl);
+  border-block: 1px solid var(--brass-200);
+}
+.run-path {
+  display: grid;
+  align-content: start;
+  min-width: 0;
+  padding: var(--space-2xl);
+  border-inline-start: 1px solid var(--brass-200);
+}
+.run-path:first-child {
+  border-inline-start: 0;
+}
+.run-path > svg {
+  width: 1.4rem;
+  height: 1.4rem;
+  margin-block-end: var(--space-xl);
+  color: var(--brass-500);
+}
+.run-path h3,
+.release-proof h3 {
+  font-size: var(--text-lg);
+}
+.run-path p:not(.placard),
+.release-proof p {
+  color: var(--text-body);
+}
+.run-path small {
+  display: block;
+  margin-block-start: var(--space-lg);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-placard);
+  line-height: var(--leading-body);
+}
 .run-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space-4xl);
   align-items: start;
+  margin-block-start: var(--space-4xl);
 }
 .run-block {
   padding: var(--pad-card-wide);
@@ -915,6 +954,60 @@ svg {
 .run-note {
   font-size: var(--text-sm);
   color: var(--text-muted);
+}
+.release-proof {
+  padding: var(--pad-card-wide);
+  border-block-start: 1px solid var(--brass-300);
+}
+.release-proof > svg {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: var(--ok-text);
+}
+.release-proof .text-link {
+  display: flex;
+  width: fit-content;
+}
+
+/* 07 — continuation without hiding the operating or security boundaries. */
+.help-grid {
+  display: grid;
+  gap: var(--space-4xl);
+  align-items: start;
+}
+.help-links {
+  display: grid;
+  border-block-start: 1px solid var(--brass-200);
+}
+.help-links > a {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--space-lg);
+  align-items: center;
+  padding-block: var(--space-xl);
+  border-block-end: 1px solid var(--brass-200);
+  color: var(--text-body);
+}
+.help-links > a:hover {
+  color: var(--text);
+}
+.help-links > a > svg:first-child {
+  color: var(--brass-500);
+}
+.help-links > a > svg:last-child {
+  color: var(--text-muted);
+}
+.help-links span {
+  display: grid;
+  gap: var(--space-3xs);
+}
+.help-links strong {
+  color: var(--text);
+  font-weight: 500;
+}
+.help-links small {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
 }
 
 /* ── Site footer ─────────────────────────────────────────────────────────── */
@@ -2667,7 +2760,8 @@ textarea {
   }
   .rail-grid,
   .run-grid,
-  .proof-grid {
+  .proof-grid,
+  .help-grid {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
     gap: var(--space-4xl);
   }
@@ -2773,6 +2867,16 @@ textarea {
     margin-inline-start: 0;
     flex-wrap: wrap;
     gap: var(--space-sm) var(--space-lg);
+  }
+  .run-paths {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .run-path {
+    border-inline-start: 0;
+    border-block-start: 1px solid var(--brass-200);
+  }
+  .run-path:first-child {
+    border-block-start: 0;
   }
   .spine li {
     grid-template-columns: minmax(0, 1fr);

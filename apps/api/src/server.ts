@@ -38,6 +38,7 @@ import {
   PacketLifecycle,
   verifiedArtifactBytes,
 } from "./packet-lifecycle.js";
+import { NIMANTO_VERSION } from "./version.js";
 
 const SESSION_COOKIE = "nimanto_session";
 const H1B_LABELS: H1bSignalLabel[] = [
@@ -334,7 +335,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     openapi: {
       info: {
         title: "Nimanto local beta API",
-        version: "0.5.1",
+        version: NIMANTO_VERSION,
         description: "Candidate-side evidence and application workbench.",
       },
       servers: [{ url: `http://${options.host}:${options.port}` }],
@@ -376,10 +377,10 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     return payload;
   });
 
-  app.get("/health", async () => ({ status: "ok", version: "0.5.1" }));
+  app.get("/health", async () => ({ status: "ok", version: NIMANTO_VERSION }));
   app.get("/v1/meta", async () => ({
     name: "Nimanto",
-    version: "0.5.1",
+    version: NIMANTO_VERSION,
     mode: "local_beta",
     externalActionsEnabled: externalActionLifecycle.runtime(),
     providers: {

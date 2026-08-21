@@ -37,12 +37,16 @@ jobs:
         run: pnpm exec playwright install webkit
       - name: Run WebKit candidate journey
         run: pnpm exec playwright test --project=webkit
-      - name: Audit production dependencies
-        run: pnpm audit --prod --audit-level high
+      - name: Smoke-test synthetic screenshot capture
+        run: pnpm screenshots:check
+      - name: Audit production and release-tool dependencies
+        run: pnpm audit --audit-level high
       - name: Inventory production licenses
         run: pnpm licenses:check > /tmp/nimanto-production-licenses.json
       - name: Generate and validate the release SBOM shape
         run: pnpm sbom:check
+      - name: Validate committed release inventories and checksums
+        run: pnpm release:check
       - name: Scan the repository for committed secrets
         uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:

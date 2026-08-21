@@ -33,10 +33,10 @@ screen names `.nimanto-data/launch-secret` as the file that holds it.
 
 The API binds to loopback by default. Do not change `NIMANTO_API_HOST` to a public interface without adding production authentication, secure cookies, TLS, and a reviewed deployment configuration.
 
-## Upgrade to v0.5.1
+## Upgrade to v0.5.2
 
 Stop the API, copy the complete `.nimanto-data/` directory, update to the exact
-v0.5.1 source, and reinstall the locked graph before restarting:
+v0.5.2 source, and reinstall the locked graph before restarting:
 
 ```bash
 corepack enable
@@ -44,13 +44,13 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-v0.5.1 adds no schema migration: startup remains on additive, idempotent schema
-version 3. Existing candidate rows, packet files, approvals, and exact bindings
-are preserved. The release changes candidate transition enforcement, common
-current-Role normalization, and browser-local mutation/identity/navigation
-sequencing without creating immutable Role history or deduplication records.
-There is no schema downgrade path; restore the stopped full-directory copy or
-fix forward rather than running older source against the migrated database.
+v0.5.2 adds no Nimanto schema migration: startup remains on additive,
+idempotent schema version 3. The release improves confirmation cancellation,
+drawer focus, approved-packet descriptions, public documentation, and dependency
+maintenance rather than reshaping stored records. Keep the stopped
+full-directory copy: the beta has no schema downgrade guarantee, so restore that
+copy or fix forward rather than running older source against a database after a
+future migration.
 
 ## Private invitations
 
@@ -77,7 +77,7 @@ The digest-pinned container runs the same static web workbench and API with publ
 docker compose up --build
 ```
 
-Open `http://127.0.0.1:4300/`. Retrieve the generated admin key with `docker compose exec nimanto sh -c 'cat /data/launch-secret'`, then issue a private invitation as above. The named `nimanto-data` volume holds the database and artifacts. The image is built in CI; v0.5.1 has not been certified for internet exposure and should remain bound to loopback.
+Open `http://127.0.0.1:4300/`. Retrieve the generated admin key with `docker compose exec nimanto sh -c 'cat /data/launch-secret'`, then issue a private invitation as above. The named `nimanto-data` volume holds the database and artifacts. The image is built in CI; v0.5.2 has not been certified for internet exposure and should remain bound to loopback.
 
 ## Data locations
 
@@ -205,6 +205,17 @@ pnpm build
 pnpm test:e2e
 ```
 
+For a downloaded v0.5.2 release, place the CycloneDX inventory, SPDX inventory,
+and checksum manifest in one directory and verify the two inventories with:
+
+```bash
+shasum -a 256 --check nimanto-v0.5.2-SHA256SUMS.txt
+```
+
+This verifies the published inventory assets. GitHub generates the source ZIP
+and tar archive from the tag; Nimanto does not publish a signed installer or
+desktop binary.
+
 For a clean production-like static run:
 
 ```bash
@@ -234,9 +245,9 @@ The packet must be approved, the action must be separately approved, and the run
 Do not retry it. The provider effect may have completed before local outcome
 persistence became uncertain. Copy the action ID, inspect the local outbox file
 or mail-client state, and follow the provider-specific reconciliation procedure
-in [provider boundaries](provider-setup.md#reconcile-an-ambiguous-action). v0.5.1
+in [provider boundaries](provider-setup.md#reconcile-an-ambiguous-action). v0.5.2
 keeps the ambiguous record as a do-not-retry audit trail.
 
 ### Gmail or Outlook is unavailable
 
-Connected-account sending is not part of v0.5.1. Use the local test outbox or a user-opened deep link. See [provider boundaries](provider-setup.md).
+Connected-account sending is not part of v0.5.2. Use the local test outbox or a user-opened deep link. See [provider boundaries](provider-setup.md).

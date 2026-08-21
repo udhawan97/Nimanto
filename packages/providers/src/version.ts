@@ -1,0 +1,1 @@
+export const NIMANTO_PROVIDER_VERSION = "0.5.2";

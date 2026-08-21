@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { NIMANTO_PROVIDER_VERSION } from "./version.js";
 
 export interface ProviderJob {
   source: "greenhouse" | "lever" | "ashby";
@@ -60,7 +61,7 @@ function digest(value: unknown): string {
 
 async function getJson(url: string, fetcher: Fetcher): Promise<unknown> {
   const response = await fetcher(url, {
-    headers: { accept: "application/json", "user-agent": "Nimanto/0.5.1" },
+    headers: { accept: "application/json", "user-agent": `Nimanto/${NIMANTO_PROVIDER_VERSION}` },
     redirect: "error",
     signal: AbortSignal.timeout(10_000),
   });

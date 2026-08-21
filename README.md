@@ -27,11 +27,11 @@
   ·
   <a href="#run-it"><strong>Run it</strong></a>
   ·
-  <a href="https://github.com/udhawan97/Nimanto/releases"><strong>Source releases</strong></a>
+  <a href="https://github.com/udhawan97/Nimanto/releases/latest"><strong>Release &amp; checksums</strong></a>
   ·
   <a href="#what-it-actually-does"><strong>What it does</strong></a>
   ·
-  <a href="docs/releases/v0.5.1.md"><strong>v0.5.1 notes</strong></a>
+  <a href="docs/releases/v0.5.2.md"><strong>v0.5.2 notes</strong></a>
   ·
   <a href="docs/planning/product-contract.md"><strong>Product contract</strong></a>
 </p>
@@ -66,7 +66,23 @@ Nimanto is a **candidate tool**. It does not screen you for employers, estimate
 your hiring odds, give legal advice, or promise that a company sponsors transfers
 today.
 
-## New in v0.5.1
+## New in v0.5.2
+
+- **Keyboard exits are explicit and reversible.** Escape cancels every shared
+  in-product confirmation without committing its action, and focus returns to
+  the control that opened it.
+- **The mobile drawer owns its complete focus order.** Forward and reverse Tab
+  move through every visible drawer control in DOM order and wrap at the ends,
+  including the Brand-to-Close transition that platform WebKit handled
+  inconsistently.
+- **Approved packets stop explaining an obsolete gate.** Once approval succeeds,
+  the Approve control no longer retains assurance-waiting copy or an obsolete
+  `aria-describedby` relationship.
+- **The public surface is current again.** The README, website, release paths,
+  screenshots, dependency inventories, and operations guidance now describe one
+  source-distributed `v0.5.2` beta with three explicit, bounded runtime paths.
+
+## Previously in v0.5.1
 
 - **The workbench stops stranding people.** Signing out no longer leaves an entry
   screen whose only two buttons are disabled with nothing saying why; the screen
@@ -150,15 +166,18 @@ something that opens because you opened it.
 
 ## Run it
 
-Nimanto v0.5.1 is source-distributed. It does **not** ship a signed installer or
+Nimanto v0.5.2 is source-distributed. It does **not** ship a signed installer or
 desktop binary.
 
-| Path               | Best for                          | Start here                                                              |
-| ------------------ | --------------------------------- | ----------------------------------------------------------------------- |
-| macOS launcher     | A local first run without a shell | Download or clone the source, then open `START-NIMANTO.command`         |
-| Terminal           | macOS, Linux, or Windows          | Node.js 24–26, pnpm 11, then the commands below                         |
-| Docker on loopback | Invite-only local/self-hosted QA  | `docker compose up --build`; keep ports bound to `127.0.0.1`            |
-| Source release     | A versioned ZIP or tar archive    | [GitHub source releases](https://github.com/udhawan97/Nimanto/releases) |
+| Runtime path       | Best for                          | Start here                                                      |
+| ------------------ | --------------------------------- | --------------------------------------------------------------- |
+| macOS launcher     | A local first run without a shell | Download or clone the source, then open `START-NIMANTO.command` |
+| Terminal           | macOS, Linux, or Windows          | Node.js 24–26, pnpm 11, then the commands below                 |
+| Docker on loopback | Invite-only local/self-hosted QA  | `docker compose up --build`; keep ports bound to `127.0.0.1`    |
+
+Acquire the exact source from the pinned
+[v0.5.2 release](https://github.com/udhawan97/Nimanto/releases/tag/v0.5.2); GitHub
+generates its ZIP and tar archive from that tag.
 
 ### One double-click on macOS
 
@@ -172,6 +191,7 @@ Requirements: Node.js 24–26, pnpm 11, and macOS, Linux or Windows.
 ```bash
 git clone https://github.com/udhawan97/Nimanto.git
 cd Nimanto
+git checkout v0.5.2
 corepack enable
 pnpm install --frozen-lockfile
 pnpm dev
@@ -188,6 +208,20 @@ For invite-only self-hosting, `docker compose up --build` runs the same beta wit
 demo login disabled and a named private volume. See the
 [local operations guide](docs/operations/local-beta.md#private-invitations) to
 issue a hashed, expiring, single-use invitation.
+
+### Verify a source release
+
+Every release publishes the two dependency inventories beside one checksum
+manifest. After downloading the three `v0.5.2` assets into an empty directory,
+verify both inventories before inspecting or building the source archive:
+
+```bash
+shasum -a 256 --check nimanto-v0.5.2-SHA256SUMS.txt
+```
+
+The manifest covers the CycloneDX and SPDX files. GitHub generates the source
+ZIP and tar archive from the tag; those archives are not signed Nimanto desktop
+artifacts.
 
 ## What is implemented
 
@@ -379,6 +413,8 @@ Read the [system architecture](docs/architecture/system.md), the
 pnpm check
 pnpm build
 pnpm test:e2e
+pnpm release:check
+pnpm screenshots:check
 ```
 
 The suite covers private launch access, tenant-isolated history cursors,
@@ -392,7 +428,7 @@ design-token contrast, API integration, and fifteen sequential WebKit journeys.
 
 ## Beta boundaries
 
-Version `0.5.1` is a **local beta**:
+Version `0.5.2` is a **local beta**:
 
 - The local candidate workflow is implemented and tested.
 - Public website hosting carries product information and the static workbench
@@ -450,5 +486,5 @@ of scope.
 Apache License 2.0. See [LICENSE](LICENSE), [NOTICE](NOTICE),
 [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md),
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), and the release
-[CycloneDX](docs/releases/nimanto-v0.5.1.cdx.json) /
-[SPDX](docs/releases/nimanto-v0.5.1.spdx.json) inventories.
+[CycloneDX](docs/releases/nimanto-v0.5.2.cdx.json) /
+[SPDX](docs/releases/nimanto-v0.5.2.spdx.json) inventories.

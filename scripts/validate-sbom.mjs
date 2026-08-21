@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 
 const paths = process.argv.slice(2);
 if (paths.length === 0) throw new Error("Pass at least one SBOM path.");
@@ -18,12 +19,22 @@ const releaseWorkspaces = [
   "providers",
 ];
 
-const requiredPurls = [
-  "pkg:npm/next@16.3.0",
-  "pkg:npm/react-dom@19.2.8",
-  "pkg:npm/serve@14.2.6",
-  "pkg:npm/%40fastify/cookie@11.1.2",
+const requiredPackages = [
+  ["../apps/web/package.json", "next"],
+  ["../apps/web/package.json", "react-dom"],
+  ["../apps/web/package.json", "serve"],
+  ["../apps/api/package.json", "@fastify/cookie"],
 ];
+
+const requiredPurls = await Promise.all(
+  requiredPackages.map(async ([workspaceManifest, packageName]) => {
+    const workspaceRequire = createRequire(new URL(workspaceManifest, import.meta.url));
+    const installedManifestPath = workspaceRequire.resolve(`${packageName}/package.json`);
+    const installedManifest = JSON.parse(await readFile(installedManifestPath, "utf8"));
+    const purlName = packageName.startsWith("@") ? `%40${packageName.slice(1)}` : packageName;
+    return `pkg:npm/${purlName}@${installedManifest.version}`;
+  }),
+);
 
 function containsAbsoluteFilesystemPath(value) {
   if (typeof value === "string") {

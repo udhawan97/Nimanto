@@ -1,6 +1,7 @@
 import { lookup as dnsLookup } from "node:dns/promises";
 import { request as httpsRequest } from "node:https";
 import { isIP } from "node:net";
+import { NIMANTO_PROVIDER_VERSION } from "./version.js";
 
 type Address = { address: string; family: number };
 type Response = { status: number; contentType: string; body: Uint8Array; location?: string };
@@ -34,7 +35,10 @@ async function requestPinned(url: URL, target: Address): Promise<Response> {
       url,
       {
         method: "GET",
-        headers: { accept: "text/html,text/plain;q=0.9", "user-agent": "Nimanto/0.5.1" },
+        headers: {
+          accept: "text/html,text/plain;q=0.9",
+          "user-agent": `Nimanto/${NIMANTO_PROVIDER_VERSION}`,
+        },
         lookup: (_hostname, _options, callback) => callback(null, target.address, target.family),
         servername: url.hostname,
         timeout: 10_000,

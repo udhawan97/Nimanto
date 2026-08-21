@@ -1,4 +1,15 @@
-import { ArrowRight, ArrowUpRight, Check, FileCheck2, GitBranch } from "lucide-react";
+import {
+  Apple,
+  ArrowRight,
+  ArrowUpRight,
+  Check,
+  Container,
+  FileCheck2,
+  GitBranch,
+  LifeBuoy,
+  ShieldCheck,
+  Terminal,
+} from "lucide-react";
 import { Brand } from "../components/brand.js";
 import { CommandPalette } from "../components/command-palette.js";
 import { CopyLine } from "../components/copy-line.js";
@@ -67,6 +78,7 @@ export default function Home() {
           <a href="#method">Method</a>
           <a href="#boundary">Boundary</a>
           <a href="#run">Run it</a>
+          <a href="#help">Help</a>
           <a href="https://github.com/udhawan97/Nimanto">GitHub</a>
         </nav>
         <CommandPalette hosted={hosted} />
@@ -76,7 +88,7 @@ export default function Home() {
         {/* 00 — the invitation opens toward the literal product job. */}
         <section className="hero" aria-labelledby="hero-title">
           <div className="hero-copy">
-            <p className="placard">Source-distributed local beta · v0.5.1</p>
+            <p className="placard">Source-distributed local beta · v0.5.2</p>
             <h1 id="hero-title">Nimanto</h1>
             <h2>Build the evidence. Work the application. Keep the truth yours.</h2>
             <p className="hero-line">
@@ -95,8 +107,11 @@ export default function Home() {
               <a className="button quiet" href="https://github.com/udhawan97/Nimanto">
                 View source <ArrowUpRight size={15} />
               </a>
-              <a className="button quiet" href="https://github.com/udhawan97/Nimanto/releases">
-                Source releases <ArrowUpRight size={15} />
+              <a
+                className="button quiet"
+                href="https://github.com/udhawan97/Nimanto/releases/latest"
+              >
+                Releases &amp; checksums <ArrowUpRight size={15} />
               </a>
             </div>
           </div>
@@ -155,7 +170,7 @@ export default function Home() {
                 alt="Synthetic Nimanto Applications workbench with the action-first pipeline and Record outcome controls"
               />
               <figcaption>
-                v0.5.1 · server-confirmed Applications · synthetic local workspace
+                v0.5.2 · server-confirmed Applications · synthetic local workspace
               </figcaption>
             </figure>
           </div>
@@ -272,41 +287,121 @@ export default function Home() {
 
         {/* 06 — run it */}
         <section id="run" className="band run" aria-labelledby="run-title">
-          <div className="shell run-grid">
+          <div className="shell flow">
             <div className="band-head flow">
               <p className="placard">06 — Run it</p>
-              <h2 id="run-title">Local, and yours.</h2>
+              <h2 id="run-title">Choose how to start.</h2>
               <p className="band-lede">
                 Node 24–26 and pnpm 11 on macOS, Linux or Windows. Your evidence stays on the
                 machine running Nimanto. There is no hosted backend to opt out of.
               </p>
             </div>
-            <div className="run-block flow">
-              <CopyLine command="git clone https://github.com/udhawan97/Nimanto.git" />
-              <CopyLine command="cd Nimanto && corepack enable" />
-              <CopyLine command="pnpm install --frozen-lockfile && pnpm dev" />
-              <p className="run-note">
-                On macOS you can instead double-click <code>START-NIMANTO.command</code>. It
-                installs the locked dependencies, starts the local services, and opens the
-                workbench.
-              </p>
-              <p className="run-note">
-                Nimanto is source-distributed. v0.5.1 does not ship a signed installer or desktop
-                binary.
-              </p>
-              <a className="text-link" href="https://github.com/udhawan97/Nimanto/releases">
-                Open source releases <ArrowRight size={15} />
-              </a>
-              <a className="text-link" href="https://github.com/udhawan97/Nimanto#beta-boundaries">
-                Read the beta boundaries <ArrowRight size={15} />
-              </a>
-              <a
-                className="text-link"
-                href="https://github.com/udhawan97/Nimanto/blob/main/docs/releases/v0.5.1.md"
-              >
-                Read the v0.5.1 release notes <ArrowRight size={15} />
-              </a>
+            <div className="run-paths" aria-label="Ways to run Nimanto">
+              <article className="run-path flow-tight">
+                <Apple aria-hidden="true" />
+                <p className="placard">macOS</p>
+                <h3>Double-click launcher</h3>
+                <p>
+                  Clone or download the source, then open <code>START-NIMANTO.command</code>.
+                </p>
+                <small>Node 24–26 · pnpm 11 · unsigned source launcher</small>
+              </article>
+              <article className="run-path flow-tight">
+                <Terminal aria-hidden="true" />
+                <p className="placard">macOS · Linux · Windows</p>
+                <h3>Terminal</h3>
+                <p>Install the exact locked graph and start the local API, worker, and website.</p>
+                <small>Node 24–26 · pnpm 11 · loopback services</small>
+              </article>
+              <article className="run-path flow-tight">
+                <Container aria-hidden="true" />
+                <p className="placard">Self-hosted QA</p>
+                <h3>Docker on loopback</h3>
+                <p>
+                  Build the source image with demo login off and data in a named private volume.
+                </p>
+                <small>Ports stay bound to 127.0.0.1 · not internet-certified</small>
+              </article>
             </div>
+            <div className="run-grid">
+              <div className="run-block flow">
+                <p className="placard">Terminal start</p>
+                <CopyLine command="git clone https://github.com/udhawan97/Nimanto.git" />
+                <CopyLine command="cd Nimanto && git checkout v0.5.2" />
+                <CopyLine command="corepack enable && pnpm install --frozen-lockfile && pnpm dev" />
+                <p className="run-note">
+                  Open the private workspace URL printed by the API. Its launch key stays in the URL
+                  fragment only long enough for the workbench to capture and remove it.
+                </p>
+              </div>
+              <aside className="release-proof flow" aria-labelledby="release-proof-title">
+                <ShieldCheck aria-hidden="true" />
+                <p className="placard">Source release · v0.5.2</p>
+                <h3 id="release-proof-title">Verify the published inventories.</h3>
+                <p>
+                  Nimanto publishes CycloneDX and SPDX inventories with a SHA-256 manifest covering
+                  those two files. GitHub generates the tag archives; the manifest does not
+                  authenticate them, and Nimanto ships no signed installer or desktop binary.
+                </p>
+                <a
+                  className="text-link"
+                  href="https://github.com/udhawan97/Nimanto/releases/tag/v0.5.2"
+                >
+                  Open the v0.5.2 source release <ArrowRight size={15} />
+                </a>
+                <a
+                  className="text-link"
+                  href="https://github.com/udhawan97/Nimanto/blob/v0.5.2/docs/releases/v0.5.2.md"
+                >
+                  Read the v0.5.2 notes <ArrowRight size={15} />
+                </a>
+                <a
+                  className="text-link"
+                  href="https://github.com/udhawan97/Nimanto/blob/v0.5.2/README.md#verify-a-source-release"
+                >
+                  Check hashes and inventories <ArrowRight size={15} />
+                </a>
+              </aside>
+            </div>
+          </div>
+        </section>
+
+        <section id="help" className="band help" aria-labelledby="help-title">
+          <div className="shell help-grid">
+            <div className="band-head flow">
+              <p className="placard">07 — Help</p>
+              <h2 id="help-title">If the local path breaks, start with evidence.</h2>
+              <p className="band-lede">
+                The operations guide names the launch-key, port, backup, provider, and recovery
+                boundaries. Security reports have a separate private route.
+              </p>
+            </div>
+            <nav className="help-links" aria-label="Help and continuation">
+              <a href="https://github.com/udhawan97/Nimanto/blob/main/docs/operations/local-beta.md">
+                <LifeBuoy aria-hidden="true" />
+                <span>
+                  <strong>Run and troubleshoot</strong>
+                  <small>Local setup, backup, invitation, and recovery</small>
+                </span>
+                <ArrowUpRight aria-hidden="true" />
+              </a>
+              <a href="https://github.com/udhawan97/Nimanto/blob/main/SECURITY.md">
+                <ShieldCheck aria-hidden="true" />
+                <span>
+                  <strong>Report a security issue</strong>
+                  <small>Use the private disclosure path, not a public issue</small>
+                </span>
+                <ArrowUpRight aria-hidden="true" />
+              </a>
+              <a href="https://github.com/udhawan97/Nimanto/issues">
+                <GitBranch aria-hidden="true" />
+                <span>
+                  <strong>Inspect or report a bug</strong>
+                  <small>Public product issues and reproducible failures</small>
+                </span>
+                <ArrowUpRight aria-hidden="true" />
+              </a>
+            </nav>
           </div>
         </section>
       </main>
@@ -320,8 +415,11 @@ export default function Home() {
           <nav aria-label="Footer">
             <a href="https://github.com/udhawan97/Nimanto">Source</a>
             <a href="https://github.com/udhawan97/Nimanto/blob/main/SECURITY.md">Security</a>
-            <a href="https://github.com/udhawan97/Nimanto/blob/main/docs/releases/v0.5.1.md">
-              v0.5.1 notes
+            <a href="https://github.com/udhawan97/Nimanto/blob/main/docs/operations/local-beta.md">
+              Operations
+            </a>
+            <a href="https://github.com/udhawan97/Nimanto/blob/v0.5.2/docs/releases/v0.5.2.md">
+              v0.5.2 notes
             </a>
             <a href="https://github.com/udhawan97/Nimanto/blob/main/LICENSE">Apache-2.0</a>
           </nav>

@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { canonicalHash } from "@nimanto/domain";
 import { buildServer } from "../src/server.js";
+import { NIMANTO_VERSION } from "../src/version.js";
 
 const apps: FastifyInstance[] = [];
 
@@ -75,6 +76,19 @@ async function setup(options?: {
 }
 
 describe("Nimanto beta API", () => {
+  it("reports one release version through health, metadata, and OpenAPI", async () => {
+    const { app } = await setup();
+    expect((await app.inject({ method: "GET", url: "/health" })).json().version).toBe(
+      NIMANTO_VERSION,
+    );
+    expect((await app.inject({ method: "GET", url: "/v1/meta" })).json().version).toBe(
+      NIMANTO_VERSION,
+    );
+    expect((await app.inject({ method: "GET", url: "/docs/json" })).json().info.version).toBe(
+      NIMANTO_VERSION,
+    );
+  });
+
   it("keeps profile-version responses additive and reports unchanged saves", async () => {
     const { app, cookie } = await setup();
     const dashboard = (

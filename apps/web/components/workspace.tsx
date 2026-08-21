@@ -1422,6 +1422,36 @@ function ConfirmAction({
   }
 
   return (
+    <ConfirmationStrip
+      question={question}
+      confirmLabel={confirmLabel}
+      cancelLabel={cancelLabel}
+      onConfirm={() => {
+        setArmed(false);
+        onConfirm();
+      }}
+      onCancel={cancel}
+      disabled={disabled}
+    />
+  );
+}
+
+function ConfirmationStrip({
+  question,
+  confirmLabel,
+  cancelLabel,
+  onConfirm,
+  onCancel,
+  disabled,
+}: {
+  question: string;
+  confirmLabel: string;
+  cancelLabel: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  disabled?: boolean | undefined;
+}) {
+  return (
     <span
       className="confirm-strip"
       role="group"
@@ -1430,7 +1460,7 @@ function ConfirmAction({
         if (event.key !== "Escape") return;
         event.preventDefault();
         event.stopPropagation();
-        cancel();
+        onCancel();
       }}
     >
       <span className="confirm-question">{question}</span>
@@ -1439,14 +1469,11 @@ function ConfirmAction({
         type="button"
         disabled={disabled}
         autoFocus
-        onClick={() => {
-          setArmed(false);
-          onConfirm();
-        }}
+        onClick={onConfirm}
       >
         {confirmLabel}
       </button>
-      <button className="button mini quiet" type="button" onClick={cancel}>
+      <button className="button mini quiet" type="button" onClick={onCancel}>
         {cancelLabel}
       </button>
     </span>
@@ -3477,6 +3504,8 @@ function Applications({
   const [pendingMove, setPendingMove] = useState<{ id: string; to: ApplicationStatus } | null>(
     null,
   );
+  const pendingMoveOrigin = useRef<HTMLSelectElement | null>(null);
+  const returnPendingMoveFocus = useRef(false);
   const board = useOverflowFlag<HTMLElement>();
   const outcomeTrigger = useRef<HTMLButtonElement | null>(null);
   const [reviewOnly, setReviewOnly] = useState(false);
@@ -3511,6 +3540,16 @@ function Applications({
     window.requestAnimationFrame(() => outcomeTrigger.current?.focus());
   };
   const completeOutcome = () => setOutcomeFor(null);
+  useEffect(() => {
+    if (pendingMove || !returnPendingMoveFocus.current) return;
+    returnPendingMoveFocus.current = false;
+    pendingMoveOrigin.current?.focus();
+  }, [pendingMove]);
+
+  const cancelPendingMove = () => {
+    returnPendingMoveFocus.current = true;
+    setPendingMove(null);
+  };
 
   /* Moving a card is a claim about what the candidate did in the world, so the
    * consequential columns ask first. The server enforces legality independently
@@ -3522,6 +3561,7 @@ function Applications({
    * could be walked around without leaving the screen. */
   const move = (application: Application, to: ApplicationStatus) => {
     if (to === application.status || !canMove(application.status, to)) return;
+    const tableOrigin = pendingMove?.id === application.id ? pendingMoveOrigin.current : null;
     setPendingMove(null);
     const confirmed = needsConfirmation(application.status, to);
     void onAct.run({
@@ -3533,6 +3573,10 @@ function Applications({
       success: "Application status updated.",
       transient: true,
       focus: () => {
+        if (tableOrigin?.isConnected) {
+          tableOrigin.focus();
+          return;
+        }
         const card = document.getElementById(`board-card-${application.id}`);
         card?.focus();
         /* The board is wider than the content column on every laptop width, so
@@ -3545,9 +3589,14 @@ function Applications({
 
   /* The table's control is a <select>, which cannot arm itself, so the pending
    * consequential target waits here until the strip beneath it is answered. */
-  const requestMove = (application: Application, to: ApplicationStatus) => {
+  const requestMove = (
+    application: Application,
+    to: ApplicationStatus,
+    origin?: HTMLSelectElement,
+  ) => {
     if (to === application.status || !canMove(application.status, to)) return;
     if (needsConfirmation(application.status, to)) {
+      pendingMoveOrigin.current = origin ?? null;
       setPendingMove({ id: application.id, to });
       return;
     }
@@ -3724,7 +3773,11 @@ function Applications({
                   value={application.status}
                   disabled={busy}
                   onChange={(event) =>
-                    requestMove(application, event.target.value as ApplicationStatus)
+                    requestMove(
+                      application,
+                      event.currentTarget.value as ApplicationStatus,
+                      event.currentTarget,
+                    )
                   }
                 >
                   {legalTargets(application.status).map((target) => (
@@ -3735,31 +3788,14 @@ function Applications({
                 </select>
               </label>
               {pendingMove?.id === application.id && (
-                <span
-                  className="confirm-strip"
-                  role="group"
-                  aria-label={confirmationPrompt(pendingMove.to, application)}
-                >
-                  <span className="confirm-question">
-                    {confirmationPrompt(pendingMove.to, application)}
-                  </span>
-                  <button
-                    className="button mini danger-button"
-                    type="button"
-                    disabled={busy}
-                    autoFocus
-                    onClick={() => move(application, pendingMove.to)}
-                  >
-                    {`Mark ${BOARD_COLUMNS.find((column) => column.id === pendingMove.to)!.label.toLocaleLowerCase("en-US")}`}
-                  </button>
-                  <button
-                    className="button mini quiet"
-                    type="button"
-                    onClick={() => setPendingMove(null)}
-                  >
-                    Cancel
-                  </button>
-                </span>
+                <ConfirmationStrip
+                  question={confirmationPrompt(pendingMove.to, application)}
+                  confirmLabel={`Mark ${BOARD_COLUMNS.find((column) => column.id === pendingMove.to)!.label.toLocaleLowerCase("en-US")}`}
+                  cancelLabel="Cancel"
+                  disabled={busy}
+                  onConfirm={() => move(application, pendingMove.to)}
+                  onCancel={cancelPendingMove}
+                />
               )}
               <div className="outcome-chips">
                 {application.outcomes?.length ? (

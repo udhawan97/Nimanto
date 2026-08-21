@@ -5,7 +5,7 @@
  *
  *   pnpm exec playwright install webkit
  *   pnpm build
- *   NIMANTO_BOOTSTRAP_SECRET=... pnpm start # another terminal, disposable data root
+ *   NIMANTO_BOOTSTRAP_SECRET=... NIMANTO_DATA_DIR=/tmp/nimanto-screenshots pnpm start
  *   NIMANTO_SCREENSHOT_BOOTSTRAP_SECRET=... node scripts/render-screenshots.mjs
  *
  * Pass --site-only to shoot the public page without a running API.
@@ -19,9 +19,13 @@ import { fileURLToPath } from "node:url";
 import { webkit } from "@playwright/test";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const assets = path.join(root, "docs/assets");
-const publicAssets = path.join(root, "apps/web/public/assets");
-const site = process.env.NIMANTO_SITE_ORIGIN ?? "http://127.0.0.1:4321";
+const assets = path.resolve(
+  process.env.NIMANTO_SCREENSHOT_ASSETS_DIR ?? path.join(root, "docs/assets"),
+);
+const publicAssets = path.resolve(
+  process.env.NIMANTO_SCREENSHOT_PUBLIC_ASSETS_DIR ?? path.join(root, "apps/web/public/assets"),
+);
+const site = process.env.NIMANTO_SITE_ORIGIN ?? "http://127.0.0.1:4300";
 const api = process.env.NIMANTO_API_ORIGIN ?? "http://127.0.0.1:4310";
 const screenshotSecret = process.env.NIMANTO_SCREENSHOT_BOOTSTRAP_SECRET ?? "";
 const siteOnly = process.argv.includes("--site-only");
@@ -40,6 +44,7 @@ async function shoot(
     viewport: { width, height },
     deviceScaleFactor: 2,
     colorScheme: "dark",
+    reducedMotion: "reduce",
   });
   if (workbench) {
     if (!screenshotSecret) throw new Error("NIMANTO_SCREENSHOT_BOOTSTRAP_SECRET is required");
@@ -48,6 +53,10 @@ async function shoot(
       data: {},
     });
     if (!login.ok()) throw new Error(`Synthetic screenshot login failed: ${login.status()}`);
+    const loginBody = await login.json();
+    if (loginBody.identity?.email !== "priya@example.test") {
+      throw new Error("Screenshot capture refused a workspace not owned by the synthetic demo");
+    }
     const dashboard = await context.request.get(`${api}/v1/dashboard`);
     if (!dashboard.ok()) throw new Error(`Screenshot dashboard failed: ${dashboard.status()}`);
     const dashboardBody = await dashboard.json();
@@ -80,6 +89,21 @@ async function shoot(
     }
   }
   const page = await context.newPage();
+  if (!workbench) {
+    // The public screenshot documents the deterministic no-WebGL fallback.
+    // The live emblem is separately exercised by browser tests, but its GPU
+    // rasterization is not stable enough for a committed cross-run artifact.
+    await page.addInitScript(() => {
+      const nativeGetContext = HTMLCanvasElement.prototype.getContext;
+      HTMLCanvasElement.prototype.getContext = function getDeterministicContext(
+        contextId,
+        ...args
+      ) {
+        if (contextId === "webgl" || contextId === "webgl2") return null;
+        return Reflect.apply(nativeGetContext, this, [contextId, ...args]);
+      };
+    });
+  }
   const problems = [];
   page.on("console", (message) => {
     if (message.type() === "error") problems.push(message.text());

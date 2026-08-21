@@ -161,13 +161,50 @@ test("the public site reflows, links, and identifies itself in WebKit", async ({
     "href",
     "./workspace/",
   );
-  await expect(page.getByRole("link", { name: "Source releases", exact: true })).toHaveAttribute(
+  await expect(
+    page.getByRole("link", { name: "Releases & checksums", exact: true }),
+  ).toHaveAttribute("href", "https://github.com/udhawan97/Nimanto/releases/latest");
+  await expect(page.getByRole("link", { name: "Help", exact: true })).toHaveAttribute(
     "href",
-    "https://github.com/udhawan97/Nimanto/releases",
+    "#help",
   );
-  await expect(page.getByRole("link", { name: "v0.5.1 notes" }).first()).toHaveAttribute(
+  await expect(page.getByLabel("Ways to run Nimanto").locator("article")).toHaveCount(3);
+  await expect(page.getByRole("navigation", { name: "Help and continuation" })).toContainText(
+    "Run and troubleshoot",
+  );
+  await expect(page.getByRole("link", { name: "Run and troubleshoot" })).toHaveAttribute(
     "href",
-    /docs\/releases\/v0\.5\.1\.md$/,
+    "https://github.com/udhawan97/Nimanto/blob/main/docs/operations/local-beta.md",
+  );
+  await expect(page.getByRole("link", { name: "Report a security issue" })).toHaveAttribute(
+    "href",
+    "https://github.com/udhawan97/Nimanto/blob/main/SECURITY.md",
+  );
+  await expect(page.getByRole("link", { name: "Inspect or report a bug" })).toHaveAttribute(
+    "href",
+    "https://github.com/udhawan97/Nimanto/issues",
+  );
+  await expect(page.getByRole("link", { name: "Open the v0.5.2 source release" })).toHaveAttribute(
+    "href",
+    "https://github.com/udhawan97/Nimanto/releases/tag/v0.5.2",
+  );
+  await expect(page.getByRole("link", { name: "Read the v0.5.2 notes" })).toHaveAttribute(
+    "href",
+    "https://github.com/udhawan97/Nimanto/blob/v0.5.2/docs/releases/v0.5.2.md",
+  );
+  await expect(page.getByRole("link", { name: "Check hashes and inventories" })).toHaveAttribute(
+    "href",
+    "https://github.com/udhawan97/Nimanto/blob/v0.5.2/README.md#verify-a-source-release",
+  );
+  const releaseLinkTops = await page
+    .locator(".release-proof .text-link")
+    .evaluateAll((links) => links.map((link) => Math.round(link.getBoundingClientRect().top)));
+  expect(new Set(releaseLinkTops).size, "release verification links occupy separate rows").toBe(
+    releaseLinkTops.length,
+  );
+  await expect(page.getByRole("link", { name: "v0.5.2 notes" }).first()).toHaveAttribute(
+    "href",
+    "https://github.com/udhawan97/Nimanto/blob/v0.5.2/docs/releases/v0.5.2.md",
   );
   await expect(page.getByAltText(/Synthetic Nimanto Applications workbench/)).toHaveAttribute(
     "src",
@@ -625,9 +662,10 @@ test("one guarded control owns every status change, and the two views are exclus
   const writesBeforeDecline = writes.length;
   await status.selectOption("withdrawn");
   await expect(strip).toContainText("withdrawn");
-  await strip.getByRole("button", { name: "Cancel" }).click();
+  await page.keyboard.press("Escape");
   await expect(strip).toHaveCount(0);
   await expect(status).toHaveValue("submitted_externally");
+  await expect(status).toBeFocused();
   await page.waitForTimeout(250);
   expect(writes, "a declined confirmation must not write").toHaveLength(writesBeforeDecline);
 
