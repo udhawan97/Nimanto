@@ -40,22 +40,32 @@ export class ExternalActionLifecycle {
     subject: string;
     body: string;
   }) {
-    const packet = await this.store.getPacket(input.tenantId, input.packetId);
-    if (packet?.status !== "approved") throw new Error("APPROVED_PACKET_REQUIRED");
     if (!["deep_link", "test_outbox"].includes(input.provider)) throw new Error("INVALID_PROVIDER");
     validateActionPayload({ actionId: "pending", ...input });
-    return this.store.createExternalAction(input.tenantId, {
-      packetId: input.packetId,
-      provider: input.provider,
-      target: { to: input.to },
-      payload: { subject: input.subject, body: input.body },
-      idempotencyKey: canonicalHash({
+    return this.store.transaction(async (database) => {
+      // Packet generation takes the same tenant lock. Latest-packet validation
+      // and action insertion therefore form one decision even across tabs.
+      await database.lockTenantActive(input.tenantId);
+      const packet = await database.getPacket(input.tenantId, input.packetId);
+      if (packet?.status !== "approved") throw new Error("APPROVED_PACKET_REQUIRED");
+      const latest = await database.getLatestPacketForApplication(
+        input.tenantId,
+        packet.applicationId,
+      );
+      if (latest?.id !== packet.id) throw new Error("LATEST_APPROVED_PACKET_REQUIRED");
+      return database.createExternalAction(input.tenantId, {
         packetId: input.packetId,
         provider: input.provider,
-        to: input.to,
-        subject: input.subject,
-        body: input.body,
-      }),
+        target: { to: input.to },
+        payload: { subject: input.subject, body: input.body },
+        idempotencyKey: canonicalHash({
+          packetId: input.packetId,
+          provider: input.provider,
+          to: input.to,
+          subject: input.subject,
+          body: input.body,
+        }),
+      });
     });
   }
 

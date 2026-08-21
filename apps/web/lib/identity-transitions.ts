@@ -6,6 +6,7 @@ export type DeletionReceipt = {
 
 export type IdentityTransitionEvent =
   | "workspace_opened"
+  | "identity_changed"
   | "authentication_required"
   | "session_lost"
   | "signed_out"
@@ -78,6 +79,12 @@ export const workspaceIdentityTransitions = {
         clearCredentials: true,
         clearDrafts: true,
         receipt: "retire_completed",
+      };
+    }
+    if (event === "identity_changed") {
+      return {
+        clearDrafts: true,
+        closeMobileNavigation: true,
       };
     }
     if (event === "authentication_required") {

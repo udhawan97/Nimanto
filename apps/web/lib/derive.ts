@@ -562,6 +562,10 @@ const FAILURE_COPY: Record<string, string> = {
     "Confirm this consequential application change before Nimanto records it.",
   INVALID_CONFIRMATION: "Type the confirmation phrase exactly as shown, including capitals.",
   EVIDENCE_PREVIEW_CHANGED: "The file changed since you previewed it. Review the preview again.",
+  IDENTITY_CHANGED:
+    "The authenticated workspace changed in another tab. Nothing was saved; review this workspace before trying again.",
+  LATEST_APPROVED_PACKET_REQUIRED:
+    "A newer packet exists for this application. Review and approve the current packet before creating an action.",
   PROHIBITED_DOCUMENT_CONTENT:
     "That file looks like an immigration or identity document. Nimanto refuses those — remove it and import career evidence only.",
   UNSUPPORTED_FILE_TYPE:

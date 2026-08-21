@@ -84,6 +84,19 @@ export function createWorkbenchMutations(adapters: MutationAdapters): WorkbenchM
         settled = true;
         return { kind: "committed", value };
       } catch (error) {
+        if (errorCode(error) === "IDENTITY_CHANGED") {
+          // The rejected write committed nothing. Reconcile immediately so the
+          // replacement identity renders only after every old draft is cleared.
+          // Clear first and fail closed if the reconciliation request itself
+          // cannot reach the local service.
+          adapters.setReachable(true);
+          adapters.enterSignedOutState();
+          await adapters.refresh();
+          adapters.setNoticeFocus(true);
+          const text = adapters.describeFailure(error);
+          if (text) adapters.publishNotice("error", text);
+          return { kind: "failed" };
+        }
         if (errorCode(error) === "AUTHENTICATION_REQUIRED") {
           adapters.setReachable(true);
           adapters.enterSignedOutState();

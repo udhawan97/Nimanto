@@ -272,6 +272,24 @@ test("a candidate starts a private workspace and receives deterministic role exp
   await expect(page.locator(".metric").filter({ hasText: "Explained matches" })).toContainText("2");
 
   await page.getByRole("button", { name: "Evidence vault" }).click();
+  const originalAuthorization = await page.getByLabel("Candidate-approved statement").inputValue();
+  await page.getByLabel("Evidence type").selectOption("project");
+  await page.getByLabel("Exact claim").fill("Candidate-controlled draft survives navigation");
+  await page
+    .getByLabel("Candidate-approved statement")
+    .fill("Candidate-approved wording survives navigation too.");
+  await page.getByRole("button", { name: "Role discovery" }).click();
+  await page.getByRole("button", { name: "Evidence vault" }).click();
+  await expect(page.getByLabel("Evidence type")).toHaveValue("project");
+  await expect(page.getByLabel("Exact claim")).toHaveValue(
+    "Candidate-controlled draft survives navigation",
+  );
+  await expect(page.getByLabel("Candidate-approved statement")).toHaveValue(
+    "Candidate-approved wording survives navigation too.",
+  );
+  await page.getByLabel("Evidence type").selectOption("skill");
+  await page.getByLabel("Exact claim").fill("");
+  await page.getByLabel("Candidate-approved statement").fill(originalAuthorization);
   await page.locator('input[type="file"]').setInputFiles({
     name: "linkedin-export.zip",
     mimeType: "application/zip",
@@ -280,7 +298,9 @@ test("a candidate starts a private workspace and receives deterministic role exp
       "base64",
     ),
   });
+  const importPreview = page.locator(".import-preview");
   await expect(page.getByRole("heading", { name: "Review linkedin-export.zip" })).toBeVisible();
+  await expect(importPreview).toBeFocused();
   await expect(page.getByText("Basic_LinkedInDataExport/Skills.csv")).toBeVisible();
   await expect(
     page.getByText("Basic_LinkedInDataExport/Messages.csv", { exact: true }),
@@ -296,9 +316,30 @@ test("a candidate starts a private workspace and receives deterministic role exp
     0,
   );
   await page.getByRole("button", { name: "Confirm import" }).click();
+  await expect(page.locator('input[type="file"]')).toBeFocused();
   await expect(
     page.locator(".evidence-list").getByText("TypeScript", { exact: true }),
   ).toBeVisible();
+
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "cancelled-import.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("This preview must not commit."),
+  });
+  await expect(importPreview).toBeFocused();
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(page.locator('input[type="file"]')).toBeFocused();
+
+  const longClaim = `claim-${"evidence".repeat(44)}`;
+  await page.getByLabel("Exact claim").fill(longClaim);
+  await page.getByRole("button", { name: "Add pending claim" }).click();
+  await page.setViewportSize({ width: 320, height: 900 });
+  await expectSurfaceContained(
+    page,
+    page.locator(".evidence-item", { hasText: longClaim }),
+    "long evidence claim at 320px",
+  );
+  await page.setViewportSize({ width: 1280, height: 900 });
 
   await page.getByRole("button", { name: "Role discovery" }).click();
   await expect(page.getByRole("heading", { name: "Platform Engineer" })).toBeVisible();
@@ -420,12 +461,18 @@ test("a candidate starts a private workspace and receives deterministic role exp
 
   await page.setViewportSize({ width: 375, height: 812 });
   const openNavigation = page.getByRole("button", { name: "Open navigation" });
+  const openNavigationBox = await openNavigation.boundingBox();
+  expect(openNavigationBox?.width).toBeGreaterThanOrEqual(44);
+  expect(openNavigationBox?.height).toBeGreaterThanOrEqual(44);
   await openNavigation.click();
   const navigationDialog = page.getByRole("dialog", { name: "Workspace navigation" });
   await expect(navigationDialog).toBeVisible();
   await expect(page.locator("#main")).toHaveAttribute("inert", "");
   await expect(page.locator(".nav-scrim")).toHaveAttribute("tabindex", "-1");
   const closeNavigation = page.getByRole("button", { name: "Close navigation" }).first();
+  const closeNavigationBox = await closeNavigation.boundingBox();
+  expect(closeNavigationBox?.width).toBeGreaterThanOrEqual(44);
+  expect(closeNavigationBox?.height).toBeGreaterThanOrEqual(44);
   const brandLink = navigationDialog.locator('a[href="../"]');
   await expect(closeNavigation).toBeVisible();
   await expect(closeNavigation).toBeFocused();
@@ -498,12 +545,39 @@ test("a revoked session clears identity-bound drafts before another workspace op
   await page.getByLabel("Your name").fill("Expired Session");
   await page.getByLabel("Your email").fill("expired-session@example.test");
   await page.getByRole("button", { name: "Start private workspace" }).click();
+  await page.getByRole("button", { name: "Run starter matches" }).click();
+  await page.getByRole("button", { name: "Evidence vault" }).click();
+  await page.getByLabel("Evidence type").selectOption("project");
+  await page.getByLabel("Exact claim").fill("Must not cross identity boundary");
+  await page.getByLabel("Candidate-approved statement").fill("Identity-bound candidate wording");
   await page.getByRole("button", { name: "Role discovery" }).click();
+  await page.getByLabel("Search roles").fill("Northwind");
+  await page.getByLabel("Tracking").selectOption("untracked");
+  await page.getByRole("button", { name: "Track", exact: true }).first().click();
   await page.getByRole("button", { name: "Add role" }).click();
   await page.getByLabel("Role title").fill("Must not cross identity boundary");
   await page.getByLabel("Company").fill("Synthetic Works");
   await page.getByLabel("Description").fill("Transient candidate draft");
   await page.getByLabel("Requirements, one per line").fill("TypeScript");
+
+  await page.getByRole("button", { name: "Applications" }).click();
+  await page.getByRole("button", { name: "Table view" }).click();
+  await page.getByRole("button", { name: "Record outcome" }).first().click();
+  await page.getByLabel("Candidate-reported outcome").selectOption("interview");
+  await page.getByLabel("Optional note").fill("Identity-bound outcome draft");
+  await page.getByLabel("Created from").fill("2020-01-01");
+  const status = page.locator(".application-table .table-row > label select").first();
+  await status.selectOption("prepared");
+  await status.selectOption("approved_for_export");
+  await page.getByRole("button", { name: "Mark approved for export" }).click();
+  await page.getByRole("button", { name: "Review packets" }).click();
+  await page.getByRole("button", { name: "Generate", exact: true }).first().click();
+  await page.getByRole("button", { name: "Assure", exact: true }).first().click();
+  await page.getByRole("button", { name: "Approve", exact: true }).first().click();
+  await page.getByRole("button", { name: "Approved actions" }).click();
+  await page.getByRole("button", { name: "Prepare action" }).click();
+  await page.getByLabel("Recipient").fill("identity-bound@example.test");
+  await page.getByRole("button", { name: "Role discovery" }).click();
 
   const revoked = await page.request.delete("http://127.0.0.1:4310/v1/session");
   expect(revoked.ok()).toBe(true);
@@ -519,6 +593,293 @@ test("a revoked session clears identity-bound drafts before another workspace op
   await page.getByRole("button", { name: "Role discovery" }).click();
   await expect(page.getByRole("button", { name: "Add role" })).toBeVisible();
   await expect(page.locator("#manual-role-draft")).toHaveCount(0);
+  await expect(page.getByLabel("Search roles")).toHaveValue("");
+  await expect(page.getByLabel("Tracking")).toHaveValue("all");
+  await page.getByRole("button", { name: "Evidence vault" }).click();
+  await expect(page.getByLabel("Evidence type")).toHaveValue("skill");
+  await expect(page.getByLabel("Exact claim")).toHaveValue("");
+  await page.getByRole("button", { name: "Applications" }).click();
+  await expect(page.getByRole("button", { name: "Table view" })).toBeVisible();
+  await expect(page.getByLabel("Created from")).not.toHaveValue("2020-01-01");
+  await expect(page.locator(".outcome-form")).toHaveCount(0);
+  await page.getByRole("button", { name: "Approved actions" }).click();
+  await expect(page.locator(".action-form")).toHaveCount(0);
+});
+
+test("a shared-cookie identity rotation clears every lifted draft before replacement", async ({
+  page,
+  context,
+}) => {
+  await expect
+    .poll(
+      async () => {
+        try {
+          return (await page.request.get("http://127.0.0.1:4310/health")).ok();
+        } catch {
+          return false;
+        }
+      },
+      { message: "local API health before the identity-rotation journey", timeout: 20_000 },
+    )
+    .toBe(true);
+  await page.goto(`/workspace/#bootstrap=${bootstrapSecret}`);
+  await page.getByLabel("Your name").fill("Original Candidate");
+  await page.getByLabel("Your email").fill("original-candidate@example.test");
+  await page.getByRole("button", { name: "Start private workspace" }).click();
+  await page.getByRole("button", { name: "Run starter matches" }).click();
+
+  await page.getByRole("button", { name: "Evidence vault" }).click();
+  await page.getByLabel("Evidence type").selectOption("project");
+  await page.getByLabel("Exact claim").fill("Original candidate evidence wording");
+  await page.getByLabel("Candidate-approved statement").fill("Original authorization wording");
+  await page.getByRole("button", { name: "Role discovery" }).click();
+  await page.getByLabel("Search roles").fill("Northwind");
+  await page.getByLabel("Tracking").selectOption("untracked");
+  await page.getByRole("button", { name: "Track", exact: true }).first().click();
+  await page.getByRole("button", { name: "Add role" }).click();
+  await page.getByLabel("Role title").fill("Original candidate role draft");
+  await page.getByLabel("Company").fill("Original Candidate LLC");
+
+  await page.getByRole("button", { name: "Applications" }).click();
+  await page.getByRole("button", { name: "Table view" }).click();
+  await page.getByRole("button", { name: "Record outcome" }).first().click();
+  await page.getByLabel("Candidate-reported outcome").selectOption("interview");
+  await page.getByLabel("Optional note").fill("Original candidate outcome note");
+  await page.getByLabel("Created from").fill("2020-01-01");
+  await page.getByRole("button", { name: "Review packets" }).click();
+  await page.getByRole("button", { name: "Generate", exact: true }).first().click();
+  await page.getByRole("button", { name: "Assure", exact: true }).first().click();
+  await page.getByRole("button", { name: "Approve", exact: true }).first().click();
+  await page.getByRole("button", { name: "Approved actions" }).click();
+  await page.getByRole("button", { name: "Prepare action" }).click();
+  await page.getByLabel("Recipient").fill("original-recipient@example.test");
+  await page
+    .getByRole("textbox", { name: "Message", exact: true })
+    .fill("Original candidate private action draft");
+  await page.getByRole("button", { name: "Evidence vault" }).click();
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "identity-bound-preview.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("Private preview that must remount at an identity boundary."),
+  });
+  await expect(
+    page.getByRole("heading", { name: "Review identity-bound-preview.txt" }),
+  ).toBeVisible();
+
+  // Browser tabs share the authenticated cookie. Rotate it from a sibling tab
+  // without letting the original page observe an unauthenticated state first.
+  const sibling = await context.newPage();
+  const signedOut = await sibling.request.delete("http://127.0.0.1:4310/v1/session");
+  expect(signedOut.ok()).toBe(true);
+  const replacement = await sibling.request.post("http://127.0.0.1:4310/v1/auth/local", {
+    headers: { "x-nimanto-bootstrap-secret": bootstrapSecret },
+    data: {
+      displayName: "Replacement Candidate",
+      email: "replacement-candidate@example.test",
+    },
+  });
+  expect(replacement.ok()).toBe(true);
+  await sibling.close();
+
+  // Submit from the stale tab instead of refreshing first. The server rejects
+  // the old session generation before writing, then the client reconciles and
+  // remounts the still-active Evidence section.
+  await page.getByRole("button", { name: "Add pending claim" }).click();
+  await expect(page.getByText("replacement-candidate@example.test")).toBeVisible();
+  await expect(page.getByText(/authenticated workspace changed in another tab/i)).toBeVisible();
+  await expect(page.locator(".import-preview")).toHaveCount(0);
+  await expect(page.getByLabel("Evidence type")).toHaveValue("skill");
+  await expect(page.getByLabel("Exact claim")).toHaveValue("");
+  await expect(page.getByLabel("Candidate-approved statement")).not.toHaveValue(
+    "Original authorization wording",
+  );
+  await page.getByRole("button", { name: "Role discovery" }).click();
+  await expect(page.locator("#manual-role-draft")).toHaveCount(0);
+  await expect(page.getByLabel("Search roles")).toHaveValue("");
+  await expect(page.getByLabel("Tracking")).toHaveValue("all");
+  await page.getByRole("button", { name: "Applications" }).click();
+  await expect(page.getByRole("button", { name: "Table view" })).toBeVisible();
+  await expect(page.getByLabel("Created from")).not.toHaveValue("2020-01-01");
+  await expect(page.locator(".outcome-form")).toHaveCount(0);
+  await page.getByRole("button", { name: "Approved actions" }).click();
+  await expect(page.locator(".action-form")).toHaveCount(0);
+});
+
+test("a delayed evidence save cannot overwrite newer controlled edits", async ({ page }) => {
+  await expect
+    .poll(
+      async () => {
+        try {
+          return (await page.request.get("http://127.0.0.1:4310/health")).ok();
+        } catch {
+          return false;
+        }
+      },
+      { message: "local API health before delayed evidence save", timeout: 20_000 },
+    )
+    .toBe(true);
+  await page.goto(`/workspace/#bootstrap=${bootstrapSecret}`);
+  await page.getByLabel("Your name").fill("Delayed Evidence");
+  await page.getByLabel("Your email").fill("delayed-evidence@example.test");
+  await page.getByRole("button", { name: "Start private workspace" }).click();
+  await page.getByRole("button", { name: "Evidence vault" }).click();
+  await page.getByLabel("Evidence type").selectOption("project");
+  await page.getByLabel("Exact claim").fill("Submitted claim snapshot");
+  await page.getByLabel("Candidate-approved statement").fill("Submitted authorization snapshot");
+
+  let releaseResponse!: () => void;
+  let reportResponseReady!: () => void;
+  const responseMayFinish = new Promise<void>((resolve) => {
+    releaseResponse = resolve;
+  });
+  const responseReady = new Promise<void>((resolve) => {
+    reportResponseReady = resolve;
+  });
+  await page.route("**/v1/evidence", async (route) => {
+    const response = await route.fetch();
+    reportResponseReady();
+    await responseMayFinish;
+    await route.fulfill({ response });
+  });
+
+  await page.getByRole("button", { name: "Add pending claim" }).click();
+  await responseReady;
+  await page.getByLabel("Evidence type").selectOption("accomplishment");
+  await page.getByLabel("Exact claim").fill("Newer in-flight candidate wording");
+  await page
+    .getByLabel("Candidate-approved statement")
+    .fill("Newer in-flight authorization wording");
+  releaseResponse();
+
+  await expect(page.getByText("Claim added to the review queue.")).toBeVisible();
+  await expect(page.getByLabel("Evidence type")).toHaveValue("accomplishment");
+  await expect(page.getByLabel("Exact claim")).toHaveValue("Newer in-flight candidate wording");
+  await expect(page.getByLabel("Candidate-approved statement")).toHaveValue(
+    "Newer in-flight authorization wording",
+  );
+  await page.unroute("**/v1/evidence");
+});
+
+test("delayed role, outcome, and action submissions retain newer candidate edits", async ({
+  page,
+}) => {
+  await expect
+    .poll(
+      async () => {
+        try {
+          return (await page.request.get("http://127.0.0.1:4310/health")).ok();
+        } catch {
+          return false;
+        }
+      },
+      { message: "local API health before delayed controlled submissions", timeout: 20_000 },
+    )
+    .toBe(true);
+  await page.goto(`/workspace/#bootstrap=${bootstrapSecret}`);
+  await page.getByLabel("Your name").fill("Delayed Controls");
+  await page.getByLabel("Your email").fill("delayed-controls@example.test");
+  await page.getByRole("button", { name: "Start private workspace" }).click();
+  await page.getByRole("button", { name: "Run starter matches" }).click();
+  await page.getByRole("button", { name: "Role discovery" }).click();
+  await page.getByRole("button", { name: "Add role" }).click();
+  await page.getByLabel("Role title").fill("Submitted role snapshot");
+  await page.getByLabel("Company").fill("Submitted Company");
+  await page.getByLabel("Description").fill("Submitted role description");
+  await page.getByLabel("Requirements, one per line").fill("TypeScript");
+  let releaseRole!: () => void;
+  let reportRoleReady!: () => void;
+  const roleMayFinish = new Promise<void>((resolve) => {
+    releaseRole = resolve;
+  });
+  const roleReady = new Promise<void>((resolve) => {
+    reportRoleReady = resolve;
+  });
+  await page.route("**/v1/jobs", async (route) => {
+    const response = await route.fetch();
+    reportRoleReady();
+    await roleMayFinish;
+    await route.fulfill({ response });
+  });
+  await page.getByRole("button", { name: "Save role" }).click();
+  await roleReady;
+  await page.getByLabel("Role title").fill("Newer candidate role draft");
+  await page.getByLabel("Company").fill("Newer Candidate Company");
+  await page.getByLabel("Description").fill("Newer candidate description");
+  releaseRole();
+  await expect(page.getByText("Role added.")).toBeVisible();
+  await expect(page.getByLabel("Role title")).toHaveValue("Newer candidate role draft");
+  await expect(page.getByLabel("Company")).toHaveValue("Newer Candidate Company");
+  await expect(page.getByLabel("Description")).toHaveValue("Newer candidate description");
+  await page.unroute("**/v1/jobs");
+  await page.getByRole("button", { name: "Track", exact: true }).first().click();
+
+  await page.getByRole("button", { name: "Applications" }).click();
+  await page.getByRole("button", { name: "Record outcome" }).first().click();
+  await page.getByLabel("Candidate-reported outcome").selectOption("reply");
+  await page.getByLabel("Optional note").fill("Submitted outcome snapshot");
+  let releaseOutcome!: () => void;
+  let reportOutcomeReady!: () => void;
+  const outcomeMayFinish = new Promise<void>((resolve) => {
+    releaseOutcome = resolve;
+  });
+  const outcomeReady = new Promise<void>((resolve) => {
+    reportOutcomeReady = resolve;
+  });
+  await page.route("**/v1/applications/*/outcomes", async (route) => {
+    const response = await route.fetch();
+    reportOutcomeReady();
+    await outcomeMayFinish;
+    await route.fulfill({ response });
+  });
+  await page.locator(".outcome-form").getByRole("button", { name: "Record outcome" }).click();
+  await outcomeReady;
+  await page.getByLabel("Candidate-reported outcome").selectOption("interview");
+  await page.getByLabel("Optional note").fill("Newer candidate outcome draft");
+  releaseOutcome();
+  await expect(page.getByText("Candidate-reported outcome recorded.")).toBeVisible();
+  await expect(page.getByLabel("Candidate-reported outcome")).toHaveValue("interview");
+  await expect(page.getByLabel("Optional note")).toHaveValue("Newer candidate outcome draft");
+  await page.unroute("**/v1/applications/*/outcomes");
+
+  await page.getByRole("button", { name: "Review packets" }).click();
+  await page.getByRole("button", { name: "Generate", exact: true }).first().click();
+  await page.getByRole("button", { name: "Assure", exact: true }).first().click();
+  await page.getByRole("button", { name: "Approve", exact: true }).first().click();
+  await page.getByRole("button", { name: "Approved actions" }).click();
+  await page.getByRole("button", { name: "Prepare action" }).click();
+  await page.getByLabel("Provider").selectOption("test_outbox");
+  await page.getByLabel("Recipient").fill("submitted@example.test");
+  await page.getByLabel("Subject").fill("Submitted action snapshot");
+  await page
+    .getByRole("textbox", { name: "Message", exact: true })
+    .fill("Submitted candidate message");
+  let releaseAction!: () => void;
+  let reportActionReady!: () => void;
+  const actionMayFinish = new Promise<void>((resolve) => {
+    releaseAction = resolve;
+  });
+  const actionReady = new Promise<void>((resolve) => {
+    reportActionReady = resolve;
+  });
+  await page.route("**/v1/actions", async (route) => {
+    const response = await route.fetch();
+    reportActionReady();
+    await actionMayFinish;
+    await route.fulfill({ response });
+  });
+  await page.getByRole("button", { name: "Create approval request" }).click();
+  await actionReady;
+  await page.getByLabel("Recipient").fill("newer@example.test");
+  await page.getByLabel("Subject").fill("Newer candidate action draft");
+  await page.getByRole("textbox", { name: "Message", exact: true }).fill("Newer candidate message");
+  releaseAction();
+  await expect(page.getByText("Action created and waiting for approval.")).toBeVisible();
+  await expect(page.getByLabel("Recipient")).toHaveValue("newer@example.test");
+  await expect(page.getByLabel("Subject")).toHaveValue("Newer candidate action draft");
+  await expect(page.getByRole("textbox", { name: "Message", exact: true })).toHaveValue(
+    "Newer candidate message",
+  );
+  await page.unroute("**/v1/actions");
 });
 
 test("one guarded control owns every status change, and the two views are exclusive", async ({
@@ -538,11 +899,10 @@ test("one guarded control owns every status change, and the two views are exclus
     if (request.method() === "PUT" && request.url().includes("/status")) writes.push(request.url());
   });
 
-  // Board view used to render the row list underneath it, because `hidden` lost
-  // to a shared `display: grid` rule — which is what kept the unguarded status
-  // control permanently on screen.
+  // Only the active work surface is mounted. This prevents a hidden second
+  // editor from duplicating label and aria-controls IDs.
   await expect(page.locator(".board")).toBeVisible();
-  await expect(page.locator(".application-table")).toBeHidden();
+  await expect(page.locator(".application-table")).toHaveCount(0);
   const workSurfaceOrder = await page.evaluate(() => {
     const board = document.querySelector(".board");
     const funnel = document.querySelector(".funnel-strip");
@@ -556,6 +916,7 @@ test("one guarded control owns every status change, and the two views are exclus
   expect(workSurfaceOrder).toEqual({ dom: true, visual: true });
 
   const boardOutcome = page.getByRole("button", { name: "Record outcome" }).first();
+  await expect(boardOutcome).not.toHaveAttribute("aria-controls", /.+/);
   const withdraw = page.locator(".board button", { hasText: /^Withdrawn$/ }).first();
   await withdraw.click();
   await expect(page.locator(".board .confirm-strip")).toContainText("withdrawn");
@@ -565,6 +926,9 @@ test("one guarded control owns every status change, and the two views are exclus
   await page.waitForTimeout(250);
   expect(writes, "an escaped board confirmation must not write").toEqual([]);
   await boardOutcome.click();
+  const boardOutcomeEditorId = await boardOutcome.getAttribute("aria-controls");
+  expect(boardOutcomeEditorId).toBeTruthy();
+  await expect(page.locator(`#${boardOutcomeEditorId}`)).toHaveCount(1);
   const boardOutcomeForm = page.locator(".board .outcome-form");
   await page.setViewportSize({ width: 320, height: 900 });
   const boardEditorGeometry = await boardOutcomeForm.evaluate((form) => {
@@ -579,10 +943,26 @@ test("one guarded control owns every status change, and the two views are exclus
   expect(boardEditorGeometry.left).toBeGreaterThanOrEqual(0);
   expect(boardEditorGeometry.right).toBeLessThanOrEqual(boardEditorGeometry.viewport);
   expect(boardEditorGeometry.contained).toBe(true);
-  await boardOutcomeForm.getByRole("button", { name: "Cancel" }).click();
+  await boardOutcomeForm.getByRole("button", { name: "Discard draft" }).click();
+  await page.keyboard.press("Escape");
+  await expect(boardOutcomeForm.getByRole("button", { name: "Discard draft" })).toBeFocused();
+  await boardOutcomeForm.getByRole("button", { name: "Discard draft" }).click();
+  await boardOutcomeForm.getByRole("button", { name: "Discard it" }).click();
   await expect(boardOutcome).toBeFocused();
   await page.setViewportSize({ width: 1280, height: 900 });
   await boardOutcome.click();
+  await boardOutcomeForm.getByLabel("Candidate-reported outcome").selectOption("interview");
+  await boardOutcomeForm.getByLabel("Optional note").fill("Board draft survives navigation");
+  await page.getByLabel("Created from").fill("2020-01-01");
+  await page.getByRole("button", { name: "Overview" }).click();
+  await page.getByRole("button", { name: "Applications" }).click();
+  await expect(
+    page.locator(".board .outcome-form").getByLabel("Candidate-reported outcome"),
+  ).toHaveValue("interview");
+  await expect(page.locator(".board .outcome-form").getByLabel("Optional note")).toHaveValue(
+    "Board draft survives navigation",
+  );
+  await expect(page.getByLabel("Created from")).toHaveValue("2020-01-01");
   await boardOutcomeForm.getByLabel("Candidate-reported outcome").selectOption("reply");
   await boardOutcomeForm.getByLabel("Optional note").fill("Board follow-up");
   const outcomeType = boardOutcomeForm.getByLabel("Candidate-reported outcome");
@@ -696,10 +1076,15 @@ test("evidence-rich review features stay literal, local, and inspectable", async
   await page.getByRole("button", { name: "Run starter matches" }).click();
 
   await page.getByRole("button", { name: "Role discovery" }).click();
-  await expect(page.getByText("Filters stay in this open view")).toBeVisible();
+  await expect(page.getByText("Filters stay in this tab until reload or sign-out.")).toBeVisible();
   await page.getByRole("searchbox", { name: "Search roles" }).fill("Northwind");
+  await page.getByLabel("Tracking").selectOption("untracked");
   await expect(page.locator(".job-row")).toHaveCount(1);
   await expect(page.getByText("1 of 2")).toBeVisible();
+  await page.getByRole("button", { name: "Overview" }).click();
+  await page.getByRole("button", { name: "Role discovery" }).click();
+  await expect(page.getByRole("searchbox", { name: "Search roles" })).toHaveValue("Northwind");
+  await expect(page.getByLabel("Tracking")).toHaveValue("untracked");
   await page.getByRole("button", { name: "Clear filters" }).click();
   await expect(page.locator(".job-row")).toHaveCount(2);
 
@@ -873,6 +1258,18 @@ test("retained history, record review, cohorts, and sensitive export stay bounde
 
 test("long action references keep their Copy control clear at 320px", async ({ page }) => {
   await installClipboardRecorder(page);
+  await expect
+    .poll(
+      async () => {
+        try {
+          return (await page.request.get("http://127.0.0.1:4310/health")).ok();
+        } catch {
+          return false;
+        }
+      },
+      { message: "local API health before the action-reference journey", timeout: 20_000 },
+    )
+    .toBe(true);
   await page.goto(`/workspace/#bootstrap=${bootstrapSecret}`);
   await page.getByLabel("Your name").fill("Copy Check");
   await page.getByLabel("Your email").fill("copy@example.test");
@@ -889,11 +1286,62 @@ test("long action references keep their Copy control clear at 320px", async ({ p
   await expect(packet.getByText("Approved", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Approved actions" }).click();
-  await page.getByRole("button", { name: "Prepare action" }).click();
+  const prepareAction = page.getByRole("button", { name: "Prepare action" });
+  await expect(prepareAction).not.toHaveAttribute("aria-controls", /.+/);
+  await prepareAction.click();
+  const originalPacketId = await page.getByLabel("Approved packet").inputValue();
+
+  // Keep the original packet in action history before starting the draft under
+  // test. Historical labels must not make a retired packet eligible again.
+  await page.getByLabel("Provider").selectOption("test_outbox");
+  await page.getByLabel("Recipient").fill("historical@example.test");
+  await page.getByLabel("Subject").fill("Historical action");
+  await page
+    .getByRole("textbox", { name: "Message", exact: true })
+    .fill("An earlier action keeps this packet in history.");
+  await page.getByRole("button", { name: "Create approval request" }).click();
+  await expect(page.locator(".action-row").filter({ hasText: "Historical action" })).toBeVisible();
+  await prepareAction.click();
+  await expect(page.getByLabel("Approved packet")).toHaveValue(originalPacketId);
   await page.getByLabel("Provider").selectOption("test_outbox");
   await page.getByLabel("Recipient").fill("recipient@example.test");
+  await page.getByLabel("Subject").fill("Candidate-reviewed subject");
+  await page
+    .getByRole("textbox", { name: "Message", exact: true })
+    .fill("Candidate-reviewed exact local draft.");
+  await page.getByRole("button", { name: "Overview" }).click();
+  await page.getByRole("button", { name: "Approved actions" }).click();
+  await expect(page.getByRole("button", { name: "Resume action draft" })).toBeVisible();
+  await expect(page.getByLabel("Provider")).toHaveValue("test_outbox");
+  await expect(page.getByLabel("Recipient")).toHaveValue("recipient@example.test");
+  await expect(page.getByLabel("Subject")).toHaveValue("Candidate-reviewed subject");
+  await expect(page.getByRole("textbox", { name: "Message", exact: true })).toHaveValue(
+    "Candidate-reviewed exact local draft.",
+  );
+  await expect(page.getByLabel("Approved packet")).toHaveValue(originalPacketId);
+
+  // A new packet retires the one the candidate originally reviewed. Preserve
+  // message work, but make the stale packet selection visibly invalid until a
+  // current approved packet is chosen explicitly.
+  await page.getByRole("button", { name: "Review packets" }).click();
+  const replacementPacket = page.locator(".packet-row").first();
+  await replacementPacket.getByRole("button", { name: "Generate new" }).click();
+  await replacementPacket.getByRole("button", { name: "Assure", exact: true }).click();
+  await replacementPacket.getByRole("button", { name: "Approve", exact: true }).click();
+  await page.getByRole("button", { name: "Approved actions" }).click();
+  await expect(page.getByLabel("Approved packet")).toHaveValue("");
+  await expect(page.getByLabel("Approved packet")).toHaveAttribute("aria-invalid", "true");
+  await expect(page.getByText(/previously reviewed packet is no longer approved/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Create approval request" })).toBeDisabled();
+  await expect(page.getByLabel("Recipient")).toHaveValue("recipient@example.test");
+  await expect(page.getByRole("textbox", { name: "Message", exact: true })).toHaveValue(
+    "Candidate-reviewed exact local draft.",
+  );
+  await page.getByLabel("Approved packet").selectOption({ index: 1 });
+  expect(await page.getByLabel("Approved packet").inputValue()).not.toBe(originalPacketId);
+  await expect(page.getByRole("button", { name: "Create approval request" })).toBeEnabled();
   await page.getByRole("button", { name: "Create approval request" }).click();
-  const action = page.locator(".action-row").first();
+  const action = page.locator(".action-row").filter({ hasText: "Candidate-reviewed subject" });
   await action.getByRole("button", { name: "Approve", exact: true }).click();
   await page.getByRole("button", { name: "Turn on" }).click();
   await action.getByRole("button", { name: "Execute", exact: true }).click();

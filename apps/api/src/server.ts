@@ -164,6 +164,18 @@ function messageForError(error: Error): { code: string; status: number; message:
       status: 409,
       message: "Confirm this consequential application change, then try again.",
     };
+  if (code === "IDENTITY_CHANGED")
+    return {
+      code,
+      status: 409,
+      message: "The authenticated workspace changed in another tab. No data was saved.",
+    };
+  if (code === "LATEST_APPROVED_PACKET_REQUIRED")
+    return {
+      code,
+      status: 409,
+      message: "A newer packet exists. Review and choose the current approved packet.",
+    };
   if (
     code.includes("REQUIRED") ||
     code.startsWith("INVALID_") ||
@@ -544,6 +556,22 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
         },
       });
     request.identity = session;
+    const method = request.method.toUpperCase();
+    const expected = request.headers["x-nimanto-expected-session-id"];
+    const browserMutation =
+      !["GET", "HEAD", "OPTIONS"].includes(method) && request.headers.origin === options.webOrigin;
+    /* Browser tabs share the session cookie. The UI's tab-local session id is
+     * the server-authoritative fence that prevents a stale tab from writing a
+     * previous candidate's draft into a replacement workspace. Direct local
+     * API clients have no browser tab state; if they opt into the header, it is
+     * still validated. */
+    if (
+      !["GET", "HEAD", "OPTIONS"].includes(method) &&
+      (browserMutation || expected !== undefined) &&
+      (typeof expected !== "string" || expected !== session.sessionId)
+    ) {
+      throw new Error("IDENTITY_CHANGED");
+    }
   });
 
   app.get("/v1/session", async (request) => ({ identity: identity(request) }));

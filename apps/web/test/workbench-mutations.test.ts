@@ -118,6 +118,29 @@ describe("Workbench mutation coordination", () => {
     expect(unreachable.events).toContain("reachable:false");
   });
 
+  it("reconciles a rejected stale-tab write before announcing the identity change", async () => {
+    const { mutations, events } = harness();
+    const identityError = Object.assign(new Error("generic"), { code: "IDENTITY_CHANGED" });
+    expect(
+      await mutations.run({
+        request: async () => Promise.reject(identityError),
+        success: "Never shown.",
+      }),
+    ).toEqual({ kind: "failed" });
+    expect(events).toEqual([
+      "focus:capture",
+      "busy:true",
+      "notice:clear",
+      "notice-focus:false",
+      "reachable:true",
+      "identity:signed-out",
+      "refresh",
+      "notice-focus:true",
+      "notice:error:Safe failure.",
+      "busy:false",
+    ]);
+  });
+
   it("reports a committed identity-ending operation on the entry screen", async () => {
     const { mutations, events } = harness("signed_out");
     expect(

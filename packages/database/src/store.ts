@@ -1728,6 +1728,20 @@ export class NimantoStore {
     return result.rows[0] ? this.#mapPacket(result.rows[0]) : null;
   }
 
+  async getLatestPacketForApplication(
+    tenantId: string,
+    applicationId: string,
+  ): Promise<PacketRecord | null> {
+    const result = await this.#db.query<any>(
+      `SELECT * FROM packets
+       WHERE tenant_id = $1 AND application_id = $2
+       ORDER BY created_at DESC, id DESC
+       LIMIT 1`,
+      [tenantId, applicationId],
+    );
+    return result.rows[0] ? this.#mapPacket(result.rows[0]) : null;
+  }
+
   async listPackets(tenantId: string): Promise<PacketRecord[]> {
     const result = await this.#db.query<any>(
       "SELECT * FROM packets WHERE tenant_id = $1 ORDER BY created_at DESC, id DESC",

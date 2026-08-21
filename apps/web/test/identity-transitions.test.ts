@@ -66,6 +66,10 @@ describe("workspace identity transitions", () => {
       clearDrafts: true,
       receipt: "retire_completed",
     });
+    expect(workspaceIdentityTransitions.plan("identity_changed")).toEqual({
+      clearDrafts: true,
+      closeMobileNavigation: true,
+    });
     expect(
       workspaceIdentityTransitions.plan({
         kind: "deletion_recorded",

@@ -33,8 +33,10 @@ import {
   X,
 } from "lucide-react";
 import {
+  type Dispatch,
   type FormEvent,
   type ReactNode,
+  type SetStateAction,
   useCallback,
   useDeferredValue,
   useEffect,
@@ -228,6 +230,66 @@ type ManualRoleDraft = {
   interviewEvidence: string;
   interviewSource: string;
 };
+type EvidenceDraft = {
+  kind: string;
+  value: string;
+  authorization: string;
+};
+type RoleFilters = {
+  query: string;
+  source: string;
+  fit: string;
+  tracking: "all" | "tracked" | "untracked";
+};
+type ActionDraft = {
+  packetId: string;
+  provider: "deep_link" | "test_outbox";
+  to: string;
+  subject: string;
+  body: string;
+};
+type OutcomeDraft = {
+  applicationId: string;
+  type: string;
+  note: string;
+};
+type ApplicationViewState = {
+  reviewOnly: boolean;
+  cohortStart: string;
+  cohortEnd: string;
+  cohortSource: string;
+  cohortBucket: "all" | (typeof APPLICATION_MATCH_BUCKETS)[number];
+};
+const emptyApplicationViewState = (): ApplicationViewState => ({
+  reviewOnly: false,
+  cohortStart: dateInputValue(new Date(), -30),
+  cohortEnd: dateInputValue(new Date()),
+  cohortSource: "all",
+  cohortBucket: "all",
+});
+const emptyActionDraft = (packetId: string): ActionDraft => ({
+  packetId,
+  provider: "deep_link",
+  to: "",
+  subject: "Application materials",
+  body: "Please find my reviewed application materials attached separately.",
+});
+const sameActionDraft = (left: ActionDraft, right: ActionDraft) =>
+  left.packetId === right.packetId &&
+  left.provider === right.provider &&
+  left.to === right.to &&
+  left.subject === right.subject &&
+  left.body === right.body;
+const sameOutcomeDraft = (left: OutcomeDraft, right: OutcomeDraft) =>
+  left.applicationId === right.applicationId &&
+  left.type === right.type &&
+  left.note === right.note;
+const emptyRoleFilters = (): RoleFilters => ({
+  query: "",
+  source: "all",
+  fit: "all",
+  tracking: "all",
+});
 const emptyManualRoleDraft = (): ManualRoleDraft => ({
   title: "",
   company: "",
@@ -242,6 +304,10 @@ const emptyManualRoleDraft = (): ManualRoleDraft => ({
   interviewEvidence: "",
   interviewSource: "",
 });
+const sameManualRoleDraft = (left: ManualRoleDraft, right: ManualRoleDraft) =>
+  (Object.keys(left) as Array<keyof ManualRoleDraft>).every(
+    (field) => left[field] === right[field],
+  );
 type MatchHistoryRun = Omit<Match, "job"> & { currentJob: Job | null };
 type AssuranceHistoryRun = NonNullable<Packet["latestAssurance"]> & {
   packetId: string;
@@ -294,7 +360,13 @@ type SourceSchedule = {
   lastErrorCode: string | null;
 };
 type Dashboard = {
-  identity: { displayName: string; email: string };
+  identity: {
+    userId: string;
+    tenantId: string;
+    sessionId: string;
+    displayName: string;
+    email: string;
+  };
   profile: ProfileVersion | null;
   evidence: Evidence[];
   jobs: Job[];
@@ -344,11 +416,26 @@ class ApiError extends Error {
   }
 }
 
+/* The HttpOnly cookie is shared by sibling tabs, while this session generation
+ * is not. Authenticated writes carry the generation that rendered this tab. */
+let expectedSessionId: string | null = null;
+
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
+  const method = (init?.method ?? "GET").toUpperCase();
+  const headers = new Headers(init?.headers);
+  if (init?.body) headers.set("content-type", "application/json");
+  if (
+    expectedSessionId &&
+    !["GET", "HEAD", "OPTIONS"].includes(method) &&
+    !path.startsWith("/v1/auth/") &&
+    path !== "/v1/deletion/resume"
+  ) {
+    headers.set("x-nimanto-expected-session-id", expectedSessionId);
+  }
   const response = await fetch(`${API}${path}`, {
     ...init,
     credentials: "include",
-    headers: { ...(init?.body ? { "content-type": "application/json" } : {}), ...init?.headers },
+    headers,
   });
   if (!response.ok) {
     const payload = (await response.json().catch(() => ({}))) as {
@@ -492,11 +579,39 @@ export function Workspace() {
   // A manual role can be long. Keep it above the section boundary so navigation
   // cannot erase it, but never persist it or carry it into another identity.
   const [manualRoleDraft, setManualRoleDraft] = useState<ManualRoleDraft | null>(null);
+  const commitManualRoleDraft = useCallback((submitted: ManualRoleDraft) => {
+    setManualRoleDraft((current) =>
+      current && sameManualRoleDraft(current, submitted) ? null : current,
+    );
+  }, []);
+  /* Exact evidence and authorization wording are candidate work, just like the
+   * manual role draft below. Keep them above the section boundary so ordinary
+   * navigation cannot erase them; identity transitions still clear them and
+   * nothing is written to browser storage. */
+  const [evidenceDraft, setEvidenceDraft] = useState<EvidenceDraft | null>(null);
+  const [roleFilters, setRoleFilters] = useState<RoleFilters>(emptyRoleFilters);
+  const [actionDraft, setActionDraft] = useState<ActionDraft | null>(null);
+  const [outcomeDraft, setOutcomeDraft] = useState<OutcomeDraft | null>(null);
+  const commitActionDraft = useCallback((submitted: ActionDraft) => {
+    setActionDraft((current) => (current && sameActionDraft(current, submitted) ? null : current));
+  }, []);
+  const commitOutcomeDraft = useCallback((submitted: OutcomeDraft) => {
+    setOutcomeDraft((current) =>
+      current && sameOutcomeDraft(current, submitted) ? null : current,
+    );
+  }, []);
+  const [applicationViewState, setApplicationViewState] =
+    useState<ApplicationViewState>(emptyApplicationViewState);
   /* Sections unmount on navigation, so a view chosen inside Applications died
    * on the way to any other section. React state only: this is a view
    * preference for the signed-in session, not stored data, and the one storage
    * key this app owns holds the bootstrap secret. */
   const [applicationsView, setApplicationsView] = useState<"board" | "table">("board");
+  /* Cookies are shared between tabs. A second tab can replace the authenticated
+   * workspace while this one still has candidate-authored drafts in memory, so
+   * dashboard replacement needs a stable identity fence of its own. */
+  const dashboardIdentity = useRef<string | null>(null);
+  const [identityEpoch, setIdentityEpoch] = useState(0);
   // Held here, not in Data controls: deleting the workspace clears the session,
   // so that panel unmounts before the candidate could copy the token.
   const [deletionReceipt, setDeletionReceipt] = useState<DeletionReceipt | null>(null);
@@ -610,9 +725,22 @@ export function Workspace() {
     if (plan.clearDrafts) {
       setManualRoleDraft(null);
       setDraftClaim(null);
+      setEvidenceDraft(null);
+      setRoleFilters(emptyRoleFilters());
+      setActionDraft(null);
+      setOutcomeDraft(null);
+      setApplicationViewState(emptyApplicationViewState());
+      setApplicationsView("board");
+      // Remount the active section too: import previews and other child-local
+      // state are identity-scoped even though they are not durable drafts.
+      setIdentityEpoch((epoch) => epoch + 1);
     }
     if (plan.closeMobileNavigation) setMobileNav(false);
-    if (plan.clearDashboard) setDashboard(null);
+    if (plan.clearDashboard) {
+      dashboardIdentity.current = null;
+      expectedSessionId = null;
+      setDashboard(null);
+    }
     if (plan.requireAuthentication) setAuthRequired(true);
     if (plan.receipt === "retire_completed") {
       setDeletionReceipt((receipt) => (receipt?.state === "completed" ? null : receipt));
@@ -739,6 +867,14 @@ export function Workspace() {
         return "signed_out";
       }
       const value = await api<Dashboard>("/v1/dashboard");
+      const incomingIdentity = value.identity.sessionId;
+      if (dashboardIdentity.current && dashboardIdentity.current !== incomingIdentity) {
+        // A sibling tab rotated the shared authenticated cookie. Clear every
+        // identity-bound draft before the replacement dashboard is rendered.
+        applyIdentityTransition("identity_changed");
+      }
+      dashboardIdentity.current = incomingIdentity;
+      expectedSessionId = incomingIdentity;
       setDashboard(value);
       setAuthRequired(false);
       return "ready";
@@ -756,7 +892,7 @@ export function Workspace() {
         return error instanceof TypeError ? "unreachable" : "failed";
       }
     }
-  }, [describeFailure, requireAuthentication]);
+  }, [applyIdentityTransition, describeFailure, requireAuthentication]);
 
   useEffect(() => {
     void refresh();
@@ -1109,6 +1245,7 @@ export function Workspace() {
          * destination — from the sidebar or from quick navigation — dropped
          * focus to <body> and a keyboard user restarted from the top. */}
         <div
+          key={identityEpoch}
           className="workspace-content"
           ref={contentHeading}
           tabIndex={-1}
@@ -1122,6 +1259,23 @@ export function Workspace() {
               dashboard={dashboard}
               onAct={mutations}
               busy={busy}
+              draft={
+                evidenceDraft ?? {
+                  kind: "skill",
+                  value: "",
+                  authorization: dashboard.profile?.authorizationWording ?? "",
+                }
+              }
+              onDraftChange={setEvidenceDraft}
+              onClaimCommitted={(submitted) =>
+                setEvidenceDraft((current) =>
+                  current?.kind === submitted.kind &&
+                  current.value === submitted.value &&
+                  current.authorization === submitted.authorization
+                    ? { ...current, value: "" }
+                    : current,
+                )
+              }
               draftClaim={draftClaim}
               onDraftUsed={clearDraftClaim}
             />
@@ -1135,6 +1289,9 @@ export function Workspace() {
               onDraftOpen={() => setManualRoleDraft((value) => value ?? emptyManualRoleDraft())}
               onDraftChange={setManualRoleDraft}
               onDraftClose={() => setManualRoleDraft(null)}
+              onDraftCommitted={commitManualRoleDraft}
+              filters={roleFilters}
+              onFiltersChange={setRoleFilters}
               onAddEvidence={(requirement) => {
                 setDraftClaim(requirement);
                 goToSection("evidence");
@@ -1149,11 +1306,25 @@ export function Workspace() {
               onGo={goToSection}
               view={applicationsView}
               onViewChange={setApplicationsView}
+              workingView={applicationViewState}
+              onWorkingViewChange={setApplicationViewState}
+              outcomeDraft={outcomeDraft}
+              onOutcomeDraftChange={setOutcomeDraft}
+              onOutcomeCommitted={commitOutcomeDraft}
             />
           )}
           {section === "packets" && <Packets dashboard={dashboard} onAct={mutations} busy={busy} />}
           {section === "history" && <StoredHistory />}
-          {section === "actions" && <Actions dashboard={dashboard} onAct={mutations} busy={busy} />}
+          {section === "actions" && (
+            <Actions
+              dashboard={dashboard}
+              onAct={mutations}
+              busy={busy}
+              draft={actionDraft}
+              onDraftChange={setActionDraft}
+              onDraftCommitted={commitActionDraft}
+            />
+          )}
           {section === "activity" && <ActivityLedger dashboard={dashboard} />}
           {section === "data" && (
             <DataControls
@@ -1724,25 +1895,34 @@ function EvidenceVault({
   dashboard,
   onAct,
   busy,
+  draft,
+  onDraftChange,
+  onClaimCommitted,
   draftClaim,
   onDraftUsed,
 }: {
   dashboard: Dashboard;
   onAct: ActionRunner;
   busy: boolean;
+  draft: EvidenceDraft;
+  onDraftChange: (draft: EvidenceDraft) => void;
+  onClaimCommitted: (submitted: EvidenceDraft) => void;
   draftClaim?: string | null;
   onDraftUsed?: () => void;
 }) {
-  const [kind, setKind] = useState("skill");
-  const [value, setValue] = useState("");
-  const [authorization, setAuthorization] = useState(dashboard.profile?.authorizationWording ?? "");
   const [importPreview, setImportPreview] = useState<EvidenceImportPreview | null>(null);
   const claimField = useRef<HTMLTextAreaElement>(null);
+  const importField = useRef<HTMLInputElement>(null);
+  const importPreviewSection = useRef<HTMLElement>(null);
   const saveVersionControl = useRef<HTMLButtonElement>(null);
   const confirmedClaimIds = dashboard.evidence
     .filter((claim) => claim.status === "confirmed")
     .map((claim) => claim.id);
-  const profileChanged = profileInputChanged(dashboard.profile, authorization, confirmedClaimIds);
+  const profileChanged = profileInputChanged(
+    dashboard.profile,
+    draft.authorization,
+    confirmedClaimIds,
+  );
   const unscoredClaims = unscoredConfirmedClaims(dashboard.profile, confirmedClaimIds);
 
   /* Arrived here from an unmet requirement. Only the wording the candidate has
@@ -1751,21 +1931,28 @@ function EvidenceVault({
    * files it as pending and user-attested regardless. */
   useEffect(() => {
     if (!draftClaim) return;
-    setValue(draftClaim);
+    onDraftChange({ ...draft, value: draftClaim });
     onDraftUsed?.();
     window.requestAnimationFrame(() => {
       claimField.current?.focus();
       claimField.current?.setSelectionRange(draftClaim.length, draftClaim.length);
     });
-  }, [draftClaim, onDraftUsed]);
+  }, [draft, draftClaim, onDraftChange, onDraftUsed]);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
+    const submittedDraft = { ...draft };
     void onAct.run({
-      request: () => api("/v1/evidence", { method: "POST", body: JSON.stringify({ kind, value }) }),
+      request: () =>
+        api("/v1/evidence", {
+          method: "POST",
+          body: JSON.stringify({ kind: draft.kind, value: draft.value }),
+        }),
       success: "Claim added to the review queue.",
       transient: true,
-      commit: () => setValue(""),
+      // Clear only the exact claim that completed. A slow response cannot
+      // replace newer kind or authorization edits with its submit-time closure.
+      commit: () => onClaimCommitted(submittedDraft),
     });
   };
 
@@ -1777,7 +1964,7 @@ function EvidenceVault({
       request: () =>
         api<ProfileVersionResponse>("/v1/profile/versions", {
           method: "POST",
-          body: JSON.stringify({ authorizationWording: authorization }),
+          body: JSON.stringify({ authorizationWording: draft.authorization }),
         }),
       success: (result) =>
         result.created
@@ -1801,6 +1988,7 @@ function EvidenceVault({
             <label className="button mini quiet file-button">
               <Upload size={15} /> Import file
               <input
+                ref={importField}
                 type="file"
                 accept=".txt,.md,.json,.docx,.pdf,.zip"
                 onChange={(event) => {
@@ -1828,6 +2016,7 @@ function EvidenceVault({
                     },
                     success: `${file.name} is ready for your import decision.`,
                     commit: setImportPreview,
+                    focus: () => importPreviewSection.current?.focus(),
                   });
                   event.target.value = "";
                 }}
@@ -1865,7 +2054,12 @@ function EvidenceVault({
             </div>
           )}
           {importPreview && (
-            <section className="import-preview" aria-labelledby="import-preview-title">
+            <section
+              ref={importPreviewSection}
+              className="import-preview"
+              aria-labelledby="import-preview-title"
+              tabIndex={-1}
+            >
               <div>
                 <span>Import preview · nothing stored yet</span>
                 <h3 id="import-preview-title">Review {importPreview.filename}</h3>
@@ -1948,6 +2142,7 @@ function EvidenceVault({
                         }),
                       success: `${importPreview.filename} was imported as pending evidence.`,
                       commit: () => setImportPreview(null),
+                      focus: () => importField.current?.focus(),
                     });
                   }}
                 >
@@ -1957,7 +2152,10 @@ function EvidenceVault({
                   className="button quiet"
                   type="button"
                   disabled={busy}
-                  onClick={() => setImportPreview(null)}
+                  onClick={() => {
+                    setImportPreview(null);
+                    window.requestAnimationFrame(() => importField.current?.focus());
+                  }}
                 >
                   Cancel
                 </button>
@@ -2051,7 +2249,10 @@ function EvidenceVault({
             </div>
             <label>
               Evidence type
-              <select value={kind} onChange={(event) => setKind(event.target.value)}>
+              <select
+                value={draft.kind}
+                onChange={(event) => onDraftChange({ ...draft, kind: event.target.value })}
+              >
                 <option value="skill">Skill</option>
                 <option value="employment">Employment</option>
                 <option value="project">Project</option>
@@ -2066,12 +2267,12 @@ function EvidenceVault({
               <textarea
                 ref={claimField}
                 required
-                value={value}
-                onChange={(event) => setValue(event.target.value)}
+                value={draft.value}
+                onChange={(event) => onDraftChange({ ...draft, value: event.target.value })}
                 placeholder="What can you support with a source?"
               />
             </label>
-            <button className="button primary" disabled={busy || value.trim().length < 3}>
+            <button className="button primary" disabled={busy || draft.value.trim().length < 3}>
               <Plus size={16} /> Add pending claim
             </button>
           </form>
@@ -2091,8 +2292,8 @@ function EvidenceVault({
             <label>
               Candidate-approved statement
               <textarea
-                value={authorization}
-                onChange={(event) => setAuthorization(event.target.value)}
+                value={draft.authorization}
+                onChange={(event) => onDraftChange({ ...draft, authorization: event.target.value })}
                 placeholder="Use your own exact wording."
               />
             </label>
@@ -2122,6 +2323,9 @@ function Jobs({
   onDraftOpen,
   onDraftChange,
   onDraftClose,
+  onDraftCommitted,
+  filters,
+  onFiltersChange,
   onAddEvidence,
 }: {
   dashboard: Dashboard;
@@ -2131,6 +2335,9 @@ function Jobs({
   onDraftOpen: () => void;
   onDraftChange: (draft: ManualRoleDraft) => void;
   onDraftClose: () => void;
+  onDraftCommitted: (submitted: ManualRoleDraft) => void;
+  filters: RoleFilters;
+  onFiltersChange: (filters: RoleFilters) => void;
   onAddEvidence: (requirement: string) => void;
 }) {
   const [sourceOpen, setSourceOpen] = useState(false);
@@ -2138,15 +2345,11 @@ function Jobs({
   const confirmedClaimIds = dashboard.evidence
     .filter((claim) => claim.status === "confirmed")
     .map((claim) => claim.id);
-  const [query, setQuery] = useState("");
-  const [sourceFilter, setSourceFilter] = useState("all");
-  const [fitFilter, setFitFilter] = useState("all");
-  const [trackingFilter, setTrackingFilter] = useState<"all" | "tracked" | "untracked">("all");
   const [compensationError, setCompensationError] = useState<string | null>(null);
   const addRoleButton = useRef<HTMLButtonElement>(null);
   const roleTitleField = useRef<HTMLInputElement>(null);
   const compensationMaximumField = useRef<HTMLInputElement>(null);
-  const deferredQuery = useDeferredValue(query);
+  const deferredQuery = useDeferredValue(filters.query);
   const latest = useMemo(
     () => new Map(dashboard.matches.map((match) => [match.jobId, match])),
     [dashboard.matches],
@@ -2168,14 +2371,17 @@ function Jobs({
     () =>
       filterRoles(roleInputs, {
         query: deferredQuery,
-        source: sourceFilter,
-        fit: fitFilter,
-        tracking: trackingFilter,
+        source: filters.source,
+        fit: filters.fit,
+        tracking: filters.tracking,
       }),
-    [deferredQuery, fitFilter, roleInputs, sourceFilter, trackingFilter],
+    [deferredQuery, filters.fit, filters.source, filters.tracking, roleInputs],
   );
   const filtersActive = Boolean(
-    query || sourceFilter !== "all" || fitFilter !== "all" || trackingFilter !== "all",
+    filters.query ||
+    filters.source !== "all" ||
+    filters.fit !== "all" ||
+    filters.tracking !== "all",
   );
   const numberOrNull = (value: string) => {
     const text = value.trim();
@@ -2200,22 +2406,23 @@ function Jobs({
       focusCompensationMaximum();
       return;
     }
+    const submittedDraft = { ...draft };
     void onAct.run({
       request: () =>
         api("/v1/jobs", {
           method: "POST",
           body: JSON.stringify({
-            title: draft.title,
-            company: draft.company,
-            description: draft.description,
-            location: draft.location,
-            workMode: draft.workMode,
+            title: submittedDraft.title,
+            company: submittedDraft.company,
+            description: submittedDraft.description,
+            location: submittedDraft.location,
+            workMode: submittedDraft.workMode,
             compensationMin,
             compensationMax,
             benefits,
-            interviewEvidence: draft.interviewEvidence,
-            interviewSource: draft.interviewSource,
-            url: draft.url,
+            interviewEvidence: submittedDraft.interviewEvidence,
+            interviewSource: submittedDraft.interviewSource,
+            url: submittedDraft.url,
             requirements,
           }),
         }),
@@ -2223,9 +2430,12 @@ function Jobs({
       transient: true,
       commit: () => {
         setCompensationError(null);
-        onDraftClose();
+        onDraftCommitted(submittedDraft);
       },
-      focus: () => addRoleButton.current?.focus(),
+      focus: () => {
+        if (document.getElementById("manual-role-draft")) roleTitleField.current?.focus();
+        else addRoleButton.current?.focus();
+      },
       recover: (error) => {
         if (!(error instanceof ApiError) || error.code !== "INVALID_COMPENSATION") return false;
         setCompensationError(compensationFailure());
@@ -2302,7 +2512,7 @@ function Jobs({
               className="button primary"
               type="button"
               aria-expanded={draft !== null}
-              aria-controls="manual-role-draft"
+              aria-controls={draft !== null ? "manual-role-draft" : undefined}
               onClick={() => {
                 onDraftOpen();
                 window.requestAnimationFrame(() => roleTitleField.current?.focus());
@@ -2695,20 +2905,23 @@ function Jobs({
         <div>
           <span>Private shortlist</span>
           <h2 id="role-filter-title">Narrow this view</h2>
-          <p>Filters stay in this open view. They are not saved or sent anywhere.</p>
+          <p>Filters stay in this tab until reload or sign-out. They are not saved or sent.</p>
         </div>
         <label className="role-search">
           Search roles
           <input
             type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            value={filters.query}
+            onChange={(event) => onFiltersChange({ ...filters, query: event.target.value })}
             placeholder="Title, company, or location"
           />
         </label>
         <label>
           Source
-          <select value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value)}>
+          <select
+            value={filters.source}
+            onChange={(event) => onFiltersChange({ ...filters, source: event.target.value })}
+          >
             <option value="all">All sources</option>
             {sourceOptions.map((source) => (
               <option key={source} value={source}>
@@ -2719,7 +2932,10 @@ function Jobs({
         </label>
         <label>
           Evidence fit
-          <select value={fitFilter} onChange={(event) => setFitFilter(event.target.value)}>
+          <select
+            value={filters.fit}
+            onChange={(event) => onFiltersChange({ ...filters, fit: event.target.value })}
+          >
             <option value="all">All explanations</option>
             <option value="strong_evidence">Strong evidence</option>
             <option value="promising_evidence">Promising evidence</option>
@@ -2732,9 +2948,12 @@ function Jobs({
         <label>
           Tracking
           <select
-            value={trackingFilter}
+            value={filters.tracking}
             onChange={(event) =>
-              setTrackingFilter(event.target.value as "all" | "tracked" | "untracked")
+              onFiltersChange({
+                ...filters,
+                tracking: event.target.value as RoleFilters["tracking"],
+              })
             }
           >
             <option value="all">All roles</option>
@@ -2752,10 +2971,7 @@ function Jobs({
               className="button mini quiet"
               type="button"
               onClick={() => {
-                setQuery("");
-                setSourceFilter("all");
-                setFitFilter("all");
-                setTrackingFilter("all");
+                onFiltersChange(emptyRoleFilters());
               }}
             >
               Clear filters
@@ -3492,6 +3708,11 @@ function Applications({
   onGo,
   view,
   onViewChange,
+  workingView,
+  onWorkingViewChange,
+  outcomeDraft,
+  onOutcomeDraftChange,
+  onOutcomeCommitted,
 }: {
   dashboard: Dashboard;
   onAct: ActionRunner;
@@ -3499,47 +3720,53 @@ function Applications({
   onGo: (section: Section) => void;
   view: "board" | "table";
   onViewChange: (view: "board" | "table") => void;
+  workingView: ApplicationViewState;
+  onWorkingViewChange: (view: ApplicationViewState) => void;
+  outcomeDraft: OutcomeDraft | null;
+  onOutcomeDraftChange: (draft: OutcomeDraft | null) => void;
+  onOutcomeCommitted: (submitted: OutcomeDraft) => void;
 }) {
-  const [outcomeFor, setOutcomeFor] = useState<string | null>(null);
+  const outcomeFor = outcomeDraft?.applicationId ?? null;
   const [pendingMove, setPendingMove] = useState<{ id: string; to: ApplicationStatus } | null>(
     null,
   );
   const pendingMoveOrigin = useRef<HTMLSelectElement | null>(null);
   const returnPendingMoveFocus = useRef(false);
   const board = useOverflowFlag<HTMLElement>();
-  const outcomeTrigger = useRef<HTMLButtonElement | null>(null);
-  const [reviewOnly, setReviewOnly] = useState(false);
-  const [cohortStart, setCohortStart] = useState(() => dateInputValue(new Date(), -30));
-  const [cohortEnd, setCohortEnd] = useState(() => dateInputValue(new Date()));
-  const [cohortSource, setCohortSource] = useState("all");
-  const [cohortBucket, setCohortBucket] = useState<
-    "all" | (typeof APPLICATION_MATCH_BUCKETS)[number]
-  >("all");
   const now = new Date();
   const reviewQueue = recordReviewQueue(dashboard.applications, now);
-  const visibleApplications = reviewOnly
+  const visibleApplications = workingView.reviewOnly
     ? reviewQueue.map((item) => item.application)
     : dashboard.applications;
   const cohort = applicationCohortCounts({
     applications: dashboard.applications,
     jobs: dashboard.jobs,
     matches: dashboard.matches,
-    startAt: localDayInstant(cohortStart),
-    endAtExclusive: localDayInstant(cohortEnd, 1),
-    source: cohortSource,
-    matchBucket: cohortBucket,
+    startAt: localDayInstant(workingView.cohortStart),
+    endAtExclusive: localDayInstant(workingView.cohortEnd, 1),
+    source: workingView.cohortSource,
+    matchBucket: workingView.cohortBucket,
   });
   const cohortTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const cohortSources = [...new Set(dashboard.jobs.map((job) => job.source))].toSorted();
-  const openOutcome = (id: string, trigger: HTMLButtonElement) => {
-    outcomeTrigger.current = trigger;
-    setOutcomeFor((current) => (current === id ? null : id));
+  const openOutcome = (id: string) => {
+    if (outcomeDraft?.applicationId === id) {
+      document.getElementById(`outcome-editor-${id}-type`)?.focus();
+      return;
+    }
+    onOutcomeDraftChange({ applicationId: id, type: "reply", note: "" });
   };
-  const closeOutcome = () => {
-    setOutcomeFor(null);
-    window.requestAnimationFrame(() => outcomeTrigger.current?.focus());
+  const focusOutcomeTrigger = (id: string) => {
+    window.requestAnimationFrame(() =>
+      window.requestAnimationFrame(() =>
+        document.getElementById(`outcome-trigger-${view}-${id}`)?.focus(),
+      ),
+    );
   };
-  const completeOutcome = () => setOutcomeFor(null);
+  const closeOutcome = (id: string) => {
+    onOutcomeDraftChange(null);
+    focusOutcomeTrigger(id);
+  };
   useEffect(() => {
     if (pendingMove || !returnPendingMoveFocus.current) return;
     returnPendingMoveFocus.current = false;
@@ -3615,7 +3842,6 @@ function Applications({
               className="button quiet mini"
               type="button"
               onClick={() => {
-                setOutcomeFor(null);
                 onViewChange(view === "board" ? "table" : "board");
               }}
             >
@@ -3624,10 +3850,13 @@ function Applications({
             <button
               className="button quiet mini"
               type="button"
-              aria-pressed={reviewOnly}
-              onClick={() => setReviewOnly((value) => !value)}
+              aria-pressed={workingView.reviewOnly}
+              onClick={() =>
+                onWorkingViewChange({ ...workingView, reviewOnly: !workingView.reviewOnly })
+              }
             >
-              <Clock3 size={15} /> {reviewOnly ? "Show all" : `Review due · ${reviewQueue.length}`}
+              <Clock3 size={15} />{" "}
+              {workingView.reviewOnly ? "Show all" : `Review due · ${reviewQueue.length}`}
             </button>
             {/* "another" is a claim about the record, so it has to read it.
              * The empty state below already says "Track a role"; the header
@@ -3676,12 +3905,17 @@ function Applications({
                     )}
                     <RecordedTimeline application={application} />
                     <button
+                      id={`outcome-trigger-board-${application.id}`}
                       className="button mini quiet"
                       type="button"
                       disabled={busy}
                       aria-expanded={outcomeFor === application.id}
-                      aria-controls={`outcome-editor-${application.id}`}
-                      onClick={(event) => openOutcome(application.id, event.currentTarget)}
+                      aria-controls={
+                        outcomeFor === application.id
+                          ? `outcome-editor-${application.id}`
+                          : undefined
+                      }
+                      onClick={() => openOutcome(application.id)}
                     >
                       <Plus size={15} /> Record outcome
                     </button>
@@ -3690,8 +3924,11 @@ function Applications({
                         application={application}
                         onAct={onAct}
                         busy={busy}
-                        onRecorded={completeOutcome}
-                        onClose={closeOutcome}
+                        draft={outcomeDraft!}
+                        onDraftChange={onOutcomeDraftChange}
+                        onRecorded={onOutcomeCommitted}
+                        onFocusTrigger={() => focusOutcomeTrigger(application.id)}
+                        onClose={() => closeOutcome(application.id)}
                       />
                     )}
                     {/* Keyboard-operable by construction: buttons, not drag. */}
@@ -3745,12 +3982,8 @@ function Applications({
         </small>
       )}
 
-      {visibleApplications.length > 0 && (
-        <section
-          className="application-table"
-          aria-label="Tracked applications"
-          hidden={view === "board"}
-        >
+      {view === "table" && visibleApplications.length > 0 && (
+        <section className="application-table" aria-label="Tracked applications">
           <div className="table-head" aria-hidden="true">
             <span>Role</span>
             <span>Status</span>
@@ -3808,12 +4041,15 @@ function Applications({
                 <RecordedTimeline application={application} />
               </div>
               <button
+                id={`outcome-trigger-table-${application.id}`}
                 className="button mini quiet"
                 type="button"
                 disabled={busy}
                 aria-expanded={outcomeFor === application.id}
-                aria-controls={`outcome-editor-${application.id}`}
-                onClick={(event) => openOutcome(application.id, event.currentTarget)}
+                aria-controls={
+                  outcomeFor === application.id ? `outcome-editor-${application.id}` : undefined
+                }
+                onClick={() => openOutcome(application.id)}
               >
                 <Plus size={15} /> Record outcome
               </button>
@@ -3822,8 +4058,11 @@ function Applications({
                   application={application}
                   onAct={onAct}
                   busy={busy}
-                  onRecorded={completeOutcome}
-                  onClose={closeOutcome}
+                  draft={outcomeDraft!}
+                  onDraftChange={onOutcomeDraftChange}
+                  onRecorded={onOutcomeCommitted}
+                  onFocusTrigger={() => focusOutcomeTrigger(application.id)}
+                  onClose={() => closeOutcome(application.id)}
                 />
               )}
             </article>
@@ -3896,10 +4135,11 @@ function Applications({
             Created from
             <input
               type="date"
-              value={cohortStart}
-              max={cohortEnd}
+              value={workingView.cohortStart}
+              max={workingView.cohortEnd}
               onChange={(event) => {
-                if (event.target.value) setCohortStart(event.target.value);
+                if (event.target.value)
+                  onWorkingViewChange({ ...workingView, cohortStart: event.target.value });
               }}
             />
           </label>
@@ -3907,16 +4147,22 @@ function Applications({
             Created through
             <input
               type="date"
-              value={cohortEnd}
-              min={cohortStart}
+              value={workingView.cohortEnd}
+              min={workingView.cohortStart}
               onChange={(event) => {
-                if (event.target.value) setCohortEnd(event.target.value);
+                if (event.target.value)
+                  onWorkingViewChange({ ...workingView, cohortEnd: event.target.value });
               }}
             />
           </label>
           <label>
             Current role source
-            <select value={cohortSource} onChange={(event) => setCohortSource(event.target.value)}>
+            <select
+              value={workingView.cohortSource}
+              onChange={(event) =>
+                onWorkingViewChange({ ...workingView, cohortSource: event.target.value })
+              }
+            >
               <option value="all">All sources</option>
               {cohortSources.map((source) => (
                 <option key={source} value={source}>
@@ -3928,8 +4174,13 @@ function Applications({
           <label>
             Current match classification
             <select
-              value={cohortBucket}
-              onChange={(event) => setCohortBucket(event.target.value as typeof cohortBucket)}
+              value={workingView.cohortBucket}
+              onChange={(event) =>
+                onWorkingViewChange({
+                  ...workingView,
+                  cohortBucket: event.target.value as ApplicationViewState["cohortBucket"],
+                })
+              }
             >
               <option value="all">All classifications</option>
               {APPLICATION_MATCH_BUCKETS.map((bucket) => (
@@ -3974,17 +4225,21 @@ function OutcomeEditor({
   application,
   onAct,
   busy,
+  draft,
+  onDraftChange,
   onRecorded,
+  onFocusTrigger,
   onClose,
 }: {
   application: Application;
   onAct: ActionRunner;
   busy: boolean;
-  onRecorded: () => void;
+  draft: OutcomeDraft;
+  onDraftChange: (draft: OutcomeDraft | null) => void;
+  onRecorded: (submitted: OutcomeDraft) => void;
+  onFocusTrigger: () => void;
   onClose: () => void;
 }) {
-  const [type, setType] = useState("reply");
-  const [note, setNote] = useState("");
   const typeField = useRef<HTMLSelectElement>(null);
   const editorId = `outcome-editor-${application.id}`;
   const typeId = `${editorId}-type`;
@@ -4000,16 +4255,21 @@ function OutcomeEditor({
       className="outcome-form"
       onSubmit={(event) => {
         event.preventDefault();
+        const submittedDraft = { ...draft };
         void onAct.run({
           request: () =>
             api(`/v1/applications/${application.id}/outcomes`, {
               method: "POST",
-              body: JSON.stringify({ type, note }),
+              body: JSON.stringify({ type: draft.type, note: draft.note }),
             }),
           success: "Candidate-reported outcome recorded.",
           transient: true,
-          commit: onRecorded,
-          focus: onClose,
+          commit: () => onRecorded(submittedDraft),
+          focus: () => {
+            const retainedEditor = document.getElementById(typeId);
+            if (retainedEditor) retainedEditor.focus();
+            else onFocusTrigger();
+          },
         });
       }}
     >
@@ -4017,8 +4277,8 @@ function OutcomeEditor({
       <select
         ref={typeField}
         id={typeId}
-        value={type}
-        onChange={(event) => setType(event.target.value)}
+        value={draft.type}
+        onChange={(event) => onDraftChange({ ...draft, type: event.target.value })}
       >
         <option value="reply">Reply</option>
         <option value="screen">Screen</option>
@@ -4028,14 +4288,25 @@ function OutcomeEditor({
         <option value="withdrawal">Withdrawal</option>
       </select>
       <label htmlFor={noteId}>Optional note</label>
-      <input id={noteId} value={note} onChange={(event) => setNote(event.target.value)} />
+      <input
+        id={noteId}
+        value={draft.note}
+        onChange={(event) => onDraftChange({ ...draft, note: event.target.value })}
+      />
+      <small className="field-note">Kept only in this tab until recorded or discarded.</small>
       <div className="button-group">
         <button className="button mini primary" disabled={busy}>
           Record outcome
         </button>
-        <button className="button mini quiet" type="button" disabled={busy} onClick={onClose}>
-          Cancel
-        </button>
+        <ConfirmAction
+          className="button mini quiet"
+          label="Discard draft"
+          question="Discard this candidate-reported outcome draft?"
+          confirmLabel="Discard it"
+          cancelLabel="Keep editing"
+          disabled={busy}
+          onConfirm={onClose}
+        />
       </div>
     </form>
   );
@@ -4629,33 +4900,57 @@ function Actions({
   dashboard,
   onAct,
   busy,
+  draft,
+  onDraftChange,
+  onDraftCommitted,
 }: {
   dashboard: Dashboard;
   onAct: ActionRunner;
   busy: boolean;
+  draft: ActionDraft | null;
+  onDraftChange: Dispatch<SetStateAction<ActionDraft | null>>;
+  onDraftCommitted: (submitted: ActionDraft) => void;
 }) {
-  const availablePackets = [
+  const packetLabels = [
     ...new Map(
       [...dashboard.packets, ...dashboard.actionPackets].map((packet) => [packet.id, packet]),
     ).values(),
   ];
-  const approvedPackets = availablePackets.filter((packet) => packet.status === "approved");
+  /* actionPackets exists only so historical actions retain a human-readable
+   * label. A packet retired by a newer generation must never remain eligible
+   * for a new action merely because an earlier action references it. */
+  const approvedPackets = dashboard.packets.filter((packet) => packet.status === "approved");
   /* This control decides what leaves the machine. Naming it "a9c20e42" asked
    * the candidate to map opaque hex to a role at the most consequential step in
    * the product; the identifier stays, as secondary detail. */
   const packetLabel = (packetId: string) => {
-    const packet = availablePackets.find((item) => item.id === packetId);
+    const packet = packetLabels.find((item) => item.id === packetId);
     const job = dashboard.applications.find((item) => item.id === packet?.applicationId)?.job;
     return job ? `${job.title} · ${job.company}` : `Packet ${packetId.slice(0, 8)}`;
   };
-  const [open, setOpen] = useState(false);
+  const prepareActionButton = useRef<HTMLButtonElement>(null);
+  const packetField = useRef<HTMLSelectElement>(null);
+  const packetSelectionValid = Boolean(
+    draft && approvedPackets.some((packet) => packet.id === draft.packetId),
+  );
+  const updateDraft = <K extends keyof ActionDraft>(field: K, value: ActionDraft[K]) => {
+    onDraftChange((current) => (current ? { ...current, [field]: value } : current));
+  };
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const data = Object.fromEntries(new FormData(event.currentTarget));
+    if (!draft || !packetSelectionValid) {
+      packetField.current?.focus();
+      return;
+    }
+    const submittedDraft = { ...draft };
     void onAct.run({
-      request: () => api("/v1/actions", { method: "POST", body: JSON.stringify(data) }),
+      request: () => api("/v1/actions", { method: "POST", body: JSON.stringify(submittedDraft) }),
       success: "Action created and waiting for approval.",
-      commit: () => setOpen(false),
+      commit: () => onDraftCommitted(submittedDraft),
+      focus: () => {
+        if (document.getElementById("action-draft")) packetField.current?.focus();
+        else prepareActionButton.current?.focus();
+      },
     });
   };
   return (
@@ -4665,14 +4960,36 @@ function Actions({
         title="Nothing leaves without two keys."
         copy="Approve the exact action, then turn on the reset-on-restart execution switch. This beta offers only a user-opened mail link and a private local test outbox; connected accounts are not enabled."
         action={
-          <button
-            className="button primary"
-            type="button"
-            disabled={approvedPackets.length === 0}
-            onClick={() => setOpen((value) => !value)}
-          >
-            <Plus size={16} /> Prepare action
-          </button>
+          <span>
+            <button
+              ref={prepareActionButton}
+              className="button primary"
+              type="button"
+              disabled={approvedPackets.length === 0 && !draft}
+              aria-expanded={draft !== null}
+              aria-controls={draft ? "action-draft" : undefined}
+              aria-describedby={
+                draft && !packetSelectionValid
+                  ? "action-draft-packet-error"
+                  : approvedPackets.length === 0
+                    ? "prepare-action-gate"
+                    : undefined
+              }
+              onClick={() => {
+                if (!draft && approvedPackets[0]) {
+                  onDraftChange(emptyActionDraft(approvedPackets[0].id));
+                }
+                window.requestAnimationFrame(() => packetField.current?.focus());
+              }}
+            >
+              <Plus size={16} /> {draft ? "Resume action draft" : "Prepare action"}
+            </button>
+            {approvedPackets.length === 0 && (
+              <span className="sr-only" id="prepare-action-gate">
+                Approve a reviewed packet before preparing an action.
+              </span>
+            )}
+          </span>
         }
       />
       <div className="runtime-gate">
@@ -4683,7 +5000,7 @@ function Actions({
             }
           />
           <div>
-            <strong>
+            <strong id="execution-runtime-status">
               Execution runtime is {dashboard.runtime.externalActionsEnabled ? "on" : "off"}
             </strong>
             <p>It always starts off after the service restarts.</p>
@@ -4721,18 +5038,32 @@ function Actions({
           )}
         </button>
       </div>
-      {open && (
-        <form className="work-panel form-panel action-form" onSubmit={submit}>
+      {draft && (
+        <form id="action-draft" className="work-panel form-panel action-form" onSubmit={submit}>
           <div className="panel-heading">
             <div>
               <span>Exact handoff</span>
               <h2>Prepare an action</h2>
+              <p className="field-note">
+                Kept only in this tab while signed in; reload, sign-out, or discard clears it.
+              </p>
             </div>
           </div>
           <div className="field-grid">
             <label>
               Approved packet
-              <select name="packetId">
+              <select
+                ref={packetField}
+                name="packetId"
+                required
+                value={packetSelectionValid ? draft.packetId : ""}
+                aria-invalid={!packetSelectionValid}
+                aria-describedby={!packetSelectionValid ? "action-draft-packet-error" : undefined}
+                onChange={(event) => updateDraft("packetId", event.target.value)}
+              >
+                <option value="" disabled>
+                  Select an approved packet
+                </option>
                 {approvedPackets.map((packet) => (
                   <option key={packet.id} value={packet.id}>
                     {packetLabel(packet.id)} ({packet.id.slice(0, 8)})
@@ -4740,20 +5071,45 @@ function Actions({
                 ))}
               </select>
             </label>
+            {!packetSelectionValid && (
+              <p className="field-error action-packet-error" id="action-draft-packet-error">
+                The previously reviewed packet is no longer approved here. Select a current approved
+                packet before creating the request; the recipient and message are still kept.
+              </p>
+            )}
             <label>
               Provider
-              <select name="provider">
+              <select
+                name="provider"
+                value={draft.provider}
+                onChange={(event) =>
+                  updateDraft("provider", event.target.value as ActionDraft["provider"])
+                }
+              >
                 <option value="deep_link">Email deep link</option>
                 <option value="test_outbox">Local test outbox</option>
               </select>
             </label>
             <label>
               Recipient
-              <input name="to" type="email" required maxLength={254} />
+              <input
+                name="to"
+                type="email"
+                required
+                maxLength={254}
+                value={draft.to}
+                onChange={(event) => updateDraft("to", event.target.value)}
+              />
             </label>
             <label>
               Subject
-              <input name="subject" required maxLength={200} defaultValue="Application materials" />
+              <input
+                name="subject"
+                required
+                maxLength={200}
+                value={draft.subject}
+                onChange={(event) => updateDraft("subject", event.target.value)}
+              />
             </label>
           </div>
           <label>
@@ -4762,12 +5118,29 @@ function Actions({
               name="body"
               required
               maxLength={20000}
-              defaultValue="Please find my reviewed application materials attached separately."
+              value={draft.body}
+              onChange={(event) => updateDraft("body", event.target.value)}
             />
           </label>
-          <button className="button primary" disabled={busy}>
-            Create approval request
-          </button>
+          <div className="button-group">
+            <button className="button primary" disabled={busy || !packetSelectionValid}>
+              Create approval request
+            </button>
+            <ConfirmAction
+              className="button quiet"
+              label="Discard draft"
+              question="Discard this exact unsaved action draft?"
+              confirmLabel="Discard it"
+              cancelLabel="Keep editing"
+              disabled={busy}
+              onConfirm={() => {
+                onDraftChange(null);
+                window.requestAnimationFrame(() =>
+                  window.requestAnimationFrame(() => prepareActionButton.current?.focus()),
+                );
+              }}
+            />
+          </div>
         </form>
       )}
       <div className="action-list">
@@ -4825,6 +5198,11 @@ function Actions({
                   className="button mini primary"
                   type="button"
                   disabled={busy || !dashboard.runtime.externalActionsEnabled}
+                  aria-describedby={
+                    dashboard.runtime.externalActionsEnabled
+                      ? undefined
+                      : "execution-runtime-status"
+                  }
                   onClick={() => {
                     void onAct.run({
                       request: () => api(`/v1/actions/${action.id}/execute`, { method: "POST" }),

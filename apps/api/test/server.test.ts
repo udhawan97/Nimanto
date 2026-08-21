@@ -44,6 +44,7 @@ async function setup(options?: {
   cookie: string;
   root: string;
   tenantId: string;
+  sessionId: string;
 }> {
   const root = await mkdtemp(path.join(tmpdir(), "nimanto-api-"));
   const app = await buildServer({
@@ -72,10 +73,63 @@ async function setup(options?: {
   const header = login.headers["set-cookie"];
   const cookie = (Array.isArray(header) ? header[0] : header)?.split(";")[0] ?? "";
   expect(cookie).toContain("nimanto_session=");
-  return { app, cookie, root, tenantId: login.json().identity.tenantId as string };
+  return {
+    app,
+    cookie,
+    root,
+    tenantId: login.json().identity.tenantId as string,
+    sessionId: login.json().identity.sessionId as string,
+  };
 }
 
 describe("Nimanto beta API", () => {
+  it("rejects a browser write when a sibling tab replaced the rendered session", async () => {
+    const { app, sessionId } = await setup();
+    const replacement = await app.inject({
+      method: "POST",
+      url: "/v1/auth/local",
+      headers: { "x-nimanto-bootstrap-secret": bootstrapSecret },
+      payload: { displayName: "Replacement", email: "replacement-fence@example.test" },
+    });
+    const header = replacement.headers["set-cookie"];
+    const replacementCookie = (Array.isArray(header) ? header[0] : header)?.split(";")[0] ?? "";
+    const replacementSessionId = replacement.json().identity.sessionId as string;
+
+    const stale = await app.inject({
+      method: "POST",
+      url: "/v1/evidence",
+      headers: {
+        cookie: replacementCookie,
+        origin: "http://127.0.0.1:4300",
+        "x-nimanto-expected-session-id": sessionId,
+      },
+      payload: { kind: "skill", value: "Must not cross sessions" },
+    });
+    expect(stale.statusCode).toBe(409);
+    expect(stale.json().error.code).toBe("IDENTITY_CHANGED");
+
+    const unfenced = await app.inject({
+      method: "POST",
+      url: "/v1/evidence",
+      headers: { cookie: replacementCookie, origin: "http://127.0.0.1:4300" },
+      payload: { kind: "skill", value: "Missing session fence" },
+    });
+    expect(unfenced.statusCode).toBe(409);
+    expect(unfenced.json().error.code).toBe("IDENTITY_CHANGED");
+
+    const current = await app.inject({
+      method: "POST",
+      url: "/v1/evidence",
+      headers: {
+        cookie: replacementCookie,
+        origin: "http://127.0.0.1:4300",
+        "x-nimanto-expected-session-id": replacementSessionId,
+      },
+      payload: { kind: "skill", value: "Current session evidence" },
+    });
+    expect(current.statusCode).toBe(200);
+  });
+
   it("reports one release version through health, metadata, and OpenAPI", async () => {
     const { app } = await setup();
     expect((await app.inject({ method: "GET", url: "/health" })).json().version).toBe(
@@ -729,6 +783,20 @@ describe("Nimanto beta API", () => {
         (packet: { id: string }) => packet.id === packetId,
       ),
     ).toMatchObject({ status: "approved" });
+    const staleAction = await app.inject({
+      method: "POST",
+      url: "/v1/actions",
+      headers: { cookie },
+      payload: {
+        packetId,
+        provider: "test_outbox",
+        to: "stale@example.test",
+        subject: "Retired packet",
+        body: "This older packet must remain historical only.",
+      },
+    });
+    expect(staleAction.statusCode).toBe(409);
+    expect(staleAction.json().error.code).toBe("LATEST_APPROVED_PACKET_REQUIRED");
 
     expect(
       (

@@ -1246,6 +1246,8 @@ svg {
 .menu-button,
 .mobile-close {
   display: none;
+  min-width: 44px;
+  min-height: 44px;
   padding: var(--space-xs);
   border: 1px solid var(--edge);
   border-radius: var(--radius-md);
@@ -1485,6 +1487,21 @@ svg {
 .signal-list strong {
   color: var(--text);
   font-weight: 500;
+}
+/* Candidate-controlled and source-controlled values can contain paths, hashes,
+ * URLs, or accidentally unbroken exports. The row itself already shrinks; the
+ * text also needs a legal break opportunity or root overflow clipping hides
+ * most of the record on a phone. Scope this to recorded values so labels and
+ * controls retain their compact grammar. */
+.evidence-item :is(strong, small),
+.job-row :is(strong, p, small),
+.table-row .application-identity :is(strong, small),
+.recorded-timeline :is(strong, p),
+.packet-claims :is(strong, small),
+.action-row :is(strong, small, .action-message),
+.import-claims :is(strong, code, small) {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .match-row > div span,
 .job-row > div span,
@@ -2077,6 +2094,9 @@ textarea {
 .field-error {
   color: var(--live-text);
   font-size: var(--text-sm);
+}
+.action-packet-error {
+  grid-column: 1 / -1;
 }
 .file-button,
 .launch-secret-field {

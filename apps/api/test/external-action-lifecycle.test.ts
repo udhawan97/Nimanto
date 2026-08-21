@@ -62,10 +62,32 @@ async function approvedActionFixture(label: string) {
     idempotencyKey: `${label}-action`,
   });
   await store.approveExternalActionExact(identity.tenantId, action.id);
-  return { store, identity, action, artifactDirectory, outboxDirectory };
+  return { store, identity, application, packet, action, artifactDirectory, outboxDirectory };
 }
 
 describe("external action lifecycle", () => {
+  it("rejects an approved packet after a newer packet replaces it", async () => {
+    const { store, identity, application, packet, outboxDirectory } =
+      await approvedActionFixture("retired-packet");
+    await store.createPacket(identity.tenantId, {
+      applicationId: application.id,
+      profileVersionId: null,
+      canonicalContent: { claims: ["newer"] },
+      artifactManifest: {},
+    });
+    const lifecycle = new ExternalActionLifecycle(store, outboxDirectory);
+    await expect(
+      lifecycle.request({
+        tenantId: identity.tenantId,
+        packetId: packet.id,
+        provider: "test_outbox",
+        to: "jobs@example.test",
+        subject: "Stale packet",
+        body: "Must not be accepted.",
+      }),
+    ).rejects.toThrow("LATEST_APPROVED_PACKET_REQUIRED");
+  });
+
   it("holds deletion behind the provider effect and leaves no post-cleanup outbox file", async () => {
     const { store, identity, action, artifactDirectory, outboxDirectory } =
       await approvedActionFixture("action-race");
