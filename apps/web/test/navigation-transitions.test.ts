@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   createWorkspaceNavigationTransitions,
+  focusSectionBelowHeader,
   sectionFromHash,
   sectionHash,
 } from "../lib/navigation-transitions.js";
@@ -61,5 +62,54 @@ describe("workspace navigation transitions", () => {
     expect(setSection).toHaveBeenCalledWith("packets");
     navigation.closeMobile();
     expect(focusMenu).toHaveBeenCalledOnce();
+  });
+});
+
+/* Section focus is scheduled on an animation frame, so it can land after the
+ * candidate has already started typing in the section they navigated to. When
+ * it does, it takes focus off the field and the rest of the keystrokes go
+ * nowhere — which is how characters vanished from the deletion phrase. */
+describe("section focus does not interrupt work already underway", () => {
+  function harness() {
+    const target = document.createElement("div");
+    target.tabIndex = -1;
+    const field = document.createElement("input");
+    target.append(field);
+    document.body.append(target);
+    const focused: string[] = [];
+    target.focus = () => focused.push("section");
+    return { target, field, focused };
+  }
+
+  it("focuses the section when focus is still outside it", () => {
+    const { target, focused } = harness();
+    focusSectionBelowHeader({
+      target,
+      header: null,
+      root: document.documentElement,
+      scrollY: 0,
+      scrollTo: () => undefined,
+      scrollBy: () => undefined,
+      schedule: (work) => work(),
+    });
+    expect(focused).toEqual(["section"]);
+    target.remove();
+  });
+
+  it("leaves focus alone once it has moved inside the section", () => {
+    const { target, field, focused } = harness();
+    field.focus();
+    focusSectionBelowHeader({
+      target,
+      header: null,
+      root: document.documentElement,
+      scrollY: 0,
+      scrollTo: () => undefined,
+      scrollBy: () => undefined,
+      schedule: (work) => work(),
+    });
+    expect(focused).toEqual([]);
+    expect(document.activeElement).toBe(field);
+    target.remove();
   });
 });

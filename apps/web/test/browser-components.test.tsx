@@ -125,6 +125,46 @@ describe("quick navigation", () => {
     expect(results).toHaveLength(1);
     expect(results[0]?.textContent).toContain("Role 47");
   });
+
+  /* Arrow keys move a visual highlight and `aria-selected`, but focus never
+   * leaves the input. Without the identifier wiring nothing carries the active
+   * option to assistive technology, so the highlight is silent. */
+  it("announces the active destination while the highlight moves", async () => {
+    const view = await render(
+      createElement(CommandPalette, {
+        entries: [
+          { label: "Overview", detail: "Section", section: "overview" },
+          { label: "Evidence vault", detail: "Section", section: "evidence" },
+        ],
+        onNavigate: () => undefined,
+      }),
+    );
+    const trigger = view.querySelector("button.command-trigger") as HTMLButtonElement;
+    await act(async () => trigger.click());
+
+    const input = view.querySelector("dialog input") as HTMLInputElement;
+    const listbox = view.querySelector('[role="listbox"]') as HTMLElement;
+    const options = [...view.querySelectorAll('[role="option"]')] as HTMLElement[];
+
+    expect(input.getAttribute("role")).toBe("combobox");
+    expect(input.getAttribute("aria-expanded")).toBe("true");
+    expect(input.getAttribute("aria-autocomplete")).toBe("list");
+    expect(listbox.id).toBeTruthy();
+    expect(input.getAttribute("aria-controls")).toBe(listbox.id);
+    expect(options[0]?.id).toBeTruthy();
+    expect(input.getAttribute("aria-activedescendant")).toBe(options[0]?.id);
+
+    await act(async () => {
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    });
+    const moved = [...view.querySelectorAll('[role="option"]')] as HTMLElement[];
+    expect(moved[1]?.getAttribute("aria-selected")).toBe("true");
+    expect(
+      (view.querySelector("dialog input") as HTMLInputElement).getAttribute(
+        "aria-activedescendant",
+      ),
+    ).toBe(moved[1]?.id);
+  });
 });
 
 describe("service worker registration policy", () => {

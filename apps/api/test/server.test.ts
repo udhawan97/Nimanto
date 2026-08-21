@@ -789,6 +789,24 @@ describe("Nimanto beta API", () => {
     await expect(readFile(reference, "utf8")).rejects.toMatchObject({ code: "ENOENT" });
   }, 20_000);
 
+  /* The rate limiter is a guard, not a fault. Reporting its rejection as a
+   * server error is what put "Connect the local service" on the workbench while
+   * the service was healthy — sending the candidate to restart a backend that
+   * was already running, when the only remedy was to wait. */
+  it("reports throttling as throttling rather than as a broken local service", async () => {
+    const { app } = await setup();
+    /* Bounded above the configured ceiling rather than equal to it, so raising
+     * the ceiling does not quietly turn this into a test of nothing. */
+    let last = await app.inject({ method: "GET", url: "/health" });
+    for (let attempt = 0; attempt < 1_500 && last.statusCode === 200; attempt += 1) {
+      last = await app.inject({ method: "GET", url: "/health" });
+    }
+    expect(last.statusCode).toBe(429);
+    expect(last.json().error.code).toBe("RATE_LIMITED");
+    expect(last.json().error.message).toMatch(/wait/i);
+    expect(last.headers["retry-after"]).toBeDefined();
+  });
+
   it("enforces session and tenant boundaries", async () => {
     const { app, cookie } = await setup();
     expect((await app.inject({ method: "GET", url: "/v1/dashboard" })).statusCode).toBe(401);

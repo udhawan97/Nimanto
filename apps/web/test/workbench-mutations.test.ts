@@ -5,6 +5,8 @@ function harness(refresh: "ready" | "signed_out" | "unreachable" | "failed" = "r
   const events: string[] = [];
   const mutations = createWorkbenchMutations({
     setBusy: (busy) => events.push(`busy:${busy}`),
+    captureFocus: () => events.push("focus:capture"),
+    restoreFocus: () => events.push("focus:restore"),
     clearNotice: () => events.push("notice:clear"),
     setNoticeFocus: (focus) => events.push(`notice-focus:${focus}`),
     setReachable: (reachable) => events.push(`reachable:${reachable}`),
@@ -37,6 +39,7 @@ describe("Workbench mutation coordination", () => {
     });
     expect(outcome).toEqual({ kind: "committed", value: { id: "role-7" } });
     expect(events).toEqual([
+      "focus:capture",
       "busy:true",
       "notice:clear",
       "notice-focus:false",
@@ -48,6 +51,47 @@ describe("Workbench mutation coordination", () => {
       "schedule",
       "focus",
     ]);
+  });
+
+  /* A success with no deliberate successor used to leave focus on <body>: the
+   * activated control is disabled for the duration of `busy`, and disabling the
+   * focused element is what moves focus to the document. The error branch always
+   * had somewhere to land; the success branch had nowhere. */
+  it("returns focus to the caller when a success declares no successor", async () => {
+    const { mutations, events } = harness();
+    await mutations.run({ request: async () => "ok", success: "Done." });
+    expect(events).toEqual([
+      "focus:capture",
+      "busy:true",
+      "notice:clear",
+      "notice-focus:false",
+      "refresh",
+      "notice:ok:Done.",
+      "busy:false",
+      "schedule",
+      "focus:restore",
+    ]);
+  });
+
+  it("leaves focus to the declared successor rather than restoring it", async () => {
+    const { mutations, events } = harness();
+    await mutations.run({
+      request: async () => "ok",
+      success: "Done.",
+      focus: () => events.push("focus:successor"),
+    });
+    expect(events).toContain("focus:successor");
+    expect(events).not.toContain("focus:restore");
+  });
+
+  it("leaves focus to the error region rather than restoring it", async () => {
+    const { mutations, events } = harness();
+    await mutations.run({
+      request: async () => Promise.reject(new Error("boom")),
+      success: "Done.",
+    });
+    expect(events).toContain("notice-focus:true");
+    expect(events).not.toContain("focus:restore");
   });
 
   it("delegates authentication loss and transport failure without stale success", async () => {

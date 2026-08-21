@@ -2420,6 +2420,55 @@ textarea {
   color: var(--text);
 }
 
+/* The pipeline is deliberately five real stages, so below roughly 1560px it is
+ * wider than the content column. Scrolling always worked; nothing said so, and
+ * the container could not take focus, which is what made the last two stages
+ * unreachable rather than merely off-screen. */
+.board {
+  scrollbar-width: thin;
+  scrollbar-color: var(--brass-200) transparent;
+}
+.board[data-overflowing="true"] {
+  /* A soft right edge reads as "there is more", where a hard cut reads as the
+   * end of the row. Kept shallow so a focused card is never masked away. */
+  mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), rgb(0 0 0 / 35%) 100%);
+}
+.board:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 4px;
+}
+.board-scroll-note {
+  display: block;
+  margin-block-start: var(--space-xs);
+}
+
+/* One confirmation surface for every consequential decision, replacing three
+ * `window.confirm` call sites that could only offer OK and Cancel. */
+.confirm-strip {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--live-edge);
+  border-radius: var(--radius-sm);
+  background: var(--live-fill);
+}
+.confirm-question {
+  flex-basis: 100%;
+  min-width: 0;
+  color: var(--text-body);
+  font-size: var(--text-placard);
+  overflow-wrap: anywhere;
+}
+.button.mini.positive {
+  border-color: var(--ok-edge);
+  color: var(--ok-text);
+}
+.button.mini.positive:hover:not(:disabled) {
+  background: var(--ok-fill);
+}
+
 .follow-up {
   display: inline-flex;
   align-items: center;

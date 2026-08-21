@@ -97,6 +97,13 @@ export function focusSectionBelowHeader(input: {
 }): void {
   const target = input.target;
   if (!target) return;
+  /* This runs an animation frame after the section changed, by which time the
+   * candidate may already be typing in it. Taking focus back to the container
+   * then sends the rest of their keystrokes nowhere, which is how characters
+   * disappeared from a destructive confirmation phrase mid-entry. Focus is only
+   * ours to move while it is still outside the section. */
+  const active = target.ownerDocument.activeElement;
+  if (active && active !== target && target.contains(active)) return;
   target.focus({ preventScroll: true });
   const targetTop = input.scrollY + target.getBoundingClientRect().top;
   const previousScrollBehavior = input.root.style.scrollBehavior;

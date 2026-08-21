@@ -27,6 +27,13 @@ export type WorkbenchMutations = {
 
 type MutationAdapters = {
   setBusy: (busy: boolean) => void;
+  /* Every control that starts a mutation carries `disabled={busy}`, and
+   * disabling the focused element is what hands focus to <body>. The error
+   * branch lands on the alert region and several call sites name a successor,
+   * but a plain success had nowhere to go, so a keyboard candidate restarted
+   * from the skip link after every explanation, track and packet step. */
+  captureFocus: () => void;
+  restoreFocus: () => void;
   clearNotice: () => void;
   setNoticeFocus: (focus: boolean) => void;
   setReachable: (reachable: boolean) => void;
@@ -50,6 +57,7 @@ export function createWorkbenchMutations(adapters: MutationAdapters): WorkbenchM
     async run<T>(mutation: WorkbenchMutation<T>): Promise<WorkbenchMutationOutcome<T>> {
       if (running) return { kind: "busy" };
       running = true;
+      adapters.captureFocus();
       adapters.setBusy(true);
       adapters.clearNotice();
       adapters.setNoticeFocus(false);
@@ -98,6 +106,8 @@ export function createWorkbenchMutations(adapters: MutationAdapters): WorkbenchM
         if (settled && mutation.focus) {
           const value = committed;
           adapters.schedule(() => mutation.focus?.(value));
+        } else if (settled) {
+          adapters.schedule(adapters.restoreFocus);
         }
       }
     },

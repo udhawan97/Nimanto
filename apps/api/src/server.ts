@@ -323,7 +323,13 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   });
   await app.register(helmet, { contentSecurityPolicy: false });
-  await app.register(rateLimit, { max: 180, timeWindow: "1 minute" });
+  /* A loopback service serving one candidate still wants a ceiling on a runaway
+   * loop, but 180/minute is three requests a second, and a single candidate move
+   * costs a write plus a dashboard refresh on top of the liveness poll. The
+   * product's own release journey exhausted this budget, which is how a healthy
+   * API came to report itself broken. The ceiling now bounds a loop without
+   * bounding a person. */
+  await app.register(rateLimit, { max: 1_200, timeWindow: "1 minute" });
   await app.register(swagger, {
     openapi: {
       info: {
@@ -338,7 +344,31 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
 
   app.addHook("onClose", async () => store.close());
   app.setErrorHandler((error, _request, reply) => {
-    const safe = messageForError(error instanceof Error ? error : new Error("INTERNAL_ERROR"));
+    /* A framework rejection already carries the right status and does not use
+     * this codebase's SCREAMING_CASE message convention. Folding it into
+     * INTERNAL_ERROR reported the local service as broken when it was healthy
+     * and merely throttling, and the workbench's connection probe drew the only
+     * conclusion it could: "Connect the local service", sending the candidate to
+     * restart a backend that was already running. */
+    const raised = error instanceof Error ? error : new Error("INTERNAL_ERROR");
+    const status = (error as { statusCode?: number } | null)?.statusCode ?? 0;
+    if (status >= 400 && status < 500 && !/^[A-Z0-9_]+$/.test(raised.message)) {
+      void reply.code(status).send({
+        error:
+          status === 429
+            ? {
+                code: "RATE_LIMITED",
+                message:
+                  "Too many requests to the local API. Wait a moment and retry — nothing was lost.",
+              }
+            : {
+                code: `HTTP_${status}`,
+                message: "Nimanto could not read that request.",
+              },
+      });
+      return;
+    }
+    const safe = messageForError(raised);
     void reply.code(safe.status).send({ error: { code: safe.code, message: safe.message } });
   });
   app.addHook("onSend", async (request, reply, payload) => {

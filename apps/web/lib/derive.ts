@@ -553,6 +553,8 @@ export function confirmationPrompt(to: ApplicationStatus, application: Applicati
  * holds the code and is the only place that knows which screen the candidate is
  * looking at, so this is where a rejection becomes something to act on. */
 const FAILURE_COPY: Record<string, string> = {
+  RATE_LIMITED:
+    "The local API is throttling requests. Wait a moment, then retry — nothing was lost, and the service is running.",
   INVALID_COMPENSATION: "The posted annual maximum must be greater than or equal to the minimum.",
   INVALID_APPLICATION_TRANSITION:
     "An application moves Tracked → Prepared → Approved for export → Submitted externally. Move it to the next stage first, or withdraw it.",

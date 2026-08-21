@@ -301,12 +301,14 @@ test("a candidate starts a private workspace and receives deterministic role exp
   );
   await expect(page.getByLabel("Interview source")).toHaveValue("Synthetic candidate note");
 
-  page.once("dialog", (dialog) => void dialog.dismiss());
+  /* Declining returns the candidate to the control they pressed with the draft
+   * untouched; only the second, named press throws the work away. */
   await page.getByRole("button", { name: "Discard draft" }).click();
+  await page.getByRole("button", { name: "Keep editing" }).click();
   await expect(page.getByLabel("Role title")).toHaveValue("Synthetic Reliability Engineer");
   await expect(page.getByRole("button", { name: "Discard draft" })).toBeFocused();
-  page.once("dialog", (dialog) => void dialog.accept());
   await page.getByRole("button", { name: "Discard draft" }).click();
+  await page.getByRole("button", { name: "Discard it" }).click();
   await expect(page.getByRole("button", { name: "Add role" })).toBeFocused();
   await page.getByRole("button", { name: "Add role" }).click();
   await page.getByLabel("Role title").fill("Reload clears this draft");
@@ -572,39 +574,36 @@ test("one guarded control owns every status change, and the two views are exclus
     "withdrawn",
   ]);
 
-  // Every route to a consequential status asks first, from either surface.
-  const prompts: string[] = [];
-  page.on("dialog", (dialog) => {
-    prompts.push(dialog.message());
-    void dialog.accept();
-  });
+  /* Every route to a consequential status asks first, from either surface.
+   * The prompt is the product's own wording in the product's own chrome now, so
+   * this block clicks real controls rather than answering a browser dialog. */
+  const strip = page.locator(".application-table .confirm-strip");
   await status.selectOption("prepared");
   await expect(status).toHaveValue("prepared");
-  expect(prompts, "moving to a preparatory stage should not interrogate the candidate").toEqual([]);
+  await expect(strip, "a preparatory stage should not interrogate the candidate").toHaveCount(0);
 
   await status.selectOption("approved_for_export");
+  await expect(strip).toContainText("approved for export");
+  await strip.getByRole("button", { name: "Mark approved for export" }).click();
   await expect(status).toHaveValue("approved_for_export");
+
   await status.selectOption("submitted_externally");
+  await expect(strip).toContainText("Nimanto does not submit anything for you");
+  await strip.getByRole("button", { name: "Mark submitted" }).click();
   await expect(status).toHaveValue("submitted_externally");
-  expect(prompts).toHaveLength(2);
-  expect(prompts[0]).toContain("approved for export");
-  expect(prompts[1]).toContain("Nimanto does not submit anything for you");
 
   /* Declining has to leave the record alone — and leave the control showing the
    * status the record still has. The select's snap-back is React restoring a
    * controlled value with no re-render behind it, which is exactly the kind of
    * thing that holds until someone changes the component and no test notices. */
-  /* ⚠ If this confirmation ever becomes an in-product dialog, rewrite this block
-   * to click that dialog's decline control. Dismissing a native dialog that no
-   * longer exists still leaves `writes` empty, so this assertion would keep
-   * passing while the decline path stopped running entirely. */
-  page.removeAllListeners("dialog");
-  page.on("dialog", (dialog) => void dialog.dismiss());
   const writes: string[] = [];
   page.on("request", (request) => {
     if (request.method() === "PUT" && request.url().includes("/status")) writes.push(request.url());
   });
   await status.selectOption("withdrawn");
+  await expect(strip).toContainText("withdrawn");
+  await strip.getByRole("button", { name: "Cancel" }).click();
+  await expect(strip).toHaveCount(0);
   await expect(status).toHaveValue("submitted_externally");
   await page.waitForTimeout(250);
   expect(writes, "a declined confirmation must not write").toEqual([]);
@@ -1048,4 +1047,124 @@ test("a failed mutation moves focus to the error it announced", async ({ page })
   const error = page.locator(".notice.error");
   await expect(error).toBeVisible();
   await expect(error).toBeFocused();
+});
+
+/* The launch key arrives in a URL fragment that the workbench scrubs on sign-in.
+ * Sign-out, deletion, a bookmark and the URL printed in the operations guide all
+ * reach this screen without it, so the screen has to say what is missing. */
+test("the entry screen names the launch-key prerequisite when it has none", async ({ page }) => {
+  await page.goto("/workspace/");
+  const start = page.getByRole("button", { name: "Start private workspace" });
+  const demo = page.getByRole("button", { name: "Use clearly labeled synthetic demo" });
+  await expect(start).toBeDisabled();
+  await expect(demo).toBeDisabled();
+
+  const describedBy = await start.getAttribute("aria-describedby");
+  expect(describedBy).toBeTruthy();
+  await expect(demo).toHaveAttribute("aria-describedby", String(describedBy));
+  const requirement = page.locator(`#${describedBy}`);
+  await expect(requirement).toBeVisible();
+  await expect(requirement).toContainText(".nimanto-data/launch-secret");
+});
+
+test("the pipeline exposes the stages it cannot fit, and a moved card comes with it", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1024, height: 800 });
+  await page.goto(`/workspace/#bootstrap=${bootstrapSecret}`);
+  await page.getByLabel("Your name").fill("Board Check");
+  await page.getByLabel("Your email").fill("board@example.test");
+  await page.getByRole("button", { name: "Start private workspace" }).click();
+  await page.getByRole("button", { name: "Run starter matches" }).click();
+  await page.getByRole("button", { name: "Role discovery" }).click();
+  await page.getByRole("button", { name: "Track", exact: true }).first().click();
+  await page.getByRole("button", { name: "Applications" }).click();
+
+  const board = page.locator(".board");
+  await expect(board).toHaveAttribute("tabindex", "0");
+  await expect(board).toHaveAttribute("role", "region");
+  // Overflowing is fine; being unable to tell is not.
+  await expect(board).toHaveAttribute("data-overflowing", "true");
+
+  await page
+    .locator(".board button", { hasText: /^Prepared$/ })
+    .first()
+    .click();
+  await expect(page.getByText("Application status updated.")).toBeVisible();
+  const cardVisible = await page
+    .locator(".board article")
+    .first()
+    .evaluate((card) => {
+      const rect = card.getBoundingClientRect();
+      return rect.left >= 0 && rect.right <= document.documentElement.clientWidth + 1;
+    });
+  expect(cardVisible).toBe(true);
+});
+
+test("a pending claim decision is labelled, distinguishable, and asks before it is final", async ({
+  page,
+}) => {
+  await page.goto(`/workspace/#bootstrap=${bootstrapSecret}`);
+  await page.getByLabel("Your name").fill("Claim Check");
+  await page.getByLabel("Your email").fill("claim@example.test");
+  await page.getByRole("button", { name: "Start private workspace" }).click();
+  await page.getByRole("button", { name: "Evidence vault" }).click();
+  await page.getByLabel("Exact claim").fill("Shipped an accessible React design system");
+  await page.getByRole("button", { name: "Add pending claim" }).click();
+  await expect(page.getByText("Claim added to the review queue.")).toBeVisible();
+
+  const row = page.locator(".evidence-item", { hasText: "accessible React design system" }).first();
+  const reject = row.getByRole("button", { name: /^Reject/ });
+  await expect(row.getByRole("button", { name: /^Confirm/ })).toContainText("Confirm");
+  await expect(reject).toContainText("Reject");
+
+  // First press arms, it does not decide.
+  await reject.click();
+  await expect(row.getByText("Rejecting is final.")).toBeVisible();
+  await row.getByRole("button", { name: "Keep it pending" }).click();
+  await expect(row).toContainText("Pending");
+
+  await reject.click();
+  await row.getByRole("button", { name: "Reject claim" }).click();
+  await expect(page.getByText("Claim rejected.")).toBeVisible();
+  await expect(row).toContainText("Rejected — this decision is final.");
+});
+
+test("gated and empty-state controls say what they are waiting for", async ({ page }) => {
+  await page.goto(`/workspace/#bootstrap=${bootstrapSecret}`);
+  await page.getByLabel("Your name").fill("Gate Check");
+  await page.getByLabel("Your email").fill("gate@example.test");
+  await page.getByRole("button", { name: "Start private workspace" }).click();
+
+  await page.getByRole("button", { name: "Applications" }).click();
+  // The header action and the empty state have to agree; "another" was a claim
+  // about a record that held nothing.
+  await expect(page.getByRole("button", { name: "Track another role" })).toHaveCount(0);
+  await expect(
+    page.locator(".page-intro").getByRole("button", { name: "Track a role" }),
+  ).toHaveCount(1);
+
+  // The starter action lives on Overview, not on the empty Applications screen.
+  await page.getByRole("button", { name: "Overview" }).click();
+  await page.getByRole("button", { name: "Run starter matches" }).click();
+  await page.getByRole("button", { name: "Role discovery" }).click();
+  await page.getByRole("button", { name: "Track", exact: true }).first().click();
+  await page.getByRole("button", { name: "Applications" }).click();
+  await page
+    .locator(".board button", { hasText: /^Prepared$/ })
+    .first()
+    .click();
+  await page
+    .locator(".board button", { hasText: /^Approved for export$/ })
+    .first()
+    .click();
+  await page.getByRole("button", { name: "Mark approved for export" }).click();
+
+  await page.getByRole("button", { name: "Review packets" }).click();
+  await page.getByRole("button", { name: "Generate", exact: true }).first().click();
+  const approve = page.getByRole("button", { name: "Approve", exact: true }).first();
+  await expect(approve).toBeDisabled();
+  const gate = await approve.getAttribute("aria-describedby");
+  expect(gate).toBeTruthy();
+  await expect(page.locator(`#${gate}`)).toContainText("assurance");
 });

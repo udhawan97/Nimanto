@@ -38,6 +38,7 @@ import {
   useCallback,
   useDeferredValue,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -509,6 +510,9 @@ export function Workspace() {
   const noticeRegion = useRef<HTMLDivElement>(null);
   const focusNoticeOnRender = useRef(false);
   const contentHeading = useRef<HTMLDivElement>(null);
+  /* The control that started the current mutation. It is about to be disabled
+   * for the duration, which is what drops focus to <body>. */
+  const focusOrigin = useRef<HTMLElement | null>(null);
 
   const focusSectionContent = useCallback(() => {
     focusSectionBelowHeader({
@@ -791,6 +795,26 @@ export function Workspace() {
     () =>
       createWorkbenchMutations({
         setBusy,
+        captureFocus: () => {
+          const active = document.activeElement;
+          focusOrigin.current =
+            active instanceof HTMLElement && active !== document.body ? active : null;
+        },
+        /* Only when nothing else has claimed focus. A control that survived the
+         * commit takes focus back; one the commit replaced — Track becoming
+         * Tracked, Generate becoming Generate new — falls back to the section
+         * container the product already focuses on navigation, because the
+         * alternative is <body> and a walk back through the whole sidebar. */
+        restoreFocus: () => {
+          const target = focusOrigin.current;
+          focusOrigin.current = null;
+          if (document.activeElement !== document.body) return;
+          if (target?.isConnected && !target.matches(":disabled")) {
+            target.focus();
+            return;
+          }
+          contentHeading.current?.focus({ preventScroll: true });
+        },
         clearNotice: () => setNotice(null),
         setNoticeFocus: (focus) => {
           focusNoticeOnRender.current = focus;
@@ -1173,6 +1197,8 @@ function WorkspaceStart({
   deletionReceipt?: DeletionReceipt | null;
 }) {
   const receiptHeading = useRef<HTMLHeadingElement>(null);
+  const launchKeyNoteId = useId();
+  const needsLaunchKey = !unavailable && !inviteMode && !bootstrapSecret;
   useEffect(() => {
     if (deletionReceipt) receiptHeading.current?.focus();
   }, [deletionReceipt]);
@@ -1248,7 +1274,7 @@ function WorkspaceStart({
             "Open the synthetic starter workspace, inspect every source link, and replace examples with your own confirmed evidence."
           )}
         </p>
-        {!unavailable && !inviteMode && !bootstrapSecret && (
+        {needsLaunchKey && (
           <label className="launch-secret-field">
             Private launch key
             <input
@@ -1257,8 +1283,18 @@ function WorkspaceStart({
               value={bootstrapSecret}
               onChange={(event) => onBootstrapSecret(event.target.value)}
               placeholder="Paste the key shown by the local launcher"
+              aria-describedby={launchKeyNoteId}
             />
-            <small>The launcher normally supplies this key automatically.</small>
+            {/* The key arrives in a URL fragment that this screen scrubs on
+             * sign-in, so signing out, deleting the workspace, a bookmark and
+             * the URL printed in the operations guide all land here without it.
+             * Saying which file holds it is the difference between a screen the
+             * candidate can act on and two dead buttons. */}
+            <small id={launchKeyNoteId}>
+              Both ways in need this key. The launcher fills it automatically; otherwise copy it
+              from <code>.nimanto-data/launch-secret</code> in the Nimanto folder, or from the
+              address the API prints when it starts.
+            </small>
           </label>
         )}
         {!unavailable && (
@@ -1277,7 +1313,8 @@ function WorkspaceStart({
           className="button primary"
           type={unavailable ? "button" : "submit"}
           onClick={unavailable ? () => onStart({ displayName: "", email: "" }) : undefined}
-          disabled={busy || (!unavailable && !inviteMode && !bootstrapSecret)}
+          disabled={busy || needsLaunchKey}
+          aria-describedby={needsLaunchKey ? launchKeyNoteId : undefined}
         >
           {unavailable ? <RefreshCw size={17} /> : <Play size={17} />}
           {busy ? "Connecting…" : unavailable ? "Try again" : "Start private workspace"}
@@ -1288,6 +1325,7 @@ function WorkspaceStart({
             type="button"
             onClick={onDemo}
             disabled={busy || !bootstrapSecret}
+            aria-describedby={needsLaunchKey ? launchKeyNoteId : undefined}
           >
             Use clearly labeled synthetic demo
           </button>
@@ -1304,6 +1342,110 @@ function WorkspaceStart({
         <small>Synthetic starter data is labeled and can be deleted at any time.</small>
       </form>
     </main>
+  );
+}
+
+/* Five stages at a 250px minimum need about 1314px, which is wider than the
+ * content column at every width that still shows the desktop sidebar. Scrolling
+ * was already possible; nothing said so, and the container could not be reached
+ * by keyboard, so two stages were simply unreachable at 1024px. */
+function useOverflowFlag<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  const [overflowing, setOverflowing] = useState(false);
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    const measure = () => setOverflowing(element.scrollWidth > element.clientWidth + 1);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  return { ref, overflowing };
+}
+
+/* One inline confirmation for every consequential candidate decision.
+ *
+ * `window.confirm` could only ever offer OK and Cancel, which names neither of
+ * the two outcomes in a product that is otherwise careful to name both. It also
+ * blocks the tab, carries the origin in some browsers, and — the reason this is
+ * not merely cosmetic — can be suppressed by the browser after repeated use,
+ * from which point it returns false immediately and the control becomes a
+ * silent no-op with nothing on screen to explain it.
+ *
+ * Arming is deliberately local state: nothing is sent until the second press. */
+function ConfirmAction({
+  label,
+  question,
+  confirmLabel,
+  cancelLabel,
+  onConfirm,
+  disabled,
+  className = "button mini",
+  triggerLabel,
+}: {
+  label: ReactNode;
+  question: string;
+  confirmLabel: string;
+  cancelLabel: string;
+  onConfirm: () => void;
+  disabled?: boolean;
+  className?: string;
+  triggerLabel?: string;
+}) {
+  const [armed, setArmed] = useState(false);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const returnFocus = useRef(false);
+
+  /* Cancelling puts focus back on the control the candidate pressed. The
+   * trigger is unmounted while armed, so this waits for it to come back. */
+  useEffect(() => {
+    if (armed || !returnFocus.current) return;
+    returnFocus.current = false;
+    trigger.current?.focus();
+  }, [armed]);
+
+  if (!armed) {
+    return (
+      <button
+        ref={trigger}
+        className={className}
+        type="button"
+        disabled={disabled}
+        onClick={() => setArmed(true)}
+        aria-label={triggerLabel}
+      >
+        {label}
+      </button>
+    );
+  }
+
+  return (
+    <span className="confirm-strip" role="group" aria-label={question}>
+      <span className="confirm-question">{question}</span>
+      <button
+        className="button mini danger-button"
+        type="button"
+        disabled={disabled}
+        autoFocus
+        onClick={() => {
+          setArmed(false);
+          onConfirm();
+        }}
+      >
+        {confirmLabel}
+      </button>
+      <button
+        className="button mini quiet"
+        type="button"
+        onClick={() => {
+          returnFocus.current = true;
+          setArmed(false);
+        }}
+      >
+        {cancelLabel}
+      </button>
+    </span>
   );
 }
 
@@ -1812,10 +1954,17 @@ function EvidenceVault({
                   >
                     {human(claim.status)}
                   </span>
+                  {/* The decision the whole product is built around. It used to
+                   * be two unlabeled grey glyphs of the same weight, stacked, at
+                   * 32px — and the lower one was final, immediate, and had no way
+                   * back, because both store methods only move a claim out of
+                   * `pending`. Naming them, separating keep from discard, and
+                   * asking once is the same rule the schedule cancel and the
+                   * deletion phrase already apply. */}
                   {claim.status === "pending" && (
                     <>
                       <button
-                        className="icon-button positive"
+                        className="button mini positive"
                         type="button"
                         disabled={busy}
                         onClick={() => {
@@ -1828,13 +1977,21 @@ function EvidenceVault({
                         }}
                         aria-label={`Confirm ${claim.value}`}
                       >
-                        <Check size={16} />
+                        <Check size={14} /> Confirm
                       </button>
-                      <button
-                        className="icon-button"
-                        type="button"
+                      <ConfirmAction
+                        className="button mini"
+                        label={
+                          <>
+                            <X size={14} /> Reject
+                          </>
+                        }
+                        triggerLabel={`Reject ${claim.value}`}
+                        question="Rejecting is final."
+                        confirmLabel="Reject claim"
+                        cancelLabel="Keep it pending"
                         disabled={busy}
-                        onClick={() => {
+                        onConfirm={() => {
                           void onAct.run({
                             request: () =>
                               api(`/v1/evidence/${claim.id}/reject`, { method: "POST" }),
@@ -1842,11 +1999,11 @@ function EvidenceVault({
                             transient: true,
                           });
                         }}
-                        aria-label={`Reject ${claim.value}`}
-                      >
-                        <X size={16} />
-                      </button>
+                      />
                     </>
+                  )}
+                  {claim.status === "rejected" && (
+                    <small className="field-note">Rejected — this decision is final.</small>
                   )}
                 </div>
               </article>
@@ -2280,22 +2437,18 @@ function Jobs({
                 <button className="button primary" disabled={busy}>
                   Save role
                 </button>
-                <button
+                <ConfirmAction
                   className="button quiet"
-                  type="button"
+                  label="Discard draft"
+                  question="Discard this unsaved role draft?"
+                  confirmLabel="Discard it"
+                  cancelLabel="Keep editing"
                   disabled={busy}
-                  onClick={(event) => {
-                    if (!window.confirm("Discard this unsaved role draft?")) {
-                      const trigger = event.currentTarget;
-                      window.requestAnimationFrame(() => trigger.focus());
-                      return;
-                    }
+                  onConfirm={() => {
                     onDraftClose();
                     window.requestAnimationFrame(() => addRoleButton.current?.focus());
                   }}
-                >
-                  Discard draft
-                </button>
+                />
               </div>
             </form>
           )}
@@ -2478,34 +2631,27 @@ function Jobs({
                       </button>
                     )}
                     {schedule.state !== "cancelled" && (
-                      <button
+                      /* Cancelling is one-way: the row survives as `cancelled`,
+                       * but resume only accepts paused or dead_letter, so there
+                       * is no path back short of recreating the schedule.
+                       * Client-side friction on a terminal action — the route
+                       * takes no confirmation flag and none is sent. */
+                      <ConfirmAction
                         className="icon-button"
-                        type="button"
-                        aria-label="Cancel schedule"
+                        label={<Trash2 size={15} />}
+                        triggerLabel="Cancel schedule"
+                        question={`Cancel the ${schedule.board} schedule? This cannot be undone — you would have to create a new schedule.`}
+                        confirmLabel="Cancel schedule"
+                        cancelLabel="Keep it running"
                         disabled={busy}
-                        onClick={() => {
-                          /* Cancelling is one-way: the row survives as
-                           * `cancelled`, but resume only accepts paused or
-                           * dead_letter, so there is no path back short of
-                           * recreating the schedule. Client-side friction on a
-                           * terminal action — the route takes no confirmation
-                           * flag and none is sent. */
-                          if (
-                            !window.confirm(
-                              `Cancel the ${schedule.board} schedule? This cannot be undone — you would have to create a new schedule.`,
-                            )
-                          ) {
-                            return;
-                          }
+                        onConfirm={() => {
                           void onAct.run({
                             request: () =>
                               api(`/v1/schedules/${schedule.id}`, { method: "DELETE" }),
                             success: `${schedule.board} schedule was cancelled.`,
                           });
                         }}
-                      >
-                        <Trash2 size={15} />
-                      </button>
+                      />
                     )}
                   </div>
                 </article>
@@ -3324,6 +3470,10 @@ function Applications({
   onViewChange: (view: "board" | "table") => void;
 }) {
   const [outcomeFor, setOutcomeFor] = useState<string | null>(null);
+  const [pendingMove, setPendingMove] = useState<{ id: string; to: ApplicationStatus } | null>(
+    null,
+  );
+  const board = useOverflowFlag<HTMLElement>();
   const outcomeTrigger = useRef<HTMLButtonElement | null>(null);
   const [reviewOnly, setReviewOnly] = useState(false);
   const [cohortStart, setCohortStart] = useState(() => dateInputValue(new Date(), -30));
@@ -3368,13 +3518,8 @@ function Applications({
    * could be walked around without leaving the screen. */
   const move = (application: Application, to: ApplicationStatus) => {
     if (to === application.status || !canMove(application.status, to)) return;
-    let confirmed = false;
-    if (
-      needsConfirmation(application.status, to) &&
-      !window.confirm(confirmationPrompt(to, application))
-    )
-      return;
-    if (needsConfirmation(application.status, to)) confirmed = true;
+    setPendingMove(null);
+    const confirmed = needsConfirmation(application.status, to);
     void onAct.run({
       request: () =>
         api(`/v1/applications/${application.id}/status`, {
@@ -3384,9 +3529,25 @@ function Applications({
       success: "Application status updated.",
       transient: true,
       focus: () => {
-        document.getElementById(`board-card-${application.id}`)?.focus();
+        const card = document.getElementById(`board-card-${application.id}`);
+        card?.focus();
+        /* The board is wider than the content column on every laptop width, so
+         * the destination stage is routinely outside the viewport. Focusing a
+         * card the candidate cannot see is worse than not moving at all. */
+        card?.scrollIntoView({ block: "nearest", inline: "nearest" });
       },
     });
+  };
+
+  /* The table's control is a <select>, which cannot arm itself, so the pending
+   * consequential target waits here until the strip beneath it is answered. */
+  const requestMove = (application: Application, to: ApplicationStatus) => {
+    if (to === application.status || !canMove(application.status, to)) return;
+    if (needsConfirmation(application.status, to)) {
+      setPendingMove({ id: application.id, to });
+      return;
+    }
+    move(application, to);
   };
 
   return (
@@ -3415,14 +3576,26 @@ function Applications({
             >
               <Clock3 size={15} /> {reviewOnly ? "Show all" : `Review due · ${reviewQueue.length}`}
             </button>
+            {/* "another" is a claim about the record, so it has to read it.
+             * The empty state below already says "Track a role"; the header
+             * offering to track another one contradicted it on first run. */}
             <button className="button quiet" type="button" onClick={() => onGo("jobs")}>
-              <Plus size={16} /> Track another role
+              <Plus size={16} />{" "}
+              {dashboard.applications.length > 0 ? "Track another role" : "Track a role"}
             </button>
           </div>
         }
       />
       {view === "board" && visibleApplications.length > 0 && (
-        <section className="board" aria-label="Application pipeline">
+        <section
+          className="board"
+          ref={board.ref}
+          role="region"
+          tabIndex={0}
+          data-overflowing={board.overflowing ? "true" : "false"}
+          aria-label="Application pipeline"
+          aria-describedby={board.overflowing ? "board-scroll-note" : undefined}
+        >
           {boardColumns(visibleApplications).map((column) => (
             <div className="board-column" key={column.id}>
               <header>
@@ -3476,19 +3649,33 @@ function Applications({
                       {legalTargets(application.status)
                         .filter((id) => id !== application.status)
                         .map((id) => BOARD_COLUMNS.find((column) => column.id === id)!)
-                        .map((target) => (
-                          <button
-                            key={target.id}
-                            type="button"
-                            disabled={busy}
-                            // Visually the column name is enough; heard on its own
-                            // in a list of twenty cards, "Prepared" is not.
-                            aria-label={`Move ${role} to ${target.label}`}
-                            onClick={() => move(application, target.id)}
-                          >
-                            {target.label}
-                          </button>
-                        ))}
+                        .map((target) =>
+                          needsConfirmation(application.status, target.id) ? (
+                            <ConfirmAction
+                              key={target.id}
+                              className=""
+                              label={target.label}
+                              // Visually the column name is enough; heard on its
+                              // own in a list of twenty cards, "Prepared" is not.
+                              triggerLabel={`Move ${role} to ${target.label}`}
+                              question={confirmationPrompt(target.id, application)}
+                              confirmLabel={`Mark ${target.label.toLocaleLowerCase("en-US")}`}
+                              cancelLabel="Cancel"
+                              disabled={busy}
+                              onConfirm={() => move(application, target.id)}
+                            />
+                          ) : (
+                            <button
+                              key={target.id}
+                              type="button"
+                              disabled={busy}
+                              aria-label={`Move ${role} to ${target.label}`}
+                              onClick={() => move(application, target.id)}
+                            >
+                              {target.label}
+                            </button>
+                          ),
+                        )}
                     </div>
                   </article>
                 );
@@ -3497,6 +3684,12 @@ function Applications({
             </div>
           ))}
         </section>
+      )}
+      {view === "board" && visibleApplications.length > 0 && board.overflowing && (
+        <small className="field-note board-scroll-note" id="board-scroll-note">
+          More stages sit past the right edge. Scroll the pipeline sideways, or focus it and use the
+          arrow keys.
+        </small>
       )}
 
       {visibleApplications.length > 0 && (
@@ -3526,7 +3719,9 @@ function Applications({
                 <select
                   value={application.status}
                   disabled={busy}
-                  onChange={(event) => move(application, event.target.value as ApplicationStatus)}
+                  onChange={(event) =>
+                    requestMove(application, event.target.value as ApplicationStatus)
+                  }
                 >
                   {legalTargets(application.status).map((target) => (
                     <option key={target} value={target}>
@@ -3535,6 +3730,33 @@ function Applications({
                   ))}
                 </select>
               </label>
+              {pendingMove?.id === application.id && (
+                <span
+                  className="confirm-strip"
+                  role="group"
+                  aria-label={confirmationPrompt(pendingMove.to, application)}
+                >
+                  <span className="confirm-question">
+                    {confirmationPrompt(pendingMove.to, application)}
+                  </span>
+                  <button
+                    className="button mini danger-button"
+                    type="button"
+                    disabled={busy}
+                    autoFocus
+                    onClick={() => move(application, pendingMove.to)}
+                  >
+                    {`Mark ${BOARD_COLUMNS.find((column) => column.id === pendingMove.to)!.label.toLocaleLowerCase("en-US")}`}
+                  </button>
+                  <button
+                    className="button mini quiet"
+                    type="button"
+                    onClick={() => setPendingMove(null)}
+                  >
+                    Cancel
+                  </button>
+                </span>
+              )}
               <div className="outcome-chips">
                 {application.outcomes?.length ? (
                   application.outcomes.map((outcome) => (
@@ -3900,10 +4122,18 @@ function Packets({
                     >
                       <ShieldCheck size={15} /> Assure
                     </button>
+                    {/* The rule was stated once in the page intro, hundreds of
+                     * pixels above the control it governs, and nowhere that a
+                     * screen reader would reach from the button itself. */}
                     <button
                       className="button mini primary"
                       type="button"
                       disabled={busy || packet.status !== "assurance_passed"}
+                      aria-describedby={
+                        packet.status === "assurance_passed"
+                          ? undefined
+                          : `approve-gate-${packet.id}`
+                      }
                       onClick={() => {
                         void onAct.run({
                           request: () =>
@@ -3930,6 +4160,11 @@ function Packets({
                   </>
                 )}
               </div>
+              {packet && packet.status !== "assurance_passed" && (
+                <small className="field-note" id={`approve-gate-${packet.id}`}>
+                  Approval opens once assurance passes on this exact packet.
+                </small>
+              )}
               {packet?.artifactManifest.artifacts && (
                 <div className="artifact-links">
                   {packet.artifactManifest.artifacts.map((artifact) => (

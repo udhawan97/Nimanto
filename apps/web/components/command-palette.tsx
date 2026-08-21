@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { ArrowRight, Command, Search, X } from "lucide-react";
 
 /* A palette entry is a destination, never an action.
@@ -49,6 +49,11 @@ export function CommandPalette({
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
   const [open, setOpen] = useState(false);
+  /* The highlight already moved and `aria-selected` already followed it, but
+   * focus stays in the input by design, so without these identifiers nothing
+   * tells a screen reader which destination Enter is about to take. */
+  const listboxId = useId();
+  const optionId = (index: number) => `${listboxId}-option-${index}`;
 
   const commands: PaletteEntry[] = entries ?? [
     {
@@ -133,6 +138,11 @@ export function CommandPalette({
             <Search size={19} aria-hidden="true" />
             <input
               ref={input}
+              role="combobox"
+              aria-expanded={open}
+              aria-controls={listboxId}
+              aria-autocomplete="list"
+              aria-activedescendant={open && filtered.length > 0 ? optionId(active) : undefined}
               value={query}
               onChange={(event) => {
                 setQuery(event.target.value);
@@ -168,13 +178,19 @@ export function CommandPalette({
           {/* Rendered only while open. A closed palette that still held an index
            * of every claim would put unconfirmed evidence text in the DOM. */}
           {open && (
-            <div className="command-results" role="listbox" aria-label="Navigation results">
+            <div
+              className="command-results"
+              id={listboxId}
+              role="listbox"
+              aria-label="Navigation results"
+            >
               {/* Index in the key: the same posting can appear on two boards, and
                * since the list stopped being pre-sliced those duplicates now reach
                * the DOM together. */}
               {filtered.map((item, index) => (
                 <a
                   key={`${item.section ?? item.href}-${item.label}-${index}`}
+                  id={optionId(index)}
                   href={item.href ?? "#"}
                   className={index === active ? "command-result is-active" : "command-result"}
                   role="option"
