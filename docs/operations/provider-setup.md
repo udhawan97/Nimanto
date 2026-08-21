@@ -26,11 +26,11 @@ No network request is made.
 
 ## Connected accounts
 
-Gmail and Microsoft Outlook sending are not implemented or configurable in v0.5.3. No access-token environment variable is read. Connected-account effects require the separately reviewed Slice 4 plan and exact approval before code or onboarding documentation is added.
+Gmail and Microsoft Outlook sending are not implemented or configurable in v0.5.4. No access-token environment variable is read. Connected-account effects require the separately reviewed Slice 4 plan and exact approval before code or onboarding documentation is added.
 
 ## Verification rule
 
-Project tests and release verification never call an email provider. The local test outbox is the only execution path; the deep link leaves the final send in the user's mail client. An action approval binds the exact target/payload intent and approved packet hash. If a provider effect may have succeeded but local receipt persistence is uncertain, the action becomes `ambiguous` and is never retried automatically.
+Project tests and release verification never call an email provider. The local test outbox is the only execution path; the deep link leaves the final send in the user's mail client. An action approval binds the exact target/payload intent and approved packet hash. Creation, approval, and execution require that packet to remain the application's current packet, including a locked recheck immediately before the provider effect. If a provider effect may have succeeded but local receipt persistence is uncertain, the action becomes `ambiguous` and is never retried automatically.
 
 ### Reconcile an ambiguous action
 
@@ -44,7 +44,7 @@ the provider surface first:
   client's Drafts and Sent folders; Nimanto cannot establish whether you later
   pressed Send.
 
-v0.5.3 intentionally has no “mark resolved” or retry transition. If you can
+v0.5.4 intentionally has no “mark resolved” or retry transition. If you can
 establish that no effect occurred and still want to proceed, review the current
 packet and create a new, separately approved action with revised candidate-
 controlled content. Keep the ambiguous record as the audit trail.

@@ -140,6 +140,8 @@ CREATE TABLE IF NOT EXISTS outcomes (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE SEQUENCE IF NOT EXISTS packets_generation_sequence_seq;
+
 CREATE TABLE IF NOT EXISTS packets (
   id text PRIMARY KEY,
   tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
@@ -150,6 +152,7 @@ CREATE TABLE IF NOT EXISTS packets (
   artifact_manifest jsonb NOT NULL DEFAULT '{}'::jsonb,
   artifact_hash text NOT NULL,
   manifest_hash text NOT NULL DEFAULT '',
+  generation_sequence bigint NOT NULL DEFAULT nextval('packets_generation_sequence_seq'),
   approved_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
@@ -242,11 +245,36 @@ ALTER TABLE scheduled_jobs ADD COLUMN IF NOT EXISTS last_run_at timestamptz;
 ALTER TABLE scheduled_jobs ADD COLUMN IF NOT EXISTS last_result jsonb;
 ALTER TABLE assurance_runs ADD COLUMN IF NOT EXISTS run_sequence bigint;
 ALTER TABLE packets ADD COLUMN IF NOT EXISTS manifest_hash text NOT NULL DEFAULT '';
+ALTER TABLE packets ADD COLUMN IF NOT EXISTS generation_sequence bigint;
 ALTER TABLE assurance_runs ADD COLUMN IF NOT EXISTS packet_artifact_hash text NOT NULL DEFAULT '';
 ALTER TABLE assurance_runs ADD COLUMN IF NOT EXISTS manifest_hash text NOT NULL DEFAULT '';
 ALTER TABLE external_actions ADD COLUMN IF NOT EXISTS intent_hash text NOT NULL DEFAULT '';
 ALTER TABLE external_actions ADD COLUMN IF NOT EXISTS approved_intent_hash text;
 ALTER TABLE external_actions ADD COLUMN IF NOT EXISTS approved_packet_hash text;
+WITH sequence_base AS (
+  SELECT COALESCE(MAX(generation_sequence), 0) AS value FROM packets
+), ordered_packets AS (
+  SELECT
+    id,
+    sequence_base.value + ROW_NUMBER() OVER (ORDER BY created_at, id) AS value
+  FROM packets CROSS JOIN sequence_base
+  WHERE generation_sequence IS NULL
+)
+UPDATE packets
+SET generation_sequence = ordered_packets.value
+FROM ordered_packets
+WHERE packets.id = ordered_packets.id;
+ALTER TABLE packets
+  ALTER COLUMN generation_sequence SET DEFAULT nextval('packets_generation_sequence_seq');
+ALTER TABLE packets ALTER COLUMN generation_sequence SET NOT NULL;
+ALTER SEQUENCE packets_generation_sequence_seq OWNED BY packets.generation_sequence;
+SELECT setval(
+  'packets_generation_sequence_seq',
+  GREATEST(COALESCE((SELECT MAX(generation_sequence) FROM packets), 0) + 1, 1),
+  false
+);
+CREATE UNIQUE INDEX IF NOT EXISTS packets_generation_sequence_unique_idx
+  ON packets(generation_sequence);
 WITH sequence_base AS (
   SELECT COALESCE(MAX(run_sequence), 0) AS value FROM assurance_runs
 ), ordered_runs AS (
@@ -340,4 +368,5 @@ $$;
 INSERT INTO schema_versions(version) VALUES (1) ON CONFLICT (version) DO NOTHING;
 INSERT INTO schema_versions(version) VALUES (2) ON CONFLICT (version) DO NOTHING;
 INSERT INTO schema_versions(version) VALUES (3) ON CONFLICT (version) DO NOTHING;
+INSERT INTO schema_versions(version) VALUES (4) ON CONFLICT (version) DO NOTHING;
 `;

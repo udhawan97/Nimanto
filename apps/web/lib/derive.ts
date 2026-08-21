@@ -565,7 +565,9 @@ const FAILURE_COPY: Record<string, string> = {
   IDENTITY_CHANGED:
     "The authenticated workspace changed in another tab. Nothing was saved; review this workspace before trying again.",
   LATEST_APPROVED_PACKET_REQUIRED:
-    "A newer packet exists for this application. Review and approve the current packet before creating an action.",
+    "A newer packet replaced the one selected for this action. Refresh, review and approve the current packet, then create and approve a replacement action.",
+  ACTION_APPROVAL_STALE:
+    "A newer packet replaced the one approved for this action. Review and approve the current packet, then create and approve a replacement action.",
   PROHIBITED_DOCUMENT_CONTENT:
     "That file looks like an immigration or identity document. Nimanto refuses those — remove it and import career evidence only.",
   UNSUPPORTED_FILE_TYPE:

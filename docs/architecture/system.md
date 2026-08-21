@@ -103,8 +103,13 @@ record inside that transaction; unchanged input reuses the latest version. The
 client's disabled no-change control is guidance, not the correctness boundary.
 
 Manual role drafts deliberately stay outside persistence. The client holds one
-owner-bounded draft above section routing, clears it at authentication and
-deletion boundaries, and writes a role only after an explicit successful save.
+owner-bounded working-state bundle above section routing, clears it at
+authentication and deletion boundaries, and writes a role only after an
+explicit successful save. Evidence fields, role filters, action fields, outcome
+notes, application views, review filters, and cohort inputs use the same
+tab-local ownership rule. A mutation clears only the exact snapshot it
+submitted, so a delayed response cannot erase text entered while the request was
+in flight.
 
 Manual, allowlisted URL, Greenhouse, Lever, and Ashby adapters each own their
 source-specific retrieval, parsing, identity, provenance, and content hash. They
@@ -159,15 +164,24 @@ sticky-header scroll correction, and post-render error or success focus. The
 Workbench mutation coordinator composes these modules for UI sequencing while
 keeping each request opaque; it is not a domain command bus or Action Intent.
 
+Every authenticated browser mutation also carries the exact tab-local session
+generation loaded with the dashboard. A Fastify pre-handler rejects missing or
+stale generations with `IDENTITY_CHANGED` before the route handler runs. The
+client fails closed by removing identity-bound content before it refreshes, and
+the workspace subtree remounts at the new identity epoch so child-local import
+state cannot cross sessions. The HttpOnly cookie remains the authentication
+credential; the generation header is an additional same-tab identity fence,
+not a replacement session token.
+
 ## Durable discovery
 
 Candidates can schedule Greenhouse, Lever, and Ashby public-board refreshes from the workbench. The `DiscoveryCycle` owns separate direct-import and scheduled-refresh operations. Direct import fetches before its database transaction and commits the role batch without scoring. Scheduled refresh first claims a durable lease, then fetches, then publishes through the same exact-snapshot `MatchPublication` used by manual scoring. Schedules are tenant-owned database records with bounded cadence, a single hashed lease, retry backoff, pause/resume/run-now/cancel controls, and a visible dead-letter state after five consecutive failures. Each job/match/receipt batch and recurring-state advance commits in one lease-locked transaction. A worker cycle claims at most three due schedules, imports at most 500 roles per source, and cannot prepare packets, approve, email, or submit.
 
 ## External actions
 
-The database state machine and domain state machine must agree. Action approval binds the immutable target/payload intent hash and the exact approved packet hash. Execution revalidates both, requires the in-memory runtime switch, and compare-and-swaps `approved` to `executing`. Provider failure becomes `failed`; a provider success followed by uncertain local persistence becomes `ambiguous`, and an interrupted `executing` record is recovered as ambiguous on restart. Neither state is retried automatically. The switch has no environment override and resets to off with every API restart.
+The database state machine and domain state machine must agree. Action approval binds the immutable target/payload intent hash and the exact approved packet hash. Schema version 4 assigns a monotonic internal generation sequence at packet insertion after acquiring the tenant lock; current-packet selection and history use that sequence rather than timestamp/random-ID tie-breaking. Action creation, approval, and execution share the tenant lock used by packet generation; each boundary transactionally requires that the selected approved packet is still the application's current packet. Execution repeats that check after reacquiring the lock immediately before the provider effect. A historical approved packet therefore cannot create, approve, or execute a handoff after a newer packet exists. Execution also revalidates the intent and packet hashes, requires the in-memory runtime switch, and compare-and-swaps `approved` to `executing`. Provider failure becomes `failed`; a provider success followed by uncertain local persistence becomes `ambiguous`, and an interrupted `executing` record is recovered as ambiguous on restart. Neither state is retried automatically. The switch has no environment override and resets to off with every API restart.
 
-Version 0.5.3 has no connected-account provider. Verification uses only a user-opened deep link and the local test outbox. Gmail, Outlook, form submission, and desktop delivery remain behind the separately approved Slice 4 boundary.
+Version 0.5.4 has no connected-account provider. Verification uses only a user-opened deep link and the local test outbox. Gmail, Outlook, form submission, and desktop delivery remain behind the separately approved Slice 4 boundary.
 
 ## Scaling path
 

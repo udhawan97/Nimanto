@@ -33,10 +33,10 @@ screen names `.nimanto-data/launch-secret` as the file that holds it.
 
 The API binds to loopback by default. Do not change `NIMANTO_API_HOST` to a public interface without adding production authentication, secure cookies, TLS, and a reviewed deployment configuration.
 
-## Upgrade to v0.5.3
+## Upgrade to v0.5.4
 
 Stop the API, copy the complete `.nimanto-data/` directory, update to the exact
-v0.5.3 source, and reinstall the locked graph before restarting:
+v0.5.4 source, and reinstall the locked graph before restarting:
 
 ```bash
 corepack enable
@@ -44,13 +44,17 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-v0.5.3 adds no Nimanto schema migration: startup remains on additive,
-idempotent schema version 3. The release improves confirmation cancellation,
-drawer focus, approved-packet descriptions, public documentation, and dependency
-maintenance rather than reshaping stored records. Keep the stopped
-full-directory copy: the beta has no schema downgrade guarantee, so restore that
-copy or fix forward rather than running older source against a database after a
-future migration.
+v0.5.4 applies additive, idempotent schema version 4. It adds an internal packet
+generation sequence while preserving existing candidate records and artifacts.
+Existing packets are backfilled in the old deterministic `created_at`/ID order;
+when old timestamps tied, the pre-v0.5.4 schema did not retain enough information
+to reconstruct true insertion order. Every packet generated after upgrade has
+exact monotonic order under the tenant lock. The release also keeps unfinished
+in-tab work across section changes, fences browser writes to the exact loaded
+session, and prevents historical packets from creating, approving, or executing
+an action. Keep the stopped full-directory copy: the beta has no schema downgrade
+guarantee, so restore that copy or fix forward rather than running older source
+against a version-4 database.
 
 ## Private invitations
 
@@ -77,7 +81,7 @@ The digest-pinned container runs the same static web workbench and API with publ
 docker compose up --build
 ```
 
-Open `http://127.0.0.1:4300/`. Retrieve the generated admin key with `docker compose exec nimanto sh -c 'cat /data/launch-secret'`, then issue a private invitation as above. The named `nimanto-data` volume holds the database and artifacts. The image is built in CI; v0.5.3 has not been certified for internet exposure and should remain bound to loopback.
+Open `http://127.0.0.1:4300/`. Retrieve the generated admin key with `docker compose exec nimanto sh -c 'cat /data/launch-secret'`, then issue a private invitation as above. The named `nimanto-data` volume holds the database and artifacts. The image is built in CI; v0.5.4 has not been certified for internet exposure and should remain bound to loopback.
 
 ## Data locations
 
@@ -139,9 +143,10 @@ The queue stores only provider and board identifiers. Scheduled work cannot prep
 
 ## Inspect the evidence thread
 
-- **Role discovery** search and source/match-state/tracking filters are ephemeral React
-  state. Refreshing or leaving the page clears them; the API never receives a
-  filter preference.
+- **Role discovery** search and source/match-state/tracking filters remain in the
+  current signed-in tab while the candidate moves between workbench sections.
+  Reload, sign-out, deletion, or an identity change clears them; the API never
+  receives a filter preference.
 - **H-1B evidence signals → Source and freshness** shows the stored locator,
   period, observation time, confidence, freshness, any original label that was
   downgraded, and the signal's stated limits. This is historical context, not
@@ -155,6 +160,14 @@ The queue stores only provider and board identifiers. Scheduled work cannot prep
 - **Role discovery → Add role** keeps a draft only in the current signed-in tab
   while the candidate moves between workbench sections. Reload, sign-out,
   identity change, successful save, or confirmed discard clears it.
+- **Evidence vault**, **Approved actions**, and **Applications** keep their
+  unfinished fields in that same signed-in tab across section changes. A
+  successful save clears only the exact submitted snapshot, so newer typing is
+  preserved when a response returns later. Explicit discard controls clear the
+  relevant local draft; reload and identity boundaries clear all of them.
+- **Applications** also keeps the selected board/table view, record-review
+  filter, and cohort inputs while the candidate checks another section. These
+  controls remain local to the tab and are never written as candidate facts.
 - **Applications → Record-review queue** is a current derived view over the
   latest literal activity timestamp. It includes non-withdrawn records after 336
   elapsed hours, shows that baseline and the exact computed due time in due
@@ -205,11 +218,11 @@ pnpm build
 pnpm test:e2e
 ```
 
-For a downloaded v0.5.3 release, place the CycloneDX inventory, SPDX inventory,
+For a downloaded v0.5.4 release, place the CycloneDX inventory, SPDX inventory,
 and checksum manifest in one directory and verify the two inventories with:
 
 ```bash
-shasum -a 256 --check nimanto-v0.5.3-SHA256SUMS.txt
+shasum -a 256 --check nimanto-v0.5.4-SHA256SUMS.txt
 ```
 
 This verifies the published inventory assets. GitHub generates the source ZIP
@@ -238,16 +251,29 @@ Run assurance and read its required findings. Common causes are no confirmed evi
 
 ### Execute is disabled
 
-The packet must be approved, the action must be separately approved, and the runtime switch must be on. The switch resets off whenever the API restarts.
+The application's current packet must be approved, the action must be created
+from that exact packet and separately approved, and the runtime switch must be
+on. Creation, approval, and execution each recheck packet currentness under the
+packet-generation lock. Generating a newer packet makes an older approved packet
+historical; review and approve the current packet before creating a replacement
+action. The switch resets off whenever the API restarts.
+
+### The workbench says the identity changed
+
+The tab tried to write after its loaded session was replaced or revoked. Nimanto
+rejects the mutation before the route handler runs and clears the old workspace
+before refreshing. Reopen or sign in to the intended workspace and review the
+current stored state before repeating the decision; do not assume the rejected
+write committed.
 
 ### An action is ambiguous
 
 Do not retry it. The provider effect may have completed before local outcome
 persistence became uncertain. Copy the action ID, inspect the local outbox file
 or mail-client state, and follow the provider-specific reconciliation procedure
-in [provider boundaries](provider-setup.md#reconcile-an-ambiguous-action). v0.5.3
+in [provider boundaries](provider-setup.md#reconcile-an-ambiguous-action). v0.5.4
 keeps the ambiguous record as a do-not-retry audit trail.
 
 ### Gmail or Outlook is unavailable
 
-Connected-account sending is not part of v0.5.3. Use the local test outbox or a user-opened deep link. See [provider boundaries](provider-setup.md).
+Connected-account sending is not part of v0.5.4. Use the local test outbox or a user-opened deep link. See [provider boundaries](provider-setup.md).

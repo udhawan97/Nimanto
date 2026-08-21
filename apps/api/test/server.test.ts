@@ -798,24 +798,57 @@ describe("Nimanto beta API", () => {
     expect(staleAction.statusCode).toBe(409);
     expect(staleAction.json().error.code).toBe("LATEST_APPROVED_PACKET_REQUIRED");
 
+    const staleApproval = await app.inject({
+      method: "POST",
+      url: `/v1/actions/${actionId}/approve`,
+      headers: { cookie },
+    });
+    expect(staleApproval.statusCode).toBe(409);
+    expect(staleApproval.json().error.code).toBe("LATEST_APPROVED_PACKET_REQUIRED");
+
+    const replacementPacketId = newerDraftPacket.json().id as string;
     expect(
       (
         await app.inject({
           method: "POST",
-          url: `/v1/actions/${actionId}/approve`,
+          url: `/v1/packets/${replacementPacketId}/assure`,
+          headers: { cookie },
+        })
+      ).json().status,
+    ).toBe("passed");
+    expect(
+      (
+        await app.inject({
+          method: "POST",
+          url: `/v1/packets/${replacementPacketId}/approve`,
+          headers: { cookie },
+        })
+      ).json().status,
+    ).toBe("approved");
+
+    const currentAction = await app.inject({
+      method: "POST",
+      url: "/v1/actions",
+      headers: { cookie },
+      payload: {
+        packetId: replacementPacketId,
+        provider: "test_outbox",
+        to: "jobs@example.test",
+        subject: "Application",
+        body: "Please find my reviewed packet attached separately.",
+      },
+    });
+    expect(currentAction.statusCode).toBe(200);
+    const currentActionId = currentAction.json().id as string;
+    expect(
+      (
+        await app.inject({
+          method: "POST",
+          url: `/v1/actions/${currentActionId}/approve`,
           headers: { cookie },
         })
       ).json().state,
     ).toBe("approved");
-    expect(
-      (
-        await app.inject({
-          method: "POST",
-          url: `/v1/actions/${actionId}/execute`,
-          headers: { cookie },
-        })
-      ).statusCode,
-    ).toBe(409);
 
     await app.inject({
       method: "PUT",
@@ -825,7 +858,7 @@ describe("Nimanto beta API", () => {
     });
     const executed = await app.inject({
       method: "POST",
-      url: `/v1/actions/${actionId}/execute`,
+      url: `/v1/actions/${currentActionId}/execute`,
       headers: { cookie },
     });
     expect(executed.statusCode).toBe(200);

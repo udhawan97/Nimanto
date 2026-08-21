@@ -93,6 +93,18 @@ async function expectSurfaceContained(page: Page, surface: Locator, label: strin
   ).toBeLessThanOrEqual(0);
 }
 
+// WebKit can complete selectOption just before React replaces the controlled
+// form subtree. Cross two paint boundaries so the next locator resolves the
+// committed input instead of typing into the detached predecessor.
+async function settleControlledForm(page: Page) {
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  );
+}
+
 test("the public site reflows, links, and identifies itself in WebKit", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark" });
   await page.goto("/");
@@ -184,17 +196,17 @@ test("the public site reflows, links, and identifies itself in WebKit", async ({
     "href",
     "https://github.com/udhawan97/Nimanto/issues",
   );
-  await expect(page.getByRole("link", { name: "Open the v0.5.3 source release" })).toHaveAttribute(
+  await expect(page.getByRole("link", { name: "Open the v0.5.4 source release" })).toHaveAttribute(
     "href",
-    "https://github.com/udhawan97/Nimanto/releases/tag/v0.5.3",
+    "https://github.com/udhawan97/Nimanto/releases/tag/v0.5.4",
   );
-  await expect(page.getByRole("link", { name: "Read the v0.5.3 notes" })).toHaveAttribute(
+  await expect(page.getByRole("link", { name: "Read the v0.5.4 notes" })).toHaveAttribute(
     "href",
-    "https://github.com/udhawan97/Nimanto/blob/v0.5.3/docs/releases/v0.5.3.md",
+    "https://github.com/udhawan97/Nimanto/blob/v0.5.4/docs/releases/v0.5.4.md",
   );
   await expect(page.getByRole("link", { name: "Check hashes and inventories" })).toHaveAttribute(
     "href",
-    "https://github.com/udhawan97/Nimanto/blob/v0.5.3/README.md#verify-a-source-release",
+    "https://github.com/udhawan97/Nimanto/blob/v0.5.4/README.md#verify-a-source-release",
   );
   const releaseLinkTops = await page
     .locator(".release-proof .text-link")
@@ -202,9 +214,9 @@ test("the public site reflows, links, and identifies itself in WebKit", async ({
   expect(new Set(releaseLinkTops).size, "release verification links occupy separate rows").toBe(
     releaseLinkTops.length,
   );
-  await expect(page.getByRole("link", { name: "v0.5.3 notes" }).first()).toHaveAttribute(
+  await expect(page.getByRole("link", { name: "v0.5.4 notes" }).first()).toHaveAttribute(
     "href",
-    "https://github.com/udhawan97/Nimanto/blob/v0.5.3/docs/releases/v0.5.3.md",
+    "https://github.com/udhawan97/Nimanto/blob/v0.5.4/docs/releases/v0.5.4.md",
   );
   await expect(page.getByAltText(/Synthetic Nimanto Applications workbench/)).toHaveAttribute(
     "src",
@@ -848,6 +860,7 @@ test("delayed role, outcome, and action submissions retain newer candidate edits
   await page.getByRole("button", { name: "Approved actions" }).click();
   await page.getByRole("button", { name: "Prepare action" }).click();
   await page.getByLabel("Provider").selectOption("test_outbox");
+  await settleControlledForm(page);
   await page.getByLabel("Recipient").fill("submitted@example.test");
   await page.getByLabel("Subject").fill("Submitted action snapshot");
   await page
@@ -1220,6 +1233,25 @@ test("retained history, record review, cohorts, and sensitive export stay bounde
   await expect(cohort.locator(".metric").first()).toContainText("1");
   await expectSurfaceContained(page, cohort, "application cohort at 320px");
 
+  await page.getByRole("button", { name: "Table view" }).click();
+  await page.getByRole("button", { name: /Review due/ }).click();
+  await page.getByLabel("Created from").fill("2026-01-01");
+  await page.getByLabel("Created through").fill("2026-12-31");
+  await page.getByLabel("Current role source").selectOption({ index: 1 });
+  await page.getByLabel("Current match classification").selectOption("strong_evidence");
+  const retainedSource = await page.getByLabel("Current role source").inputValue();
+
+  await page.getByRole("button", { name: "Open navigation" }).click();
+  await page.getByRole("button", { name: "Overview" }).click();
+  await page.getByRole("button", { name: "Open navigation" }).click();
+  await page.getByRole("button", { name: "Applications" }).click();
+  await expect(page.getByRole("button", { name: "Board view" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Show all" })).toBeVisible();
+  await expect(page.getByLabel("Created from")).toHaveValue("2026-01-01");
+  await expect(page.getByLabel("Created through")).toHaveValue("2026-12-31");
+  await expect(page.getByLabel("Current role source")).toHaveValue(retainedSource);
+  await expect(page.getByLabel("Current match classification")).toHaveValue("strong_evidence");
+
   await page.getByRole("button", { name: "Open navigation" }).click();
   await page.getByRole("button", { name: "Review packets" }).click();
   const packet = page.locator(".packet-row").first();
@@ -1294,6 +1326,7 @@ test("long action references keep their Copy control clear at 320px", async ({ p
   // Keep the original packet in action history before starting the draft under
   // test. Historical labels must not make a retired packet eligible again.
   await page.getByLabel("Provider").selectOption("test_outbox");
+  await settleControlledForm(page);
   await page.getByLabel("Recipient").fill("historical@example.test");
   await page.getByLabel("Subject").fill("Historical action");
   await page
@@ -1304,6 +1337,7 @@ test("long action references keep their Copy control clear at 320px", async ({ p
   await prepareAction.click();
   await expect(page.getByLabel("Approved packet")).toHaveValue(originalPacketId);
   await page.getByLabel("Provider").selectOption("test_outbox");
+  await settleControlledForm(page);
   await page.getByLabel("Recipient").fill("recipient@example.test");
   await page.getByLabel("Subject").fill("Candidate-reviewed subject");
   await page
@@ -1331,7 +1365,7 @@ test("long action references keep their Copy control clear at 320px", async ({ p
   await page.getByRole("button", { name: "Approved actions" }).click();
   await expect(page.getByLabel("Approved packet")).toHaveValue("");
   await expect(page.getByLabel("Approved packet")).toHaveAttribute("aria-invalid", "true");
-  await expect(page.getByText(/previously reviewed packet is no longer approved/)).toBeVisible();
+  await expect(page.getByText(/newer packet replaced the one previously reviewed/)).toBeVisible();
   await expect(page.getByRole("button", { name: "Create approval request" })).toBeDisabled();
   await expect(page.getByLabel("Recipient")).toHaveValue("recipient@example.test");
   await expect(page.getByRole("textbox", { name: "Message", exact: true })).toHaveValue(

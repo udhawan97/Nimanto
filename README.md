@@ -31,7 +31,7 @@
   ·
   <a href="#what-it-actually-does"><strong>What it does</strong></a>
   ·
-  <a href="docs/releases/v0.5.3.md"><strong>v0.5.3 notes</strong></a>
+  <a href="docs/releases/v0.5.4.md"><strong>v0.5.4 notes</strong></a>
   ·
   <a href="docs/planning/product-contract.md"><strong>Product contract</strong></a>
 </p>
@@ -66,7 +66,29 @@ Nimanto is a **candidate tool**. It does not screen you for employers, estimate
 your hiring odds, give legal advice, or promise that a company sponsors transfers
 today.
 
-## New in v0.5.3
+## New in v0.5.4
+
+- **Work in progress stays with the signed-in tab.** Evidence fields, role
+  search and filters, manual roles, action details, outcome notes, application
+  views, review queues, and cohort inputs survive workbench section changes.
+  Reload, sign-out, deletion, or an identity change still clears private drafts.
+- **Slow saves cannot erase newer typing.** Evidence, role, action, and outcome
+  commits clear only the exact submitted snapshot; text entered while a request
+  is in flight remains in the form.
+- **Every mutation belongs to one exact session.** The browser sends the
+  session generation it loaded, and the API rejects a missing or stale identity
+  before a handler can write. On identity loss, old workspace content is removed
+  before the replacement workspace is fetched.
+- **An action must use the current packet.** Creation, approval, and execution
+  recheck packet currentness under the same tenant lock used by packet
+  generation. A monotonic packet sequence makes “current” exact even when
+  timestamps tie; a historical approved packet cannot produce an external
+  effect after a newer packet exists.
+- **Narrow screens keep long evidence readable.** Long candidate/source values
+  wrap instead of stretching rows, and primary workbench navigation controls
+  meet the 44-pixel touch-target floor.
+
+### Previously in v0.5.3
 
 - **Screenshot proof is enforced, not merely recorded.** The current-source and
   asset digests, disposable capture, and bounded cross-host comparison now also
@@ -173,7 +195,7 @@ something that opens because you opened it.
 
 ## Run it
 
-Nimanto v0.5.3 is source-distributed. It does **not** ship a signed installer or
+Nimanto v0.5.4 is source-distributed. It does **not** ship a signed installer or
 desktop binary.
 
 | Runtime path       | Best for                          | Start here                                                      |
@@ -183,7 +205,7 @@ desktop binary.
 | Docker on loopback | Invite-only local/self-hosted QA  | `docker compose up --build`; keep ports bound to `127.0.0.1`    |
 
 Acquire the exact source from the pinned
-[v0.5.3 release](https://github.com/udhawan97/Nimanto/releases/tag/v0.5.3); GitHub
+[v0.5.4 release](https://github.com/udhawan97/Nimanto/releases/tag/v0.5.4); GitHub
 generates its ZIP and tar archive from that tag.
 
 ### One double-click on macOS
@@ -198,7 +220,7 @@ Requirements: Node.js 24–26, pnpm 11, and macOS, Linux or Windows.
 ```bash
 git clone https://github.com/udhawan97/Nimanto.git
 cd Nimanto
-git checkout v0.5.3
+git checkout v0.5.4
 corepack enable
 pnpm install --frozen-lockfile
 pnpm dev
@@ -219,11 +241,11 @@ issue a hashed, expiring, single-use invitation.
 ### Verify a source release
 
 Every release publishes the two dependency inventories beside one checksum
-manifest. After downloading the three `v0.5.3` assets into an empty directory,
+manifest. After downloading the three `v0.5.4` assets into an empty directory,
 verify both inventories before inspecting or building the source archive:
 
 ```bash
-shasum -a 256 --check nimanto-v0.5.3-SHA256SUMS.txt
+shasum -a 256 --check nimanto-v0.5.4-SHA256SUMS.txt
 ```
 
 The manifest covers the CycloneDX and SPDX files. GitHub generates the source
@@ -431,11 +453,11 @@ boundaries, provider allowlists, durable schedule leases, retries and dead
 letters, application transition legality, modern and ATS-safe packet formats,
 artifact tamper detection, assurance gating, resumable deletion, external-action
 transitions, literal history comparison, sensitive export confirmation,
-design-token contrast, API integration, and fifteen sequential WebKit journeys.
+design-token contrast, API integration, and eighteen sequential WebKit journeys.
 
 ## Beta boundaries
 
-Version `0.5.3` is a **local beta**:
+Version `0.5.4` is a **local beta**:
 
 - The local candidate workflow is implemented and tested.
 - Public website hosting carries product information and the static workbench
@@ -493,5 +515,5 @@ of scope.
 Apache License 2.0. See [LICENSE](LICENSE), [NOTICE](NOTICE),
 [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md),
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), and the release
-[CycloneDX](docs/releases/nimanto-v0.5.3.cdx.json) /
-[SPDX](docs/releases/nimanto-v0.5.3.spdx.json) inventories.
+[CycloneDX](docs/releases/nimanto-v0.5.4.cdx.json) /
+[SPDX](docs/releases/nimanto-v0.5.4.spdx.json) inventories.

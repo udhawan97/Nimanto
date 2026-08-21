@@ -10,13 +10,13 @@ import {
 
 test("CycloneDX and SPDX package identities normalize to one comparable set", () => {
   const cyclonedx = {
-    metadata: { component: { purl: "pkg:npm/nimanto@0.5.3" } },
+    metadata: { component: { purl: "pkg:npm/nimanto@0.5.4" } },
     components: [{ purl: "pkg:npm/example@1.0.0" }, { purl: "pkg:npm/example@1.0.0" }],
   };
   const spdx = {
     "@graph": [
       { software_packageUrl: "pkg:npm/example@1.0.0" },
-      { software_packageUrl: "pkg:npm/nimanto@0.5.3" },
+      { software_packageUrl: "pkg:npm/nimanto@0.5.4" },
     ],
   };
   assert.deepEqual(cyclonedxPurls(cyclonedx), spdxPurls(spdx));

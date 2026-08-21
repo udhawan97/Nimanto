@@ -409,6 +409,17 @@ describe("beta workflow persistence", () => {
     ]);
     await upgraded.close();
 
+    const migrated = await PGlite.create(data);
+    const schemaVersions = await migrated.query<{ version: number }>(
+      "SELECT version FROM schema_versions ORDER BY version",
+    );
+    expect(schemaVersions.rows.map((row) => row.version)).toEqual([1, 2, 3, 4]);
+    const packetSequences = await migrated.query<{ generation_sequence: string | number }>(
+      "SELECT generation_sequence FROM packets WHERE id = 'legacy-packet'",
+    );
+    expect(Number(packetSequences.rows[0]?.generation_sequence)).toBeGreaterThan(0);
+    await migrated.close();
+
     const reopened = await NimantoStore.open(data);
     stores.push(reopened);
     expect(await reopened.getPacket("legacy-tenant", "legacy-packet")).toMatchObject({
@@ -534,12 +545,7 @@ describe("beta workflow persistence", () => {
     expect(await store.listJobsByIds(alpha.tenantId, [job.id, "missing-job"])).toEqual([
       expect.objectContaining({ id: job.id }),
     ]);
-    const expectedPacketOrder = [packet1, packet2]
-      .toSorted(
-        (left, right) =>
-          right.createdAt.localeCompare(left.createdAt) || right.id.localeCompare(left.id),
-      )
-      .map((packet) => packet.id);
+    const expectedPacketOrder = [packet2.id, packet1.id];
     expect(
       (await store.listApplicationPackets(alpha.tenantId, application.id)).items.map(
         (item) => item.id,
@@ -650,6 +656,86 @@ describe("beta workflow persistence", () => {
         )
       ).status,
     ).toBe("approved");
+  });
+
+  it("upgrades v0.5.3 packet history and makes every later generation exact", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nimanto-store-packet-sequence-upgrade-"));
+    const data = join(root, "data");
+    const store = await NimantoStore.open(data);
+    stores.push(store);
+    const identity = await store.createLocalTenant("packet-upgrade@example.test", "Packet Upgrade");
+    const job = await store.upsertJob(identity.tenantId, {
+      source: "manual",
+      sourceJobId: "packet-upgrade-job",
+      title: "Engineer",
+      company: "Northwind",
+      description: "Preserve packet history",
+      location: "",
+      workMode: "unspecified",
+      url: "",
+      requirements: [],
+      capability: "deep_link",
+      sourceMeta: {},
+      contentHash: "packet-upgrade-content",
+    });
+    const application = await store.createApplication(identity.tenantId, job.id, null);
+    const first = await store.createPacket(identity.tenantId, {
+      id: "zzzz-legacy-first",
+      applicationId: application.id,
+      profileVersionId: null,
+      canonicalContent: { generation: "first" },
+      artifactManifest: { artifacts: [{ filename: "first.txt" }] },
+    });
+    const second = await store.createPacket(identity.tenantId, {
+      id: "aaaa-legacy-second",
+      applicationId: application.id,
+      profileVersionId: null,
+      canonicalContent: { generation: "second" },
+      artifactManifest: { artifacts: [{ filename: "second.txt" }] },
+    });
+    await store.close();
+    stores.splice(stores.indexOf(store), 1);
+
+    const legacy = await PGlite.create(data);
+    await legacy.query(
+      `UPDATE packets SET created_at = '2026-08-20T00:00:00.000Z'::timestamptz
+       WHERE id = ANY($1::text[])`,
+      [[first.id, second.id]],
+    );
+    await legacy.exec("ALTER TABLE packets DROP COLUMN generation_sequence");
+    await legacy.exec("DROP SEQUENCE IF EXISTS packets_generation_sequence_seq");
+    await legacy.exec("DELETE FROM schema_versions WHERE version = 4");
+    await legacy.close();
+
+    const upgraded = await NimantoStore.open(data);
+    expect(
+      (await upgraded.listApplicationPackets(identity.tenantId, application.id)).items.map(
+        (packet) => packet.id,
+      ),
+    ).toEqual([first.id, second.id]);
+    expect(await upgraded.getPacket(identity.tenantId, first.id)).toMatchObject({
+      canonicalContent: { generation: "first" },
+      artifactManifest: { artifacts: [{ filename: "first.txt" }] },
+    });
+    const postUpgrade = await upgraded.createPacket(identity.tenantId, {
+      id: "0000-post-upgrade",
+      applicationId: application.id,
+      profileVersionId: null,
+      canonicalContent: { generation: "post-upgrade" },
+      artifactManifest: { artifacts: [{ filename: "post-upgrade.txt" }] },
+    });
+    expect(await upgraded.getLatestPacketForApplication(identity.tenantId, application.id)).toEqual(
+      postUpgrade,
+    );
+    await upgraded.close();
+
+    const reopened = await NimantoStore.open(data);
+    stores.push(reopened);
+    expect(
+      (await reopened.listApplicationPackets(identity.tenantId, application.id)).items.map(
+        (packet) => packet.id,
+      ),
+    ).toEqual([postUpgrade.id, first.id, second.id]);
   });
 
   it("rejects a schedule that its provider adapter could never execute", async () => {

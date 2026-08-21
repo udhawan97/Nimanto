@@ -111,6 +111,9 @@ export class ExternalActionLifecycle {
       }
       if (!current.packetId) throw new Error("APPROVED_PACKET_REQUIRED");
       const packet = await database.getPacket(tenantId, current.packetId);
+      if (!packet) throw new Error("APPROVED_PACKET_REQUIRED");
+      const latest = await database.getLatestPacketForApplication(tenantId, packet.applicationId);
+      if (latest?.id !== packet.id) throw new Error("ACTION_APPROVAL_STALE");
       const exactIntentHash = canonicalHash({
         packetId: current.packetId,
         provider: current.provider,
@@ -118,7 +121,7 @@ export class ExternalActionLifecycle {
         payload: current.payload,
       });
       if (
-        packet?.status !== "approved" ||
+        packet.status !== "approved" ||
         packet.artifactHash !== current.approvedPacketHash ||
         exactIntentHash !== current.approvedIntentHash ||
         exactIntentHash !== current.intentHash
@@ -148,6 +151,34 @@ export class ExternalActionLifecycle {
     try {
       const outcome = await this.store.transaction(async (database) => {
         await database.lockTenantActive(tenantId);
+        // Approval and provider execution are intentionally separate user
+        // decisions. Recheck currentness after reacquiring the lock so a packet
+        // generated in that gap invalidates the action before any effect.
+        const current = await database.getExternalAction(tenantId, id);
+        const packet = current?.packetId
+          ? await database.getPacket(tenantId, current.packetId)
+          : null;
+        const latest = packet
+          ? await database.getLatestPacketForApplication(tenantId, packet.applicationId)
+          : null;
+        if (
+          current?.state !== "executing" ||
+          !packet ||
+          packet.status !== "approved" ||
+          latest?.id !== packet.id ||
+          packet.artifactHash !== current.approvedPacketHash
+        ) {
+          if (current?.state !== "executing") throw new Error("INVALID_TRANSITION");
+          const failed = await database.transitionExternalAction(
+            tenantId,
+            id,
+            "executing",
+            "failed",
+            { errorCode: "ACTION_APPROVAL_STALE" },
+          );
+          if (!failed) throw new Error("ACTION_OUTCOME_PERSIST_FAILED");
+          return { succeeded: false as const, error: new Error("ACTION_APPROVAL_STALE") };
+        }
         let result: Awaited<ReturnType<ProviderActionExecutor>>;
         try {
           result = await this.executeAction(actionPayload, {

@@ -19,7 +19,7 @@ const METHOD = [
   {
     step: "01",
     title: "Collect",
-    body: "Review the exact bounded claim projection from TXT, Markdown, JSON, DOCX, a text-layer PDF, or approved LinkedIn archive fields. A changed preview or interrupted commit writes nothing; every new claim still waits for you.",
+    body: "Review the exact bounded claim projection from TXT, Markdown, JSON, DOCX, a text-layer PDF, or approved LinkedIn archive fields. Evidence fields stay with the signed-in tab while you move between sections; every new claim still waits for you.",
   },
   {
     step: "02",
@@ -39,7 +39,7 @@ const METHOD = [
   {
     step: "05",
     title: "Approve",
-    body: "Pass assurance, approve the packet, approve the exact action, then turn on a runtime switch that resets itself off. Hash-checked local receipts preserve the thread without claiming an employer received it.",
+    body: "Pass assurance, approve the current packet, approve the exact action, then turn on a runtime switch that resets itself off. A newer packet retires older handoffs before they can run, and hash-checked local receipts never claim an employer received it.",
   },
 ];
 
@@ -54,7 +54,7 @@ const BOUNDARY = [
   },
   {
     title: "No silent send.",
-    body: "Nothing leaves this machine without assurance, a packet approval, an action approval, and a live switch.",
+    body: "Nothing leaves this machine without assurance, approval of the current packet, an exact action approval, and a live switch.",
   },
   {
     title: "No invented history.",
@@ -88,7 +88,7 @@ export default function Home() {
         {/* 00 — the invitation opens toward the literal product job. */}
         <section className="hero" aria-labelledby="hero-title">
           <div className="hero-copy">
-            <p className="placard">Source-distributed local beta · v0.5.3</p>
+            <p className="placard">Source-distributed local beta · v0.5.4</p>
             <h1 id="hero-title">Nimanto</h1>
             <h2>Build the evidence. Work the application. Keep the truth yours.</h2>
             <p className="hero-line">
@@ -152,9 +152,9 @@ export default function Home() {
               <p className="placard">02 — Workbench</p>
               <h2 id="workbench-title">The next action comes before the analytics.</h2>
               <p className="band-lede">
-                Applications opens on the record you can work: choose only a legal candidate move,
-                explicitly confirm a consequential one, record an outcome from either view, or
-                return to a role. The API checks the same transition before it commits.
+                Applications opens on the record you can work. Draft actions, outcomes, filters, and
+                review inputs stay in the signed-in tab while you move between sections; slow saves
+                preserve newer typing, and an identity change clears the old workspace first.
               </p>
               <p className="quiet">
                 The screen is synthetic current-runtime evidence. Outcomes are records entered by
@@ -170,7 +170,7 @@ export default function Home() {
                 alt="Synthetic Nimanto Applications workbench with the action-first pipeline and Record outcome controls"
               />
               <figcaption>
-                v0.5.3 · server-confirmed Applications · synthetic local workspace
+                v0.5.4 · server-confirmed Applications · synthetic local workspace
               </figcaption>
             </figure>
           </div>
@@ -327,7 +327,7 @@ export default function Home() {
               <div className="run-block flow">
                 <p className="placard">Terminal start</p>
                 <CopyLine command="git clone https://github.com/udhawan97/Nimanto.git" />
-                <CopyLine command="cd Nimanto && git checkout v0.5.3" />
+                <CopyLine command="cd Nimanto && git checkout v0.5.4" />
                 <CopyLine command="corepack enable && pnpm install --frozen-lockfile && pnpm dev" />
                 <p className="run-note">
                   Open the private workspace URL printed by the API. Its launch key stays in the URL
@@ -336,7 +336,7 @@ export default function Home() {
               </div>
               <aside className="release-proof flow" aria-labelledby="release-proof-title">
                 <ShieldCheck aria-hidden="true" />
-                <p className="placard">Source release · v0.5.3</p>
+                <p className="placard">Source release · v0.5.4</p>
                 <h3 id="release-proof-title">Verify the published inventories.</h3>
                 <p>
                   Nimanto publishes CycloneDX and SPDX inventories with a SHA-256 manifest covering
@@ -345,19 +345,19 @@ export default function Home() {
                 </p>
                 <a
                   className="text-link"
-                  href="https://github.com/udhawan97/Nimanto/releases/tag/v0.5.3"
+                  href="https://github.com/udhawan97/Nimanto/releases/tag/v0.5.4"
                 >
-                  Open the v0.5.3 source release <ArrowRight size={15} />
+                  Open the v0.5.4 source release <ArrowRight size={15} />
                 </a>
                 <a
                   className="text-link"
-                  href="https://github.com/udhawan97/Nimanto/blob/v0.5.3/docs/releases/v0.5.3.md"
+                  href="https://github.com/udhawan97/Nimanto/blob/v0.5.4/docs/releases/v0.5.4.md"
                 >
-                  Read the v0.5.3 notes <ArrowRight size={15} />
+                  Read the v0.5.4 notes <ArrowRight size={15} />
                 </a>
                 <a
                   className="text-link"
-                  href="https://github.com/udhawan97/Nimanto/blob/v0.5.3/README.md#verify-a-source-release"
+                  href="https://github.com/udhawan97/Nimanto/blob/v0.5.4/README.md#verify-a-source-release"
                 >
                   Check hashes and inventories <ArrowRight size={15} />
                 </a>
@@ -418,8 +418,8 @@ export default function Home() {
             <a href="https://github.com/udhawan97/Nimanto/blob/main/docs/operations/local-beta.md">
               Operations
             </a>
-            <a href="https://github.com/udhawan97/Nimanto/blob/v0.5.3/docs/releases/v0.5.3.md">
-              v0.5.3 notes
+            <a href="https://github.com/udhawan97/Nimanto/blob/v0.5.4/docs/releases/v0.5.4.md">
+              v0.5.4 notes
             </a>
             <a href="https://github.com/udhawan97/Nimanto/blob/main/LICENSE">Apache-2.0</a>
           </nav>

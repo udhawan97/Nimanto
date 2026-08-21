@@ -1682,26 +1682,32 @@ export class NimantoStore {
     const id = input.id ?? randomUUID();
     const artifactHash = canonicalHash(input.canonicalContent);
     const manifestHash = canonicalHash(input.artifactManifest);
-    const result = await this.#db.query<any>(
-      `INSERT INTO packets(
-        id, tenant_id, application_id, profile_version_id, status,
-        canonical_content, artifact_manifest, artifact_hash, manifest_hash
-       ) SELECT $1,$2,$3,$4,'draft',$5::jsonb,$6::jsonb,$7,$8
-       WHERE EXISTS (SELECT 1 FROM applications WHERE id = $3 AND tenant_id = $2)
-       RETURNING *`,
-      [
-        id,
-        tenantId,
-        input.applicationId,
-        input.profileVersionId,
-        JSON.stringify(input.canonicalContent),
-        JSON.stringify(input.artifactManifest),
-        artifactHash,
-        manifestHash,
-      ],
-    );
-    if (!result.rows[0]) throw new Error("APPLICATION_NOT_FOUND");
-    return this.#mapPacket(result.rows[0]);
+    return this.transaction(async (database) => {
+      // The sequence is allocated only after taking the same tenant lock used
+      // by current-packet action decisions. This makes generation order exact
+      // even when PostgreSQL timestamps tie within one transaction.
+      await database.lockTenantActive(tenantId);
+      const result = await database.#db.query<any>(
+        `INSERT INTO packets(
+          id, tenant_id, application_id, profile_version_id, status,
+          canonical_content, artifact_manifest, artifact_hash, manifest_hash
+         ) SELECT $1,$2,$3,$4,'draft',$5::jsonb,$6::jsonb,$7,$8
+         WHERE EXISTS (SELECT 1 FROM applications WHERE id = $3 AND tenant_id = $2)
+         RETURNING *`,
+        [
+          id,
+          tenantId,
+          input.applicationId,
+          input.profileVersionId,
+          JSON.stringify(input.canonicalContent),
+          JSON.stringify(input.artifactManifest),
+          artifactHash,
+          manifestHash,
+        ],
+      );
+      if (!result.rows[0]) throw new Error("APPLICATION_NOT_FOUND");
+      return database.#mapPacket(result.rows[0]);
+    });
   }
 
   #mapPacket(row: any): PacketRecord {
@@ -1735,7 +1741,7 @@ export class NimantoStore {
     const result = await this.#db.query<any>(
       `SELECT * FROM packets
        WHERE tenant_id = $1 AND application_id = $2
-       ORDER BY created_at DESC, id DESC
+       ORDER BY generation_sequence DESC
        LIMIT 1`,
       [tenantId, applicationId],
     );
@@ -1744,7 +1750,7 @@ export class NimantoStore {
 
   async listPackets(tenantId: string): Promise<PacketRecord[]> {
     const result = await this.#db.query<any>(
-      "SELECT * FROM packets WHERE tenant_id = $1 ORDER BY created_at DESC, id DESC",
+      "SELECT * FROM packets WHERE tenant_id = $1 ORDER BY generation_sequence DESC",
       [tenantId],
     );
     return result.rows.map((row) => this.#mapPacket(row));
@@ -1755,8 +1761,8 @@ export class NimantoStore {
       `SELECT * FROM (
          SELECT DISTINCT ON (application_id) * FROM packets
          WHERE tenant_id = $1
-         ORDER BY application_id, created_at DESC, id DESC
-       ) AS latest ORDER BY created_at DESC, id DESC`,
+         ORDER BY application_id, generation_sequence DESC
+       ) AS latest ORDER BY generation_sequence DESC`,
       [tenantId],
     );
     return result.rows.map((row) => this.#mapPacket(row));
@@ -1768,7 +1774,7 @@ export class NimantoStore {
     const result = await this.#db.query<any>(
       `SELECT * FROM packets
        WHERE tenant_id = $1 AND id = ANY($2::text[])
-       ORDER BY created_at DESC, id DESC`,
+       ORDER BY generation_sequence DESC`,
       [tenantId, uniqueIds],
     );
     return result.rows.map((row) => this.#mapPacket(row));
@@ -1785,10 +1791,10 @@ export class NimantoStore {
     );
     if (!application.rows[0]) throw new Error("APPLICATION_NOT_FOUND");
     const limit = historyLimit(options.limit);
-    let anchor: { created_at: string | Date; id: string } | undefined;
+    let anchor: { generation_sequence: string | number } | undefined;
     if (options.cursor) {
-      const result = await this.#db.query<{ created_at: string | Date; id: string }>(
-        `SELECT created_at, id FROM packets
+      const result = await this.#db.query<{ generation_sequence: string | number }>(
+        `SELECT generation_sequence FROM packets
          WHERE tenant_id = $1 AND application_id = $2 AND id = $3 LIMIT 1`,
         [tenantId, applicationId, options.cursor],
       );
@@ -1798,15 +1804,9 @@ export class NimantoStore {
     const result = await this.#db.query<any>(
       `SELECT * FROM packets
        WHERE tenant_id = $1 AND application_id = $2
-         AND ($3::timestamptz IS NULL OR (created_at, id) < ($3::timestamptz, $4::text))
-       ORDER BY created_at DESC, id DESC LIMIT $5`,
-      [
-        tenantId,
-        applicationId,
-        anchor ? iso(anchor.created_at) : null,
-        anchor?.id ?? null,
-        limit + 1,
-      ],
+         AND ($3::bigint IS NULL OR generation_sequence < $3::bigint)
+       ORDER BY generation_sequence DESC LIMIT $4`,
+      [tenantId, applicationId, anchor?.generation_sequence ?? null, limit + 1],
     );
     const items = result.rows.slice(0, limit).map((row) => this.#mapPacket(row));
     return {
@@ -2128,12 +2128,17 @@ export class NimantoStore {
 
   async approveExternalActionExact(tenantId: string, id: string): Promise<ExternalActionRecord> {
     return this.transaction(async (database) => {
-      await database.assertTenantActive(tenantId);
+      // Packet generation uses this same tenant lock. The packet that the
+      // candidate reviewed must therefore still be current at the exact
+      // approval boundary, not merely when the action draft was created.
+      await database.lockTenantActive(tenantId);
       const action = await database.getExternalAction(tenantId, id);
       if (!action) throw new Error("ACTION_NOT_FOUND");
       if (!action.packetId) throw new Error("APPROVED_PACKET_REQUIRED");
       const packet = await database.getPacket(tenantId, action.packetId);
       if (packet?.status !== "approved") throw new Error("APPROVED_PACKET_REQUIRED");
+      const latest = await database.getLatestPacketForApplication(tenantId, packet.applicationId);
+      if (latest?.id !== packet.id) throw new Error("LATEST_APPROVED_PACKET_REQUIRED");
       const currentIntentHash = canonicalHash({
         packetId: action.packetId,
         provider: action.provider,

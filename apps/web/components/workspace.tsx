@@ -5073,8 +5073,8 @@ function Actions({
             </label>
             {!packetSelectionValid && (
               <p className="field-error action-packet-error" id="action-draft-packet-error">
-                The previously reviewed packet is no longer approved here. Select a current approved
-                packet before creating the request; the recipient and message are still kept.
+                A newer packet replaced the one previously reviewed. Review and approve the current
+                packet, then select it; your recipient and message are still kept.
               </p>
             )}
             <label>

@@ -697,6 +697,18 @@ describe("failure messages", () => {
     );
   });
 
+  it("explains how to recover when a newer packet invalidates an approved action", () => {
+    expect(failureMessage({ code: "ACTION_APPROVAL_STALE", message: "generic" })).toBe(
+      "A newer packet replaced the one approved for this action. Review and approve the current packet, then create and approve a replacement action.",
+    );
+  });
+
+  it("requires a replacement action when the selected packet is no longer current", () => {
+    expect(failureMessage({ code: "LATEST_APPROVED_PACKET_REQUIRED", message: "generic" })).toBe(
+      "A newer packet replaced the one selected for this action. Refresh, review and approve the current packet, then create and approve a replacement action.",
+    );
+  });
+
   it("keeps the server wording when the code is not one it can improve on", () => {
     expect(failureMessage({ code: "SOMETHING_NEW", message: "Server said this." })).toBe(
       "Server said this.",

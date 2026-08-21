@@ -88,6 +88,149 @@ describe("external action lifecycle", () => {
     ).rejects.toThrow("LATEST_APPROVED_PACKET_REQUIRED");
   });
 
+  it("uses generation order when packet timestamps tie", async () => {
+    const { store, identity, application, outboxDirectory } =
+      await approvedActionFixture("tied-packets");
+    const { older, newer } = await store.transaction(async (database) => {
+      const older = await database.createPacket(identity.tenantId, {
+        id: "zzzz-tied-older",
+        applicationId: application.id,
+        profileVersionId: null,
+        canonicalContent: { claims: ["older"] },
+        artifactManifest: {},
+      });
+      const assurance = await database.saveAssurance(identity.tenantId, older.id, {
+        status: "passed",
+        ruleVersion: "application_assurance_v1",
+        findings: [],
+      });
+      await database.approvePacketExact(
+        identity.tenantId,
+        older.id,
+        assurance.id,
+        older.artifactHash,
+        older.manifestHash,
+      );
+      const newer = await database.createPacket(identity.tenantId, {
+        id: "aaaa-tied-newer",
+        applicationId: application.id,
+        profileVersionId: null,
+        canonicalContent: { claims: ["newer"] },
+        artifactManifest: {},
+      });
+      return { older, newer };
+    });
+    expect(older.createdAt).toBe(newer.createdAt);
+    await expect(
+      store.getLatestPacketForApplication(identity.tenantId, application.id),
+    ).resolves.toMatchObject({ id: newer.id });
+
+    const lifecycle = new ExternalActionLifecycle(store, outboxDirectory);
+    await expect(
+      lifecycle.request({
+        tenantId: identity.tenantId,
+        packetId: older.id,
+        provider: "test_outbox",
+        to: "jobs@example.test",
+        subject: "Tied timestamp",
+        body: "The older packet must stay historical.",
+      }),
+    ).rejects.toThrow("LATEST_APPROVED_PACKET_REQUIRED");
+  });
+
+  it("rejects approval when a newer packet replaces the action packet", async () => {
+    const { store, identity, application, packet, outboxDirectory } =
+      await approvedActionFixture("retired-before-approval");
+    const pending = await store.createExternalAction(identity.tenantId, {
+      packetId: packet.id,
+      provider: "test_outbox",
+      target: { to: "pending@example.test" },
+      payload: { subject: "Pending action", body: "Must remain pending." },
+      idempotencyKey: "retired-before-approval-pending",
+    });
+    await store.createPacket(identity.tenantId, {
+      applicationId: application.id,
+      profileVersionId: null,
+      canonicalContent: { claims: ["newer"] },
+      artifactManifest: {},
+    });
+
+    const lifecycle = new ExternalActionLifecycle(store, outboxDirectory);
+    await expect(lifecycle.approve(identity.tenantId, pending.id)).rejects.toThrow(
+      "LATEST_APPROVED_PACKET_REQUIRED",
+    );
+    await expect(store.getExternalAction(identity.tenantId, pending.id)).resolves.toMatchObject({
+      state: "pending_approval",
+      approvedAt: null,
+    });
+  });
+
+  it("rejects execution without an outbox effect when a newer packet appears", async () => {
+    const { store, identity, application, action, outboxDirectory } = await approvedActionFixture(
+      "retired-before-execution",
+    );
+    await store.createPacket(identity.tenantId, {
+      applicationId: application.id,
+      profileVersionId: null,
+      canonicalContent: { claims: ["newer"] },
+      artifactManifest: {},
+    });
+    let providerCalls = 0;
+    const lifecycle = new ExternalActionLifecycle(store, outboxDirectory, async () => {
+      providerCalls += 1;
+      throw new Error("PROVIDER_MUST_NOT_RUN");
+    });
+    lifecycle.setRuntime(true);
+
+    await expect(lifecycle.execute(identity.tenantId, action.id)).rejects.toThrow(
+      "ACTION_APPROVAL_STALE",
+    );
+    expect(providerCalls).toBe(0);
+    await expect(store.getExternalAction(identity.tenantId, action.id)).resolves.toMatchObject({
+      state: "approved",
+    });
+    await expect(access(join(outboxDirectory, `${action.id}.json`))).rejects.toThrow();
+  });
+
+  it("persists a stale failure when a newer packet appears before the provider lock", async () => {
+    const { store, identity, application, action, outboxDirectory } = await approvedActionFixture(
+      "packet-execution-interleave",
+    );
+    let providerCalls = 0;
+    const lifecycle = new ExternalActionLifecycle(store, outboxDirectory, async () => {
+      providerCalls += 1;
+      throw new Error("PROVIDER_MUST_NOT_RUN");
+    });
+    const originalTransaction = store.transaction.bind(store);
+    let lifecycleTransactions = 0;
+    store.transaction = async <T>(work: (database: NimantoStore) => Promise<T>): Promise<T> => {
+      const result = await originalTransaction(work);
+      lifecycleTransactions += 1;
+      if (lifecycleTransactions === 1) {
+        await originalTransaction(async (database) => {
+          await database.createPacket(identity.tenantId, {
+            applicationId: application.id,
+            profileVersionId: null,
+            canonicalContent: { claims: ["interleaved newer packet"] },
+            artifactManifest: {},
+          });
+        });
+      }
+      return result;
+    };
+    lifecycle.setRuntime(true);
+
+    await expect(lifecycle.execute(identity.tenantId, action.id)).rejects.toThrow(
+      "ACTION_APPROVAL_STALE",
+    );
+    expect(providerCalls).toBe(0);
+    await expect(store.getExternalAction(identity.tenantId, action.id)).resolves.toMatchObject({
+      state: "failed",
+      result: { errorCode: "ACTION_APPROVAL_STALE" },
+    });
+    await expect(access(join(outboxDirectory, `${action.id}.json`))).rejects.toThrow();
+  });
+
   it("holds deletion behind the provider effect and leaves no post-cleanup outbox file", async () => {
     const { store, identity, action, artifactDirectory, outboxDirectory } =
       await approvedActionFixture("action-race");
