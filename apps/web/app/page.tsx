@@ -88,7 +88,7 @@ export default function Home() {
         {/* 00 — the invitation opens toward the literal product job. */}
         <section className="hero" aria-labelledby="hero-title">
           <div className="hero-copy">
-            <p className="placard">Source-distributed local beta · v0.5.2</p>
+            <p className="placard">Source-distributed local beta · v0.5.3</p>
             <h1 id="hero-title">Nimanto</h1>
             <h2>Build the evidence. Work the application. Keep the truth yours.</h2>
             <p className="hero-line">
@@ -170,7 +170,7 @@ export default function Home() {
                 alt="Synthetic Nimanto Applications workbench with the action-first pipeline and Record outcome controls"
               />
               <figcaption>
-                v0.5.2 · server-confirmed Applications · synthetic local workspace
+                v0.5.3 · server-confirmed Applications · synthetic local workspace
               </figcaption>
             </figure>
           </div>
@@ -327,7 +327,7 @@ export default function Home() {
               <div className="run-block flow">
                 <p className="placard">Terminal start</p>
                 <CopyLine command="git clone https://github.com/udhawan97/Nimanto.git" />
-                <CopyLine command="cd Nimanto && git checkout v0.5.2" />
+                <CopyLine command="cd Nimanto && git checkout v0.5.3" />
                 <CopyLine command="corepack enable && pnpm install --frozen-lockfile && pnpm dev" />
                 <p className="run-note">
                   Open the private workspace URL printed by the API. Its launch key stays in the URL
@@ -336,7 +336,7 @@ export default function Home() {
               </div>
               <aside className="release-proof flow" aria-labelledby="release-proof-title">
                 <ShieldCheck aria-hidden="true" />
-                <p className="placard">Source release · v0.5.2</p>
+                <p className="placard">Source release · v0.5.3</p>
                 <h3 id="release-proof-title">Verify the published inventories.</h3>
                 <p>
                   Nimanto publishes CycloneDX and SPDX inventories with a SHA-256 manifest covering
@@ -345,19 +345,19 @@ export default function Home() {
                 </p>
                 <a
                   className="text-link"
-                  href="https://github.com/udhawan97/Nimanto/releases/tag/v0.5.2"
+                  href="https://github.com/udhawan97/Nimanto/releases/tag/v0.5.3"
                 >
-                  Open the v0.5.2 source release <ArrowRight size={15} />
+                  Open the v0.5.3 source release <ArrowRight size={15} />
                 </a>
                 <a
                   className="text-link"
-                  href="https://github.com/udhawan97/Nimanto/blob/v0.5.2/docs/releases/v0.5.2.md"
+                  href="https://github.com/udhawan97/Nimanto/blob/v0.5.3/docs/releases/v0.5.3.md"
                 >
-                  Read the v0.5.2 notes <ArrowRight size={15} />
+                  Read the v0.5.3 notes <ArrowRight size={15} />
                 </a>
                 <a
                   className="text-link"
-                  href="https://github.com/udhawan97/Nimanto/blob/v0.5.2/README.md#verify-a-source-release"
+                  href="https://github.com/udhawan97/Nimanto/blob/v0.5.3/README.md#verify-a-source-release"
                 >
                   Check hashes and inventories <ArrowRight size={15} />
                 </a>
@@ -418,8 +418,8 @@ export default function Home() {
             <a href="https://github.com/udhawan97/Nimanto/blob/main/docs/operations/local-beta.md">
               Operations
             </a>
-            <a href="https://github.com/udhawan97/Nimanto/blob/v0.5.2/docs/releases/v0.5.2.md">
-              v0.5.2 notes
+            <a href="https://github.com/udhawan97/Nimanto/blob/v0.5.3/docs/releases/v0.5.3.md">
+              v0.5.3 notes
             </a>
             <a href="https://github.com/udhawan97/Nimanto/blob/main/LICENSE">Apache-2.0</a>
           </nav>

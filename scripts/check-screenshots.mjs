@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  assertScreenshotBytesMatch,
   assertScreenshotVisuallyMatches,
   verifyScreenshotEvidence,
   writeScreenshotEvidence,
@@ -142,6 +143,11 @@ try {
     console.log("Updated committed screenshots and their source evidence manifest.");
   } else {
     await verifyScreenshotEvidence(repository, evidenceManifest);
+    assertScreenshotBytesMatch(
+      committedWorkbench,
+      committedPublicWorkbench,
+      "Committed documentation and public workbench screenshots",
+    );
     const landingComparison = await assertScreenshotVisuallyMatches(
       landing,
       committedLanding,

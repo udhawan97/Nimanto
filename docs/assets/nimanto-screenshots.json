@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "sourceDigest": "2dfad4336292a7d7f62e9d13675b54b8ff6abfbc01a29f6868801f7a4f504f7e",
+  "sourceDigest": "90f8ddbe2f08baeb2d5ad36b2e1b42ec17ccec2d7296977d94e4c12382fe8538",
   "assets": {
     "apps/web/public/assets/nimanto-workbench.png": "0a76835ddd77f1c95f3d7d0b5cf7490cec6281d11a156a6f5ee32ae5e79a5281",
-    "docs/assets/nimanto-landing.png": "87a6dc8fd7905fdd3ce4bd0a5e919a00433561e936373af8e53bafb4f64ca5a3",
+    "docs/assets/nimanto-landing.png": "f0397f6e9b8b28e089f18aa603b3ab882ec121cac4d73c6b9de48121bf267329",
     "docs/assets/nimanto-workbench.png": "0a76835ddd77f1c95f3d7d0b5cf7490cec6281d11a156a6f5ee32ae5e79a5281"
   }
 }

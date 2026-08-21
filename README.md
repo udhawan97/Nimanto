@@ -31,7 +31,7 @@
   ·
   <a href="#what-it-actually-does"><strong>What it does</strong></a>
   ·
-  <a href="docs/releases/v0.5.2.md"><strong>v0.5.2 notes</strong></a>
+  <a href="docs/releases/v0.5.3.md"><strong>v0.5.3 notes</strong></a>
   ·
   <a href="docs/planning/product-contract.md"><strong>Product contract</strong></a>
 </p>
@@ -66,7 +66,14 @@ Nimanto is a **candidate tool**. It does not screen you for employers, estimate
 your hiring odds, give legal advice, or promise that a company sponsors transfers
 today.
 
-## New in v0.5.2
+## New in v0.5.3
+
+- **Screenshot proof is enforced, not merely recorded.** The current-source and
+  asset digests, disposable capture, and bounded cross-host comparison now also
+  assert that the documentation and public workbench PNGs are byte-identical;
+  a negative test proves divergent copies fail closed.
+
+### Carried forward from v0.5.2
 
 - **Keyboard exits are explicit and reversible.** Escape cancels every shared
   in-product confirmation without committing its action, and focus returns to
@@ -80,7 +87,7 @@ today.
   `aria-describedby` relationship.
 - **The public surface is current again.** The README, website, release paths,
   screenshots, dependency inventories, and operations guidance now describe one
-  source-distributed `v0.5.2` beta with three explicit, bounded runtime paths.
+  source-distributed `v0.5.3` beta with three explicit, bounded runtime paths.
 
 ## Previously in v0.5.1
 
@@ -166,7 +173,7 @@ something that opens because you opened it.
 
 ## Run it
 
-Nimanto v0.5.2 is source-distributed. It does **not** ship a signed installer or
+Nimanto v0.5.3 is source-distributed. It does **not** ship a signed installer or
 desktop binary.
 
 | Runtime path       | Best for                          | Start here                                                      |
@@ -176,7 +183,7 @@ desktop binary.
 | Docker on loopback | Invite-only local/self-hosted QA  | `docker compose up --build`; keep ports bound to `127.0.0.1`    |
 
 Acquire the exact source from the pinned
-[v0.5.2 release](https://github.com/udhawan97/Nimanto/releases/tag/v0.5.2); GitHub
+[v0.5.3 release](https://github.com/udhawan97/Nimanto/releases/tag/v0.5.3); GitHub
 generates its ZIP and tar archive from that tag.
 
 ### One double-click on macOS
@@ -191,7 +198,7 @@ Requirements: Node.js 24–26, pnpm 11, and macOS, Linux or Windows.
 ```bash
 git clone https://github.com/udhawan97/Nimanto.git
 cd Nimanto
-git checkout v0.5.2
+git checkout v0.5.3
 corepack enable
 pnpm install --frozen-lockfile
 pnpm dev
@@ -212,11 +219,11 @@ issue a hashed, expiring, single-use invitation.
 ### Verify a source release
 
 Every release publishes the two dependency inventories beside one checksum
-manifest. After downloading the three `v0.5.2` assets into an empty directory,
+manifest. After downloading the three `v0.5.3` assets into an empty directory,
 verify both inventories before inspecting or building the source archive:
 
 ```bash
-shasum -a 256 --check nimanto-v0.5.2-SHA256SUMS.txt
+shasum -a 256 --check nimanto-v0.5.3-SHA256SUMS.txt
 ```
 
 The manifest covers the CycloneDX and SPDX files. GitHub generates the source
@@ -428,7 +435,7 @@ design-token contrast, API integration, and fifteen sequential WebKit journeys.
 
 ## Beta boundaries
 
-Version `0.5.2` is a **local beta**:
+Version `0.5.3` is a **local beta**:
 
 - The local candidate workflow is implemented and tested.
 - Public website hosting carries product information and the static workbench
@@ -486,5 +493,5 @@ of scope.
 Apache License 2.0. See [LICENSE](LICENSE), [NOTICE](NOTICE),
 [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md),
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), and the release
-[CycloneDX](docs/releases/nimanto-v0.5.2.cdx.json) /
-[SPDX](docs/releases/nimanto-v0.5.2.spdx.json) inventories.
+[CycloneDX](docs/releases/nimanto-v0.5.3.cdx.json) /
+[SPDX](docs/releases/nimanto-v0.5.3.spdx.json) inventories.

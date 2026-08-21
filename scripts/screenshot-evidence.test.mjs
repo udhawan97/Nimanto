@@ -5,10 +5,26 @@ import path from "node:path";
 import test from "node:test";
 import sharp from "sharp";
 import {
+  assertScreenshotBytesMatch,
   assertScreenshotVisuallyMatches,
   verifyScreenshotEvidence,
   writeScreenshotEvidence,
 } from "./screenshot-evidence.mjs";
+
+test("the documentation and public workbench copies must remain byte-identical", () => {
+  assert.doesNotThrow(() =>
+    assertScreenshotBytesMatch(Buffer.from("same"), Buffer.from("same"), "workbench copies"),
+  );
+  assert.throws(
+    () =>
+      assertScreenshotBytesMatch(
+        Buffer.from("documentation"),
+        Buffer.from("public"),
+        "workbench copies",
+      ),
+    /must be byte-identical/,
+  );
+});
 
 test("screenshot evidence fails closed when a source input or asset drifts", async () => {
   const repository = await mkdtemp(path.join(tmpdir(), "nimanto-screenshot-evidence-"));

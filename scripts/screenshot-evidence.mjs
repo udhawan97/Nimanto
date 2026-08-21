@@ -107,6 +107,12 @@ export async function verifyScreenshotEvidence(repository, manifestPath, options
   return expected;
 }
 
+export function assertScreenshotBytesMatch(actual, expected, label) {
+  if (!actual.equals(expected)) {
+    throw new Error(`${label} must be byte-identical`);
+  }
+}
+
 export async function compareScreenshotImages(actual, expected) {
   const [actualMetadata, expectedMetadata] = await Promise.all([
     sharp(actual).metadata(),
