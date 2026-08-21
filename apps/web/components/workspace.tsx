@@ -503,7 +503,6 @@ export function Workspace() {
   const menuButton = useRef<HTMLButtonElement>(null);
   const navigationPanel = useRef<HTMLElement>(null);
   const closeNavigationButton = useRef<HTMLButtonElement>(null);
-  const firstNavigationButton = useRef<HTMLButtonElement>(null);
   const refreshButton = useRef<HTMLButtonElement>(null);
   const workspaceHeader = useRef<HTMLElement>(null);
   const workspaceMain = useRef<HTMLElement>(null);
@@ -641,8 +640,6 @@ export function Workspace() {
     const onKeyDown = (event: KeyboardEvent) => {
       trapMobileNavigationKey(event, {
         panel: navigationPanel.current,
-        closeButton: closeNavigationButton.current,
-        firstNavigationButton: firstNavigationButton.current,
         close: closeMobileNavigation,
       });
     };
@@ -971,7 +968,6 @@ export function Workspace() {
             return (
               <button
                 key={item.id}
-                ref={item.id === "overview" ? firstNavigationButton : undefined}
                 type="button"
                 className={
                   section === item.id ? "workspace-nav-item is-active" : "workspace-nav-item"

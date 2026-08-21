@@ -141,8 +141,6 @@ describe("mobile navigation focus containment", () => {
       });
       trapMobileNavigationKey(event, {
         panel,
-        closeButton: close,
-        firstNavigationButton: overview,
         close: vi.fn(),
       });
       return event;
@@ -155,6 +153,10 @@ describe("mobile navigation focus containment", () => {
     close.focus();
     expect(pressTab().defaultPrevented).toBe(true);
     expect(document.activeElement).toBe(overview);
+
+    brand.focus();
+    expect(pressTab().defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(close);
 
     overview.focus();
     expect(pressTab(true).defaultPrevented).toBe(true);

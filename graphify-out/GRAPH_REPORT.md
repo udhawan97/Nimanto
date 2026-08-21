@@ -1,16 +1,16 @@
 # Graph Report - Nimanto  (2026-08-21)
 
 ## Corpus Check
-- 165 files · ~3,780,367 words
+- 165 files · ~3,780,298 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1463 nodes · 2309 edges · 101 communities (88 shown, 13 thin omitted)
+- 1463 nodes · 2309 edges · 100 communities (87 shown, 13 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 22 edges (avg confidence: 0.75)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `8e0aea82`
+- Built from commit: `a7d1caea`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -106,7 +106,6 @@
 - DeletionCoordinator
 - schedules.ts
 - What changed
-- engines
 - Nimanto Domain Language
 - external-action-lifecycle.ts
 - tokens.test.ts
@@ -145,7 +144,7 @@
 - **Confirmed Evidence to Match Flow** — docs_planning_architecture_confirmed_evidence_lifecycle, docs_planning_product_contract_career_evidence_vault, docs_planning_product_contract_evidence_states, docs_planning_product_contract_overall_match_bands, docs_planning_backend_plan_slice_1_evidence_to_match [INFERRED 0.85]
 - **Review Before External Action** — docs_planning_architecture_no_external_effects_through_slice_3, docs_planning_product_contract_source_action_contract, docs_planning_product_contract_frozen_artifact_approval, docs_planning_backend_plan_slice_3_grounded_packet [INFERRED 0.95]
 
-## Communities (101 total, 13 thin omitted)
+## Communities (100 total, 13 thin omitted)
 
 ### Community 0 - "Nimanto Sources Licenses and Provider Gate"
 Cohesion: 0.14
@@ -276,8 +275,8 @@ Cohesion: 0.18
 Nodes (10): compilerOptions, declaration, emitDeclarationOnly, noEmit, outDir, rootDir, extends, include (+2 more)
 
 ### Community 35 - "package.json"
-Cohesion: 0.18
-Nodes (10): author, bugs, url, description, homepage, license, name, packageManager (+2 more)
+Cohesion: 0.14
+Nodes (13): author, bugs, url, description, engines, node, pnpm, homepage (+5 more)
 
 ### Community 36 - "compilerOptions"
 Cohesion: 0.18
@@ -415,10 +414,6 @@ Nodes (17): metadata, viewport, BOUNDARY, METHOD, metadata, Brand(), HUB, Mark()
 Cohesion: 0.29
 Nodes (8): Provider, ProviderJobsFetcher, CurrentRole, normalized(), normalizeRoleObservation(), required(), RoleObservation, RoleSource
 
-### Community 79 - "iso"
-Cohesion: 0.14
-Nodes (3): seedDemo(), iso(), ExecutionReceipt
-
 ### Community 80 - "Nimanto v0.4.1 — Action Before Analysis"
 Cohesion: 0.13
 Nodes (13): 1. Manual role drafts survive section changes, 2. Applications opens on the work, 3. Section focus clears the sticky header, 4. No-op profile saves no longer create history, 5. Completion copy comes from returned data, Nimanto v0.4.1 — Action Before Analysis, Public surface, Surface inventory (+5 more)
@@ -432,8 +427,8 @@ Cohesion: 0.29
 Nodes (5): assets, publicAssets, root, siteOnly, workbenchOnly
 
 ### Community 83 - ".assure"
-Cohesion: 0.19
-Nodes (3): PacketLifecycle, verifiedArtifactBytes(), verifyPacketArtifacts()
+Cohesion: 0.15
+Nodes (4): PacketLifecycle, verifiedArtifactBytes(), verifyPacketArtifacts(), ExecutionReceipt
 
 ### Community 84 - "4. The mark"
 Cohesion: 0.50
@@ -447,6 +442,10 @@ Nodes (4): 6.1 Restyle — ⚑ layout, not only colour, 6.2 Features, 6.3 Robust
 Cohesion: 0.18
 Nodes (13): publishMatch(), uniqueEvidenceIds(), fixture(), stores, apps, setup(), stores, v041FixtureSql (+5 more)
 
+### Community 91 - "buildServer"
+Cohesion: 0.18
+Nodes (3): buildServer(), seedDemo(), sha256()
+
 ### Community 92 - "types.ts"
 Cohesion: 0.15
 Nodes (12): MatchRunRecord, CoverageState, EvidenceConfidence, EvidenceState, EvidenceStatus, EvidenceStrength, JobForMatching, MatchBand (+4 more)
@@ -458,10 +457,6 @@ Nodes (5): scheduledFailureEvent(), ScheduledJobEvent, scheduledRetryDelayMinute
 ### Community 95 - "What changed"
 Cohesion: 0.12
 Nodes (15): Candidate-approved evidence intake, Durable discovery and dataset editions, Exact-approved external actions, Exact-snapshot match publication, Flow and responsive polish, Nimanto v0.4.2 — Exact Review, Exact Commit, One application transition policy, Resumable deletion write fence (+7 more)
-
-### Community 96 - "engines"
-Cohesion: 0.67
-Nodes (3): engines, node, pnpm
 
 ### Community 97 - "Nimanto Domain Language"
 Cohesion: 0.33
@@ -501,7 +496,7 @@ _Questions this graph is uniquely positioned to answer:_
   _633 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Nimanto Sources Licenses and Provider Gate` be split into smaller, more focused modules?**
   _Cohesion score 0.14166666666666666 - nodes in this community are weakly interconnected._
-- **Should `NimantoStore` be split into smaller, more focused modules?**
-  _Cohesion score 0.12962962962962962 - nodes in this community are weakly interconnected._
 - **Should `store.ts` be split into smaller, more focused modules?**
   _Cohesion score 0.09401709401709402 - nodes in this community are weakly interconnected._
+- **Should `packet-lifecycle.ts` be split into smaller, more focused modules?**
+  _Cohesion score 0.13846153846153847 - nodes in this community are weakly interconnected._

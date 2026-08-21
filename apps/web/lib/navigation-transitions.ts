@@ -125,8 +125,6 @@ export function trapMobileNavigationKey(
   event: KeyboardEvent,
   input: {
     panel: HTMLElement | null;
-    closeButton: HTMLElement | null;
-    firstNavigationButton: HTMLElement | null;
     close: () => void;
   },
 ): void {
@@ -144,28 +142,13 @@ export function trapMobileNavigationKey(
   const last = focusable.at(-1);
   if (!first || !last) return;
   const active = document.activeElement;
-  if (event.shiftKey && active === input.closeButton) {
-    const closeIndex = input.closeButton ? focusable.indexOf(input.closeButton) : -1;
-    const previous = closeIndex > 0 ? focusable.at(closeIndex - 1) : last;
-    event.preventDefault();
-    previous?.focus();
-    return;
-  }
-  if (!event.shiftKey && active === input.closeButton) {
-    event.preventDefault();
-    input.firstNavigationButton?.focus();
-    return;
-  }
-  if (event.shiftKey && active === input.firstNavigationButton) {
-    event.preventDefault();
-    input.closeButton?.focus();
-    return;
-  }
-  if (event.shiftKey && (active === first || !input.panel?.contains(active))) {
-    event.preventDefault();
-    last.focus();
-  } else if (!event.shiftKey && (active === last || !input.panel?.contains(active))) {
-    event.preventDefault();
-    first.focus();
-  }
+  const activeIndex = focusable.indexOf(active as HTMLElement);
+  const nextIndex =
+    activeIndex < 0
+      ? event.shiftKey
+        ? focusable.length - 1
+        : 0
+      : (activeIndex + (event.shiftKey ? -1 : 1) + focusable.length) % focusable.length;
+  event.preventDefault();
+  focusable[nextIndex]?.focus();
 }

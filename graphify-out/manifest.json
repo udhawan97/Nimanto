@@ -100,8 +100,8 @@
     "semantic_hash": ""
   },
   "apps/web/components/workspace.tsx": {
-    "mtime": 1787327994.062201,
-    "ast_hash": "05ad8877d687ad6e14f7f346c6bc981c",
+    "mtime": 1787328714.9743147,
+    "ast_hash": "40c69ff6d6181ca1863df3e0ddb2eb25",
     "semantic_hash": ""
   },
   "apps/web/next-env.d.ts": {
@@ -820,8 +820,8 @@
     "semantic_hash": ""
   },
   "apps/web/lib/navigation-transitions.ts": {
-    "mtime": 1787327994.0603356,
-    "ast_hash": "5a25c703e387c594775de764ca0b5e89",
+    "mtime": 1787328714.9735312,
+    "ast_hash": "e4f4174b8cdffe898cbdc02c7ecbc42d",
     "semantic_hash": ""
   },
   "apps/web/lib/workbench-mutations.ts": {
@@ -835,8 +835,8 @@
     "semantic_hash": ""
   },
   "apps/web/test/navigation-transitions.test.ts": {
-    "mtime": 1787327909.4681408,
-    "ast_hash": "83a9e43661eb6a8c49199a3799f65dfc",
+    "mtime": 1787328714.9746351,
+    "ast_hash": "bc528407c114f2b5a96b1b297d42e344",
     "semantic_hash": ""
   },
   "apps/web/test/workbench-mutations.test.ts": {
