@@ -4,6 +4,7 @@ import {
   focusSectionBelowHeader,
   sectionFromHash,
   sectionHash,
+  trapMobileNavigationKey,
 } from "../lib/navigation-transitions.js";
 
 describe("workspace navigation transitions", () => {
@@ -111,5 +112,62 @@ describe("section focus does not interrupt work already underway", () => {
     expect(focused).toEqual([]);
     expect(document.activeElement).toBe(field);
     target.remove();
+  });
+});
+
+describe("mobile navigation focus containment", () => {
+  it("keeps the complete drawer order reachable in both directions", () => {
+    const panel = document.createElement("aside");
+    const brand = document.createElement("a");
+    brand.href = "../";
+    const close = document.createElement("button");
+    const overview = document.createElement("button");
+    const signOut = document.createElement("button");
+    panel.append(brand, close, overview, signOut);
+    document.body.append(panel);
+
+    for (const element of [brand, close, overview, signOut]) {
+      Object.defineProperty(element, "getClientRects", {
+        configurable: true,
+        value: () => [{ width: 1, height: 1 }] as unknown as DOMRectList,
+      });
+    }
+
+    const pressTab = (shiftKey = false) => {
+      const event = new KeyboardEvent("keydown", {
+        key: "Tab",
+        shiftKey,
+        cancelable: true,
+      });
+      trapMobileNavigationKey(event, {
+        panel,
+        closeButton: close,
+        firstNavigationButton: overview,
+        close: vi.fn(),
+      });
+      return event;
+    };
+
+    close.focus();
+    expect(pressTab(true).defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(brand);
+
+    close.focus();
+    expect(pressTab().defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(overview);
+
+    overview.focus();
+    expect(pressTab(true).defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(close);
+
+    signOut.focus();
+    expect(pressTab().defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(brand);
+
+    brand.focus();
+    expect(pressTab(true).defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(signOut);
+
+    panel.remove();
   });
 });

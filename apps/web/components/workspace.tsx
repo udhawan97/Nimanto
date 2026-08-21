@@ -1405,6 +1405,11 @@ function ConfirmAction({
     trigger.current?.focus();
   }, [armed]);
 
+  const cancel = () => {
+    returnFocus.current = true;
+    setArmed(false);
+  };
+
   if (!armed) {
     return (
       <button
@@ -1421,7 +1426,17 @@ function ConfirmAction({
   }
 
   return (
-    <span className="confirm-strip" role="group" aria-label={question}>
+    <span
+      className="confirm-strip"
+      role="group"
+      aria-label={question}
+      onKeyDown={(event) => {
+        if (event.key !== "Escape") return;
+        event.preventDefault();
+        event.stopPropagation();
+        cancel();
+      }}
+    >
       <span className="confirm-question">{question}</span>
       <button
         className="button mini danger-button"
@@ -1435,14 +1450,7 @@ function ConfirmAction({
       >
         {confirmLabel}
       </button>
-      <button
-        className="button mini quiet"
-        type="button"
-        onClick={() => {
-          returnFocus.current = true;
-          setArmed(false);
-        }}
-      >
+      <button className="button mini quiet" type="button" onClick={cancel}>
         {cancelLabel}
       </button>
     </span>
@@ -4050,6 +4058,10 @@ function Packets({
       <div className="packet-list">
         {dashboard.applications.map((application) => {
           const packet = packetByApplication.get(application.id);
+          const approvalNeedsAssurance =
+            packet !== undefined &&
+            packet.status !== "assurance_passed" &&
+            packet.status !== "approved";
           return (
             <article key={application.id} className="packet-row">
               <div className="packet-icon">
@@ -4130,9 +4142,7 @@ function Packets({
                       type="button"
                       disabled={busy || packet.status !== "assurance_passed"}
                       aria-describedby={
-                        packet.status === "assurance_passed"
-                          ? undefined
-                          : `approve-gate-${packet.id}`
+                        approvalNeedsAssurance ? `approve-gate-${packet.id}` : undefined
                       }
                       onClick={() => {
                         void onAct.run({
@@ -4160,7 +4170,7 @@ function Packets({
                   </>
                 )}
               </div>
-              {packet && packet.status !== "assurance_passed" && (
+              {approvalNeedsAssurance && packet && (
                 <small className="field-note" id={`approve-gate-${packet.id}`}>
                   Approval opens once assurance passes on this exact packet.
                 </small>

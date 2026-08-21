@@ -304,6 +304,10 @@ test("a candidate starts a private workspace and receives deterministic role exp
   /* Declining returns the candidate to the control they pressed with the draft
    * untouched; only the second, named press throws the work away. */
   await page.getByRole("button", { name: "Discard draft" }).click();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("button", { name: "Discard draft" })).toBeFocused();
+  await expect(page.getByLabel("Role title")).toHaveValue("Synthetic Reliability Engineer");
+  await page.getByRole("button", { name: "Discard draft" }).click();
   await page.getByRole("button", { name: "Keep editing" }).click();
   await expect(page.getByLabel("Role title")).toHaveValue("Synthetic Reliability Engineer");
   await expect(page.getByRole("button", { name: "Discard draft" })).toBeFocused();
@@ -362,6 +366,12 @@ test("a candidate starts a private workspace and receives deterministic role exp
   await expect(pauseNotice).toBeInViewport();
   await schedule.getByRole("button", { name: "Resume schedule" }).click();
   await expect(schedule).toContainText("Queued");
+  const cancelSchedule = schedule.getByRole("button", { name: "Cancel schedule" });
+  await cancelSchedule.click();
+  await expect(schedule.getByText(/This cannot be undone/)).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(cancelSchedule).toBeFocused();
+  await expect(schedule).toContainText("Queued");
 
   for (const width of [320, 375, 414, 768, 1280, 1440]) {
     await page.setViewportSize({ width, height: 900 });
@@ -379,7 +389,12 @@ test("a candidate starts a private workspace and receives deterministic role exp
   await expect(page.locator("#main")).toHaveAttribute("inert", "");
   await expect(page.locator(".nav-scrim")).toHaveAttribute("tabindex", "-1");
   const closeNavigation = page.getByRole("button", { name: "Close navigation" }).first();
+  const brandLink = navigationDialog.locator('a[href="../"]');
   await expect(closeNavigation).toBeVisible();
+  await expect(closeNavigation).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect(brandLink).toBeFocused();
+  await page.keyboard.press("Tab");
   await expect(closeNavigation).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: "Overview" })).toBeFocused();
@@ -387,7 +402,6 @@ test("a candidate starts a private workspace and receives deterministic role exp
   await expect(closeNavigation).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: "Overview" })).toBeFocused();
-  const brandLink = navigationDialog.locator('a[href="../"]');
   const signOut = navigationDialog.getByRole("button", { name: "Sign out" });
   await signOut.focus();
   await page.keyboard.press("Tab");
@@ -482,6 +496,10 @@ test("one guarded control owns every status change, and the two views are exclus
   await page.getByRole("button", { name: "Track", exact: true }).first().click();
   await expect(page.getByRole("button", { name: "Tracked", exact: true }).first()).toBeDisabled();
   await page.getByRole("button", { name: "Applications" }).click();
+  const writes: string[] = [];
+  page.on("request", (request) => {
+    if (request.method() === "PUT" && request.url().includes("/status")) writes.push(request.url());
+  });
 
   // Board view used to render the row list underneath it, because `hidden` lost
   // to a shared `display: grid` rule — which is what kept the unguarded status
@@ -501,6 +519,14 @@ test("one guarded control owns every status change, and the two views are exclus
   expect(workSurfaceOrder).toEqual({ dom: true, visual: true });
 
   const boardOutcome = page.getByRole("button", { name: "Record outcome" }).first();
+  const withdraw = page.locator(".board button", { hasText: /^Withdrawn$/ }).first();
+  await withdraw.click();
+  await expect(page.locator(".board .confirm-strip")).toContainText("withdrawn");
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".board .confirm-strip")).toHaveCount(0);
+  await expect(withdraw).toBeFocused();
+  await page.waitForTimeout(250);
+  expect(writes, "an escaped board confirmation must not write").toEqual([]);
   await boardOutcome.click();
   const boardOutcomeForm = page.locator(".board .outcome-form");
   await page.setViewportSize({ width: 320, height: 900 });
@@ -596,17 +622,14 @@ test("one guarded control owns every status change, and the two views are exclus
    * status the record still has. The select's snap-back is React restoring a
    * controlled value with no re-render behind it, which is exactly the kind of
    * thing that holds until someone changes the component and no test notices. */
-  const writes: string[] = [];
-  page.on("request", (request) => {
-    if (request.method() === "PUT" && request.url().includes("/status")) writes.push(request.url());
-  });
+  const writesBeforeDecline = writes.length;
   await status.selectOption("withdrawn");
   await expect(strip).toContainText("withdrawn");
   await strip.getByRole("button", { name: "Cancel" }).click();
   await expect(strip).toHaveCount(0);
   await expect(status).toHaveValue("submitted_externally");
   await page.waitForTimeout(250);
-  expect(writes, "a declined confirmation must not write").toEqual([]);
+  expect(writes, "a declined confirmation must not write").toHaveLength(writesBeforeDecline);
 
   await page.getByRole("button", { name: "Record outcome", exact: true }).first().click();
   const outcomeForm = page.locator(".application-table .outcome-form");
@@ -1121,6 +1144,12 @@ test("a pending claim decision is labelled, distinguishable, and asks before it 
   // First press arms, it does not decide.
   await reject.click();
   await expect(row.getByText("Rejecting is final.")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(row.getByText("Rejecting is final.")).toHaveCount(0);
+  await expect(reject).toBeFocused();
+  await expect(row).toContainText("Pending");
+
+  await reject.click();
   await row.getByRole("button", { name: "Keep it pending" }).click();
   await expect(row).toContainText("Pending");
 
@@ -1167,4 +1196,11 @@ test("gated and empty-state controls say what they are waiting for", async ({ pa
   const gate = await approve.getAttribute("aria-describedby");
   expect(gate).toBeTruthy();
   await expect(page.locator(`#${gate}`)).toContainText("assurance");
+  await page.getByRole("button", { name: "Assure", exact: true }).first().click();
+  await expect(approve).toBeEnabled();
+  await approve.click();
+  await expect(page.getByText("Packet approved for export.")).toBeVisible();
+  await expect(page.getByText("Approved", { exact: true })).toBeVisible();
+  await expect(approve).not.toHaveAttribute("aria-describedby");
+  await expect(page.locator(`#${gate}`)).toHaveCount(0);
 });
