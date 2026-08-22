@@ -15,6 +15,13 @@ export const workspacePackages = [
 
 export function versionTextChecks(version) {
   const tag = `v${version}`;
+  const upgradeCommands = [
+    "git fetch --tags origin",
+    `git checkout ${tag}`,
+    "corepack enable",
+    "pnpm install --frozen-lockfile",
+    "pnpm dev",
+  ].join("\n");
   return [
     { file: "apps/api/src/version.ts", expected: `NIMANTO_VERSION = "${version}"` },
     { file: "apps/api/src/server.ts", expected: "version: NIMANTO_VERSION", occurrences: 3 },
@@ -53,8 +60,11 @@ export function versionTextChecks(version) {
     },
     { file: "README.md", expected: `docs/releases/nimanto-${tag}.cdx.json` },
     { file: "README.md", expected: `docs/releases/nimanto-${tag}.spdx.json` },
-    { file: "docs/operations/local-beta.md", expected: `## Upgrade to ${tag}` },
-    { file: "docs/operations/local-beta.md", expected: `git checkout ${tag}` },
+    {
+      file: "docs/operations/local-beta.md",
+      section: `## Upgrade to ${tag}`,
+      expected: upgradeCommands,
+    },
     {
       file: "docs/operations/local-beta.md",
       expected: `nimanto-${tag}-SHA256SUMS.txt`,
@@ -83,6 +93,7 @@ export function versionTextChecks(version) {
       file: `docs/releases/${tag}.md`,
       expected: `releases/download/${tag}/nimanto-${tag}-SHA256SUMS.txt`,
     },
+    { file: `docs/releases/${tag}.md`, section: "## Upgrade", expected: upgradeCommands },
     {
       file: `docs/releases/${tag}-surface-ledger.md`,
       expected: `# ${tag} public-surface ledger`,
@@ -103,6 +114,14 @@ function countOccurrences(text, expected) {
   return text.split(expected).length - 1;
 }
 
+function markdownSection(text, heading) {
+  const start = text.indexOf(heading);
+  if (start === -1) return "";
+  const remaining = text.slice(start + heading.length);
+  const nextHeading = remaining.search(/^## /mu);
+  return nextHeading === -1 ? remaining : remaining.slice(0, nextHeading);
+}
+
 export async function validateVersionSync(root) {
   const rootPackage = JSON.parse(await readFile(path.join(root, "package.json"), "utf8"));
   const version = rootPackage.version;
@@ -118,13 +137,15 @@ export async function validateVersionSync(root) {
 
   for (const check of versionTextChecks(version)) {
     const text = await readFile(path.join(root, check.file), "utf8");
-    const actual = countOccurrences(text, check.expected);
+    const scope = check.section ? markdownSection(text, check.section) : text;
+    const actual = countOccurrences(scope, check.expected);
     const failed = check.occurrences === undefined ? actual === 0 : actual !== check.occurrences;
     if (failed) {
       const requirement =
         check.occurrences === undefined ? "at least 1" : String(check.occurrences);
+      const location = check.section ? ` in section ${JSON.stringify(check.section)}` : "";
       failures.push(
-        `${check.file}: expected ${requirement} occurrence(s) of ${JSON.stringify(check.expected)}, found ${actual}`,
+        `${check.file}: expected ${requirement} occurrence(s) of ${JSON.stringify(check.expected)}${location}, found ${actual}`,
       );
     }
   }

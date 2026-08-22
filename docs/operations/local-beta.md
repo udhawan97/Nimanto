@@ -13,8 +13,6 @@ On macOS, double-click `START-NIMANTO.command`.
 Or run:
 
 ```bash
-git fetch --tags origin
-git checkout v0.5.5
 corepack enable
 pnpm install --frozen-lockfile
 pnpm dev
@@ -41,6 +39,8 @@ Stop the API, copy the complete `.nimanto-data/` directory, update to the exact
 v0.5.5 source, and reinstall the locked graph before restarting:
 
 ```bash
+git fetch --tags origin
+git checkout v0.5.5
 corepack enable
 pnpm install --frozen-lockfile
 pnpm dev

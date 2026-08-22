@@ -36,6 +36,24 @@ test("the current release identities agree", async () => {
   assert.deepEqual((await validateVersionSync(fixture)).failures, []);
 });
 
+test("upgrade sequences must stay inside their declared upgrade sections", async () => {
+  for (const [index, check] of checks.filter((candidate) => candidate.section).entries()) {
+    const target = path.join(fixture, check.file);
+    const original = await readFile(target, "utf8");
+    assert.ok(original.includes(check.expected), `${check.file} contains the upgrade sequence`);
+    await writeFile(
+      target,
+      `${check.expected}\n\n${original.replace(check.expected, `BROKEN_UPGRADE_SEQUENCE_${index}`)}`,
+    );
+    const result = await validateVersionSync(fixture);
+    assert.ok(
+      result.failures.some((failure) => failure.startsWith(`${check.file}:`)),
+      `${check.file} rejects an upgrade sequence outside ${check.section}`,
+    );
+    await writeFile(target, original);
+  }
+});
+
 test("every declared text seam fails closed when its current identity drifts", async () => {
   for (const [index, check] of checks.entries()) {
     const target = path.join(fixture, check.file);
