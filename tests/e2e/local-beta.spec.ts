@@ -196,17 +196,17 @@ test("the public site reflows, links, and identifies itself in WebKit", async ({
     "href",
     "https://github.com/udhawan97/Nimanto/issues",
   );
-  await expect(page.getByRole("link", { name: "Open the v0.5.4 source release" })).toHaveAttribute(
+  await expect(page.getByRole("link", { name: "Open the v0.5.5 source release" })).toHaveAttribute(
     "href",
-    "https://github.com/udhawan97/Nimanto/releases/tag/v0.5.4",
+    "https://github.com/udhawan97/Nimanto/releases/tag/v0.5.5",
   );
-  await expect(page.getByRole("link", { name: "Read the v0.5.4 notes" })).toHaveAttribute(
+  await expect(page.getByRole("link", { name: "Read the v0.5.5 notes" })).toHaveAttribute(
     "href",
-    "https://github.com/udhawan97/Nimanto/blob/v0.5.4/docs/releases/v0.5.4.md",
+    "https://github.com/udhawan97/Nimanto/blob/v0.5.5/docs/releases/v0.5.5.md",
   );
   await expect(page.getByRole("link", { name: "Check hashes and inventories" })).toHaveAttribute(
     "href",
-    "https://github.com/udhawan97/Nimanto/blob/v0.5.4/README.md#verify-a-source-release",
+    "https://github.com/udhawan97/Nimanto/blob/v0.5.5/README.md#verify-a-source-release",
   );
   const releaseLinkTops = await page
     .locator(".release-proof .text-link")
@@ -214,9 +214,9 @@ test("the public site reflows, links, and identifies itself in WebKit", async ({
   expect(new Set(releaseLinkTops).size, "release verification links occupy separate rows").toBe(
     releaseLinkTops.length,
   );
-  await expect(page.getByRole("link", { name: "v0.5.4 notes" }).first()).toHaveAttribute(
+  await expect(page.getByRole("link", { name: "v0.5.5 notes" }).first()).toHaveAttribute(
     "href",
-    "https://github.com/udhawan97/Nimanto/blob/v0.5.4/docs/releases/v0.5.4.md",
+    "https://github.com/udhawan97/Nimanto/blob/v0.5.5/docs/releases/v0.5.5.md",
   );
   await expect(page.getByAltText(/Synthetic Nimanto Applications workbench/)).toHaveAttribute(
     "src",

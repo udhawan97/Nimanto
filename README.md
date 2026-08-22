@@ -31,7 +31,7 @@
   ·
   <a href="#what-it-actually-does"><strong>What it does</strong></a>
   ·
-  <a href="docs/releases/v0.5.4.md"><strong>v0.5.4 notes</strong></a>
+  <a href="docs/releases/v0.5.5.md"><strong>v0.5.5 notes</strong></a>
   ·
   <a href="docs/planning/product-contract.md"><strong>Product contract</strong></a>
 </p>
@@ -66,7 +66,14 @@ Nimanto is a **candidate tool**. It does not screen you for employers, estimate
 your hiring odds, give legal advice, or promise that a company sponsors transfers
 today.
 
-## New in v0.5.4
+## New in v0.5.5
+
+- **The local API uses Fastify 5.12.1.** This patch release refreshes the locked
+  production dependency, governed screenshots, dependency inventories, and
+  checksums without changing Nimanto's schema, product authority, providers, or
+  network behavior.
+
+### Reliability work carried forward from v0.5.4
 
 - **Work in progress stays with the signed-in tab.** Evidence fields, role
   search and filters, manual roles, action details, outcome notes, application
@@ -195,7 +202,7 @@ something that opens because you opened it.
 
 ## Run it
 
-Nimanto v0.5.4 is source-distributed. It does **not** ship a signed installer or
+Nimanto v0.5.5 is source-distributed. It does **not** ship a signed installer or
 desktop binary.
 
 | Runtime path       | Best for                          | Start here                                                      |
@@ -205,7 +212,7 @@ desktop binary.
 | Docker on loopback | Invite-only local/self-hosted QA  | `docker compose up --build`; keep ports bound to `127.0.0.1`    |
 
 Acquire the exact source from the pinned
-[v0.5.4 release](https://github.com/udhawan97/Nimanto/releases/tag/v0.5.4); GitHub
+[v0.5.5 release](https://github.com/udhawan97/Nimanto/releases/tag/v0.5.5); GitHub
 generates its ZIP and tar archive from that tag.
 
 ### One double-click on macOS
@@ -220,7 +227,7 @@ Requirements: Node.js 24–26, pnpm 11, and macOS, Linux or Windows.
 ```bash
 git clone https://github.com/udhawan97/Nimanto.git
 cd Nimanto
-git checkout v0.5.4
+git checkout v0.5.5
 corepack enable
 pnpm install --frozen-lockfile
 pnpm dev
@@ -241,11 +248,11 @@ issue a hashed, expiring, single-use invitation.
 ### Verify a source release
 
 Every release publishes the two dependency inventories beside one checksum
-manifest. After downloading the three `v0.5.4` assets into an empty directory,
+manifest. After downloading the three `v0.5.5` assets into an empty directory,
 verify both inventories before inspecting or building the source archive:
 
 ```bash
-shasum -a 256 --check nimanto-v0.5.4-SHA256SUMS.txt
+shasum -a 256 --check nimanto-v0.5.5-SHA256SUMS.txt
 ```
 
 The manifest covers the CycloneDX and SPDX files. GitHub generates the source
@@ -457,7 +464,7 @@ design-token contrast, API integration, and nineteen sequential WebKit journeys.
 
 ## Beta boundaries
 
-Version `0.5.4` is a **local beta**:
+Version `0.5.5` is a **local beta**:
 
 - The local candidate workflow is implemented and tested.
 - Public website hosting carries product information and the static workbench
@@ -515,5 +522,5 @@ of scope.
 Apache License 2.0. See [LICENSE](LICENSE), [NOTICE](NOTICE),
 [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md),
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), and the release
-[CycloneDX](docs/releases/nimanto-v0.5.4.cdx.json) /
-[SPDX](docs/releases/nimanto-v0.5.4.spdx.json) inventories.
+[CycloneDX](docs/releases/nimanto-v0.5.5.cdx.json) /
+[SPDX](docs/releases/nimanto-v0.5.5.spdx.json) inventories.
