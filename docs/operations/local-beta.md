@@ -13,6 +13,8 @@ On macOS, double-click `START-NIMANTO.command`.
 Or run:
 
 ```bash
+git fetch --tags origin
+git checkout v0.5.5
 corepack enable
 pnpm install --frozen-lockfile
 pnpm dev

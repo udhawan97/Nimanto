@@ -68,10 +68,12 @@ today.
 
 ## New in v0.5.5
 
-- **The local API uses Fastify 5.12.1.** This patch release refreshes the locked
-  production dependency, governed screenshots, dependency inventories, and
-  checksums without changing Nimanto's schema, product authority, providers, or
-  network behavior.
+- **The local API uses [Fastify 5.12.1](https://github.com/fastify/fastify/releases/tag/v5.12.1).**
+  This patch refreshes the locked production dependency to an upstream security-maintenance release, then
+  refreshes governed screenshots, dependency inventories, and checksums. It
+  adds no Nimanto feature, schema migration, provider, hosted service, model,
+  submission channel, external-action authority, or network surface, and it
+  leaves Nimanto's network configuration unchanged.
 
 ### Reliability work carried forward from v0.5.4
 
@@ -114,9 +116,10 @@ today.
 - **Approved packets stop explaining an obsolete gate.** Once approval succeeds,
   the Approve control no longer retains assurance-waiting copy or an obsolete
   `aria-describedby` relationship.
-- **The public surface is current again.** The README, website, release paths,
-  screenshots, dependency inventories, and operations guidance now describe one
-  source-distributed `v0.5.3` beta with three explicit, bounded runtime paths.
+- **In v0.5.3, the public surfaces were synchronized.** The README, website,
+  release paths, screenshots, dependency inventories, and operations guidance
+  described one source-distributed `v0.5.3` beta with three explicit, bounded
+  runtime paths.
 
 ## Previously in v0.5.1
 

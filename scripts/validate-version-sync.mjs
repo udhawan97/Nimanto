@@ -54,6 +54,7 @@ export function versionTextChecks(version) {
     { file: "README.md", expected: `docs/releases/nimanto-${tag}.cdx.json` },
     { file: "README.md", expected: `docs/releases/nimanto-${tag}.spdx.json` },
     { file: "docs/operations/local-beta.md", expected: `## Upgrade to ${tag}` },
+    { file: "docs/operations/local-beta.md", expected: `git checkout ${tag}` },
     {
       file: "docs/operations/local-beta.md",
       expected: `nimanto-${tag}-SHA256SUMS.txt`,

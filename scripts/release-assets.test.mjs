@@ -16,6 +16,12 @@ test("the committed v0.5.5 inventories and checksums pass the release preflight"
   assert.equal(result.status, 0, result.stderr || result.stdout);
 });
 
+test("fresh SBOM commands build before collecting occurrence evidence", async () => {
+  const manifest = JSON.parse(await readFile(path.join(repository, "package.json"), "utf8"));
+  assert.match(manifest.scripts["sbom:check"], /^pnpm build && /u);
+  assert.match(manifest.scripts["sbom:release"], /^pnpm build && /u);
+});
+
 test("the SBOM validator rejects missing and mismatched workspace identities", async () => {
   const source = path.join(repository, "docs/releases/nimanto-v0.5.5.cdx.json");
   const original = await readFile(source, "utf8");
