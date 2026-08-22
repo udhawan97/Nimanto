@@ -125,10 +125,12 @@ CREATE TABLE IF NOT EXISTS applications (
   profile_version_id text REFERENCES profile_versions(id) ON DELETE SET NULL,
   status text NOT NULL,
   submitted_at timestamptz,
+  follow_up_on date,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS applications_tenant_idx ON applications(tenant_id, updated_at DESC);
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS follow_up_on date;
 
 CREATE TABLE IF NOT EXISTS outcomes (
   id text PRIMARY KEY,
@@ -369,4 +371,5 @@ INSERT INTO schema_versions(version) VALUES (1) ON CONFLICT (version) DO NOTHING
 INSERT INTO schema_versions(version) VALUES (2) ON CONFLICT (version) DO NOTHING;
 INSERT INTO schema_versions(version) VALUES (3) ON CONFLICT (version) DO NOTHING;
 INSERT INTO schema_versions(version) VALUES (4) ON CONFLICT (version) DO NOTHING;
+INSERT INTO schema_versions(version) VALUES (5) ON CONFLICT (version) DO NOTHING;
 `;

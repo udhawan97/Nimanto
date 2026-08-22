@@ -133,6 +133,7 @@ export interface ApplicationRecord {
   profileVersionId: string | null;
   status: ApplicationStatus;
   submittedAt: string | null;
+  followUpOn: string | null;
   createdAt: string;
   updatedAt: string;
   job?: Pick<JobRecord, "title" | "company">;
@@ -1524,7 +1525,8 @@ export class NimantoStore {
       `INSERT INTO applications(id, tenant_id, job_id, profile_version_id, status)
        SELECT $1,$2,$3,$4,'tracked'
        WHERE EXISTS (SELECT 1 FROM jobs WHERE id = $3 AND tenant_id = $2)
-       RETURNING id, job_id, profile_version_id, status, submitted_at, created_at, updated_at`,
+       RETURNING id, job_id, profile_version_id, status, submitted_at, follow_up_on,
+         created_at, updated_at`,
       [id, tenantId, jobId, profileVersionId],
     );
     if (!result.rows[0]) throw new Error("JOB_NOT_FOUND");
@@ -1538,6 +1540,7 @@ export class NimantoStore {
       profileVersionId: row.profile_version_id,
       status: row.status,
       submittedAt: iso(row.submitted_at),
+      followUpOn: iso(row.follow_up_on)?.slice(0, 10) ?? null,
       createdAt: iso(row.created_at)!,
       updatedAt: iso(row.updated_at)!,
     };
@@ -1560,10 +1563,41 @@ export class NimantoStore {
            ELSE submitted_at END,
          updated_at = now()
        WHERE tenant_id = $1 AND id = $2
-       RETURNING id, job_id, profile_version_id, status, submitted_at, created_at, updated_at`,
+       RETURNING id, job_id, profile_version_id, status, submitted_at, follow_up_on,
+         created_at, updated_at`,
       [tenantId, id, status],
     );
     return result.rows[0] ? this.#mapApplication(result.rows[0]) : null;
+  }
+
+  async setApplicationFollowUp(
+    tenantId: string,
+    id: string,
+    followUpOn: string | null,
+  ): Promise<ApplicationRecord | null> {
+    return this.transaction(async (database) => {
+      await database.lockTenantActive(tenantId);
+      const current = await database.#db.query<{ status: ApplicationStatus }>(
+        `SELECT status FROM applications
+         WHERE tenant_id = $1 AND id = $2
+         FOR UPDATE`,
+        [tenantId, id],
+      );
+      const status = current.rows[0]?.status;
+      if (!status) return null;
+      if (followUpOn !== null && status === "withdrawn") {
+        throw new Error("FOLLOW_UP_UNAVAILABLE");
+      }
+      const result = await database.#db.query<any>(
+        `UPDATE applications
+         SET follow_up_on = $3::date, updated_at = now()
+         WHERE tenant_id = $1 AND id = $2
+         RETURNING id, job_id, profile_version_id, status, submitted_at, follow_up_on,
+           created_at, updated_at`,
+        [tenantId, id, followUpOn],
+      );
+      return result.rows[0] ? database.#mapApplication(result.rows[0]) : null;
+    });
   }
 
   /** Candidate-only read-policy-write transaction. Packet consequences bypass
@@ -1594,7 +1628,8 @@ export class NimantoStore {
       if (decision.kind === "illegal") throw new Error(decision.code);
       if (decision.kind === "unchanged") {
         const unchanged = await database.#db.query<any>(
-          `SELECT id, job_id, profile_version_id, status, submitted_at, created_at, updated_at
+          `SELECT id, job_id, profile_version_id, status, submitted_at, follow_up_on,
+             created_at, updated_at
            FROM applications WHERE tenant_id = $1 AND id = $2`,
           [tenantId, id],
         );
@@ -1638,7 +1673,8 @@ export class NimantoStore {
   async listApplications(tenantId: string): Promise<ApplicationRecord[]> {
     const [applications, outcomes, jobs] = await Promise.all([
       this.#db.query<any>(
-        `SELECT id, job_id, profile_version_id, status, submitted_at, created_at, updated_at
+        `SELECT id, job_id, profile_version_id, status, submitted_at, follow_up_on,
+           created_at, updated_at
          FROM applications WHERE tenant_id = $1 ORDER BY updated_at DESC, id`,
         [tenantId],
       ),

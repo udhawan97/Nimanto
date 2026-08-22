@@ -286,6 +286,50 @@ describe("next-step rail", () => {
       "No outcome is inferred",
     );
   });
+
+  it("names candidate-set and mixed review bases without claiming 336 elapsed hours for both", () => {
+    const scheduled = nextSteps(
+      {
+        ...empty,
+        applications: [
+          {
+            id: "scheduled",
+            jobId: "job-1",
+            status: "tracked",
+            createdAt: daysAgo(1),
+            followUpOn: "2026-08-05",
+          },
+        ],
+      },
+      NOW,
+    ).find((step) => step.id === "review-records")!;
+    expect(scheduled.detail).toBe("1 candidate-set follow-up date is due. No outcome is inferred.");
+
+    const mixed = nextSteps(
+      {
+        ...empty,
+        applications: [
+          {
+            id: "scheduled",
+            jobId: "job-1",
+            status: "tracked",
+            createdAt: daysAgo(1),
+            followUpOn: "2026-08-05",
+          },
+          {
+            id: "derived",
+            jobId: "job-2",
+            status: "tracked",
+            createdAt: daysAgo(20),
+          },
+        ],
+      },
+      NOW,
+    ).find((step) => step.id === "review-records")!;
+    expect(mixed.detail).toBe(
+      "1 candidate-set date and 1 activity fallback are due. No outcome is inferred.",
+    );
+  });
 });
 
 describe("follow-up observation", () => {
@@ -329,8 +373,27 @@ describe("follow-up observation", () => {
     }
   });
 
-  it("says nothing about a withdrawn application", () => {
+  it("stays silent on an unscheduled withdrawal and labels a retained date inactive", () => {
     expect(followUpNote(app({ status: "withdrawn", createdAt: daysAgo(90) }), NOW)).toBeNull();
+    expect(followUpNote(app({ status: "withdrawn", followUpOn: "2026-08-05" }), NOW)).toMatch(
+      /^Follow-up reminder inactive · /,
+    );
+  });
+
+  it("names a candidate-set reminder without implying employer activity", () => {
+    expect(followUpNote(app({ followUpOn: "2026-08-09" }), NOW)).toMatch(/^Follow-up reminder · /);
+    const due = followUpNote(app({ followUpOn: "2026-08-05" }), NOW)!;
+    expect(due).toMatch(/^Follow-up reminder due · /);
+    expect(due).not.toMatch(/response|employer|rejected/iu);
+  });
+
+  it("parses low ISO years without remapping them into the twentieth century", () => {
+    const note = followUpNote(app({ followUpOn: "0001-01-01" }), NOW);
+    expect(note).toMatch(/^Follow-up reminder due · /);
+    expect(recordReviewQueue([app({ followUpOn: "0001-01-01" })], NOW)[0]).toMatchObject({
+      basis: "candidate_reminder",
+      dueOn: "0001-01-01",
+    });
   });
 
   it("survives a missing or unparseable timestamp", () => {
@@ -391,6 +454,41 @@ describe("record-review queue", () => {
     );
     expect(queue.map((item) => item.application.id)).toEqual(["z-earlier-due", "a-later-due"]);
     expect(queue.map((item) => item.elapsedHours)).toEqual([336, 336]);
+  });
+
+  it("lets an explicit candidate date replace the derived 336-hour due date", () => {
+    const queue = recordReviewQueue(
+      [
+        {
+          id: "scheduled-future",
+          status: "submitted_externally" as const,
+          createdAt: daysAgo(40),
+          followUpOn: "2026-08-09",
+        },
+        {
+          id: "scheduled-due",
+          status: "submitted_externally" as const,
+          createdAt: daysAgo(2),
+          followUpOn: "2026-08-05",
+        },
+        {
+          id: "derived-due",
+          status: "tracked" as const,
+          createdAt: daysAgo(20),
+          followUpOn: null,
+        },
+      ],
+      NOW,
+    );
+
+    expect(queue.map((item) => item.application.id)).toEqual(["derived-due", "scheduled-due"]);
+    expect(queue.find((item) => item.application.id === "scheduled-due")).toMatchObject({
+      basis: "candidate_reminder",
+      dueOn: "2026-08-05",
+    });
+    expect(queue.find((item) => item.application.id === "derived-due")).toMatchObject({
+      basis: "record_activity",
+    });
   });
 });
 

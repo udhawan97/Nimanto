@@ -162,6 +162,7 @@ type Application = {
   // Narrowed from string: the board maps status to a column and the API rejects
   // anything outside the union, so a widened type here just hides the mismatch.
   status: ApplicationStatus;
+  followUpOn?: string | null;
   // The API has always returned these; the type simply never declared them, and
   // the follow-up observation needs createdAt as its baseline.
   createdAt?: string;
@@ -261,6 +262,18 @@ const emptyOutcomeDraftState = (): OutcomeDraftState => ({
   activeApplicationId: null,
   byApplication: {},
 });
+type ReminderDraft = {
+  applicationId: string;
+  followUpOn: string;
+};
+type ReminderDraftState = {
+  activeApplicationId: string | null;
+  byApplication: Record<string, ReminderDraft>;
+};
+const emptyReminderDraftState = (): ReminderDraftState => ({
+  activeApplicationId: null,
+  byApplication: {},
+});
 type ApplicationViewState = {
   reviewOnly: boolean;
   cohortStart: string;
@@ -292,6 +305,8 @@ const sameOutcomeDraft = (left: OutcomeDraft, right: OutcomeDraft) =>
   left.applicationId === right.applicationId &&
   left.type === right.type &&
   left.note === right.note;
+const sameReminderDraft = (left: ReminderDraft, right: ReminderDraft) =>
+  left.applicationId === right.applicationId && left.followUpOn === right.followUpOn;
 const emptyRoleFilters = (): RoleFilters => ({
   query: "",
   source: "all",
@@ -601,6 +616,8 @@ export function Workspace() {
   const [actionDraft, setActionDraft] = useState<ActionDraft | null>(null);
   const [outcomeDraftState, setOutcomeDraftState] =
     useState<OutcomeDraftState>(emptyOutcomeDraftState);
+  const [reminderDraftState, setReminderDraftState] =
+    useState<ReminderDraftState>(emptyReminderDraftState);
   const commitActionDraft = useCallback((submitted: ActionDraft) => {
     setActionDraft((current) => (current && sameActionDraft(current, submitted) ? null : current));
   }, []);
@@ -614,6 +631,21 @@ export function Workspace() {
       return {
         activeApplicationId:
           current.activeApplicationId === submittedApplicationId
+            ? null
+            : current.activeApplicationId,
+        byApplication,
+      };
+    });
+  }, []);
+  const commitReminderDraft = useCallback((submitted: ReminderDraft) => {
+    setReminderDraftState((current) => {
+      const retained = current.byApplication[submitted.applicationId];
+      if (!retained || !sameReminderDraft(retained, submitted)) return current;
+      const byApplication = { ...current.byApplication };
+      delete byApplication[submitted.applicationId];
+      return {
+        activeApplicationId:
+          current.activeApplicationId === submitted.applicationId
             ? null
             : current.activeApplicationId,
         byApplication,
@@ -749,6 +781,7 @@ export function Workspace() {
       setRoleFilters(emptyRoleFilters());
       setActionDraft(null);
       setOutcomeDraftState(emptyOutcomeDraftState());
+      setReminderDraftState(emptyReminderDraftState());
       setApplicationViewState(emptyApplicationViewState());
       setApplicationsView("board");
       // Remount the active section too: import previews and other child-local
@@ -1331,6 +1364,9 @@ export function Workspace() {
               outcomeDraftState={outcomeDraftState}
               onOutcomeDraftStateChange={setOutcomeDraftState}
               onOutcomeCommitted={commitOutcomeDraft}
+              reminderDraftState={reminderDraftState}
+              onReminderDraftStateChange={setReminderDraftState}
+              onReminderCommitted={commitReminderDraft}
             />
           )}
           {section === "packets" && <Packets dashboard={dashboard} onAct={mutations} busy={busy} />}
@@ -3733,6 +3769,9 @@ function Applications({
   outcomeDraftState,
   onOutcomeDraftStateChange,
   onOutcomeCommitted,
+  reminderDraftState,
+  onReminderDraftStateChange,
+  onReminderCommitted,
 }: {
   dashboard: Dashboard;
   onAct: ActionRunner;
@@ -3745,9 +3784,16 @@ function Applications({
   outcomeDraftState: OutcomeDraftState;
   onOutcomeDraftStateChange: Dispatch<SetStateAction<OutcomeDraftState>>;
   onOutcomeCommitted: (submitted: OutcomeDraft) => void;
+  reminderDraftState: ReminderDraftState;
+  onReminderDraftStateChange: Dispatch<SetStateAction<ReminderDraftState>>;
+  onReminderCommitted: (submitted: ReminderDraft) => void;
 }) {
   const outcomeFor = outcomeDraftState.activeApplicationId;
   const outcomeDraft = outcomeFor ? (outcomeDraftState.byApplication[outcomeFor] ?? null) : null;
+  const reminderFor = reminderDraftState.activeApplicationId;
+  const reminderDraft = reminderFor
+    ? (reminderDraftState.byApplication[reminderFor] ?? null)
+    : null;
   const [pendingMove, setPendingMove] = useState<{ id: string; to: ApplicationStatus } | null>(
     null,
   );
@@ -3756,6 +3802,10 @@ function Applications({
   const board = useOverflowFlag<HTMLElement>();
   const now = new Date();
   const reviewQueue = recordReviewQueue(dashboard.applications, now);
+  const scheduledReviewCount = reviewQueue.filter(
+    (item) => item.basis === "candidate_reminder",
+  ).length;
+  const derivedReviewCount = reviewQueue.length - scheduledReviewCount;
   const visibleApplications = workingView.reviewOnly
     ? reviewQueue.map((item) => item.application)
     : dashboard.applications;
@@ -3827,6 +3877,67 @@ function Applications({
   };
   const changeOutcomeDraft = (draft: OutcomeDraft) => {
     onOutcomeDraftStateChange((current) => ({
+      ...current,
+      byApplication: { ...current.byApplication, [draft.applicationId]: draft },
+    }));
+  };
+  const openReminder = (application: Application) => {
+    if (reminderFor === application.id) {
+      document.getElementById(`reminder-editor-${application.id}-date`)?.focus();
+      return;
+    }
+    const activeDraft = reminderFor ? reminderDraftState.byApplication[reminderFor] : null;
+    const liveActiveDraft = activeDraft
+      ? {
+          ...activeDraft,
+          followUpOn:
+            (
+              document.getElementById(
+                `reminder-editor-${reminderFor}-date`,
+              ) as HTMLInputElement | null
+            )?.value ?? activeDraft.followUpOn,
+        }
+      : null;
+    onReminderDraftStateChange((current) => {
+      const byApplication = { ...current.byApplication };
+      if (liveActiveDraft) byApplication[liveActiveDraft.applicationId] = liveActiveDraft;
+      if (!byApplication[application.id]) {
+        byApplication[application.id] = {
+          applicationId: application.id,
+          followUpOn: application.followUpOn ?? "",
+        };
+      }
+      return { activeApplicationId: application.id, byApplication };
+    });
+  };
+  const focusReminderOrigin = (id: string) => {
+    window.requestAnimationFrame(() =>
+      window.requestAnimationFrame(() => {
+        const trigger = document.getElementById(`reminder-trigger-${view}-${id}`);
+        if (trigger) {
+          trigger.focus();
+          return;
+        }
+        document
+          .getElementById(view === "board" ? `board-card-${id}` : `application-row-${id}`)
+          ?.focus();
+      }),
+    );
+  };
+  const closeReminder = (id: string) => {
+    onReminderDraftStateChange((current) => {
+      const byApplication = { ...current.byApplication };
+      delete byApplication[id];
+      return {
+        activeApplicationId:
+          current.activeApplicationId === id ? null : current.activeApplicationId,
+        byApplication,
+      };
+    });
+    focusReminderOrigin(id);
+  };
+  const changeReminderDraft = (draft: ReminderDraft) => {
+    onReminderDraftStateChange((current) => ({
       ...current,
       byApplication: { ...current.byApplication, [draft.applicationId]: draft },
     }));
@@ -3964,7 +4075,8 @@ function Applications({
                     <span>{application.job?.company}</span>
                     {note && (
                       <span className="follow-up">
-                        <Clock3 size={12} aria-hidden="true" /> {note}
+                        <Clock3 size={12} aria-hidden="true" />
+                        <span>{note}</span>
                       </span>
                     )}
                     <RecordedTimeline application={application} />
@@ -3994,6 +4106,42 @@ function Applications({
                         onFocusTrigger={() => focusOutcomeTrigger(application.id)}
                         onClose={() => closeOutcome(application.id)}
                       />
+                    )}
+                    {(application.status !== "withdrawn" || application.followUpOn) && (
+                      <>
+                        <button
+                          id={`reminder-trigger-board-${application.id}`}
+                          className="button mini quiet"
+                          type="button"
+                          disabled={busy}
+                          aria-expanded={reminderFor === application.id}
+                          aria-controls={
+                            reminderFor === application.id
+                              ? `reminder-editor-${application.id}`
+                              : undefined
+                          }
+                          onClick={() => openReminder(application)}
+                        >
+                          <CalendarClock size={15} aria-hidden="true" />
+                          {application.status === "withdrawn"
+                            ? "Review follow-up"
+                            : application.followUpOn
+                              ? "Change follow-up"
+                              : "Set follow-up"}
+                        </button>
+                        {reminderFor === application.id && (
+                          <ReminderEditor
+                            application={application}
+                            onAct={onAct}
+                            busy={busy}
+                            draft={reminderDraft!}
+                            onDraftChange={changeReminderDraft}
+                            onCommitted={onReminderCommitted}
+                            onFocusTrigger={() => focusReminderOrigin(application.id)}
+                            onClose={() => closeReminder(application.id)}
+                          />
+                        )}
+                      </>
                     )}
                     {/* Keyboard-operable by construction: buttons, not drag. */}
                     <div className="board-move">
@@ -4054,83 +4202,133 @@ function Applications({
             <span>Outcomes</span>
             <span>Next step</span>
           </div>
-          {visibleApplications.map((application) => (
-            <article key={application.id} className="table-row">
-              <div className="application-identity">
-                <strong>{application.job?.title ?? "Unknown role"}</strong>
-                <small>{application.job?.company}</small>
-              </div>
-              <label>
-                <span className="sr-only">Status for {application.job?.title}</span>
-                {/* Same guard as the board, and only the moves the domain allows.
-                 * Listing all five taught the candidate about illegal transitions
-                 * by way of a rejected request. On a declined confirmation the
-                 * value prop restores itself on the next render. */}
-                <select
-                  value={application.status}
-                  disabled={busy}
-                  onChange={(event) =>
-                    requestMove(
-                      application,
-                      event.currentTarget.value as ApplicationStatus,
-                      event.currentTarget,
-                    )
-                  }
-                >
-                  {legalTargets(application.status).map((target) => (
-                    <option key={target} value={target}>
-                      {BOARD_COLUMNS.find((column) => column.id === target)!.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {pendingMove?.id === application.id && (
-                <ConfirmationStrip
-                  question={confirmationPrompt(pendingMove.to, application)}
-                  confirmLabel={`Mark ${BOARD_COLUMNS.find((column) => column.id === pendingMove.to)!.label.toLocaleLowerCase("en-US")}`}
-                  cancelLabel="Cancel"
-                  disabled={busy}
-                  onConfirm={() => move(application, pendingMove.to)}
-                  onCancel={cancelPendingMove}
-                />
-              )}
-              <div className="outcome-chips">
-                {application.outcomes?.length ? (
-                  application.outcomes.map((outcome) => (
-                    <span key={outcome.id}>{human(outcome.type)}</span>
-                  ))
-                ) : (
-                  <small>No outcome recorded</small>
-                )}
-                <RecordedTimeline application={application} />
-              </div>
-              <button
-                id={`outcome-trigger-table-${application.id}`}
-                className="button mini quiet"
-                type="button"
-                disabled={busy}
-                aria-expanded={outcomeFor === application.id}
-                aria-controls={
-                  outcomeFor === application.id ? `outcome-editor-${application.id}` : undefined
-                }
-                onClick={() => openOutcome(application.id)}
+          {visibleApplications.map((application) => {
+            const note = followUpNote(application, now);
+            return (
+              <article
+                key={application.id}
+                id={`application-row-${application.id}`}
+                className="table-row"
+                tabIndex={-1}
               >
-                <Plus size={15} /> Record outcome
-              </button>
-              {outcomeFor === application.id && (
-                <OutcomeEditor
-                  application={application}
-                  onAct={onAct}
-                  busy={busy}
-                  draft={outcomeDraft!}
-                  onDraftChange={changeOutcomeDraft}
-                  onRecorded={onOutcomeCommitted}
-                  onFocusTrigger={() => focusOutcomeTrigger(application.id)}
-                  onClose={() => closeOutcome(application.id)}
-                />
-              )}
-            </article>
-          ))}
+                <div className="application-identity">
+                  <strong>{application.job?.title ?? "Unknown role"}</strong>
+                  <small>{application.job?.company}</small>
+                  {note && (
+                    <span className="follow-up">
+                      <Clock3 size={12} aria-hidden="true" />
+                      <span>{note}</span>
+                    </span>
+                  )}
+                </div>
+                <label>
+                  <span className="sr-only">Status for {application.job?.title}</span>
+                  {/* Same guard as the board, and only the moves the domain allows.
+                   * Listing all five taught the candidate about illegal transitions
+                   * by way of a rejected request. On a declined confirmation the
+                   * value prop restores itself on the next render. */}
+                  <select
+                    value={application.status}
+                    disabled={busy}
+                    onChange={(event) =>
+                      requestMove(
+                        application,
+                        event.currentTarget.value as ApplicationStatus,
+                        event.currentTarget,
+                      )
+                    }
+                  >
+                    {legalTargets(application.status).map((target) => (
+                      <option key={target} value={target}>
+                        {BOARD_COLUMNS.find((column) => column.id === target)!.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {pendingMove?.id === application.id && (
+                  <ConfirmationStrip
+                    question={confirmationPrompt(pendingMove.to, application)}
+                    confirmLabel={`Mark ${BOARD_COLUMNS.find((column) => column.id === pendingMove.to)!.label.toLocaleLowerCase("en-US")}`}
+                    cancelLabel="Cancel"
+                    disabled={busy}
+                    onConfirm={() => move(application, pendingMove.to)}
+                    onCancel={cancelPendingMove}
+                  />
+                )}
+                <div className="outcome-chips">
+                  {application.outcomes?.length ? (
+                    application.outcomes.map((outcome) => (
+                      <span key={outcome.id}>{human(outcome.type)}</span>
+                    ))
+                  ) : (
+                    <small>No outcome recorded</small>
+                  )}
+                  <RecordedTimeline application={application} />
+                </div>
+                <button
+                  id={`outcome-trigger-table-${application.id}`}
+                  className="button mini quiet"
+                  type="button"
+                  disabled={busy}
+                  aria-expanded={outcomeFor === application.id}
+                  aria-controls={
+                    outcomeFor === application.id ? `outcome-editor-${application.id}` : undefined
+                  }
+                  onClick={() => openOutcome(application.id)}
+                >
+                  <Plus size={15} /> Record outcome
+                </button>
+                {outcomeFor === application.id && (
+                  <OutcomeEditor
+                    application={application}
+                    onAct={onAct}
+                    busy={busy}
+                    draft={outcomeDraft!}
+                    onDraftChange={changeOutcomeDraft}
+                    onRecorded={onOutcomeCommitted}
+                    onFocusTrigger={() => focusOutcomeTrigger(application.id)}
+                    onClose={() => closeOutcome(application.id)}
+                  />
+                )}
+                {(application.status !== "withdrawn" || application.followUpOn) && (
+                  <>
+                    <button
+                      id={`reminder-trigger-table-${application.id}`}
+                      className="button mini quiet"
+                      type="button"
+                      disabled={busy}
+                      aria-expanded={reminderFor === application.id}
+                      aria-controls={
+                        reminderFor === application.id
+                          ? `reminder-editor-${application.id}`
+                          : undefined
+                      }
+                      onClick={() => openReminder(application)}
+                    >
+                      <CalendarClock size={15} aria-hidden="true" />
+                      {application.status === "withdrawn"
+                        ? "Review follow-up"
+                        : application.followUpOn
+                          ? "Change follow-up"
+                          : "Set follow-up"}
+                    </button>
+                    {reminderFor === application.id && (
+                      <ReminderEditor
+                        application={application}
+                        onAct={onAct}
+                        busy={busy}
+                        draft={reminderDraft!}
+                        onDraftChange={changeReminderDraft}
+                        onCommitted={onReminderCommitted}
+                        onFocusTrigger={() => focusReminderOrigin(application.id)}
+                        onClose={() => closeReminder(application.id)}
+                      />
+                    )}
+                  </>
+                )}
+              </article>
+            );
+          })}
         </section>
       )}
       {dashboard.applications.length === 0 && (
@@ -4149,19 +4347,19 @@ function Applications({
         <Empty
           icon={Clock3}
           title="No records are due for review"
-          copy="Every active record has candidate-recorded activity within the last 336 elapsed hours."
+          copy="No candidate-set reminder is due, and no unscheduled active record has crossed 336 elapsed hours since its latest recorded activity."
         />
       )}
       <Funnel funnel={dashboard.personalFunnel} />
 
       <section className="record-review-strip" aria-labelledby="record-review-title">
         <div>
-          <span>Derived current view</span>
+          <span>Candidate-set dates · derived fallback</span>
           <h2 id="record-review-title">Record-review queue</h2>
           <p>
             {reviewQueue.length
-              ? `${reviewQueue.length} application record${reviewQueue.length === 1 ? " has" : "s have"} no candidate-recorded activity in at least 336 elapsed hours.`
-              : "No application record has reached 336 elapsed hours since its latest candidate-recorded activity."}
+              ? `${reviewQueue.length} application record${reviewQueue.length === 1 ? " is" : "s are"} due: ${scheduledReviewCount} from candidate-set dates and ${derivedReviewCount} from the 336-hour activity fallback.`
+              : "No candidate-set date is due, and no unscheduled application has reached the 336-hour activity fallback."}
           </p>
         </div>
         {reviewQueue.length ? (
@@ -4172,15 +4370,22 @@ function Applications({
                   {item.application.job?.title ?? "Unknown role"} ·{" "}
                   {item.application.job?.company ?? "Unknown company"}
                 </strong>
-                <small>
-                  Latest candidate record {localDateTime(item.lastRecordedAt)} · review due{" "}
-                  {localDateTime(item.dueAt)}
-                </small>
+                {item.basis === "candidate_reminder" ? (
+                  <small>Candidate-set reminder due {item.dueOn}</small>
+                ) : (
+                  <small>
+                    Latest candidate record {localDateTime(item.lastRecordedAt!)} · review due{" "}
+                    {localDateTime(item.dueAt)}
+                  </small>
+                )}
               </li>
             ))}
           </ol>
         ) : null}
-        <small>No reminder is stored and no employer outcome is inferred.</small>
+        <small>
+          Candidate-set dates are stored; the 336-hour fallback is derived. Neither infers an
+          employer outcome or contacts anyone.
+        </small>
       </section>
 
       <section className="cohort-panel" aria-labelledby="cohort-title">
@@ -4282,6 +4487,128 @@ function Applications({
         </p>
       </section>
     </>
+  );
+}
+
+function ReminderEditor({
+  application,
+  onAct,
+  busy,
+  draft,
+  onDraftChange,
+  onCommitted,
+  onFocusTrigger,
+  onClose,
+}: {
+  application: Application;
+  onAct: ActionRunner;
+  busy: boolean;
+  draft: ReminderDraft;
+  onDraftChange: (draft: ReminderDraft) => void;
+  onCommitted: (submitted: ReminderDraft) => void;
+  onFocusTrigger: () => void;
+  onClose: () => void;
+}) {
+  const dateField = useRef<HTMLInputElement>(null);
+  const inactive = application.status === "withdrawn";
+  const persistedDate = application.followUpOn ?? "";
+  const editorId = `reminder-editor-${application.id}`;
+  const dateId = `${editorId}-date`;
+  const noteId = `${editorId}-note`;
+
+  useEffect(() => {
+    if (!inactive) {
+      dateField.current?.focus();
+      return;
+    }
+    if (draft.followUpOn !== persistedDate) {
+      onDraftChange({ applicationId: application.id, followUpOn: persistedDate });
+    }
+  }, [application.id, inactive, persistedDate]);
+
+  return (
+    <form
+      id={editorId}
+      className="outcome-form reminder-form"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (inactive) return;
+        const submittedDraft = { ...draft };
+        void onAct.run({
+          request: () =>
+            api(`/v1/applications/${application.id}/follow-up`, {
+              method: "PUT",
+              body: JSON.stringify({ followUpOn: draft.followUpOn }),
+            }),
+          success: "Follow-up reminder saved.",
+          transient: true,
+          commit: () => onCommitted(submittedDraft),
+          focus: onFocusTrigger,
+        });
+      }}
+    >
+      <label htmlFor={dateId}>Candidate follow-up date</label>
+      <input
+        ref={dateField}
+        id={dateId}
+        type="date"
+        value={draft.followUpOn}
+        required={!inactive}
+        disabled={inactive}
+        aria-describedby={noteId}
+        onChange={(event) => onDraftChange({ ...draft, followUpOn: event.target.value })}
+      />
+      <small className="field-note" id={noteId}>
+        {inactive
+          ? "This saved date is retained but inactive while this application is withdrawn. Clear it, or move the application back to Tracked to make it active again. Nimanto contacts no one and infers no employer response."
+          : "Stored on this application only. Nimanto will show it in Review due; it will not contact you or infer an employer response."}
+      </small>
+      <div className="button-group">
+        {!inactive && (
+          <button className="button mini primary" disabled={busy}>
+            Save reminder
+          </button>
+        )}
+        {application.followUpOn && (
+          <ConfirmAction
+            className="button mini quiet"
+            label="Clear reminder"
+            question="Clear this candidate-set follow-up reminder?"
+            confirmLabel="Clear it"
+            cancelLabel="Keep reminder"
+            disabled={busy}
+            onConfirm={() => {
+              void onAct.run({
+                request: () =>
+                  api(`/v1/applications/${application.id}/follow-up`, {
+                    method: "PUT",
+                    body: JSON.stringify({ followUpOn: null }),
+                  }),
+                success: "Follow-up reminder cleared.",
+                transient: true,
+                commit: onClose,
+                focus: onFocusTrigger,
+              });
+            }}
+          />
+        )}
+        {inactive ? (
+          <button className="button mini quiet" type="button" disabled={busy} onClick={onClose}>
+            Close
+          </button>
+        ) : (
+          <ConfirmAction
+            className="button mini quiet"
+            label="Discard draft"
+            question="Discard this follow-up date draft?"
+            confirmLabel="Discard it"
+            cancelLabel="Keep editing"
+            disabled={busy}
+            onConfirm={onClose}
+          />
+        )}
+      </div>
+    </form>
   );
 }
 

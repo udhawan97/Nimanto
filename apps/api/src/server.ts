@@ -82,6 +82,22 @@ function strings(value: unknown, field: string): string[] {
   return value.map((entry) => entry.normalize("NFC").trim()).filter(Boolean);
 }
 
+function followUpDate(value: unknown): string | null {
+  if (value === null) return null;
+  if (
+    typeof value !== "string" ||
+    !/^\d{4}-\d{2}-\d{2}$/u.test(value) ||
+    value.startsWith("0000-")
+  ) {
+    throw new Error("INVALID_FOLLOW_UP_DATE");
+  }
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value) {
+    throw new Error("INVALID_FOLLOW_UP_DATE");
+  }
+  return value;
+}
+
 function historyOptions(query: unknown): { cursor?: string; limit: number } {
   const value = object(query ?? {});
   const cursor = value.cursor === undefined ? undefined : string(value.cursor, "cursor");
@@ -163,6 +179,13 @@ function messageForError(error: Error): { code: string; status: number; message:
       code,
       status: 409,
       message: "Confirm this consequential application change, then try again.",
+    };
+  if (code === "FOLLOW_UP_UNAVAILABLE")
+    return {
+      code,
+      status: 409,
+      message:
+        "A withdrawn application cannot take a new follow-up date. Clear the retained date or move the application back to Tracked first.",
     };
   if (code === "IDENTITY_CHANGED")
     return {
@@ -995,6 +1018,17 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
       id,
       requestedStatus,
       body.confirmed === true,
+    );
+    if (!record) throw new Error("APPLICATION_NOT_FOUND");
+    return record;
+  });
+  app.put("/v1/applications/:id/follow-up", async (request) => {
+    const person = identity(request);
+    const body = object(request.body);
+    const record = await store.setApplicationFollowUp(
+      person.tenantId,
+      (request.params as { id: string }).id,
+      followUpDate(body.followUpOn),
     );
     if (!record) throw new Error("APPLICATION_NOT_FOUND");
     return record;

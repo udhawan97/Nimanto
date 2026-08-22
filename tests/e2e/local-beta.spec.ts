@@ -196,17 +196,17 @@ test("the public site reflows, links, and identifies itself in WebKit", async ({
     "href",
     "https://github.com/udhawan97/Nimanto/issues",
   );
-  await expect(page.getByRole("link", { name: "Open the v0.5.5 source release" })).toHaveAttribute(
+  await expect(page.getByRole("link", { name: "Open the v0.6.0 source release" })).toHaveAttribute(
     "href",
-    "https://github.com/udhawan97/Nimanto/releases/tag/v0.5.5",
+    "https://github.com/udhawan97/Nimanto/releases/tag/v0.6.0",
   );
-  await expect(page.getByRole("link", { name: "Read the v0.5.5 notes" })).toHaveAttribute(
+  await expect(page.getByRole("link", { name: "Read the v0.6.0 notes" })).toHaveAttribute(
     "href",
-    "https://github.com/udhawan97/Nimanto/blob/v0.5.5/docs/releases/v0.5.5.md",
+    "https://github.com/udhawan97/Nimanto/blob/v0.6.0/docs/releases/v0.6.0.md",
   );
   await expect(page.getByRole("link", { name: "Check hashes and inventories" })).toHaveAttribute(
     "href",
-    "https://github.com/udhawan97/Nimanto/blob/v0.5.5/README.md#verify-a-source-release",
+    "https://github.com/udhawan97/Nimanto/blob/v0.6.0/README.md#verify-a-source-release",
   );
   const releaseLinkTops = await page
     .locator(".release-proof .text-link")
@@ -214,9 +214,9 @@ test("the public site reflows, links, and identifies itself in WebKit", async ({
   expect(new Set(releaseLinkTops).size, "release verification links occupy separate rows").toBe(
     releaseLinkTops.length,
   );
-  await expect(page.getByRole("link", { name: "v0.5.5 notes" }).first()).toHaveAttribute(
+  await expect(page.getByRole("link", { name: "v0.6.0 notes" }).first()).toHaveAttribute(
     "href",
-    "https://github.com/udhawan97/Nimanto/blob/v0.5.5/docs/releases/v0.5.5.md",
+    "https://github.com/udhawan97/Nimanto/blob/v0.6.0/docs/releases/v0.6.0.md",
   );
   await expect(page.getByAltText(/Synthetic Nimanto Applications workbench/)).toHaveAttribute(
     "src",
@@ -577,6 +577,8 @@ test("a revoked session clears identity-bound drafts before another workspace op
   await page.getByRole("button", { name: "Record outcome" }).first().click();
   await page.getByLabel("Candidate-reported outcome").selectOption("interview");
   await page.getByLabel("Optional note").fill("Identity-bound outcome draft");
+  await page.getByRole("button", { name: "Set follow-up" }).first().click();
+  await page.getByLabel("Candidate follow-up date").fill("2099-12-31");
   await page.getByLabel("Created from").fill("2020-01-01");
   const status = page.locator(".application-table .table-row > label select").first();
   await status.selectOption("prepared");
@@ -614,6 +616,7 @@ test("a revoked session clears identity-bound drafts before another workspace op
   await expect(page.getByRole("button", { name: "Table view" })).toBeVisible();
   await expect(page.getByLabel("Created from")).not.toHaveValue("2020-01-01");
   await expect(page.locator(".outcome-form")).toHaveCount(0);
+  await expect(page.locator(".reminder-form")).toHaveCount(0);
   await page.getByRole("button", { name: "Approved actions" }).click();
   await expect(page.locator(".action-form")).toHaveCount(0);
 });
@@ -1226,7 +1229,11 @@ test("retained history, record review, cohorts, and sensitive export stay bounde
   await page.getByRole("button", { name: "Open navigation" }).click();
   await page.getByRole("button", { name: "Applications" }).click();
   await expect(page.getByRole("heading", { name: "Record-review queue" })).toBeVisible();
-  await expect(page.getByText(/No application record has reached 336 elapsed hours/)).toBeVisible();
+  await expect(
+    page.getByText(
+      /No candidate-set date is due, and no unscheduled application has reached the 336-hour activity fallback/,
+    ),
+  ).toBeVisible();
   const cohort = page.locator(".cohort-panel");
   await expect(cohort.getByRole("heading", { name: /explicit creation window/ })).toBeVisible();
   await expect(cohort.getByText("Counts only.")).toBeVisible();
@@ -1344,6 +1351,112 @@ test("outcome drafts remain with each application until recorded or discarded", 
   await expect(second.getByLabel("Optional note")).toHaveValue(
     "Second application has different work.",
   );
+});
+
+test("candidate follow-up dates retain drafts, become due, and clear without inference", async ({
+  page,
+}) => {
+  await expect
+    .poll(
+      async () => {
+        try {
+          return (await page.request.get("http://127.0.0.1:4310/health")).ok();
+        } catch {
+          return false;
+        }
+      },
+      { message: "local API health before the follow-up reminder journey", timeout: 20_000 },
+    )
+    .toBe(true);
+  await page.goto(`/workspace/#bootstrap=${bootstrapSecret}`);
+  await page.getByLabel("Your name").fill("Follow-up Check");
+  await page.getByLabel("Your email").fill("follow-up@example.test");
+  await page.getByRole("button", { name: "Start private workspace" }).click();
+  await page.getByRole("button", { name: "Run starter matches" }).click();
+  await page.getByRole("button", { name: "Role discovery" }).click();
+  const role = page.locator(".job-row").first();
+  const roleTitle = (await role.getByRole("heading", { level: 2 }).textContent())!.trim();
+  await role.getByRole("button", { name: "Track", exact: true }).click();
+  await expect(role.getByRole("button", { name: "Tracked", exact: true })).toBeVisible();
+
+  const followUpWrites: Array<string | null> = [];
+  page.on("request", (request) => {
+    if (request.method() !== "PUT" || !request.url().endsWith("/follow-up")) return;
+    followUpWrites.push((request.postDataJSON() as { followUpOn: string | null }).followUpOn);
+  });
+
+  await page.getByRole("button", { name: "Applications" }).click();
+  const card = page.locator(".board-card").filter({ hasText: roleTitle });
+  await card.getByRole("button", { name: "Set follow-up" }).click();
+  const date = card.getByLabel("Candidate follow-up date");
+  await expect(date).toBeFocused();
+  await date.fill("2099-12-31");
+  for (const width of [320, 375, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expectSurfaceContained(page, card, `follow-up editor at ${width}px`);
+  }
+  await page.getByRole("button", { name: "Overview" }).click();
+  await page.getByRole("button", { name: "Applications" }).click();
+  await expect(card.getByLabel("Candidate follow-up date")).toHaveValue("2099-12-31");
+  expect(followUpWrites, "an unsaved reminder draft must not write").toEqual([]);
+
+  await card.getByLabel("Candidate follow-up date").fill("2000-01-01");
+  await card.getByRole("button", { name: "Save reminder" }).click();
+  await expect(page.getByText("Follow-up reminder saved.")).toBeVisible();
+  await expect(card.getByRole("button", { name: "Change follow-up" })).toBeFocused();
+  await expect(card.locator(".follow-up")).toContainText("Follow-up reminder due");
+  await expect(page.getByRole("button", { name: "Review due · 1" })).toBeVisible();
+  await page.getByRole("button", { name: "Table view" }).click();
+  const row = page.locator(".table-row").filter({ hasText: roleTitle });
+  await expect(row.locator(".follow-up")).toContainText("Follow-up reminder due");
+  await page.getByRole("button", { name: "Board view" }).click();
+  const reviewQueue = page.locator(".record-review-strip");
+  await expect(reviewQueue.getByText("Candidate-set reminder due 2000-01-01")).toBeVisible();
+  await expect(reviewQueue).toContainText("Neither infers an employer outcome or contacts anyone.");
+  await expect(page.getByText(/employer (?:replied|responded|rejected)/i)).toHaveCount(0);
+  expect(followUpWrites).toEqual(["2000-01-01"]);
+
+  await card.getByRole("button", { name: "Change follow-up" }).click();
+  await card.getByLabel("Candidate follow-up date").fill("1999-12-31");
+  await card.locator("button", { hasText: /^Withdrawn$/ }).click();
+  await card.getByRole("button", { name: "Mark withdrawn" }).click();
+  await expect(card.locator(".follow-up")).toContainText("Follow-up reminder inactive");
+  await expect(page.getByRole("button", { name: "Review due · 0" })).toBeVisible();
+  await expect(card.getByRole("button", { name: "Review follow-up" })).toBeVisible();
+  await expect(card.getByLabel("Candidate follow-up date")).toBeDisabled();
+  await expect(card.getByLabel("Candidate follow-up date")).toHaveValue("2000-01-01");
+  expect(followUpWrites, "withdrawing must discard an unsaved date change").toEqual(["2000-01-01"]);
+  await expect(card.locator(".reminder-form")).toContainText(
+    "retained but inactive while this application is withdrawn",
+  );
+  await card.getByRole("button", { name: "Close" }).click();
+  await card.locator("button", { hasText: /^Tracked$/ }).click();
+  await expect(card.locator(".follow-up")).toContainText("Follow-up reminder due");
+
+  await card.getByRole("button", { name: "Change follow-up" }).click();
+  await expect(card.getByLabel("Candidate follow-up date")).toHaveValue("2000-01-01");
+  await card.getByLabel("Candidate follow-up date").fill("2099-12-30");
+  await card.getByRole("button", { name: "Save reminder" }).click();
+  await expect(page.getByText("Follow-up reminder saved.")).toBeVisible();
+  await expect(card.locator(".follow-up")).toContainText("Follow-up reminder ·");
+  await expect(card.locator(".follow-up")).not.toContainText("reminder due");
+  await expect(page.getByRole("button", { name: "Review due · 0" })).toBeVisible();
+  expect(followUpWrites).toEqual(["2000-01-01", "2099-12-30"]);
+
+  await card.locator("button", { hasText: /^Withdrawn$/ }).click();
+  await card.getByRole("button", { name: "Mark withdrawn" }).click();
+  await expect(card.locator(".follow-up")).toContainText("Follow-up reminder inactive");
+  await card.getByRole("button", { name: "Review follow-up" }).click();
+  await card.getByRole("button", { name: "Clear reminder" }).click();
+  await card.getByRole("button", { name: "Clear it" }).click();
+  await expect(page.getByText("Follow-up reminder cleared.")).toBeVisible();
+  await expect(card).toBeFocused();
+  await expect(card.locator(".follow-up")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Review due · 0" })).toBeVisible();
+  await expect(card.getByRole("button", { name: /follow-up/i })).toHaveCount(0);
+  expect(followUpWrites).toEqual(["2000-01-01", "2099-12-30", null]);
+  await card.locator("button", { hasText: /^Tracked$/ }).click();
+  await expect(card.getByRole("button", { name: "Set follow-up" })).toBeVisible();
 });
 
 test("long action references keep their Copy control clear at 320px", async ({ page }) => {

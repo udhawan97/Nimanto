@@ -86,6 +86,13 @@ async function shoot(
         { data: { type: "reply", note: "Candidate-recorded follow-up" } },
       );
       if (!outcome.ok()) throw new Error(`Screenshot outcome failed: ${outcome.status()}`);
+      const followUp = await context.request.put(
+        `${api}/v1/applications/${applicationBody.id}/follow-up`,
+        { data: { followUpOn: "2026-08-21" } },
+      );
+      if (!followUp.ok()) {
+        throw new Error(`Screenshot follow-up date failed: ${followUp.status()}`);
+      }
     }
   }
   const page = await context.newPage();

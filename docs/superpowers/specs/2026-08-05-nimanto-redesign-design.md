@@ -412,6 +412,11 @@ and `occurredAt` is caller-supplied and unvalidated. ⚑ Requires widening the w
 | AI resume rewriting, inbox scraping      | Surveyed and rejected — see §0.                                |
 | Desktop packaging, signing               | Unchanged release gate in the product contract.                |
 
+Release status note (v0.6.0): candidate-controlled follow-up dates are now
+implemented as one stored date-only application field plus the existing derived
+fallback. No notification, provider, outreach, or employer-state inference was
+added. The remaining candidates in this historical table stay deferred.
+
 **Unchanged and visible:** the README mermaid diagram keeps GitHub's default colours
 (not themeable). `packages/documents` PDF/DOCX packet branding stays neutral — ATS-safe
 variants must not carry brand colour. `prefers-color-scheme: light` users get an ink app

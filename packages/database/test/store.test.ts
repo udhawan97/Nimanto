@@ -413,7 +413,7 @@ describe("beta workflow persistence", () => {
     const schemaVersions = await migrated.query<{ version: number }>(
       "SELECT version FROM schema_versions ORDER BY version",
     );
-    expect(schemaVersions.rows.map((row) => row.version)).toEqual([1, 2, 3, 4]);
+    expect(schemaVersions.rows.map((row) => row.version)).toEqual([1, 2, 3, 4, 5]);
     const packetSequences = await migrated.query<{ generation_sequence: string | number }>(
       "SELECT generation_sequence FROM packets WHERE id = 'legacy-packet'",
     );
@@ -703,11 +703,16 @@ describe("beta workflow persistence", () => {
       [[first.id, second.id]],
     );
     await legacy.exec("ALTER TABLE packets DROP COLUMN generation_sequence");
+    await legacy.exec("ALTER TABLE applications DROP COLUMN follow_up_on");
     await legacy.exec("DROP SEQUENCE IF EXISTS packets_generation_sequence_seq");
-    await legacy.exec("DELETE FROM schema_versions WHERE version = 4");
+    await legacy.exec("DELETE FROM schema_versions WHERE version IN (4, 5)");
     await legacy.close();
 
     const upgraded = await NimantoStore.open(data);
+    expect((await upgraded.listApplications(identity.tenantId))[0]).toMatchObject({
+      id: application.id,
+      followUpOn: null,
+    });
     expect(
       (await upgraded.listApplicationPackets(identity.tenantId, application.id)).items.map(
         (packet) => packet.id,
@@ -1025,6 +1030,69 @@ describe("beta workflow persistence", () => {
     expect(match.result.requirements[0]?.evidenceIds).toEqual([claim.id]);
     expect(outcome.type).toBe("screen");
     expect((await store.listApplications(identity.tenantId))[0]?.outcomes).toHaveLength(1);
+  });
+
+  it("stores and clears a candidate follow-up date without changing application state", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nimanto-store-"));
+    const store = await NimantoStore.open(join(root, "data"));
+    stores.push(store);
+    const owner = await store.createLocalTenant("reminder@example.test", "Reminder Owner");
+    const other = await store.createLocalTenant("other-reminder@example.test", "Other Owner");
+    const job = await store.upsertJob(owner.tenantId, {
+      source: "manual",
+      sourceJobId: "reminder-job",
+      title: "Platform Engineer",
+      company: "Northwind",
+      description: "Build services",
+      location: "Remote",
+      workMode: "remote",
+      url: "",
+      requirements: [],
+      capability: "deep_link",
+      sourceMeta: {},
+      contentHash: "reminder-job-content",
+    });
+    const application = await store.createApplication(owner.tenantId, job.id, null);
+
+    const scheduled = await store.setApplicationFollowUp(
+      owner.tenantId,
+      application.id,
+      "2026-08-29",
+    );
+    expect(scheduled).toMatchObject({
+      id: application.id,
+      status: "tracked",
+      followUpOn: "2026-08-29",
+    });
+    expect(await store.setApplicationFollowUp(other.tenantId, application.id, "2026-08-30")).toBe(
+      null,
+    );
+    expect((await store.listApplications(owner.tenantId))[0]).toMatchObject({
+      followUpOn: "2026-08-29",
+      status: "tracked",
+    });
+
+    const withdrawn = await store.transitionCandidateApplicationStatus(
+      owner.tenantId,
+      application.id,
+      "withdrawn",
+      true,
+    );
+    expect(withdrawn).toMatchObject({ status: "withdrawn", followUpOn: "2026-08-29" });
+    await expect(
+      store.setApplicationFollowUp(owner.tenantId, application.id, "2026-09-01"),
+    ).rejects.toThrow("FOLLOW_UP_UNAVAILABLE");
+
+    const cleared = await store.setApplicationFollowUp(owner.tenantId, application.id, null);
+    expect(cleared).toMatchObject({ followUpOn: null, status: "withdrawn" });
+    expect(
+      await store.transitionCandidateApplicationStatus(
+        owner.tenantId,
+        application.id,
+        "tracked",
+        false,
+      ),
+    ).toMatchObject({ followUpOn: null, status: "tracked" });
   });
 
   it("clears the submission timestamp when an application leaves submitted_externally", async () => {

@@ -1174,6 +1174,74 @@ describe("Nimanto beta API", () => {
     expect(confirmed.json().status).toBe("withdrawn");
   });
 
+  it("sets and clears a candidate follow-up date while rejecting ambiguous dates", async () => {
+    const { app, cookie } = await setup();
+    const dashboard = await app.inject({
+      method: "GET",
+      url: "/v1/dashboard",
+      headers: { cookie },
+    });
+    const tracked = await app.inject({
+      method: "POST",
+      url: "/v1/applications",
+      headers: { cookie },
+      payload: { jobId: dashboard.json().jobs[0].id },
+    });
+
+    const scheduled = await app.inject({
+      method: "PUT",
+      url: `/v1/applications/${tracked.json().id}/follow-up`,
+      headers: { cookie },
+      payload: { followUpOn: "2026-08-29" },
+    });
+    expect(scheduled.statusCode).toBe(200);
+    expect(scheduled.json()).toMatchObject({ status: "tracked", followUpOn: "2026-08-29" });
+
+    for (const followUpOn of [
+      "0000-01-01",
+      "08/29/2026",
+      "2026-02-30",
+      "2026-08-29T12:00:00Z",
+      "",
+    ]) {
+      const invalid = await app.inject({
+        method: "PUT",
+        url: `/v1/applications/${tracked.json().id}/follow-up`,
+        headers: { cookie },
+        payload: { followUpOn },
+      });
+      expect(invalid.statusCode).toBe(400);
+      expect(invalid.json().error.code).toBe("INVALID_FOLLOW_UP_DATE");
+    }
+
+    const withdrawn = await app.inject({
+      method: "PUT",
+      url: `/v1/applications/${tracked.json().id}/status`,
+      headers: { cookie },
+      payload: { status: "withdrawn", confirmed: true },
+    });
+    expect(withdrawn.statusCode).toBe(200);
+    expect(withdrawn.json()).toMatchObject({ status: "withdrawn", followUpOn: "2026-08-29" });
+
+    const rescheduledWhileWithdrawn = await app.inject({
+      method: "PUT",
+      url: `/v1/applications/${tracked.json().id}/follow-up`,
+      headers: { cookie },
+      payload: { followUpOn: "2026-09-01" },
+    });
+    expect(rescheduledWhileWithdrawn.statusCode).toBe(409);
+    expect(rescheduledWhileWithdrawn.json().error.code).toBe("FOLLOW_UP_UNAVAILABLE");
+
+    const cleared = await app.inject({
+      method: "PUT",
+      url: `/v1/applications/${tracked.json().id}/follow-up`,
+      headers: { cookie },
+      payload: { followUpOn: null },
+    });
+    expect(cleared.statusCode).toBe(200);
+    expect(cleared.json()).toMatchObject({ status: "withdrawn", followUpOn: null });
+  });
+
   it("previews the claims an import would create, not just how many", async () => {
     // The contract promises a preview of every accepted field before ingestion.
     const { app, cookie } = await setup();

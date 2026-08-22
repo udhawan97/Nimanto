@@ -31,13 +31,13 @@
   ·
   <a href="#what-it-actually-does"><strong>What it does</strong></a>
   ·
-  <a href="docs/releases/v0.5.5.md"><strong>v0.5.5 notes</strong></a>
+  <a href="docs/releases/v0.6.0.md"><strong>v0.6.0 notes</strong></a>
   ·
   <a href="docs/planning/product-contract.md"><strong>Product contract</strong></a>
 </p>
 
 <p align="center">
-  <img src="docs/assets/nimanto-workbench.png" alt="A synthetic Nimanto Applications workbench with an action-first pipeline and Record outcome controls" width="1100">
+  <img src="docs/assets/nimanto-workbench.png" alt="A synthetic Nimanto Applications workbench with an action-first pipeline, candidate follow-up dates, and Record outcome controls" width="1100">
 </p>
 
 ---
@@ -54,9 +54,10 @@ half-finished forms. Nimanto gives that work one inspectable path:
    refresh an allowlisted Greenhouse, Lever or Ashby board.
 4. **Match** deterministically, and read the requirement-by-requirement result:
    what is supported, what is missing, and what blocks you.
-5. **Track** the application from an action-first board or table, record only
-   candidate-reported outcomes, and generate JSON, plain text, and paired modern
-   and ATS-safe DOCX/PDF from confirmed evidence only.
+5. **Track** the application from an action-first board or table, set a literal
+   follow-up date, record only candidate-reported outcomes, and generate JSON,
+   plain text, and paired modern and ATS-safe DOCX/PDF from confirmed evidence
+   only.
 6. **Inspect** retained profile, match, packet, and assurance records when you
    need them; compare literal stored values without inventing causality.
 7. **Approve** — assurance, then the packet, then the exact action, then a runtime
@@ -66,16 +67,31 @@ Nimanto is a **candidate tool**. It does not screen you for employers, estimate
 your hiring odds, give legal advice, or promise that a company sponsors transfers
 today.
 
-## New in v0.5.5
+## New in v0.6.0
+
+- **Set a candidate-controlled follow-up date on any active application.** The
+  board and table show the same literal date, and due dates appear in Review
+  due ahead of the existing 336-hour activity fallback. A future candidate-set
+  date suppresses that fallback until the selected day; clearing the date
+  returns the record to derived review behavior. Withdrawing an application
+  retains its saved date visibly but makes it inactive: the candidate can clear
+  it, or move the application back to Tracked to reactivate it, but cannot set
+  or change a date while the application is withdrawn.
+- **The date is a record, not an automation.** Nimanto stores one date-only
+  value on the application. It does not contact the candidate, message an
+  employer, infer a response, change status, or run a notification service.
+  Unsaved edits stay only in the signed-in tab across section changes and can
+  be explicitly saved, cleared, or discarded.
+- **Schema version 5 adds only `applications.follow_up_on`.** The tenant-scoped
+  API accepts a strict real `YYYY-MM-DD` value or `null`; invalid and ambiguous
+  dates fail closed. Existing candidate records and every other product boundary
+  remain unchanged.
+
+### Reliability work carried forward from v0.5.5
 
 - **The local API uses [Fastify 5.12.1](https://github.com/fastify/fastify/releases/tag/v5.12.1).**
-  This patch refreshes the locked production dependency to an upstream security-maintenance release, then
-  refreshes governed screenshots, dependency inventories, and checksums. It
-  adds no Nimanto feature, schema migration, provider, hosted service, model,
-  submission channel, external-action authority, or network surface, and it
-  leaves Nimanto's network configuration unchanged.
-
-### Reliability work carried forward from v0.5.4
+  The locked production graph retains the upstream security-maintenance patch
+  introduced in v0.5.5.
 
 - **Work in progress stays with the signed-in tab.** Evidence fields, role
   search and filters, manual roles, action details, outcome notes, application
@@ -205,7 +221,7 @@ something that opens because you opened it.
 
 ## Run it
 
-Nimanto v0.5.5 is source-distributed. It does **not** ship a signed installer or
+Nimanto v0.6.0 is source-distributed. It does **not** ship a signed installer or
 desktop binary.
 
 | Runtime path       | Best for                          | Start here                                                      |
@@ -215,7 +231,7 @@ desktop binary.
 | Docker on loopback | Invite-only local/self-hosted QA  | `docker compose up --build`; keep ports bound to `127.0.0.1`    |
 
 Acquire the exact source from the pinned
-[v0.5.5 release](https://github.com/udhawan97/Nimanto/releases/tag/v0.5.5); GitHub
+[v0.6.0 release](https://github.com/udhawan97/Nimanto/releases/tag/v0.6.0); GitHub
 generates its ZIP and tar archive from that tag.
 
 ### One double-click on macOS
@@ -230,7 +246,7 @@ Requirements: Node.js 24–26, pnpm 11, and macOS, Linux or Windows.
 ```bash
 git clone https://github.com/udhawan97/Nimanto.git
 cd Nimanto
-git checkout v0.5.5
+git checkout v0.6.0
 corepack enable
 pnpm install --frozen-lockfile
 pnpm dev
@@ -251,11 +267,11 @@ issue a hashed, expiring, single-use invitation.
 ### Verify a source release
 
 Every release publishes the two dependency inventories beside one checksum
-manifest. After downloading the three `v0.5.5` assets into an empty directory,
+manifest. After downloading the three `v0.6.0` assets into an empty directory,
 verify both inventories before inspecting or building the source archive:
 
 ```bash
-shasum -a 256 --check nimanto-v0.5.5-SHA256SUMS.txt
+shasum -a 256 --check nimanto-v0.6.0-SHA256SUMS.txt
 ```
 
 The manifest covers the CycloneDX and SPDX files. GitHub generates the source
@@ -340,10 +356,15 @@ artifacts.
 - A recorded-outcome timeline shows application creation and the candidate's
   dated notes in order. It does not reconstruct unrecorded stages or infer an
   outcome from silence.
-- A record-review queue is derived from the newest application creation or
-  candidate-recorded outcome timestamp. It appears after 336 elapsed hours,
-  shows the exact activity baseline and computed due time in due order, excludes
-  withdrawn records, persists no reminder, and infers no employer response.
+- A candidate can store one strict date-only follow-up reminder on any active
+  application. Board and table expose the same literal date. When it is due it
+  appears in the record-review queue; a future candidate-set date suppresses
+  the fallback until that day. Without a stored date, the queue is derived from
+  the newest application creation or candidate-recorded outcome timestamp after
+  336 elapsed hours. A withdrawn application retains an existing date as an
+  inactive visible record until the candidate clears it or returns the
+  application to Tracked. Neither path contacts anyone, changes status, or
+  infers an employer response.
 - Application cohort counts use an explicit local-time creation window and
   optional current job-source/current match-classification filters. The
   classification contains the five domain bands plus separate unmatched and
@@ -463,11 +484,11 @@ boundaries, provider allowlists, durable schedule leases, retries and dead
 letters, application transition legality, modern and ATS-safe packet formats,
 artifact tamper detection, assurance gating, resumable deletion, external-action
 transitions, literal history comparison, sensitive export confirmation,
-design-token contrast, API integration, and nineteen sequential WebKit journeys.
+design-token contrast, API integration, and twenty sequential WebKit journeys.
 
 ## Beta boundaries
 
-Version `0.5.5` is a **local beta**:
+Version `0.6.0` is a **local beta**:
 
 - The local candidate workflow is implemented and tested.
 - Public website hosting carries product information and the static workbench
@@ -525,5 +546,5 @@ of scope.
 Apache License 2.0. See [LICENSE](LICENSE), [NOTICE](NOTICE),
 [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md),
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), and the release
-[CycloneDX](docs/releases/nimanto-v0.5.5.cdx.json) /
-[SPDX](docs/releases/nimanto-v0.5.5.spdx.json) inventories.
+[CycloneDX](docs/releases/nimanto-v0.6.0.cdx.json) /
+[SPDX](docs/releases/nimanto-v0.6.0.spdx.json) inventories.

@@ -22,6 +22,7 @@ type ApplicationLike = {
   jobId?: string;
   status: ApplicationStatus;
   createdAt?: string;
+  followUpOn?: string | null;
   outcomes?: OutcomeLike[];
   job?: { title: string; company: string };
 };
@@ -164,13 +165,21 @@ export function nextSteps(
     });
   }
 
-  const reviewDue = recordReviewQueue(input.applications, now).length;
+  const reviewQueue = recordReviewQueue(input.applications, now);
+  const reviewDue = reviewQueue.length;
   if (reviewDue > 0) {
+    const candidateDates = reviewQueue.filter((item) => item.basis === "candidate_reminder").length;
+    const activityFallbacks = reviewDue - candidateDates;
+    const detail =
+      candidateDates > 0 && activityFallbacks > 0
+        ? `${candidateDates} candidate-set date${candidateDates === 1 ? "" : "s"} and ${activityFallbacks} activity fallback${activityFallbacks === 1 ? "" : "s"} are due. No outcome is inferred.`
+        : candidateDates > 0
+          ? `${candidateDates} candidate-set follow-up date${candidateDates === 1 ? " is" : "s are"} due. No outcome is inferred.`
+          : "At least 336 hours have elapsed since the last thing you recorded. No outcome is inferred.";
     steps.push({
       id: "review-records",
       title: `Review ${reviewDue} application record${reviewDue === 1 ? "" : "s"}`,
-      detail:
-        "At least 336 hours have elapsed since the last thing you recorded. No outcome is inferred.",
+      detail,
       section: "applications",
       tone: "idle",
     });
@@ -229,20 +238,50 @@ export function daysSinceLastRecord(application: ApplicationLike, now: Date): nu
   return Math.floor((now.getTime() - parsed) / 86_400_000);
 }
 
+function localDateStart(value: string | null | undefined): Date | null {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/u.test(value)) return null;
+  const [year, month, day] = value.split("-").map(Number);
+  if (year === 0) return null;
+  // The multi-argument Date constructor remaps years 0–99 to 1900–1999.
+  // setFullYear preserves the literal ISO year returned by PostgreSQL.
+  const parsed = new Date(0);
+  parsed.setFullYear(year!, month! - 1, day!);
+  parsed.setHours(0, 0, 0, 0);
+  if (
+    parsed.getFullYear() !== year ||
+    parsed.getMonth() !== month! - 1 ||
+    parsed.getDate() !== day
+  ) {
+    return null;
+  }
+  return parsed;
+}
+
+function dateLabel(value: Date): string {
+  return value.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
 /* Deliberately an observation about the candidate's own record-keeping, never a
  * status. The product promises "Nimanto never infers an outcome from silence" —
  * so this may not say stale, cold, ignored, or likely-rejected. Terminal states
  * are exempt: nothing is pending on a withdrawn application. */
 export function followUpNote(application: ApplicationLike, now: Date): string | null {
-  if (application.status === "withdrawn") return null;
+  const reminder = localDateStart(application.followUpOn);
+  if (application.status === "withdrawn") {
+    return reminder ? `Follow-up reminder inactive · ${dateLabel(reminder)}` : null;
+  }
+  if (reminder) {
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return `Follow-up reminder${reminder.getTime() <= today.getTime() ? " due" : ""} · ${dateLabel(reminder)}`;
+  }
   const days = daysSinceLastRecord(application, now);
   if (days === null || days < FOLLOW_UP_DAYS) return null;
   const at = lastRecordedAt(application)!;
-  const on = new Date(Date.parse(at)).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+  const on = dateLabel(new Date(Date.parse(at)));
   return `Nothing recorded since ${on}`;
 }
 
@@ -250,20 +289,38 @@ export const RECORD_REVIEW_HOURS = FOLLOW_UP_DAYS * 24;
 
 export type RecordReviewItem<T extends ApplicationLike> = {
   application: T;
-  lastRecordedAt: string;
+  basis: "candidate_reminder" | "record_activity";
+  dueOn: string | null;
+  lastRecordedAt: string | null;
   dueAt: string;
-  elapsedHours: number;
+  elapsedHours: number | null;
 };
 
-/** A derived queue over literal stored activity. It does not persist a reminder,
- * infer an employer response, or change the application status. */
+/** A queue over an explicit candidate reminder when one exists, otherwise over
+ * literal stored activity. It never infers an employer response or changes the
+ * application status. */
 export function recordReviewQueue<T extends ApplicationLike>(
   applications: readonly T[],
   now: Date,
 ): Array<RecordReviewItem<T>> {
   return applications
-    .flatMap((application) => {
+    .flatMap<RecordReviewItem<T>>((application): Array<RecordReviewItem<T>> => {
       if (application.status === "withdrawn") return [];
+      const reminder = localDateStart(application.followUpOn);
+      if (reminder) {
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        if (reminder.getTime() > today.getTime()) return [];
+        return [
+          {
+            application,
+            basis: "candidate_reminder" as const,
+            dueOn: application.followUpOn ?? null,
+            lastRecordedAt: lastRecordedAt(application),
+            dueAt: reminder.toISOString(),
+            elapsedHours: null,
+          },
+        ];
+      }
       const recordedAt = lastRecordedAt(application);
       if (!recordedAt) return [];
       const parsed = Date.parse(recordedAt);
@@ -273,6 +330,8 @@ export function recordReviewQueue<T extends ApplicationLike>(
       return [
         {
           application,
+          basis: "record_activity" as const,
+          dueOn: null,
           lastRecordedAt: recordedAt,
           dueAt: new Date(parsed + RECORD_REVIEW_HOURS * 3_600_000).toISOString(),
           elapsedHours,

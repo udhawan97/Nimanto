@@ -33,29 +33,26 @@ screen names `.nimanto-data/launch-secret` as the file that holds it.
 
 The API binds to loopback by default. Do not change `NIMANTO_API_HOST` to a public interface without adding production authentication, secure cookies, TLS, and a reviewed deployment configuration.
 
-## Upgrade to v0.5.5
+## Upgrade to v0.6.0
 
 Stop the API, copy the complete `.nimanto-data/` directory, update to the exact
-v0.5.5 source, and reinstall the locked graph before restarting:
+v0.6.0 source, and reinstall the locked graph before restarting:
 
 ```bash
 git fetch --tags origin
-git checkout v0.5.5
+git checkout v0.6.0
 corepack enable
 pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-v0.5.5 makes no schema change: it retains additive schema version 4 and updates
-the locked Fastify runtime to 5.12.1. If upgrading from v0.5.3 or earlier,
-startup still adds the internal packet generation sequence while preserving
-existing candidate records and artifacts. Existing packets are backfilled in
-the old deterministic `created_at`/ID order; when old timestamps tied, the
-pre-v0.5.4 schema did not retain enough information to reconstruct true
-insertion order. Every packet generated after that migration has exact monotonic
-order under the tenant lock. Keep the stopped full-directory copy: the beta has
-no schema downgrade guarantee, so restore that copy or fix forward rather than
-running older source against a version-4 database.
+v0.6.0 applies additive, idempotent schema version 5. It adds nullable
+`applications.follow_up_on` as a PostgreSQL `date`; existing applications are
+left `NULL` and continue to use the derived 336-hour record-review fallback.
+Startup also applies any earlier additive migrations while preserving existing
+candidate records and artifacts. Keep the stopped full-directory copy: the beta
+has no schema downgrade guarantee, so restore that copy or fix forward rather
+than running older source against a version-5 database.
 
 ## Private invitations
 
@@ -82,7 +79,7 @@ The digest-pinned container runs the same static web workbench and API with publ
 docker compose up --build
 ```
 
-Open `http://127.0.0.1:4300/`. Retrieve the generated admin key with `docker compose exec nimanto sh -c 'cat /data/launch-secret'`, then issue a private invitation as above. The named `nimanto-data` volume holds the database and artifacts. The image is built in CI; v0.5.5 has not been certified for internet exposure and should remain bound to loopback.
+Open `http://127.0.0.1:4300/`. Retrieve the generated admin key with `docker compose exec nimanto sh -c 'cat /data/launch-secret'`, then issue a private invitation as above. The named `nimanto-data` volume holds the database and artifacts. The image is built in CI; v0.6.0 has not been certified for internet exposure and should remain bound to loopback.
 
 ## Data locations
 
@@ -158,6 +155,15 @@ The queue stores only provider and board identifiers. Scheduled work cannot prep
 - **Applications** places the board/table work surface before funnel, review,
   and cohort counts. Board and table use the same deliberate outcome editor;
   recording an outcome does not change application status.
+- **Applications → Set follow-up** stores one strict date-only value on the
+  application. Board and table show the same literal date. A due date enters
+  Review due; a future date suppresses the 336-hour fallback until that day.
+  Saving does not contact anyone, change application status, schedule a
+  background job, or infer an employer response. Clear the date to return to
+  fallback behavior. Withdrawing an application retains its saved date visibly
+  but marks it inactive and removes it from Review due. The candidate can clear
+  it while withdrawn, or return the application to Tracked to reactivate it;
+  setting or changing the date while withdrawn fails closed.
 - **Role discovery → Add role** keeps a draft only in the current signed-in tab
   while the candidate moves between workbench sections. Reload, sign-out,
   identity change, successful save, or confirmed discard clears it.
@@ -169,10 +175,11 @@ The queue stores only provider and board identifiers. Scheduled work cannot prep
 - **Applications** also keeps the selected board/table view, record-review
   filter, and cohort inputs while the candidate checks another section. These
   controls remain local to the tab and are never written as candidate facts.
-- **Applications → Record-review queue** is a current derived view over the
-  latest literal activity timestamp. It includes non-withdrawn records after 336
-  elapsed hours, shows that baseline and the exact computed due time in due
-  order, persists no reminder, and infers no employer response.
+- **Applications → Record-review queue** prefers a stored candidate-set date
+  when present. Without one, it derives review due after 336 elapsed hours from
+  the latest literal application creation or candidate-recorded outcome. The
+  queue labels which basis it used, excludes withdrawn records, and neither
+  infers an employer response nor contacts anyone.
 - **Applications → Application cohort counts** uses an explicit local-time
   creation window. Optional role-source and match-band filters use current stored
   values. Unmatched means no stored match; unknown preserves a stored band this
@@ -219,11 +226,11 @@ pnpm build
 pnpm test:e2e
 ```
 
-For a downloaded v0.5.5 release, place the CycloneDX inventory, SPDX inventory,
+For a downloaded v0.6.0 release, place the CycloneDX inventory, SPDX inventory,
 and checksum manifest in one directory and verify the two inventories with:
 
 ```bash
-shasum -a 256 --check nimanto-v0.5.5-SHA256SUMS.txt
+shasum -a 256 --check nimanto-v0.6.0-SHA256SUMS.txt
 ```
 
 This verifies the published inventory assets. GitHub generates the source ZIP
@@ -272,9 +279,9 @@ write committed.
 Do not retry it. The provider effect may have completed before local outcome
 persistence became uncertain. Copy the action ID, inspect the local outbox file
 or mail-client state, and follow the provider-specific reconciliation procedure
-in [provider boundaries](provider-setup.md#reconcile-an-ambiguous-action). v0.5.5
+in [provider boundaries](provider-setup.md#reconcile-an-ambiguous-action). v0.6.0
 keeps the ambiguous record as a do-not-retry audit trail.
 
 ### Gmail or Outlook is unavailable
 
-Connected-account sending is not part of v0.5.5. Use the local test outbox or a user-opened deep link. See [provider boundaries](provider-setup.md).
+Connected-account sending is not part of v0.6.0. Use the local test outbox or a user-opened deep link. See [provider boundaries](provider-setup.md).

@@ -2485,7 +2485,7 @@ textarea {
   color: var(--text);
   font-weight: 500;
 }
-.board-card > span {
+.board-card > span:not(.follow-up) {
   color: var(--text-muted);
   font-size: var(--text-sm);
 }
@@ -2584,12 +2584,18 @@ textarea {
 
 .follow-up {
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--space-3xs);
+  min-width: 0;
   font-family: var(--font-mono);
   font-size: var(--text-placard);
   letter-spacing: 0.05em;
   color: var(--brass-600);
+  overflow-wrap: anywhere;
+}
+.follow-up > svg {
+  flex: none;
+  margin-block-start: 0.15em;
 }
 
 /* ── F2 · next-step rail ─────────────────────────────────────────────────── */
