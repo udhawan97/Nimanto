@@ -440,8 +440,8 @@
     "semantic_hash": ""
   },
   "docs/operations/local-beta.md": {
-    "mtime": 1787359883.1916485,
-    "ast_hash": "9e9e95020007a7ac32405d4cbe19add5",
+    "mtime": 1787361034.8940785,
+    "ast_hash": "e88ce3e03fbc013da6baaaa6612af2c8",
     "semantic_hash": ""
   },
   "docs/operations/provider-setup.md": {
@@ -955,8 +955,8 @@
     "semantic_hash": ""
   },
   "scripts/validate-version-sync.mjs": {
-    "mtime": 1787359883.1912851,
-    "ast_hash": "50815856fa25326bb0259e79b47949a5",
+    "mtime": 1787361060.2765179,
+    "ast_hash": "8c5e5cfe5bf32247839efa7258a14c44",
     "semantic_hash": ""
   },
   "scripts/verify-sbom-checksums.mjs": {
@@ -965,8 +965,8 @@
     "semantic_hash": ""
   },
   "scripts/version-sync.test.mjs": {
-    "mtime": 1787358382.9492831,
-    "ast_hash": "18c1991dfa1ae2bdee87ecfba089a670",
+    "mtime": 1787361060.2775452,
+    "ast_hash": "bc363e5fed927045aa2e84bc4939838d",
     "semantic_hash": ""
   },
   "docs/releases/nimanto-v0.5.2-SHA256SUMS.txt": {
@@ -1075,13 +1075,13 @@
     "semantic_hash": ""
   },
   "docs/releases/v0.5.5-surface-ledger.md": {
-    "mtime": 1787359929.055489,
-    "ast_hash": "9837033701cc587963640f0ef77a359f",
+    "mtime": 1787361067.8762786,
+    "ast_hash": "ae88245ddfa9bc521101b8d5b6c916a2",
     "semantic_hash": ""
   },
   "docs/releases/v0.5.5.md": {
-    "mtime": 1787359919.9980495,
-    "ast_hash": "141733fff1354ba5e67eea864fbf41a7",
+    "mtime": 1787361034.894794,
+    "ast_hash": "1065f2e581d2a61552c3d701b502a459",
     "semantic_hash": ""
   }
 }
