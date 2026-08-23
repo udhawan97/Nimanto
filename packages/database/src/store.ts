@@ -3,6 +3,7 @@ import { chmod, mkdir, readdir } from "node:fs/promises";
 import path from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import {
+  applicationFollowUpPolicy,
   canonicalHash,
   applicationTransitions,
   scheduledFailureEvent,
@@ -19,7 +20,7 @@ import {
   type ScheduledJobState,
   transitionScheduledJob,
 } from "@nimanto/domain";
-import { schemaSql } from "./schema.js";
+import { migrateDatabase } from "./migrations.js";
 
 interface EvidenceRow {
   id: string;
@@ -273,54 +274,14 @@ export class NimantoStore {
       await tightenPosixPermissions(dataDirectory);
     }
     const db = await PGlite.create(dataDirectory);
-    await db.exec(schemaSql);
-    const legacyPackets = await db.query<{
-      id: string;
-      artifact_manifest: Record<string, unknown>;
-    }>(
-      `SELECT packet.id, packet.artifact_manifest
-       FROM packets AS packet
-       JOIN tenants AS tenant ON tenant.id = packet.tenant_id
-       WHERE packet.manifest_hash = '' AND tenant.deletion_state = 'active'`,
-    );
-    for (const packet of legacyPackets.rows) {
-      await db.query("UPDATE packets SET manifest_hash = $2 WHERE id = $1", [
-        packet.id,
-        canonicalHash(packet.artifact_manifest),
-      ]);
+    try {
+      await migrateDatabase(db);
+      if (!dataDirectory.startsWith("memory://")) await tightenPosixPermissions(dataDirectory);
+      return new NimantoStore(db);
+    } catch (error) {
+      await db.close();
+      throw error;
     }
-    const legacyActions = await db.query<{
-      id: string;
-      packet_id: string | null;
-      provider: ExternalActionProvider;
-      target: Record<string, unknown>;
-      payload: Record<string, unknown>;
-      state: ExternalActionState;
-    }>(
-      `SELECT action.id, action.packet_id, action.provider, action.target,
-         action.payload, action.state
-       FROM external_actions AS action
-       JOIN tenants AS tenant ON tenant.id = action.tenant_id
-       WHERE action.intent_hash = '' AND tenant.deletion_state = 'active'`,
-    );
-    for (const action of legacyActions.rows) {
-      const intentHash = canonicalHash({
-        packetId: action.packet_id,
-        provider: action.provider,
-        target: action.target,
-        payload: action.payload,
-      });
-      await db.query(
-        `UPDATE external_actions
-         SET intent_hash = $2,
-           state = CASE WHEN state = 'approved' THEN 'pending_approval' ELSE state END,
-           approved_at = CASE WHEN state = 'approved' THEN NULL ELSE approved_at END
-         WHERE id = $1`,
-        [action.id, intentHash],
-      );
-    }
-    if (!dataDirectory.startsWith("memory://")) await tightenPosixPermissions(dataDirectory);
-    return new NimantoStore(db);
   }
 
   async close(): Promise<void> {
@@ -1585,9 +1546,7 @@ export class NimantoStore {
       );
       const status = current.rows[0]?.status;
       if (!status) return null;
-      if (followUpOn !== null && status === "withdrawn") {
-        throw new Error("FOLLOW_UP_UNAVAILABLE");
-      }
+      applicationFollowUpPolicy.change(status, followUpOn);
       const result = await database.#db.query<any>(
         `UPDATE applications
          SET follow_up_on = $3::date, updated_at = now()

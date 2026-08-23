@@ -1,4 +1,7 @@
-export const schemaSql = String.raw`
+/** Latest shape for a brand-new local database. Upgrade-only ALTERs and data
+ * backfills live in the ordered migration module instead of running on every
+ * open. */
+export const freshSchemaSql = String.raw`
 CREATE TABLE IF NOT EXISTS schema_versions (
   version integer PRIMARY KEY,
   applied_at timestamptz NOT NULL DEFAULT now()
@@ -115,6 +118,7 @@ CREATE TABLE IF NOT EXISTS h1b_signals (
   observed_at timestamptz NOT NULL,
   confidence text NOT NULL,
   limitations text NOT NULL,
+  dataset_edition_id text,
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
@@ -130,7 +134,6 @@ CREATE TABLE IF NOT EXISTS applications (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS applications_tenant_idx ON applications(tenant_id, updated_at DESC);
-ALTER TABLE applications ADD COLUMN IF NOT EXISTS follow_up_on date;
 
 CREATE TABLE IF NOT EXISTS outcomes (
   id text PRIMARY KEY,
@@ -240,66 +243,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS scheduled_jobs_active_source_idx
   ON scheduled_jobs(tenant_id, type, (payload->>'provider'), (payload->>'board'))
   WHERE type = 'source.refresh' AND state <> 'cancelled';
 
-ALTER TABLE scheduled_jobs ADD COLUMN IF NOT EXISTS max_attempts integer NOT NULL DEFAULT 5;
-ALTER TABLE scheduled_jobs ADD COLUMN IF NOT EXISTS lease_token_hash text;
-ALTER TABLE scheduled_jobs ADD COLUMN IF NOT EXISTS lease_expires_at timestamptz;
-ALTER TABLE scheduled_jobs ADD COLUMN IF NOT EXISTS last_run_at timestamptz;
-ALTER TABLE scheduled_jobs ADD COLUMN IF NOT EXISTS last_result jsonb;
-ALTER TABLE assurance_runs ADD COLUMN IF NOT EXISTS run_sequence bigint;
-ALTER TABLE packets ADD COLUMN IF NOT EXISTS manifest_hash text NOT NULL DEFAULT '';
-ALTER TABLE packets ADD COLUMN IF NOT EXISTS generation_sequence bigint;
-ALTER TABLE assurance_runs ADD COLUMN IF NOT EXISTS packet_artifact_hash text NOT NULL DEFAULT '';
-ALTER TABLE assurance_runs ADD COLUMN IF NOT EXISTS manifest_hash text NOT NULL DEFAULT '';
-ALTER TABLE external_actions ADD COLUMN IF NOT EXISTS intent_hash text NOT NULL DEFAULT '';
-ALTER TABLE external_actions ADD COLUMN IF NOT EXISTS approved_intent_hash text;
-ALTER TABLE external_actions ADD COLUMN IF NOT EXISTS approved_packet_hash text;
-WITH sequence_base AS (
-  SELECT COALESCE(MAX(generation_sequence), 0) AS value FROM packets
-), ordered_packets AS (
-  SELECT
-    id,
-    sequence_base.value + ROW_NUMBER() OVER (ORDER BY created_at, id) AS value
-  FROM packets CROSS JOIN sequence_base
-  WHERE generation_sequence IS NULL
-)
-UPDATE packets
-SET generation_sequence = ordered_packets.value
-FROM ordered_packets
-WHERE packets.id = ordered_packets.id;
-ALTER TABLE packets
-  ALTER COLUMN generation_sequence SET DEFAULT nextval('packets_generation_sequence_seq');
-ALTER TABLE packets ALTER COLUMN generation_sequence SET NOT NULL;
-ALTER SEQUENCE packets_generation_sequence_seq OWNED BY packets.generation_sequence;
-SELECT setval(
-  'packets_generation_sequence_seq',
-  GREATEST(COALESCE((SELECT MAX(generation_sequence) FROM packets), 0) + 1, 1),
-  false
-);
-CREATE UNIQUE INDEX IF NOT EXISTS packets_generation_sequence_unique_idx
-  ON packets(generation_sequence);
-WITH sequence_base AS (
-  SELECT COALESCE(MAX(run_sequence), 0) AS value FROM assurance_runs
-), ordered_runs AS (
-  SELECT
-    id,
-    sequence_base.value + ROW_NUMBER() OVER (ORDER BY created_at, id) AS value
-  FROM assurance_runs CROSS JOIN sequence_base
-  WHERE run_sequence IS NULL
-)
-UPDATE assurance_runs
-SET run_sequence = ordered_runs.value
-FROM ordered_runs
-WHERE assurance_runs.id = ordered_runs.id;
-ALTER TABLE assurance_runs
-  ALTER COLUMN run_sequence SET DEFAULT nextval('assurance_runs_run_sequence_seq');
-ALTER TABLE assurance_runs ALTER COLUMN run_sequence SET NOT NULL;
-ALTER SEQUENCE assurance_runs_run_sequence_seq OWNED BY assurance_runs.run_sequence;
-SELECT setval(
-  'assurance_runs_run_sequence_seq',
-  GREATEST(COALESCE((SELECT MAX(run_sequence) FROM assurance_runs), 0) + 1, 1),
-  false
-);
-
 CREATE TABLE IF NOT EXISTS deletion_runs (
   id text PRIMARY KEY,
   tenant_id text NOT NULL UNIQUE,
@@ -324,13 +267,6 @@ CREATE TABLE IF NOT EXISTS dataset_editions (
   created_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (tenant_id, source_type, source_edition)
 );
-ALTER TABLE h1b_signals ADD COLUMN IF NOT EXISTS dataset_edition_id text;
-CREATE INDEX IF NOT EXISTS h1b_signals_dataset_edition_idx
-  ON h1b_signals(tenant_id, dataset_edition_id);
-
-ALTER TABLE deletion_runs ADD COLUMN IF NOT EXISTS cleanup_inventory jsonb NOT NULL DEFAULT '{}'::jsonb;
-ALTER TABLE deletion_runs ADD COLUMN IF NOT EXISTS last_error_code text;
-
 CREATE OR REPLACE FUNCTION nimanto_require_active_tenant()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -367,9 +303,116 @@ BEGIN
 END;
 $$;
 
-INSERT INTO schema_versions(version) VALUES (1) ON CONFLICT (version) DO NOTHING;
-INSERT INTO schema_versions(version) VALUES (2) ON CONFLICT (version) DO NOTHING;
-INSERT INTO schema_versions(version) VALUES (3) ON CONFLICT (version) DO NOTHING;
-INSERT INTO schema_versions(version) VALUES (4) ON CONFLICT (version) DO NOTHING;
-INSERT INTO schema_versions(version) VALUES (5) ON CONFLICT (version) DO NOTHING;
+`;
+
+export const schemaVersion2Sql = String.raw`
+ALTER TABLE scheduled_jobs ADD COLUMN IF NOT EXISTS max_attempts integer NOT NULL DEFAULT 5;
+ALTER TABLE scheduled_jobs ADD COLUMN IF NOT EXISTS lease_token_hash text;
+ALTER TABLE scheduled_jobs ADD COLUMN IF NOT EXISTS lease_expires_at timestamptz;
+ALTER TABLE scheduled_jobs ADD COLUMN IF NOT EXISTS last_run_at timestamptz;
+ALTER TABLE scheduled_jobs ADD COLUMN IF NOT EXISTS last_result jsonb;
+CREATE INDEX IF NOT EXISTS scheduled_jobs_due_idx
+  ON scheduled_jobs(state, not_before, created_at);
+CREATE UNIQUE INDEX IF NOT EXISTS scheduled_jobs_active_source_idx
+  ON scheduled_jobs(tenant_id, type, (payload->>'provider'), (payload->>'board'))
+  WHERE type = 'source.refresh' AND state <> 'cancelled';
+`;
+
+export const schemaVersion3Sql = String.raw`
+CREATE SEQUENCE IF NOT EXISTS assurance_runs_run_sequence_seq;
+ALTER TABLE assurance_runs ADD COLUMN IF NOT EXISTS run_sequence bigint;
+WITH sequence_base AS (
+  SELECT COALESCE(MAX(run_sequence), 0) AS value FROM assurance_runs
+), ordered_runs AS (
+  SELECT id, sequence_base.value + ROW_NUMBER() OVER (ORDER BY created_at, id) AS value
+  FROM assurance_runs CROSS JOIN sequence_base
+  WHERE run_sequence IS NULL
+)
+UPDATE assurance_runs
+SET run_sequence = ordered_runs.value
+FROM ordered_runs
+WHERE assurance_runs.id = ordered_runs.id;
+ALTER TABLE assurance_runs
+  ALTER COLUMN run_sequence SET DEFAULT nextval('assurance_runs_run_sequence_seq');
+ALTER TABLE assurance_runs ALTER COLUMN run_sequence SET NOT NULL;
+ALTER SEQUENCE assurance_runs_run_sequence_seq OWNED BY assurance_runs.run_sequence;
+SELECT setval(
+  'assurance_runs_run_sequence_seq',
+  GREATEST(COALESCE((SELECT MAX(run_sequence) FROM assurance_runs), 0) + 1, 1),
+  false
+);
+ALTER TABLE packets ADD COLUMN IF NOT EXISTS manifest_hash text NOT NULL DEFAULT '';
+ALTER TABLE assurance_runs ADD COLUMN IF NOT EXISTS packet_artifact_hash text NOT NULL DEFAULT '';
+ALTER TABLE assurance_runs ADD COLUMN IF NOT EXISTS manifest_hash text NOT NULL DEFAULT '';
+ALTER TABLE external_actions ADD COLUMN IF NOT EXISTS intent_hash text NOT NULL DEFAULT '';
+ALTER TABLE external_actions ADD COLUMN IF NOT EXISTS approved_intent_hash text;
+ALTER TABLE external_actions ADD COLUMN IF NOT EXISTS approved_packet_hash text;
+CREATE TABLE IF NOT EXISTS dataset_editions (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  source_type text NOT NULL,
+  source_edition text NOT NULL,
+  checksum text NOT NULL,
+  transformation_version text NOT NULL,
+  evaluation jsonb NOT NULL,
+  evaluation_provenance jsonb,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (tenant_id, source_type, source_edition)
+);
+ALTER TABLE h1b_signals ADD COLUMN IF NOT EXISTS dataset_edition_id text;
+CREATE INDEX IF NOT EXISTS h1b_signals_dataset_edition_idx
+  ON h1b_signals(tenant_id, dataset_edition_id);
+ALTER TABLE deletion_runs ADD COLUMN IF NOT EXISTS cleanup_inventory jsonb NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE deletion_runs ADD COLUMN IF NOT EXISTS last_error_code text;
+DO $$
+DECLARE
+  table_name text;
+BEGIN
+  FOREACH table_name IN ARRAY ARRAY[
+    'memberships', 'sessions', 'evidence_claims', 'profile_versions', 'jobs',
+    'match_runs', 'h1b_signals', 'applications', 'outcomes', 'packets',
+    'assurance_runs', 'external_actions', 'receipts', 'source_settings',
+    'scheduled_jobs', 'dataset_editions'
+  ]
+  LOOP
+    EXECUTE format('DROP TRIGGER IF EXISTS nimanto_active_tenant_write ON %I', table_name);
+    EXECUTE format(
+      'CREATE TRIGGER nimanto_active_tenant_write BEFORE INSERT OR UPDATE ON %I
+       FOR EACH ROW EXECUTE FUNCTION nimanto_require_active_tenant()',
+      table_name
+    );
+  END LOOP;
+END;
+$$;
+`;
+
+export const schemaVersion4Sql = String.raw`
+CREATE SEQUENCE IF NOT EXISTS packets_generation_sequence_seq;
+ALTER TABLE packets ADD COLUMN IF NOT EXISTS generation_sequence bigint;
+WITH sequence_base AS (
+  SELECT COALESCE(MAX(generation_sequence), 0) AS value FROM packets
+), ordered_packets AS (
+  SELECT id, sequence_base.value + ROW_NUMBER() OVER (ORDER BY created_at, id) AS value
+  FROM packets CROSS JOIN sequence_base
+  WHERE generation_sequence IS NULL
+)
+UPDATE packets
+SET generation_sequence = ordered_packets.value
+FROM ordered_packets
+WHERE packets.id = ordered_packets.id;
+ALTER TABLE packets
+  ALTER COLUMN generation_sequence SET DEFAULT nextval('packets_generation_sequence_seq');
+ALTER TABLE packets ALTER COLUMN generation_sequence SET NOT NULL;
+ALTER SEQUENCE packets_generation_sequence_seq OWNED BY packets.generation_sequence;
+SELECT setval(
+  'packets_generation_sequence_seq',
+  GREATEST(COALESCE((SELECT MAX(generation_sequence) FROM packets), 0) + 1, 1),
+  false
+);
+CREATE UNIQUE INDEX IF NOT EXISTS packets_generation_sequence_unique_idx
+  ON packets(generation_sequence);
+`;
+
+export const schemaVersion5Sql = String.raw`
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS follow_up_on date;
 `;

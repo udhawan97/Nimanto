@@ -9,9 +9,9 @@ import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
 import { NimantoStore, type SessionIdentity } from "@nimanto/database";
 import {
+  applicationFollowUpPolicy,
   applicationTransitions,
   canonicalHash,
-  freshH1bLabel,
   normalizeRoleObservation,
   type ApplicationStatus,
   type EvidenceClaim,
@@ -27,6 +27,7 @@ import {
 } from "@nimanto/providers";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import type { NimantoApiOptions } from "./config.js";
+import { DashboardRead } from "./dashboard-read.js";
 import { DeletionCoordinator } from "./deletion-coordinator.js";
 import { DiscoveryCycle } from "./discovery-cycle.js";
 import { EvidenceIntake } from "./evidence-intake.js";
@@ -80,22 +81,6 @@ function strings(value: unknown, field: string): string[] {
     throw new Error(`INVALID_${field.toUpperCase()}`);
   }
   return value.map((entry) => entry.normalize("NFC").trim()).filter(Boolean);
-}
-
-function followUpDate(value: unknown): string | null {
-  if (value === null) return null;
-  if (
-    typeof value !== "string" ||
-    !/^\d{4}-\d{2}-\d{2}$/u.test(value) ||
-    value.startsWith("0000-")
-  ) {
-    throw new Error("INVALID_FOLLOW_UP_DATE");
-  }
-  const parsed = new Date(`${value}T00:00:00.000Z`);
-  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value) {
-    throw new Error("INVALID_FOLLOW_UP_DATE");
-  }
-  return value;
 }
 
 function historyOptions(query: unknown): { cursor?: string; limit: number } {
@@ -332,6 +317,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     options.assuranceModel,
   );
   const externalActionLifecycle = new ExternalActionLifecycle(store, options.outboxDirectory);
+  const dashboardRead = new DashboardRead(store, () => externalActionLifecycle.runtime());
   await externalActionLifecycle.recoverInterrupted();
   const discoveryCycle = new DiscoveryCycle(store, options.providerJobsFetcher);
   let governmentDataset: GovernmentDatasetIngestion;
@@ -668,81 +654,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
   });
 
   app.get("/v1/dashboard", async (request) => {
-    const person = identity(request);
-    const [
-      evidence,
-      jobs,
-      matches,
-      signals,
-      applications,
-      packets,
-      actions,
-      receipts,
-      profile,
-      schedules,
-    ] = await Promise.all([
-      store.listEvidence(person.tenantId),
-      store.listJobs(person.tenantId),
-      store.listLatestMatches(person.tenantId),
-      store.listH1bSignals(person.tenantId),
-      store.listApplications(person.tenantId),
-      store.listLatestPackets(person.tenantId),
-      store.listExternalActions(person.tenantId),
-      store.listReceipts(person.tenantId),
-      store.latestProfileVersion(person.tenantId),
-      store.listSourceSchedules(person.tenantId),
-    ]);
-    const actionPackets = await store.listPacketsByIds(
-      person.tenantId,
-      actions.map((action) => action.packetId).filter((id): id is string => id !== null),
-    );
-    const assurancePackets = [
-      ...new Map([...packets, ...actionPackets].map((packet) => [packet.id, packet])).values(),
-    ];
-    const assurances = await store.listLatestAssurancesForPackets(
-      person.tenantId,
-      assurancePackets.map((packet) => packet.id),
-    );
-    const assuranceByPacket = new Map(
-      assurances.map((assurance) => [assurance.packetId, assurance]),
-    );
-    return {
-      identity: person,
-      profile,
-      evidence,
-      jobs,
-      matches,
-      h1bSignals: signals.map((signal) => ({ ...signal, ...freshH1bLabel(signal) })),
-      applications,
-      packets: packets.map((packet) => ({
-        ...packet,
-        latestAssurance: assuranceByPacket.get(packet.id) ?? null,
-      })),
-      actionPackets: actionPackets.map((packet) => ({
-        ...packet,
-        latestAssurance: assuranceByPacket.get(packet.id) ?? null,
-      })),
-      externalActions: actions,
-      receipts,
-      schedules,
-      personalFunnel: {
-        sampleSize: applications.length,
-        replies: applications.filter((application) =>
-          application.outcomes?.some((outcome) => outcome.type === "reply"),
-        ).length,
-        screens: applications.filter((application) =>
-          application.outcomes?.some((outcome) => outcome.type === "screen"),
-        ).length,
-        interviews: applications.filter((application) =>
-          application.outcomes?.some((outcome) => outcome.type === "interview"),
-        ).length,
-        offers: applications.filter((application) =>
-          application.outcomes?.some((outcome) => outcome.type === "offer"),
-        ).length,
-        scope: "Candidate-reported outcomes in this local workspace; not a hiring probability.",
-      },
-      runtime: { externalActionsEnabled: externalActionLifecycle.runtime() },
-    };
+    return dashboardRead.read(identity(request));
   });
 
   app.post("/v1/evidence", async (request) => {
@@ -1028,7 +940,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     const record = await store.setApplicationFollowUp(
       person.tenantId,
       (request.params as { id: string }).id,
-      followUpDate(body.followUpOn),
+      applicationFollowUpPolicy.parse(body.followUpOn),
     );
     if (!record) throw new Error("APPLICATION_NOT_FOUND");
     return record;

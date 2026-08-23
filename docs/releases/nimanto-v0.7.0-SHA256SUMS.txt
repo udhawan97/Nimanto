@@ -1,0 +1,2 @@
+ef3fbdb211e6c27c7cad0c248ece61316aa2511fb74e5588c026a01bc8514876  nimanto-v0.7.0.cdx.json
+2f730001e2d60b9039a9021c35be32eb85bfa880cf610210cfaed6130bd226ca  nimanto-v0.7.0.spdx.json

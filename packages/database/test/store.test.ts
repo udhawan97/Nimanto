@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { PGlite } from "@electric-sql/pglite";
 import { canonicalHash, createReceipt, matchJob } from "@nimanto/domain";
+import { CURRENT_SCHEMA_VERSION } from "../src/migrations.js";
 import { NimantoStore } from "../src/store.js";
 
 const stores: NimantoStore[] = [];
@@ -386,6 +387,31 @@ describe("tenant-scoped persistence public seam", () => {
 });
 
 describe("beta workflow persistence", () => {
+  it("records the complete migration ledger for a fresh database exactly once", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nimanto-store-fresh-migrations-"));
+    const data = join(root, "data");
+
+    const fresh = await NimantoStore.open(data);
+    await fresh.close();
+    const firstInspection = await PGlite.create(data);
+    const firstLedger = await firstInspection.query<{ version: number; applied_at: string | Date }>(
+      "SELECT version, applied_at FROM schema_versions ORDER BY version",
+    );
+    await firstInspection.close();
+    expect(firstLedger.rows.map((row) => row.version)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(firstLedger.rows.at(-1)?.version).toBe(CURRENT_SCHEMA_VERSION);
+
+    const reopened = await NimantoStore.open(data);
+    await reopened.close();
+    const secondInspection = await PGlite.create(data);
+    const secondLedger = await secondInspection.query<{
+      version: number;
+      applied_at: string | Date;
+    }>("SELECT version, applied_at FROM schema_versions ORDER BY version");
+    await secondInspection.close();
+    expect(secondLedger.rows).toEqual(firstLedger.rows);
+  });
+
   it("upgrades a genuine v0.4.1 schema twice without losing data or approval safety", async () => {
     const root = await mkdtemp(join(tmpdir(), "nimanto-store-v041-upgrade-"));
     const data = join(root, "data");
@@ -413,7 +439,8 @@ describe("beta workflow persistence", () => {
     const schemaVersions = await migrated.query<{ version: number }>(
       "SELECT version FROM schema_versions ORDER BY version",
     );
-    expect(schemaVersions.rows.map((row) => row.version)).toEqual([1, 2, 3, 4, 5]);
+    expect(schemaVersions.rows.map((row) => row.version)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(schemaVersions.rows.at(-1)?.version).toBe(CURRENT_SCHEMA_VERSION);
     const packetSequences = await migrated.query<{ generation_sequence: string | number }>(
       "SELECT generation_sequence FROM packets WHERE id = 'legacy-packet'",
     );
@@ -432,6 +459,79 @@ describe("beta workflow persistence", () => {
       approvedPacketHash: null,
     });
     expect(await reopened.listDatasetEditions("legacy-tenant")).toEqual([]);
+  });
+
+  it("records an integrity migration only after its backfill commits and resumes safely", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nimanto-store-interrupted-migration-"));
+    const data = join(root, "data");
+    const legacy = await PGlite.create(data);
+    await legacy.exec(v041FixtureSql);
+    await legacy.exec(String.raw`
+      CREATE FUNCTION interrupt_integrity_migration()
+      RETURNS trigger LANGUAGE plpgsql AS $$
+      BEGIN
+        RAISE EXCEPTION 'INTERRUPT_V6';
+      END;
+      $$;
+      CREATE TRIGGER interrupt_v6
+      BEFORE UPDATE ON external_actions
+      FOR EACH ROW EXECUTE FUNCTION interrupt_integrity_migration();
+    `);
+    await legacy.close();
+
+    await expect(NimantoStore.open(data)).rejects.toThrow(/INTERRUPT_V6/u);
+    const interrupted = await PGlite.create(data);
+    expect(
+      (
+        await interrupted.query<{ version: number }>(
+          "SELECT version FROM schema_versions ORDER BY version",
+        )
+      ).rows.map((row) => row.version),
+    ).toEqual([1, 2, 3, 4, 5]);
+    expect(
+      (
+        await interrupted.query<{ manifest_hash: string }>(
+          "SELECT manifest_hash FROM packets WHERE id = 'legacy-packet'",
+        )
+      ).rows[0]?.manifest_hash,
+    ).toBe("");
+    expect(
+      (
+        await interrupted.query<{ state: string }>(
+          "SELECT state FROM external_actions WHERE id = 'legacy-action'",
+        )
+      ).rows[0]?.state,
+    ).toBe("approved");
+    await interrupted.exec(String.raw`
+      DROP TRIGGER interrupt_v6 ON external_actions;
+      DROP FUNCTION interrupt_integrity_migration();
+    `);
+    await interrupted.close();
+
+    const resumed = await NimantoStore.open(data);
+    stores.push(resumed);
+    expect(await resumed.getPacket("legacy-tenant", "legacy-packet")).toMatchObject({
+      manifestHash: canonicalHash({ artifacts: [] }),
+    });
+    expect(await resumed.getExternalAction("legacy-tenant", "legacy-action")).toMatchObject({
+      state: "pending_approval",
+      intentHash: expect.stringMatching(/^[a-f0-9]{64}$/u),
+    });
+  });
+
+  it("fails closed before opening a database from a newer runtime", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nimanto-store-future-schema-"));
+    const data = join(root, "data");
+    const future = await PGlite.create(data);
+    await future.exec(String.raw`
+      CREATE TABLE schema_versions (
+        version integer PRIMARY KEY,
+        applied_at timestamptz NOT NULL DEFAULT now()
+      );
+      INSERT INTO schema_versions(version) VALUES (7);
+    `);
+    await future.close();
+    await expect(NimantoStore.open(data)).rejects.toThrow("DATABASE_SCHEMA_NEWER_THAN_RUNTIME");
   });
 
   it("pages tenant-owned history without exposing another tenant or a global assurance sequence", async () => {
@@ -626,6 +726,7 @@ describe("beta workflow persistence", () => {
     );
     await legacy.exec("ALTER TABLE assurance_runs DROP COLUMN run_sequence");
     await legacy.exec("DROP SEQUENCE IF EXISTS assurance_runs_run_sequence_seq");
+    await legacy.exec("DELETE FROM schema_versions WHERE version IN (3, 4, 5, 6)");
     await legacy.close();
 
     const reopened = await NimantoStore.open(data);
@@ -705,7 +806,7 @@ describe("beta workflow persistence", () => {
     await legacy.exec("ALTER TABLE packets DROP COLUMN generation_sequence");
     await legacy.exec("ALTER TABLE applications DROP COLUMN follow_up_on");
     await legacy.exec("DROP SEQUENCE IF EXISTS packets_generation_sequence_seq");
-    await legacy.exec("DELETE FROM schema_versions WHERE version IN (4, 5)");
+    await legacy.exec("DELETE FROM schema_versions WHERE version IN (4, 5, 6)");
     await legacy.close();
 
     const upgraded = await NimantoStore.open(data);

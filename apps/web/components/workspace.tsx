@@ -42,6 +42,7 @@ import {
   useEffect,
   useId,
   useMemo,
+  useReducer,
   useRef,
   useState,
 } from "react";
@@ -91,6 +92,14 @@ import {
   type WorkbenchMutations,
 } from "../lib/workbench-mutations.js";
 import { createScopedRequestGate } from "../lib/scoped-request-gate.js";
+import {
+  applicationsWorkbenchReducer,
+  createApplicationsWorkbenchState,
+  type ApplicationsWorkbench,
+  type ApplicationViewState,
+  type OutcomeDraft,
+  type ReminderDraft,
+} from "../lib/applications-workbench.js";
 
 const API = process.env.NEXT_PUBLIC_NIMANTO_API_ORIGIN ?? "http://127.0.0.1:4310";
 
@@ -249,45 +258,6 @@ type ActionDraft = {
   subject: string;
   body: string;
 };
-type OutcomeDraft = {
-  applicationId: string;
-  type: string;
-  note: string;
-};
-type OutcomeDraftState = {
-  activeApplicationId: string | null;
-  byApplication: Record<string, OutcomeDraft>;
-};
-const emptyOutcomeDraftState = (): OutcomeDraftState => ({
-  activeApplicationId: null,
-  byApplication: {},
-});
-type ReminderDraft = {
-  applicationId: string;
-  followUpOn: string;
-};
-type ReminderDraftState = {
-  activeApplicationId: string | null;
-  byApplication: Record<string, ReminderDraft>;
-};
-const emptyReminderDraftState = (): ReminderDraftState => ({
-  activeApplicationId: null,
-  byApplication: {},
-});
-type ApplicationViewState = {
-  reviewOnly: boolean;
-  cohortStart: string;
-  cohortEnd: string;
-  cohortSource: string;
-  cohortBucket: "all" | (typeof APPLICATION_MATCH_BUCKETS)[number];
-};
-const emptyApplicationViewState = (): ApplicationViewState => ({
-  reviewOnly: false,
-  cohortStart: dateInputValue(new Date(), -30),
-  cohortEnd: dateInputValue(new Date()),
-  cohortSource: "all",
-  cohortBucket: "all",
-});
 const emptyActionDraft = (packetId: string): ActionDraft => ({
   packetId,
   provider: "deep_link",
@@ -301,12 +271,6 @@ const sameActionDraft = (left: ActionDraft, right: ActionDraft) =>
   left.to === right.to &&
   left.subject === right.subject &&
   left.body === right.body;
-const sameOutcomeDraft = (left: OutcomeDraft, right: OutcomeDraft) =>
-  left.applicationId === right.applicationId &&
-  left.type === right.type &&
-  left.note === right.note;
-const sameReminderDraft = (left: ReminderDraft, right: ReminderDraft) =>
-  left.applicationId === right.applicationId && left.followUpOn === right.followUpOn;
 const emptyRoleFilters = (): RoleFilters => ({
   query: "",
   source: "all",
@@ -539,15 +503,6 @@ function packetManifestDelta(before: PacketHistoryRecord, after: PacketHistoryRe
   return changes;
 }
 
-function dateInputValue(value: Date, offsetDays = 0): string {
-  const local = new Date(value);
-  local.setDate(local.getDate() + offsetDays);
-  const year = local.getFullYear();
-  const month = String(local.getMonth() + 1).padStart(2, "0");
-  const day = String(local.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
 function localDayInstant(value: string, offsetDays = 0): string {
   const [year, month, day] = value.split("-").map(Number);
   return new Date(year!, month! - 1, day! + offsetDays).toISOString();
@@ -614,51 +569,14 @@ export function Workspace() {
   const [evidenceDraft, setEvidenceDraft] = useState<EvidenceDraft | null>(null);
   const [roleFilters, setRoleFilters] = useState<RoleFilters>(emptyRoleFilters);
   const [actionDraft, setActionDraft] = useState<ActionDraft | null>(null);
-  const [outcomeDraftState, setOutcomeDraftState] =
-    useState<OutcomeDraftState>(emptyOutcomeDraftState);
-  const [reminderDraftState, setReminderDraftState] =
-    useState<ReminderDraftState>(emptyReminderDraftState);
+  const [applicationsWorkbenchState, dispatchApplicationsWorkbench] = useReducer(
+    applicationsWorkbenchReducer,
+    undefined,
+    () => createApplicationsWorkbenchState(),
+  );
   const commitActionDraft = useCallback((submitted: ActionDraft) => {
     setActionDraft((current) => (current && sameActionDraft(current, submitted) ? null : current));
   }, []);
-  const commitOutcomeDraft = useCallback((submitted: OutcomeDraft) => {
-    setOutcomeDraftState((current) => {
-      const submittedApplicationId = submitted.applicationId;
-      const retained = current.byApplication[submittedApplicationId];
-      if (!retained || !sameOutcomeDraft(retained, submitted)) return current;
-      const byApplication = { ...current.byApplication };
-      delete byApplication[submittedApplicationId];
-      return {
-        activeApplicationId:
-          current.activeApplicationId === submittedApplicationId
-            ? null
-            : current.activeApplicationId,
-        byApplication,
-      };
-    });
-  }, []);
-  const commitReminderDraft = useCallback((submitted: ReminderDraft) => {
-    setReminderDraftState((current) => {
-      const retained = current.byApplication[submitted.applicationId];
-      if (!retained || !sameReminderDraft(retained, submitted)) return current;
-      const byApplication = { ...current.byApplication };
-      delete byApplication[submitted.applicationId];
-      return {
-        activeApplicationId:
-          current.activeApplicationId === submitted.applicationId
-            ? null
-            : current.activeApplicationId,
-        byApplication,
-      };
-    });
-  }, []);
-  const [applicationViewState, setApplicationViewState] =
-    useState<ApplicationViewState>(emptyApplicationViewState);
-  /* Sections unmount on navigation, so a view chosen inside Applications died
-   * on the way to any other section. React state only: this is a view
-   * preference for the signed-in session, not stored data, and the one storage
-   * key this app owns holds the bootstrap secret. */
-  const [applicationsView, setApplicationsView] = useState<"board" | "table">("board");
   /* Cookies are shared between tabs. A second tab can replace the authenticated
    * workspace while this one still has candidate-authored drafts in memory, so
    * dashboard replacement needs a stable identity fence of its own. */
@@ -780,10 +698,7 @@ export function Workspace() {
       setEvidenceDraft(null);
       setRoleFilters(emptyRoleFilters());
       setActionDraft(null);
-      setOutcomeDraftState(emptyOutcomeDraftState());
-      setReminderDraftState(emptyReminderDraftState());
-      setApplicationViewState(emptyApplicationViewState());
-      setApplicationsView("board");
+      dispatchApplicationsWorkbench({ type: "reset" });
       // Remount the active section too: import previews and other child-local
       // state are identity-scoped even though they are not durable drafts.
       setIdentityEpoch((epoch) => epoch + 1);
@@ -1357,16 +1272,10 @@ export function Workspace() {
               onAct={mutations}
               busy={busy}
               onGo={goToSection}
-              view={applicationsView}
-              onViewChange={setApplicationsView}
-              workingView={applicationViewState}
-              onWorkingViewChange={setApplicationViewState}
-              outcomeDraftState={outcomeDraftState}
-              onOutcomeDraftStateChange={setOutcomeDraftState}
-              onOutcomeCommitted={commitOutcomeDraft}
-              reminderDraftState={reminderDraftState}
-              onReminderDraftStateChange={setReminderDraftState}
-              onReminderCommitted={commitReminderDraft}
+              workbench={{
+                state: applicationsWorkbenchState,
+                dispatch: dispatchApplicationsWorkbench,
+              }}
             />
           )}
           {section === "packets" && <Packets dashboard={dashboard} onAct={mutations} busy={busy} />}
@@ -3762,38 +3671,21 @@ function Applications({
   onAct,
   busy,
   onGo,
-  view,
-  onViewChange,
-  workingView,
-  onWorkingViewChange,
-  outcomeDraftState,
-  onOutcomeDraftStateChange,
-  onOutcomeCommitted,
-  reminderDraftState,
-  onReminderDraftStateChange,
-  onReminderCommitted,
+  workbench,
 }: {
   dashboard: Dashboard;
   onAct: ActionRunner;
   busy: boolean;
   onGo: (section: Section) => void;
-  view: "board" | "table";
-  onViewChange: (view: "board" | "table") => void;
-  workingView: ApplicationViewState;
-  onWorkingViewChange: (view: ApplicationViewState) => void;
-  outcomeDraftState: OutcomeDraftState;
-  onOutcomeDraftStateChange: Dispatch<SetStateAction<OutcomeDraftState>>;
-  onOutcomeCommitted: (submitted: OutcomeDraft) => void;
-  reminderDraftState: ReminderDraftState;
-  onReminderDraftStateChange: Dispatch<SetStateAction<ReminderDraftState>>;
-  onReminderCommitted: (submitted: ReminderDraft) => void;
+  workbench: ApplicationsWorkbench;
 }) {
-  const outcomeFor = outcomeDraftState.activeApplicationId;
-  const outcomeDraft = outcomeFor ? (outcomeDraftState.byApplication[outcomeFor] ?? null) : null;
-  const reminderFor = reminderDraftState.activeApplicationId;
-  const reminderDraft = reminderFor
-    ? (reminderDraftState.byApplication[reminderFor] ?? null)
-    : null;
+  const { state, dispatch } = workbench;
+  const view = state.display;
+  const workingView = state.view;
+  const outcomeFor = state.outcomes.activeApplicationId;
+  const outcomeDraft = outcomeFor ? (state.outcomes.byApplication[outcomeFor] ?? null) : null;
+  const reminderFor = state.reminders.activeApplicationId;
+  const reminderDraft = reminderFor ? (state.reminders.byApplication[reminderFor] ?? null) : null;
   const [pendingMove, setPendingMove] = useState<{ id: string; to: ApplicationStatus } | null>(
     null,
   );
@@ -3829,7 +3721,7 @@ function Applications({
     // second trigger can be pressed in the same render turn as the last input
     // event; the candidate's visible value is authoritative and must not wait
     // for React's parent update before it is retained.
-    const activeDraft = outcomeFor ? outcomeDraftState.byApplication[outcomeFor] : null;
+    const activeDraft = outcomeFor ? state.outcomes.byApplication[outcomeFor] : null;
     const liveActiveDraft = activeDraft
       ? {
           ...activeDraft,
@@ -3847,13 +3739,10 @@ function Applications({
             )?.value ?? activeDraft.note,
         }
       : null;
-    onOutcomeDraftStateChange((current) => {
-      const byApplication = { ...current.byApplication };
-      if (liveActiveDraft) byApplication[liveActiveDraft.applicationId] = liveActiveDraft;
-      if (!byApplication[id]) {
-        byApplication[id] = { applicationId: id, type: "reply", note: "" };
-      }
-      return { activeApplicationId: id, byApplication };
+    dispatch({
+      type: "outcome_opened",
+      applicationId: id,
+      activeDraft: liveActiveDraft,
     });
   };
   const focusOutcomeTrigger = (id: string) => {
@@ -3864,29 +3753,18 @@ function Applications({
     );
   };
   const closeOutcome = (id: string) => {
-    onOutcomeDraftStateChange((current) => {
-      const byApplication = { ...current.byApplication };
-      delete byApplication[id];
-      return {
-        activeApplicationId:
-          current.activeApplicationId === id ? null : current.activeApplicationId,
-        byApplication,
-      };
-    });
+    dispatch({ type: "outcome_closed", applicationId: id });
     focusOutcomeTrigger(id);
   };
   const changeOutcomeDraft = (draft: OutcomeDraft) => {
-    onOutcomeDraftStateChange((current) => ({
-      ...current,
-      byApplication: { ...current.byApplication, [draft.applicationId]: draft },
-    }));
+    dispatch({ type: "outcome_changed", draft });
   };
   const openReminder = (application: Application) => {
     if (reminderFor === application.id) {
       document.getElementById(`reminder-editor-${application.id}-date`)?.focus();
       return;
     }
-    const activeDraft = reminderFor ? reminderDraftState.byApplication[reminderFor] : null;
+    const activeDraft = reminderFor ? state.reminders.byApplication[reminderFor] : null;
     const liveActiveDraft = activeDraft
       ? {
           ...activeDraft,
@@ -3898,16 +3776,11 @@ function Applications({
             )?.value ?? activeDraft.followUpOn,
         }
       : null;
-    onReminderDraftStateChange((current) => {
-      const byApplication = { ...current.byApplication };
-      if (liveActiveDraft) byApplication[liveActiveDraft.applicationId] = liveActiveDraft;
-      if (!byApplication[application.id]) {
-        byApplication[application.id] = {
-          applicationId: application.id,
-          followUpOn: application.followUpOn ?? "",
-        };
-      }
-      return { activeApplicationId: application.id, byApplication };
+    dispatch({
+      type: "reminder_opened",
+      applicationId: application.id,
+      persistedDate: application.followUpOn ?? "",
+      activeDraft: liveActiveDraft,
     });
   };
   const focusReminderOrigin = (id: string) => {
@@ -3925,22 +3798,11 @@ function Applications({
     );
   };
   const closeReminder = (id: string) => {
-    onReminderDraftStateChange((current) => {
-      const byApplication = { ...current.byApplication };
-      delete byApplication[id];
-      return {
-        activeApplicationId:
-          current.activeApplicationId === id ? null : current.activeApplicationId,
-        byApplication,
-      };
-    });
+    dispatch({ type: "reminder_closed", applicationId: id });
     focusReminderOrigin(id);
   };
   const changeReminderDraft = (draft: ReminderDraft) => {
-    onReminderDraftStateChange((current) => ({
-      ...current,
-      byApplication: { ...current.byApplication, [draft.applicationId]: draft },
-    }));
+    dispatch({ type: "reminder_changed", draft });
   };
   useEffect(() => {
     if (pendingMove || !returnPendingMoveFocus.current) return;
@@ -4017,7 +3879,10 @@ function Applications({
               className="button quiet mini"
               type="button"
               onClick={() => {
-                onViewChange(view === "board" ? "table" : "board");
+                dispatch({
+                  type: "display_changed",
+                  display: view === "board" ? "table" : "board",
+                });
               }}
             >
               {view === "board" ? "Table view" : "Board view"}
@@ -4027,7 +3892,10 @@ function Applications({
               type="button"
               aria-pressed={workingView.reviewOnly}
               onClick={() =>
-                onWorkingViewChange({ ...workingView, reviewOnly: !workingView.reviewOnly })
+                dispatch({
+                  type: "view_changed",
+                  view: { ...workingView, reviewOnly: !workingView.reviewOnly },
+                })
               }
             >
               <Clock3 size={15} />{" "}
@@ -4102,7 +3970,9 @@ function Applications({
                         busy={busy}
                         draft={outcomeDraft!}
                         onDraftChange={changeOutcomeDraft}
-                        onRecorded={onOutcomeCommitted}
+                        onRecorded={(submitted) =>
+                          dispatch({ type: "outcome_committed", submitted })
+                        }
                         onFocusTrigger={() => focusOutcomeTrigger(application.id)}
                         onClose={() => closeOutcome(application.id)}
                       />
@@ -4136,7 +4006,9 @@ function Applications({
                             busy={busy}
                             draft={reminderDraft!}
                             onDraftChange={changeReminderDraft}
-                            onCommitted={onReminderCommitted}
+                            onCommitted={(submitted) =>
+                              dispatch({ type: "reminder_committed", submitted })
+                            }
                             onFocusTrigger={() => focusReminderOrigin(application.id)}
                             onClose={() => closeReminder(application.id)}
                           />
@@ -4285,7 +4157,7 @@ function Applications({
                     busy={busy}
                     draft={outcomeDraft!}
                     onDraftChange={changeOutcomeDraft}
-                    onRecorded={onOutcomeCommitted}
+                    onRecorded={(submitted) => dispatch({ type: "outcome_committed", submitted })}
                     onFocusTrigger={() => focusOutcomeTrigger(application.id)}
                     onClose={() => closeOutcome(application.id)}
                   />
@@ -4319,7 +4191,9 @@ function Applications({
                         busy={busy}
                         draft={reminderDraft!}
                         onDraftChange={changeReminderDraft}
-                        onCommitted={onReminderCommitted}
+                        onCommitted={(submitted) =>
+                          dispatch({ type: "reminder_committed", submitted })
+                        }
                         onFocusTrigger={() => focusReminderOrigin(application.id)}
                         onClose={() => closeReminder(application.id)}
                       />
@@ -4407,8 +4281,12 @@ function Applications({
               value={workingView.cohortStart}
               max={workingView.cohortEnd}
               onChange={(event) => {
-                if (event.target.value)
-                  onWorkingViewChange({ ...workingView, cohortStart: event.target.value });
+                if (event.target.value) {
+                  dispatch({
+                    type: "view_changed",
+                    view: { ...workingView, cohortStart: event.target.value },
+                  });
+                }
               }}
             />
           </label>
@@ -4419,8 +4297,12 @@ function Applications({
               value={workingView.cohortEnd}
               min={workingView.cohortStart}
               onChange={(event) => {
-                if (event.target.value)
-                  onWorkingViewChange({ ...workingView, cohortEnd: event.target.value });
+                if (event.target.value) {
+                  dispatch({
+                    type: "view_changed",
+                    view: { ...workingView, cohortEnd: event.target.value },
+                  });
+                }
               }}
             />
           </label>
@@ -4429,7 +4311,10 @@ function Applications({
             <select
               value={workingView.cohortSource}
               onChange={(event) =>
-                onWorkingViewChange({ ...workingView, cohortSource: event.target.value })
+                dispatch({
+                  type: "view_changed",
+                  view: { ...workingView, cohortSource: event.target.value },
+                })
               }
             >
               <option value="all">All sources</option>
@@ -4445,9 +4330,12 @@ function Applications({
             <select
               value={workingView.cohortBucket}
               onChange={(event) =>
-                onWorkingViewChange({
-                  ...workingView,
-                  cohortBucket: event.target.value as ApplicationViewState["cohortBucket"],
+                dispatch({
+                  type: "view_changed",
+                  view: {
+                    ...workingView,
+                    cohortBucket: event.target.value as ApplicationViewState["cohortBucket"],
+                  },
                 })
               }
             >

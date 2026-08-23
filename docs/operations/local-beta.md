@@ -33,26 +33,32 @@ screen names `.nimanto-data/launch-secret` as the file that holds it.
 
 The API binds to loopback by default. Do not change `NIMANTO_API_HOST` to a public interface without adding production authentication, secure cookies, TLS, and a reviewed deployment configuration.
 
-## Upgrade to v0.6.0
+## Upgrade to v0.7.0
 
 Stop the API, copy the complete `.nimanto-data/` directory, update to the exact
-v0.6.0 source, and reinstall the locked graph before restarting:
+v0.7.0 source, and reinstall the locked graph before restarting:
 
 ```bash
 git fetch --tags origin
-git checkout v0.6.0
+git checkout v0.7.0
 corepack enable
 pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-v0.6.0 applies additive, idempotent schema version 5. It adds nullable
-`applications.follow_up_on` as a PostgreSQL `date`; existing applications are
-left `NULL` and continue to use the derived 336-hour record-review fallback.
-Startup also applies any earlier additive migrations while preserving existing
-candidate records and artifacts. Keep the stopped full-directory copy: the beta
-has no schema downgrade guarantee, so restore that copy or fix forward rather
-than running older source against a version-5 database.
+v0.7.0 advances the database through ordered, recorded migrations to schema
+version 6. Version 6 transactionally backfills canonical hashes for legacy
+Packet manifests and Action Intents; it adds no candidate-facing column. A
+migration version is recorded only after its work commits, so an interrupted
+upgrade resumes from the last complete step. Startup refuses a database created
+by a newer Nimanto runtime rather than guessing how to open it. On every open,
+Nimanto transactionally replays idempotent base and tenant-trigger definitions
+to repair an incomplete local-beta fixture; only missing migration versions run
+one-time schema or data mutations.
+
+Keep the stopped full-directory copy. The beta has no schema downgrade
+guarantee, so restore that copy or fix forward rather than running older source
+against a version-6 database.
 
 ## Private invitations
 
@@ -79,7 +85,7 @@ The digest-pinned container runs the same static web workbench and API with publ
 docker compose up --build
 ```
 
-Open `http://127.0.0.1:4300/`. Retrieve the generated admin key with `docker compose exec nimanto sh -c 'cat /data/launch-secret'`, then issue a private invitation as above. The named `nimanto-data` volume holds the database and artifacts. The image is built in CI; v0.6.0 has not been certified for internet exposure and should remain bound to loopback.
+Open `http://127.0.0.1:4300/`. Retrieve the generated admin key with `docker compose exec nimanto sh -c 'cat /data/launch-secret'`, then issue a private invitation as above. The named `nimanto-data` volume holds the database and artifacts. The image is built in CI; v0.7.0 has not been certified for internet exposure and should remain bound to loopback.
 
 ## Data locations
 
@@ -226,11 +232,11 @@ pnpm build
 pnpm test:e2e
 ```
 
-For a downloaded v0.6.0 release, place the CycloneDX inventory, SPDX inventory,
+For a downloaded v0.7.0 release, place the CycloneDX inventory, SPDX inventory,
 and checksum manifest in one directory and verify the two inventories with:
 
 ```bash
-shasum -a 256 --check nimanto-v0.6.0-SHA256SUMS.txt
+shasum -a 256 --check nimanto-v0.7.0-SHA256SUMS.txt
 ```
 
 This verifies the published inventory assets. GitHub generates the source ZIP
@@ -279,9 +285,9 @@ write committed.
 Do not retry it. The provider effect may have completed before local outcome
 persistence became uncertain. Copy the action ID, inspect the local outbox file
 or mail-client state, and follow the provider-specific reconciliation procedure
-in [provider boundaries](provider-setup.md#reconcile-an-ambiguous-action). v0.6.0
+in [provider boundaries](provider-setup.md#reconcile-an-ambiguous-action). v0.7.0
 keeps the ambiguous record as a do-not-retry audit trail.
 
 ### Gmail or Outlook is unavailable
 
-Connected-account sending is not part of v0.6.0. Use the local test outbox or a user-opened deep link. See [provider boundaries](provider-setup.md).
+Connected-account sending is not part of v0.7.0. Use the local test outbox or a user-opened deep link. See [provider boundaries](provider-setup.md).

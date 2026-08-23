@@ -1,4 +1,9 @@
-import { applicationTransitions, type ApplicationStatus } from "@nimanto/domain";
+import {
+  applicationFollowUpPolicy,
+  applicationTransitions,
+  candidateLocalDate,
+  type ApplicationStatus,
+} from "@nimanto/domain";
 import type { Section } from "./navigation-transitions.js";
 
 /* Pure derived logic for the workbench.
@@ -270,14 +275,15 @@ function dateLabel(value: Date): string {
  * so this may not say stale, cold, ignored, or likely-rejected. Terminal states
  * are exempt: nothing is pending on a withdrawn application. */
 export function followUpNote(application: ApplicationLike, now: Date): string | null {
-  const reminder = localDateStart(application.followUpOn);
-  if (application.status === "withdrawn") {
-    return reminder ? `Follow-up reminder inactive · ${dateLabel(reminder)}` : null;
+  const observation = applicationFollowUpPolicy.observe(application, candidateLocalDate(now));
+  if (observation.kind !== "none") {
+    const reminder = localDateStart(observation.date)!;
+    if (observation.kind === "inactive") {
+      return `Follow-up reminder inactive · ${dateLabel(reminder)}`;
+    }
+    return `Follow-up reminder${observation.kind === "due" ? " due" : ""} · ${dateLabel(reminder)}`;
   }
-  if (reminder) {
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    return `Follow-up reminder${reminder.getTime() <= today.getTime() ? " due" : ""} · ${dateLabel(reminder)}`;
-  }
+  if (application.status === "withdrawn") return null;
   const days = daysSinceLastRecord(application, now);
   if (days === null || days < FOLLOW_UP_DAYS) return null;
   const at = lastRecordedAt(application)!;
@@ -305,22 +311,23 @@ export function recordReviewQueue<T extends ApplicationLike>(
 ): Array<RecordReviewItem<T>> {
   return applications
     .flatMap<RecordReviewItem<T>>((application): Array<RecordReviewItem<T>> => {
-      if (application.status === "withdrawn") return [];
-      const reminder = localDateStart(application.followUpOn);
-      if (reminder) {
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        if (reminder.getTime() > today.getTime()) return [];
+      const observation = applicationFollowUpPolicy.observe(application, candidateLocalDate(now));
+      if (observation.kind === "inactive") return [];
+      if (observation.kind === "scheduled") return [];
+      if (observation.kind === "due") {
+        const reminder = localDateStart(observation.date)!;
         return [
           {
             application,
             basis: "candidate_reminder" as const,
-            dueOn: application.followUpOn ?? null,
+            dueOn: observation.date,
             lastRecordedAt: lastRecordedAt(application),
             dueAt: reminder.toISOString(),
             elapsedHours: null,
           },
         ];
       }
+      if (application.status === "withdrawn") return [];
       const recordedAt = lastRecordedAt(application);
       if (!recordedAt) return [];
       const parsed = Date.parse(recordedAt);

@@ -143,6 +143,77 @@ describe("Nimanto beta API", () => {
     );
   });
 
+  it("assembles a counts-only personalFunnel from candidate-reported outcomes", async () => {
+    const { app, cookie } = await setup();
+    const initial = (
+      await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } })
+    ).json();
+    const first = await app.inject({
+      method: "POST",
+      url: "/v1/applications",
+      headers: { cookie },
+      payload: { jobId: initial.jobs[0].id },
+    });
+    const second = await app.inject({
+      method: "POST",
+      url: "/v1/applications",
+      headers: { cookie },
+      payload: { jobId: initial.jobs[1].id },
+    });
+    expect(first.statusCode).toBe(200);
+    expect(second.statusCode).toBe(200);
+    const recordedOutcomes: Array<{
+      id: string;
+      applicationId: string;
+      type: string;
+      note: string;
+      occurredAt: string;
+    }> = [];
+    for (const type of ["reply", "screen"]) {
+      const recorded = await app.inject({
+        method: "POST",
+        url: `/v1/applications/${first.json().id}/outcomes`,
+        headers: { cookie },
+        payload: { type, note: "Candidate record" },
+      });
+      expect(recorded.statusCode).toBe(200);
+      recordedOutcomes.push(recorded.json());
+    }
+
+    const dashboard = (
+      await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } })
+    ).json();
+    expect(dashboard.personalFunnel).toEqual({
+      sampleSize: 2,
+      replies: 1,
+      screens: 1,
+      interviews: 0,
+      offers: 0,
+      scope: "Candidate-reported outcomes in this local workspace; not a hiring probability.",
+    });
+    expect(Object.keys(dashboard.personalFunnel).sort()).toEqual([
+      "interviews",
+      "offers",
+      "replies",
+      "sampleSize",
+      "scope",
+      "screens",
+    ]);
+    const returnedApplication = dashboard.applications.find(
+      (application: { id: string }) => application.id === first.json().id,
+    );
+    expect(returnedApplication.outcomes).toHaveLength(2);
+    for (const recorded of recordedOutcomes) {
+      expect(returnedApplication.outcomes).toContainEqual({
+        id: recorded.id,
+        applicationId: recorded.applicationId,
+        type: recorded.type,
+        note: recorded.note,
+        occurredAt: recorded.occurredAt,
+      });
+    }
+  });
+
   it("keeps profile-version responses additive and reports unchanged saves", async () => {
     const { app, cookie } = await setup();
     const dashboard = (
