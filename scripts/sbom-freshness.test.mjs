@@ -32,33 +32,56 @@ test("freshness comparison rejects missing or stale dependency identities", () =
 test("volatile inventory identity is ignored without hiding release metadata drift", () => {
   const firstCycloneDx = {
     serialNumber: "urn:uuid:first",
-    metadata: { timestamp: "2026-08-21T12:00:00Z", component: { properties: ["scripts:a"] } },
+    metadata: {
+      timestamp: "2026-08-21T12:00:00Z",
+      component: {
+        properties: [
+          { name: "cdx:npm:lastModifiedTime", value: "2026-08-01T12:00:00Z" },
+          { name: "cdx:npm:versionCount", value: "32" },
+          { name: "cdx:npm:artifactIntegrity", value: "sha512-a" },
+        ],
+      },
+    },
     annotations: [{ timestamp: "2026-08-21T12:00:00Z" }],
   };
   const secondCycloneDx = structuredClone(firstCycloneDx);
   secondCycloneDx.serialNumber = "urn:uuid:second";
   secondCycloneDx.metadata.timestamp = "2026-08-21T12:01:00Z";
   secondCycloneDx.annotations[0].timestamp = "2026-08-21T12:01:00Z";
+  secondCycloneDx.metadata.component.properties[0].value = "2026-08-23T01:42:52Z";
+  secondCycloneDx.metadata.component.properties[1].value = "35";
   assert.deepEqual(stableCycloneDx(firstCycloneDx), stableCycloneDx(secondCycloneDx));
-  secondCycloneDx.metadata.component.properties = ["scripts:b"];
+  secondCycloneDx.metadata.component.properties[2].value = "sha512-b";
   assert.notDeepEqual(stableCycloneDx(firstCycloneDx), stableCycloneDx(secondCycloneDx));
 
-  assert.deepEqual(
-    stableSpdx({
-      "@graph": [
-        {
-          "@id": "urn:cdxgen:spdx:11111111-1111-1111-1111-111111111111#root",
-          created: "2026-08-21T12:00:00Z",
-        },
-      ],
-    }),
-    stableSpdx({
-      "@graph": [
-        {
-          "@id": "urn:cdxgen:spdx:22222222-2222-2222-2222-222222222222#root",
-          created: "2026-08-21T12:01:00Z",
-        },
-      ],
-    }),
-  );
+  const firstSpdx = {
+    "@graph": [
+      {
+        "@id": "urn:cdxgen:spdx:11111111-1111-1111-1111-111111111111#root",
+        created: "2026-08-21T12:00:00Z",
+        extension: [
+          {
+            extension_cdxPropName: "properties.cdx:npm:lastModifiedTime",
+            extension_cdxPropValue: "2026-08-01T12:00:00Z",
+          },
+          {
+            extension_cdxPropName: "properties.cdx:npm:versionCount",
+            extension_cdxPropValue: "32",
+          },
+          {
+            extension_cdxPropName: "properties.cdx:npm:artifactIntegrity",
+            extension_cdxPropValue: "sha512-a",
+          },
+        ],
+      },
+    ],
+  };
+  const secondSpdx = structuredClone(firstSpdx);
+  secondSpdx["@graph"][0]["@id"] = "urn:cdxgen:spdx:22222222-2222-2222-2222-222222222222#root";
+  secondSpdx["@graph"][0].created = "2026-08-21T12:01:00Z";
+  secondSpdx["@graph"][0].extension[0].extension_cdxPropValue = "2026-08-23T01:42:52Z";
+  secondSpdx["@graph"][0].extension[1].extension_cdxPropValue = "35";
+  assert.deepEqual(stableSpdx(firstSpdx), stableSpdx(secondSpdx));
+  secondSpdx["@graph"][0].extension[2].extension_cdxPropValue = "sha512-b";
+  assert.notDeepEqual(stableSpdx(firstSpdx), stableSpdx(secondSpdx));
 });

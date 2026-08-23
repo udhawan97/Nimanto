@@ -985,13 +985,13 @@
     "semantic_hash": ""
   },
   "scripts/sbom-freshness.test.mjs": {
-    "mtime": 1787445835.6829753,
-    "ast_hash": "d6583c9cfc8c69a089def3fcf2c1f028",
+    "mtime": 1787450964.326169,
+    "ast_hash": "e8504e82628ff2ea795ded93abbb316d",
     "semantic_hash": ""
   },
   "scripts/verify-sbom-freshness.mjs": {
-    "mtime": 1787445835.6842153,
-    "ast_hash": "118bc7b03ac1e64f89f97b59ad657d25",
+    "mtime": 1787450964.343655,
+    "ast_hash": "8b042a63a723bf53886ca4bd7e47cb78",
     "semantic_hash": ""
   },
   "docs/assets/nimanto-screenshots.json": {

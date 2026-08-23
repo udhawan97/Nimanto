@@ -2,6 +2,31 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+const volatileRegistryProperties = new Set(["cdx:npm:lastModifiedTime", "cdx:npm:versionCount"]);
+
+function registryPropertyName(value) {
+  if (!value || typeof value !== "object") return "";
+  if (typeof value.name === "string") return value.name;
+  if (typeof value.extension_cdxPropName === "string") {
+    return value.extension_cdxPropName.replace(/^properties\./u, "");
+  }
+  return "";
+}
+
+function stableRegistryMetadata(value) {
+  if (Array.isArray(value)) {
+    return value
+      .filter((entry) => !volatileRegistryProperties.has(registryPropertyName(entry)))
+      .map(stableRegistryMetadata);
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [key, stableRegistryMetadata(entry)]),
+    );
+  }
+  return value;
+}
+
 function sortedPurls(values) {
   return [
     ...new Set(values.filter((value) => typeof value === "string" && value.startsWith("pkg:"))),
@@ -36,7 +61,7 @@ export function stableCycloneDx(document) {
   delete normalized.serialNumber;
   if (normalized.metadata) delete normalized.metadata.timestamp;
   for (const annotation of normalized.annotations ?? []) delete annotation.timestamp;
-  return normalized;
+  return stableRegistryMetadata(normalized);
 }
 
 export function stableSpdx(document) {
@@ -56,7 +81,7 @@ export function stableSpdx(document) {
     }
     return value;
   };
-  return normalize(document);
+  return stableRegistryMetadata(normalize(document));
 }
 
 function compareDocuments(label, expected, actual) {

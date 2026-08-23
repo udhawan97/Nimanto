@@ -574,7 +574,7 @@
       "_origin": "ast",
       "id": "apps_api_src_config",
       "community": 7,
-      "community_name": "packet-lifecycle.ts",
+      "community_name": "providers/src/index.ts",
       "norm_label": "config.ts"
     },
     {
@@ -585,7 +585,7 @@
       "_origin": "ast",
       "id": "apps_api_src_config_nimantoapioptions",
       "community": 7,
-      "community_name": "packet-lifecycle.ts",
+      "community_name": "providers/src/index.ts",
       "norm_label": "nimantoapioptions"
     },
     {
@@ -596,7 +596,7 @@
       "_origin": "ast",
       "id": "apps_api_src_config_localbootstrapsecret",
       "community": 7,
-      "community_name": "packet-lifecycle.ts",
+      "community_name": "providers/src/index.ts",
       "norm_label": "localbootstrapsecret()"
     },
     {
@@ -607,7 +607,7 @@
       "_origin": "ast",
       "id": "apps_api_src_config_loadoptions",
       "community": 7,
-      "community_name": "packet-lifecycle.ts",
+      "community_name": "providers/src/index.ts",
       "norm_label": "loadoptions()"
     },
     {
@@ -661,8 +661,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_api_src_deletion_coordinator",
-      "community": 102,
-      "community_name": "external-action-lifecycle.test.ts",
+      "community": 77,
+      "community_name": "ExternalActionProvider",
       "norm_label": "deletion-coordinator.ts"
     },
     {
@@ -672,8 +672,8 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "apps_api_src_deletion_coordinator_removepath",
-      "community": 102,
-      "community_name": "external-action-lifecycle.test.ts",
+      "community": 77,
+      "community_name": "ExternalActionProvider",
       "norm_label": "removepath"
     },
     {
@@ -683,8 +683,8 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "apps_api_src_deletion_coordinator_deletionrun",
-      "community": 102,
-      "community_name": "external-action-lifecycle.test.ts",
+      "community": 77,
+      "community_name": "ExternalActionProvider",
       "norm_label": "deletionrun"
     },
     {
@@ -695,7 +695,7 @@
       "_origin": "ast",
       "id": "apps_api_src_deletion_coordinator_deletioncoordinator",
       "community": 102,
-      "community_name": "external-action-lifecycle.test.ts",
+      "community_name": "DeletionCoordinator",
       "norm_label": "deletioncoordinator"
     },
     {
@@ -706,7 +706,7 @@
       "_origin": "ast",
       "id": "apps_api_src_deletion_coordinator_deletioncoordinator_constructor",
       "community": 102,
-      "community_name": "external-action-lifecycle.test.ts",
+      "community_name": "DeletionCoordinator",
       "norm_label": ".constructor()"
     },
     {
@@ -717,7 +717,7 @@
       "_origin": "ast",
       "id": "apps_api_src_deletion_coordinator_deletioncoordinator_start",
       "community": 102,
-      "community_name": "external-action-lifecycle.test.ts",
+      "community_name": "DeletionCoordinator",
       "norm_label": ".start()"
     },
     {
@@ -728,7 +728,7 @@
       "_origin": "ast",
       "id": "apps_api_src_deletion_coordinator_deletioncoordinator_resume",
       "community": 102,
-      "community_name": "external-action-lifecycle.test.ts",
+      "community_name": "DeletionCoordinator",
       "norm_label": ".resume()"
     },
     {
@@ -739,7 +739,7 @@
       "_origin": "ast",
       "id": "apps_api_src_deletion_coordinator_deletioncoordinator_finish",
       "community": 102,
-      "community_name": "external-action-lifecycle.test.ts",
+      "community_name": "DeletionCoordinator",
       "norm_label": ".finish()"
     },
     {
@@ -749,8 +749,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_api_src_discovery_cycle",
-      "community": 110,
-      "community_name": "discovery-cycle.ts",
+      "community": 91,
+      "community_name": "domain/src/index.ts",
       "norm_label": "discovery-cycle.ts"
     },
     {
@@ -760,8 +760,8 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "apps_api_src_discovery_cycle_providerjobsfetcher",
-      "community": 110,
-      "community_name": "discovery-cycle.ts",
+      "community": 91,
+      "community_name": "domain/src/index.ts",
       "norm_label": "providerjobsfetcher"
     },
     {
@@ -771,8 +771,8 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "apps_api_src_discovery_cycle_provider",
-      "community": 110,
-      "community_name": "discovery-cycle.ts",
+      "community": 91,
+      "community_name": "domain/src/index.ts",
       "norm_label": "provider"
     },
     {
@@ -782,8 +782,8 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "apps_api_src_discovery_cycle_normalizeproviderrole",
-      "community": 110,
-      "community_name": "discovery-cycle.ts",
+      "community": 111,
+      "community_name": ".runWorkerCycle",
       "norm_label": "normalizeproviderrole()"
     },
     {
@@ -793,8 +793,8 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "apps_api_src_discovery_cycle_discoverycycle",
-      "community": 110,
-      "community_name": "discovery-cycle.ts",
+      "community": 111,
+      "community_name": ".runWorkerCycle",
       "norm_label": "discoverycycle"
     },
     {
@@ -804,8 +804,8 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "apps_api_src_discovery_cycle_discoverycycle_constructor",
-      "community": 110,
-      "community_name": "discovery-cycle.ts",
+      "community": 111,
+      "community_name": ".runWorkerCycle",
       "norm_label": ".constructor()"
     },
     {
@@ -815,8 +815,8 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "apps_api_src_discovery_cycle_discoverycycle_persist",
-      "community": 110,
-      "community_name": "discovery-cycle.ts",
+      "community": 111,
+      "community_name": ".runWorkerCycle",
       "norm_label": ".persist()"
     },
     {
@@ -826,8 +826,8 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "apps_api_src_discovery_cycle_discoverycycle_directimport",
-      "community": 110,
-      "community_name": "discovery-cycle.ts",
+      "community": 111,
+      "community_name": ".runWorkerCycle",
       "norm_label": ".directimport()"
     },
     {
@@ -837,8 +837,8 @@
       "source_location": "L48",
       "_origin": "ast",
       "id": "apps_api_src_discovery_cycle_discoverycycle_errorcode",
-      "community": 110,
-      "community_name": "discovery-cycle.ts",
+      "community": 111,
+      "community_name": ".runWorkerCycle",
       "norm_label": ".errorcode()"
     },
     {
@@ -848,8 +848,8 @@
       "source_location": "L55",
       "_origin": "ast",
       "id": "apps_api_src_discovery_cycle_discoverycycle_runworkercycle",
-      "community": 110,
-      "community_name": "discovery-cycle.ts",
+      "community": 111,
+      "community_name": ".runWorkerCycle",
       "norm_label": ".runworkercycle()"
     },
     {
@@ -980,8 +980,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_api_src_external_action_lifecycle",
-      "community": 77,
-      "community_name": "external-action-lifecycle.ts",
+      "community": 86,
+      "community_name": "canonicalHash",
       "norm_label": "external-action-lifecycle.ts"
     },
     {
@@ -991,8 +991,8 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "apps_api_src_external_action_lifecycle_provideractionexecutor",
-      "community": 77,
-      "community_name": "external-action-lifecycle.ts",
+      "community": 86,
+      "community_name": "canonicalHash",
       "norm_label": "provideractionexecutor"
     },
     {
@@ -1002,8 +1002,8 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "apps_api_src_external_action_lifecycle_externalactionlifecycle",
-      "community": 59,
-      "community_name": "buildServer",
+      "community": 90,
+      "community_name": "ExternalActionLifecycle",
       "norm_label": "externalactionlifecycle"
     },
     {
@@ -1013,8 +1013,8 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "apps_api_src_external_action_lifecycle_externalactionlifecycle_constructor",
-      "community": 59,
-      "community_name": "buildServer",
+      "community": 90,
+      "community_name": "ExternalActionLifecycle",
       "norm_label": ".constructor()"
     },
     {
@@ -1024,8 +1024,8 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "apps_api_src_external_action_lifecycle_externalactionlifecycle_setruntime",
-      "community": 59,
-      "community_name": "buildServer",
+      "community": 90,
+      "community_name": "ExternalActionLifecycle",
       "norm_label": ".setruntime()"
     },
     {
@@ -1035,8 +1035,8 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "apps_api_src_external_action_lifecycle_externalactionlifecycle_runtime",
-      "community": 59,
-      "community_name": "buildServer",
+      "community": 90,
+      "community_name": "ExternalActionLifecycle",
       "norm_label": ".runtime()"
     },
     {
@@ -1046,8 +1046,8 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "apps_api_src_external_action_lifecycle_externalactionlifecycle_recoverinterrupted",
-      "community": 59,
-      "community_name": "buildServer",
+      "community": 90,
+      "community_name": "ExternalActionLifecycle",
       "norm_label": ".recoverinterrupted()"
     },
     {
@@ -1057,8 +1057,8 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "apps_api_src_external_action_lifecycle_externalactionlifecycle_request",
-      "community": 59,
-      "community_name": "buildServer",
+      "community": 90,
+      "community_name": "ExternalActionLifecycle",
       "norm_label": ".request()"
     },
     {
@@ -1069,7 +1069,7 @@
       "_origin": "ast",
       "id": "apps_api_src_external_action_lifecycle_externalactionlifecycle_approve",
       "community": 90,
-      "community_name": ".approveExternalActionExact",
+      "community_name": "ExternalActionLifecycle",
       "norm_label": ".approve()"
     },
     {
@@ -1080,7 +1080,7 @@
       "_origin": "ast",
       "id": "apps_api_src_external_action_lifecycle_externalactionlifecycle_cancel",
       "community": 90,
-      "community_name": ".approveExternalActionExact",
+      "community_name": "ExternalActionLifecycle",
       "norm_label": ".cancel()"
     },
     {
@@ -1167,8 +1167,8 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "apps_api_src_government_dataset_governmentdatasetingestion_constructor",
-      "community": 86,
-      "community_name": "canonicalHash",
+      "community": 68,
+      "community_name": "government-dataset.ts",
       "norm_label": ".constructor()"
     },
     {
@@ -1190,7 +1190,7 @@
       "_origin": "ast",
       "id": "apps_api_src_main",
       "community": 7,
-      "community_name": "packet-lifecycle.ts",
+      "community_name": "providers/src/index.ts",
       "norm_label": "api/src/main.ts"
     },
     {
@@ -1201,7 +1201,7 @@
       "_origin": "ast",
       "id": "apps_api_src_main_options",
       "community": 7,
-      "community_name": "packet-lifecycle.ts",
+      "community_name": "providers/src/index.ts",
       "norm_label": "options"
     },
     {
@@ -1212,7 +1212,7 @@
       "_origin": "ast",
       "id": "apps_api_src_main_shutdown",
       "community": 7,
-      "community_name": "packet-lifecycle.ts",
+      "community_name": "providers/src/index.ts",
       "norm_label": "shutdown()"
     },
     {
@@ -1255,7 +1255,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_api_src_packet_lifecycle",
-      "community": 7,
+      "community": 98,
       "community_name": "packet-lifecycle.ts",
       "norm_label": "packet-lifecycle.ts"
     },
@@ -1266,7 +1266,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "apps_api_src_packet_lifecycle_artifactmanifest",
-      "community": 7,
+      "community": 98,
       "community_name": "packet-lifecycle.ts",
       "norm_label": "artifactmanifest"
     },
@@ -1277,7 +1277,7 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "apps_api_src_packet_lifecycle_packetartifactrenderer",
-      "community": 7,
+      "community": 98,
       "community_name": "packet-lifecycle.ts",
       "norm_label": "packetartifactrenderer"
     },
@@ -1288,7 +1288,7 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "apps_api_src_packet_lifecycle_packetartifactinspector",
-      "community": 7,
+      "community": 98,
       "community_name": "packet-lifecycle.ts",
       "norm_label": "packetartifactinspector"
     },
@@ -1299,8 +1299,8 @@
       "source_location": "L29",
       "_origin": "ast",
       "id": "apps_api_src_packet_lifecycle_verifiedartifactbytes",
-      "community": 7,
-      "community_name": "packet-lifecycle.ts",
+      "community": 59,
+      "community_name": "buildServer",
       "norm_label": "verifiedartifactbytes()"
     },
     {
@@ -1310,8 +1310,8 @@
       "source_location": "L53",
       "_origin": "ast",
       "id": "apps_api_src_packet_lifecycle_verifypacketartifacts",
-      "community": 7,
-      "community_name": "packet-lifecycle.ts",
+      "community": 83,
+      "community_name": ".transaction",
       "norm_label": "verifypacketartifacts()"
     },
     {
@@ -1354,8 +1354,8 @@
       "source_location": "L89",
       "_origin": "ast",
       "id": "apps_api_src_packet_lifecycle_packetlifecycle_inputs",
-      "community": 5,
-      "community_name": "iso",
+      "community": 83,
+      "community_name": ".transaction",
       "norm_label": ".inputs()"
     },
     {
@@ -1640,8 +1640,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_api_test_external_action_lifecycle_test",
-      "community": 102,
-      "community_name": "external-action-lifecycle.test.ts",
+      "community": 77,
+      "community_name": "ExternalActionProvider",
       "norm_label": "external-action-lifecycle.test.ts"
     },
     {
@@ -1651,8 +1651,8 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "apps_api_test_external_action_lifecycle_test_stores",
-      "community": 102,
-      "community_name": "external-action-lifecycle.test.ts",
+      "community": 77,
+      "community_name": "ExternalActionProvider",
       "norm_label": "stores"
     },
     {
@@ -1662,8 +1662,8 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "apps_api_test_external_action_lifecycle_test_approvedactionfixture",
-      "community": 102,
-      "community_name": "external-action-lifecycle.test.ts",
+      "community": 77,
+      "community_name": "ExternalActionProvider",
       "norm_label": "approvedactionfixture()"
     },
     {
@@ -1706,7 +1706,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_api_test_packet_lifecycle_test",
-      "community": 7,
+      "community": 98,
       "community_name": "packet-lifecycle.ts",
       "norm_label": "packet-lifecycle.test.ts"
     },
@@ -1717,7 +1717,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "apps_api_test_packet_lifecycle_test_stores",
-      "community": 7,
+      "community": 98,
       "community_name": "packet-lifecycle.ts",
       "norm_label": "stores"
     },
@@ -1728,7 +1728,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "apps_api_test_packet_lifecycle_test_packetfixture",
-      "community": 7,
+      "community": 98,
       "community_name": "packet-lifecycle.ts",
       "norm_label": "packetfixture()"
     },
@@ -1739,7 +1739,7 @@
       "source_location": "L131",
       "_origin": "ast",
       "id": "apps_api_test_packet_lifecycle_test_get",
-      "community": 7,
+      "community": 98,
       "community_name": "packet-lifecycle.ts",
       "norm_label": "get()"
     },
@@ -2179,8 +2179,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_components_command_palette",
-      "community": 9,
-      "community_name": "workspace.tsx",
+      "community": 63,
+      "community_name": "app/page.tsx",
       "norm_label": "command-palette.tsx"
     },
     {
@@ -2190,8 +2190,8 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "apps_web_components_command_palette_paletteentry",
-      "community": 9,
-      "community_name": "workspace.tsx",
+      "community": 63,
+      "community_name": "app/page.tsx",
       "norm_label": "paletteentry"
     },
     {
@@ -2201,8 +2201,8 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "apps_web_components_command_palette_sitecommands",
-      "community": 9,
-      "community_name": "workspace.tsx",
+      "community": 63,
+      "community_name": "app/page.tsx",
       "norm_label": "sitecommands"
     },
     {
@@ -2212,8 +2212,8 @@
       "source_location": "L34",
       "_origin": "ast",
       "id": "apps_web_components_command_palette_commandpalette",
-      "community": 9,
-      "community_name": "workspace.tsx",
+      "community": 63,
+      "community_name": "app/page.tsx",
       "norm_label": "commandpalette()"
     },
     {
@@ -2861,8 +2861,8 @@
       "source_location": "L274",
       "_origin": "ast",
       "id": "apps_web_components_workspace_emptyrolefilters",
-      "community": 45,
-      "community_name": "api",
+      "community": 9,
+      "community_name": "workspace.tsx",
       "norm_label": "emptyrolefilters()"
     },
     {
@@ -3059,8 +3059,8 @@
       "source_location": "L443",
       "_origin": "ast",
       "id": "apps_web_components_workspace_cadencelabel",
-      "community": 45,
-      "community_name": "api",
+      "community": 9,
+      "community_name": "workspace.tsx",
       "norm_label": "cadencelabel()"
     },
     {
@@ -3081,8 +3081,8 @@
       "source_location": "L460",
       "_origin": "ast",
       "id": "apps_web_components_workspace_packetcanonicaldelta",
-      "community": 45,
-      "community_name": "api",
+      "community": 78,
+      "community_name": "PacketHistoryPanel",
       "norm_label": "packetcanonicaldelta()"
     },
     {
@@ -3092,8 +3092,8 @@
       "source_location": "L477",
       "_origin": "ast",
       "id": "apps_web_components_workspace_packetmanifestdelta",
-      "community": 45,
-      "community_name": "api",
+      "community": 78,
+      "community_name": "PacketHistoryPanel",
       "norm_label": "packetmanifestdelta()"
     },
     {
@@ -3224,8 +3224,8 @@
       "source_location": "L1679",
       "_origin": "ast",
       "id": "apps_web_components_workspace_overview",
-      "community": 44,
-      "community_name": "derive.ts",
+      "community": 45,
+      "community_name": "api",
       "norm_label": "overview()"
     },
     {
@@ -3257,8 +3257,8 @@
       "source_location": "L2283",
       "_origin": "ast",
       "id": "apps_web_components_workspace_jobs",
-      "community": 45,
-      "community_name": "api",
+      "community": 9,
+      "community_name": "workspace.tsx",
       "norm_label": "jobs()"
     },
     {
@@ -3345,8 +3345,8 @@
       "source_location": "L4905",
       "_origin": "ast",
       "id": "apps_web_components_workspace_packethistorypanel",
-      "community": 45,
-      "community_name": "api",
+      "community": 78,
+      "community_name": "PacketHistoryPanel",
       "norm_label": "packethistorypanel()"
     },
     {
@@ -3653,8 +3653,8 @@
       "source_location": "L56",
       "_origin": "ast",
       "id": "apps_web_lib_derive_filterroles",
-      "community": 45,
-      "community_name": "api",
+      "community": 9,
+      "community_name": "workspace.tsx",
       "norm_label": "filterroles()"
     },
     {
@@ -4016,8 +4016,8 @@
       "source_location": "L650",
       "_origin": "ast",
       "id": "apps_web_lib_derive_failuremessage",
-      "community": 45,
-      "community_name": "api",
+      "community": 9,
+      "community_name": "workspace.tsx",
       "norm_label": "failuremessage()"
     },
     {
@@ -4226,7 +4226,7 @@
       "_origin": "ast",
       "id": "apps_web_lib_scoped_request_gate",
       "community": 78,
-      "community_name": "scoped-request-gate.ts",
+      "community_name": "PacketHistoryPanel",
       "norm_label": "scoped-request-gate.ts"
     },
     {
@@ -4237,7 +4237,7 @@
       "_origin": "ast",
       "id": "apps_web_lib_scoped_request_gate_scopedrequesttoken",
       "community": 78,
-      "community_name": "scoped-request-gate.ts",
+      "community_name": "PacketHistoryPanel",
       "norm_label": "scopedrequesttoken"
     },
     {
@@ -4248,7 +4248,7 @@
       "_origin": "ast",
       "id": "apps_web_lib_scoped_request_gate_scopedrequestgate",
       "community": 78,
-      "community_name": "scoped-request-gate.ts",
+      "community_name": "PacketHistoryPanel",
       "norm_label": "scopedrequestgate"
     },
     {
@@ -4259,7 +4259,7 @@
       "_origin": "ast",
       "id": "apps_web_lib_scoped_request_gate_createscopedrequestgate",
       "community": 78,
-      "community_name": "scoped-request-gate.ts",
+      "community_name": "PacketHistoryPanel",
       "norm_label": "createscopedrequestgate()"
     },
     {
@@ -4269,8 +4269,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_lib_workbench_mutations",
-      "community": 43,
-      "community_name": "Workspace",
+      "community": 106,
+      "community_name": "workbench-mutations.ts",
       "norm_label": "workbench-mutations.ts"
     },
     {
@@ -4280,8 +4280,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_lib_workbench_mutations_workbenchmutation",
-      "community": 43,
-      "community_name": "Workspace",
+      "community": 106,
+      "community_name": "workbench-mutations.ts",
       "norm_label": "workbenchmutation"
     },
     {
@@ -4291,8 +4291,8 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "apps_web_lib_workbench_mutations_workbenchmutationoutcome",
-      "community": 43,
-      "community_name": "Workspace",
+      "community": 106,
+      "community_name": "workbench-mutations.ts",
       "norm_label": "workbenchmutationoutcome"
     },
     {
@@ -4302,8 +4302,8 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "apps_web_lib_workbench_mutations_refreshoutcome",
-      "community": 43,
-      "community_name": "Workspace",
+      "community": 106,
+      "community_name": "workbench-mutations.ts",
       "norm_label": "refreshoutcome"
     },
     {
@@ -4313,8 +4313,8 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "apps_web_lib_workbench_mutations_workbenchmutations",
-      "community": 43,
-      "community_name": "Workspace",
+      "community": 106,
+      "community_name": "workbench-mutations.ts",
       "norm_label": "workbenchmutations"
     },
     {
@@ -4324,8 +4324,8 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "apps_web_lib_workbench_mutations_mutationadapters",
-      "community": 43,
-      "community_name": "Workspace",
+      "community": 106,
+      "community_name": "workbench-mutations.ts",
       "norm_label": "mutationadapters"
     },
     {
@@ -4335,8 +4335,8 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "apps_web_lib_workbench_mutations_errorcode",
-      "community": 43,
-      "community_name": "Workspace",
+      "community": 106,
+      "community_name": "workbench-mutations.ts",
       "norm_label": "errorcode()"
     },
     {
@@ -4346,8 +4346,8 @@
       "source_location": "L54",
       "_origin": "ast",
       "id": "apps_web_lib_workbench_mutations_createworkbenchmutations",
-      "community": 43,
-      "community_name": "Workspace",
+      "community": 106,
+      "community_name": "workbench-mutations.ts",
       "norm_label": "createworkbenchmutations()"
     },
     {
@@ -5073,7 +5073,7 @@
       "_origin": "ast",
       "id": "apps_web_test_scoped_request_gate_test",
       "community": 78,
-      "community_name": "scoped-request-gate.ts",
+      "community_name": "PacketHistoryPanel",
       "norm_label": "scoped-request-gate.test.ts"
     },
     {
@@ -5149,8 +5149,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_test_workbench_mutations_test",
-      "community": 43,
-      "community_name": "Workspace",
+      "community": 106,
+      "community_name": "workbench-mutations.ts",
       "norm_label": "workbench-mutations.test.ts"
     },
     {
@@ -5160,8 +5160,8 @@
       "source_location": "L4",
       "_origin": "ast",
       "id": "apps_web_test_workbench_mutations_test_harness",
-      "community": 43,
-      "community_name": "Workspace",
+      "community": 106,
+      "community_name": "workbench-mutations.ts",
       "norm_label": "harness()"
     },
     {
@@ -7382,8 +7382,8 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "packages_database_src_store_evidencerow",
-      "community": 58,
-      "community_name": "EvidenceClaim",
+      "community": 6,
+      "community_name": "store.ts",
       "norm_label": "evidencerow"
     },
     {
@@ -7492,8 +7492,8 @@
       "source_location": "L108",
       "_origin": "ast",
       "id": "packages_database_src_store_h1bsignalrecord",
-      "community": 6,
-      "community_name": "store.ts",
+      "community": 68,
+      "community_name": "government-dataset.ts",
       "norm_label": "h1bsignalrecord"
     },
     {
@@ -7536,7 +7536,7 @@
       "source_location": "L152",
       "_origin": "ast",
       "id": "packages_database_src_store_packetrecord",
-      "community": 7,
+      "community": 98,
       "community_name": "packet-lifecycle.ts",
       "norm_label": "packetrecord"
     },
@@ -7899,8 +7899,8 @@
       "source_location": "L631",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_claimduesourceschedule",
-      "community": 110,
-      "community_name": "discovery-cycle.ts",
+      "community": 29,
+      "community_name": "NimantoStore",
       "norm_label": ".claimduesourceschedule()"
     },
     {
@@ -7933,7 +7933,7 @@
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_failsourceschedule",
       "community": 110,
-      "community_name": "discovery-cycle.ts",
+      "community_name": "schedules.ts",
       "norm_label": ".failsourceschedule()"
     },
     {
@@ -7965,8 +7965,8 @@
       "source_location": "L825",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_createevidencebatch",
-      "community": 83,
-      "community_name": ".transaction",
+      "community": 58,
+      "community_name": "EvidenceClaim",
       "norm_label": ".createevidencebatch()"
     },
     {
@@ -8064,8 +8064,8 @@
       "source_location": "L1006",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_getprofileversion",
-      "community": 5,
-      "community_name": "iso",
+      "community": 83,
+      "community_name": ".transaction",
       "norm_label": ".getprofileversion()"
     },
     {
@@ -8075,8 +8075,8 @@
       "source_location": "L1030",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_listprofileversions",
-      "community": 29,
-      "community_name": "NimantoStore",
+      "community": 5,
+      "community_name": "iso",
       "norm_label": ".listprofileversions()"
     },
     {
@@ -8185,8 +8185,8 @@
       "source_location": "L1341",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_importh1bdatasetedition",
-      "community": 5,
-      "community_name": "iso",
+      "community": 83,
+      "community_name": ".transaction",
       "norm_label": ".importh1bdatasetedition()"
     },
     {
@@ -8427,8 +8427,8 @@
       "source_location": "L1875",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_latestassurance",
-      "community": 83,
-      "community_name": ".transaction",
+      "community": 29,
+      "community_name": "NimantoStore",
       "norm_label": ".latestassurance()"
     },
     {
@@ -8505,7 +8505,7 @@
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_createexternalaction",
       "community": 77,
-      "community_name": "external-action-lifecycle.ts",
+      "community_name": "ExternalActionProvider",
       "norm_label": ".createexternalaction()"
     },
     {
@@ -8516,7 +8516,7 @@
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_mapaction",
       "community": 90,
-      "community_name": ".approveExternalActionExact",
+      "community_name": "ExternalActionLifecycle",
       "norm_label": ".#mapaction()"
     },
     {
@@ -8527,7 +8527,7 @@
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_getexternalaction",
       "community": 90,
-      "community_name": ".approveExternalActionExact",
+      "community_name": "ExternalActionLifecycle",
       "norm_label": ".getexternalaction()"
     },
     {
@@ -8538,7 +8538,7 @@
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_listexternalactions",
       "community": 90,
-      "community_name": ".approveExternalActionExact",
+      "community_name": "ExternalActionLifecycle",
       "norm_label": ".listexternalactions()"
     },
     {
@@ -8549,7 +8549,7 @@
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_transitionexternalaction",
       "community": 90,
-      "community_name": ".approveExternalActionExact",
+      "community_name": "ExternalActionLifecycle",
       "norm_label": ".transitionexternalaction()"
     },
     {
@@ -8560,7 +8560,7 @@
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_approveexternalactionexact",
       "community": 90,
-      "community_name": ".approveExternalActionExact",
+      "community_name": "ExternalActionLifecycle",
       "norm_label": ".approveexternalactionexact()"
     },
     {
@@ -8570,8 +8570,8 @@
       "source_location": "L2156",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_markinterruptedactionsambiguous",
-      "community": 59,
-      "community_name": "buildServer",
+      "community": 90,
+      "community_name": "ExternalActionLifecycle",
       "norm_label": ".markinterruptedactionsambiguous()"
     },
     {
@@ -8592,8 +8592,8 @@
       "source_location": "L2195",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_listreceipts",
-      "community": 83,
-      "community_name": ".transaction",
+      "community": 5,
+      "community_name": "iso",
       "norm_label": ".listreceipts()"
     },
     {
@@ -8615,7 +8615,7 @@
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_begintenantdeletion",
       "community": 102,
-      "community_name": "external-action-lifecycle.test.ts",
+      "community_name": "DeletionCoordinator",
       "norm_label": ".begintenantdeletion()"
     },
     {
@@ -8626,7 +8626,7 @@
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_purgetenantfordeletion",
       "community": 102,
-      "community_name": "external-action-lifecycle.test.ts",
+      "community_name": "DeletionCoordinator",
       "norm_label": ".purgetenantfordeletion()"
     },
     {
@@ -8637,7 +8637,7 @@
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_markdeletioncleanuppending",
       "community": 102,
-      "community_name": "external-action-lifecycle.test.ts",
+      "community_name": "DeletionCoordinator",
       "norm_label": ".markdeletioncleanuppending()"
     },
     {
@@ -8648,7 +8648,7 @@
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_completedeletion",
       "community": 102,
-      "community_name": "external-action-lifecycle.test.ts",
+      "community_name": "DeletionCoordinator",
       "norm_label": ".completedeletion()"
     },
     {
@@ -8659,7 +8659,7 @@
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_deletionrunbytoken",
       "community": 102,
-      "community_name": "external-action-lifecycle.test.ts",
+      "community_name": "DeletionCoordinator",
       "norm_label": ".deletionrunbytoken()"
     },
     {
@@ -8680,8 +8680,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "packages_database_test_store_test",
-      "community": 119,
-      "community_name": "store.test.ts",
+      "community": 107,
+      "community_name": "migrations.ts",
       "norm_label": "store.test.ts"
     },
     {
@@ -8691,8 +8691,8 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "packages_database_test_store_test_stores",
-      "community": 119,
-      "community_name": "store.test.ts",
+      "community": 107,
+      "community_name": "migrations.ts",
       "norm_label": "stores"
     },
     {
@@ -8702,8 +8702,8 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "packages_database_test_store_test_v041fixturesql",
-      "community": 119,
-      "community_name": "store.test.ts",
+      "community": 107,
+      "community_name": "migrations.ts",
       "norm_label": "v041fixturesql"
     },
     {
@@ -8713,8 +8713,8 @@
       "source_location": "L136",
       "_origin": "ast",
       "id": "packages_database_test_store_test_expectprivatetree",
-      "community": 119,
-      "community_name": "store.test.ts",
+      "community": 107,
+      "community_name": "migrations.ts",
       "norm_label": "expectprivatetree()"
     },
     {
@@ -9296,7 +9296,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "packages_documents_src_index",
-      "community": 7,
+      "community": 98,
       "community_name": "packet-lifecycle.ts",
       "norm_label": "documents/src/index.ts"
     },
@@ -9307,7 +9307,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "packages_documents_src_index_packetclaim",
-      "community": 7,
+      "community": 98,
       "community_name": "packet-lifecycle.ts",
       "norm_label": "packetclaim"
     },
@@ -9318,7 +9318,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "packages_documents_src_index_canonicalpacket",
-      "community": 7,
+      "community": 98,
       "community_name": "packet-lifecycle.ts",
       "norm_label": "canonicalpacket"
     },
@@ -9329,7 +9329,7 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "packages_documents_src_index_packetartifact",
-      "community": 7,
+      "community": 98,
       "community_name": "packet-lifecycle.ts",
       "norm_label": "packetartifact"
     },
@@ -9340,7 +9340,7 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "packages_documents_src_index_documentinspection",
-      "community": 7,
+      "community": 98,
       "community_name": "packet-lifecycle.ts",
       "norm_label": "documentinspection"
     },
@@ -9351,7 +9351,7 @@
       "source_location": "L42",
       "_origin": "ast",
       "id": "packages_documents_src_index_packettext",
-      "community": 7,
+      "community": 98,
       "community_name": "packet-lifecycle.ts",
       "norm_label": "packettext()"
     },
@@ -9362,7 +9362,7 @@
       "source_location": "L58",
       "_origin": "ast",
       "id": "packages_documents_src_index_createdocx",
-      "community": 7,
+      "community": 98,
       "community_name": "packet-lifecycle.ts",
       "norm_label": "createdocx()"
     },
@@ -9373,7 +9373,7 @@
       "source_location": "L103",
       "_origin": "ast",
       "id": "packages_documents_src_index_wrap",
-      "community": 7,
+      "community": 98,
       "community_name": "packet-lifecycle.ts",
       "norm_label": "wrap()"
     },
@@ -9384,7 +9384,7 @@
       "source_location": "L119",
       "_origin": "ast",
       "id": "packages_documents_src_index_createpdf",
-      "community": 7,
+      "community": 98,
       "community_name": "packet-lifecycle.ts",
       "norm_label": "createpdf()"
     },
@@ -9395,7 +9395,7 @@
       "source_location": "L152",
       "_origin": "ast",
       "id": "packages_documents_src_index_renderpacketartifacts",
-      "community": 7,
+      "community": 98,
       "community_name": "packet-lifecycle.ts",
       "norm_label": "renderpacketartifacts()"
     },
@@ -9406,7 +9406,7 @@
       "source_location": "L188",
       "_origin": "ast",
       "id": "packages_documents_src_index_normalizedcontent",
-      "community": 7,
+      "community": 98,
       "community_name": "packet-lifecycle.ts",
       "norm_label": "normalizedcontent()"
     },
@@ -9417,7 +9417,7 @@
       "source_location": "L192",
       "_origin": "ast",
       "id": "packages_documents_src_index_decodexml",
-      "community": 7,
+      "community": 98,
       "community_name": "packet-lifecycle.ts",
       "norm_label": "decodexml()"
     },
@@ -9428,7 +9428,7 @@
       "source_location": "L201",
       "_origin": "ast",
       "id": "packages_documents_src_index_docxtext",
-      "community": 7,
+      "community": 98,
       "community_name": "packet-lifecycle.ts",
       "norm_label": "docxtext()"
     },
@@ -9439,7 +9439,7 @@
       "source_location": "L211",
       "_origin": "ast",
       "id": "packages_documents_src_index_pdfinspection",
-      "community": 7,
+      "community": 98,
       "community_name": "packet-lifecycle.ts",
       "norm_label": "pdfinspection()"
     },
@@ -9450,7 +9450,7 @@
       "source_location": "L256",
       "_origin": "ast",
       "id": "packages_documents_src_index_inspectpacketartifacts",
-      "community": 7,
+      "community": 98,
       "community_name": "packet-lifecycle.ts",
       "norm_label": "inspectpacketartifacts()"
     },
@@ -9461,7 +9461,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "packages_documents_test_documents_test",
-      "community": 7,
+      "community": 98,
       "community_name": "packet-lifecycle.ts",
       "norm_label": "documents.test.ts"
     },
@@ -9472,7 +9472,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "packages_documents_test_documents_test_packet",
-      "community": 7,
+      "community": 98,
       "community_name": "packet-lifecycle.ts",
       "norm_label": "packet"
     },
@@ -9901,8 +9901,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "packages_domain_src_application_follow_up",
-      "community": 44,
-      "community_name": "derive.ts",
+      "community": 113,
+      "community_name": "application-follow-up.ts",
       "norm_label": "application-follow-up.ts"
     },
     {
@@ -9912,8 +9912,8 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "packages_domain_src_application_follow_up_isliteraldate",
-      "community": 44,
-      "community_name": "derive.ts",
+      "community": 113,
+      "community_name": "application-follow-up.ts",
       "norm_label": "isliteraldate()"
     },
     {
@@ -9923,8 +9923,8 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "packages_domain_src_application_follow_up_candidatelocaldate",
-      "community": 44,
-      "community_name": "derive.ts",
+      "community": 113,
+      "community_name": "application-follow-up.ts",
       "norm_label": "candidatelocaldate()"
     },
     {
@@ -9934,8 +9934,8 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "packages_domain_src_application_follow_up_applicationfollowupobservation",
-      "community": 44,
-      "community_name": "derive.ts",
+      "community": 113,
+      "community_name": "application-follow-up.ts",
       "norm_label": "applicationfollowupobservation"
     },
     {
@@ -9945,8 +9945,8 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "packages_domain_src_application_follow_up_applicationfollowuppolicy",
-      "community": 44,
-      "community_name": "derive.ts",
+      "community": 113,
+      "community_name": "application-follow-up.ts",
       "norm_label": "applicationfollowuppolicy"
     },
     {
@@ -9956,8 +9956,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "packages_domain_src_applications",
-      "community": 55,
-      "community_name": "types.ts",
+      "community": 98,
+      "community_name": "packet-lifecycle.ts",
       "norm_label": "applications.ts"
     },
     {
@@ -9967,8 +9967,8 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "packages_domain_src_applications_application_statuses",
-      "community": 55,
-      "community_name": "types.ts",
+      "community": 98,
+      "community_name": "packet-lifecycle.ts",
       "norm_label": "application_statuses"
     },
     {
@@ -9978,8 +9978,8 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "packages_domain_src_applications_legalcandidatetargets",
-      "community": 55,
-      "community_name": "types.ts",
+      "community": 98,
+      "community_name": "packet-lifecycle.ts",
       "norm_label": "legalcandidatetargets"
     },
     {
@@ -9989,8 +9989,8 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "packages_domain_src_applications_consequentialtargets",
-      "community": 55,
-      "community_name": "types.ts",
+      "community": 98,
+      "community_name": "packet-lifecycle.ts",
       "norm_label": "consequentialtargets"
     },
     {
@@ -10000,8 +10000,8 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "packages_domain_src_applications_candidateapplicationoption",
-      "community": 55,
-      "community_name": "types.ts",
+      "community": 98,
+      "community_name": "packet-lifecycle.ts",
       "norm_label": "candidateapplicationoption"
     },
     {
@@ -10011,8 +10011,8 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "packages_domain_src_applications_candidateapplicationdecision",
-      "community": 55,
-      "community_name": "types.ts",
+      "community": 98,
+      "community_name": "packet-lifecycle.ts",
       "norm_label": "candidateapplicationdecision"
     },
     {
@@ -10022,8 +10022,8 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "packages_domain_src_applications_packetapplicationeffect",
-      "community": 55,
-      "community_name": "types.ts",
+      "community": 98,
+      "community_name": "packet-lifecycle.ts",
       "norm_label": "packetapplicationeffect"
     },
     {
@@ -10033,8 +10033,8 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "packages_domain_src_applications_packetapplicationdecision",
-      "community": 55,
-      "community_name": "types.ts",
+      "community": 98,
+      "community_name": "packet-lifecycle.ts",
       "norm_label": "packetapplicationdecision"
     },
     {
@@ -10044,8 +10044,8 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "packages_domain_src_applications_isstatus",
-      "community": 55,
-      "community_name": "types.ts",
+      "community": 98,
+      "community_name": "packet-lifecycle.ts",
       "norm_label": "isstatus()"
     },
     {
@@ -10055,8 +10055,8 @@
       "source_location": "L49",
       "_origin": "ast",
       "id": "packages_domain_src_applications_confirmationfor",
-      "community": 55,
-      "community_name": "types.ts",
+      "community": 98,
+      "community_name": "packet-lifecycle.ts",
       "norm_label": "confirmationfor()"
     },
     {
@@ -10066,8 +10066,8 @@
       "source_location": "L62",
       "_origin": "ast",
       "id": "packages_domain_src_applications_applicationtransitions",
-      "community": 55,
-      "community_name": "types.ts",
+      "community": 98,
+      "community_name": "packet-lifecycle.ts",
       "norm_label": "applicationtransitions"
     },
     {
@@ -10165,8 +10165,8 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "packages_domain_src_external_actions_transitionexternalaction",
-      "community": 99,
-      "community_name": "external-actions.ts",
+      "community": 86,
+      "community_name": "canonicalHash",
       "norm_label": "transitionexternalaction()"
     },
     {
@@ -10352,7 +10352,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "packages_domain_src_receipts_canonicalize",
-      "community": 7,
+      "community": 98,
       "community_name": "packet-lifecycle.ts",
       "norm_label": "canonicalize()"
     },
@@ -10363,7 +10363,7 @@
       "source_location": "L34",
       "_origin": "ast",
       "id": "packages_domain_src_receipts_canonicaljson",
-      "community": 7,
+      "community": 98,
       "community_name": "packet-lifecycle.ts",
       "norm_label": "canonicaljson()"
     },
@@ -10407,8 +10407,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "packages_domain_src_roles",
-      "community": 110,
-      "community_name": "discovery-cycle.ts",
+      "community": 108,
+      "community_name": "roles.ts",
       "norm_label": "roles.ts"
     },
     {
@@ -10418,8 +10418,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "packages_domain_src_roles_rolesource",
-      "community": 110,
-      "community_name": "discovery-cycle.ts",
+      "community": 108,
+      "community_name": "roles.ts",
       "norm_label": "rolesource"
     },
     {
@@ -10429,8 +10429,8 @@
       "source_location": "L4",
       "_origin": "ast",
       "id": "packages_domain_src_roles_roleobservation",
-      "community": 110,
-      "community_name": "discovery-cycle.ts",
+      "community": 108,
+      "community_name": "roles.ts",
       "norm_label": "roleobservation"
     },
     {
@@ -10440,8 +10440,8 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "packages_domain_src_roles_currentrole",
-      "community": 110,
-      "community_name": "discovery-cycle.ts",
+      "community": 108,
+      "community_name": "roles.ts",
       "norm_label": "currentrole"
     },
     {
@@ -10451,8 +10451,8 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "packages_domain_src_roles_normalized",
-      "community": 110,
-      "community_name": "discovery-cycle.ts",
+      "community": 108,
+      "community_name": "roles.ts",
       "norm_label": "normalized()"
     },
     {
@@ -10462,8 +10462,8 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "packages_domain_src_roles_required",
-      "community": 110,
-      "community_name": "discovery-cycle.ts",
+      "community": 108,
+      "community_name": "roles.ts",
       "norm_label": "required()"
     },
     {
@@ -10473,8 +10473,8 @@
       "source_location": "L48",
       "_origin": "ast",
       "id": "packages_domain_src_roles_normalizeroleobservation",
-      "community": 110,
-      "community_name": "discovery-cycle.ts",
+      "community": 108,
+      "community_name": "roles.ts",
       "norm_label": "normalizeroleobservation()"
     },
     {
@@ -10485,7 +10485,7 @@
       "_origin": "ast",
       "id": "packages_domain_src_schedules",
       "community": 110,
-      "community_name": "discovery-cycle.ts",
+      "community_name": "schedules.ts",
       "norm_label": "schedules.ts"
     },
     {
@@ -10507,7 +10507,7 @@
       "_origin": "ast",
       "id": "packages_domain_src_schedules_scheduledjobevent",
       "community": 110,
-      "community_name": "discovery-cycle.ts",
+      "community_name": "schedules.ts",
       "norm_label": "scheduledjobevent"
     },
     {
@@ -10518,7 +10518,7 @@
       "_origin": "ast",
       "id": "packages_domain_src_schedules_transitions",
       "community": 110,
-      "community_name": "discovery-cycle.ts",
+      "community_name": "schedules.ts",
       "norm_label": "transitions"
     },
     {
@@ -10529,7 +10529,7 @@
       "_origin": "ast",
       "id": "packages_domain_src_schedules_transitionscheduledjob",
       "community": 110,
-      "community_name": "discovery-cycle.ts",
+      "community_name": "schedules.ts",
       "norm_label": "transitionscheduledjob()"
     },
     {
@@ -10540,7 +10540,7 @@
       "_origin": "ast",
       "id": "packages_domain_src_schedules_scheduledretrydelayminutes",
       "community": 110,
-      "community_name": "discovery-cycle.ts",
+      "community_name": "schedules.ts",
       "norm_label": "scheduledretrydelayminutes()"
     },
     {
@@ -10551,7 +10551,7 @@
       "_origin": "ast",
       "id": "packages_domain_src_schedules_scheduledfailureevent",
       "community": 110,
-      "community_name": "discovery-cycle.ts",
+      "community_name": "schedules.ts",
       "norm_label": "scheduledfailureevent()"
     },
     {
@@ -10803,8 +10803,8 @@
       "source_location": "L85",
       "_origin": "ast",
       "id": "packages_domain_src_types_h1bsignallabel",
-      "community": 6,
-      "community_name": "store.ts",
+      "community": 68,
+      "community_name": "government-dataset.ts",
       "norm_label": "h1bsignallabel"
     },
     {
@@ -10815,7 +10815,7 @@
       "_origin": "ast",
       "id": "packages_domain_src_types_externalactionprovider",
       "community": 77,
-      "community_name": "external-action-lifecycle.ts",
+      "community_name": "ExternalActionProvider",
       "norm_label": "externalactionprovider"
     },
     {
@@ -10836,8 +10836,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "packages_domain_test_application_follow_up_test",
-      "community": 44,
-      "community_name": "derive.ts",
+      "community": 113,
+      "community_name": "application-follow-up.ts",
       "norm_label": "application-follow-up.test.ts"
     },
     {
@@ -10847,8 +10847,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "packages_domain_test_applications_test",
-      "community": 55,
-      "community_name": "types.ts",
+      "community": 98,
+      "community_name": "packet-lifecycle.ts",
       "norm_label": "applications.test.ts"
     },
     {
@@ -10902,8 +10902,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "packages_domain_test_roles_test",
-      "community": 110,
-      "community_name": "discovery-cycle.ts",
+      "community": 108,
+      "community_name": "roles.ts",
       "norm_label": "roles.test.ts"
     },
     {
@@ -10914,7 +10914,7 @@
       "_origin": "ast",
       "id": "packages_domain_test_schedules_test",
       "community": 110,
-      "community_name": "discovery-cycle.ts",
+      "community_name": "schedules.ts",
       "norm_label": "schedules.test.ts"
     },
     {
@@ -12157,7 +12157,7 @@
       "_origin": "ast",
       "id": "packages_providers_src_actions",
       "community": 77,
-      "community_name": "external-action-lifecycle.ts",
+      "community_name": "ExternalActionProvider",
       "norm_label": "actions.ts"
     },
     {
@@ -12168,7 +12168,7 @@
       "_origin": "ast",
       "id": "packages_providers_src_actions_actionpayload",
       "community": 77,
-      "community_name": "external-action-lifecycle.ts",
+      "community_name": "ExternalActionProvider",
       "norm_label": "actionpayload"
     },
     {
@@ -12179,7 +12179,7 @@
       "_origin": "ast",
       "id": "packages_providers_src_actions_actionresult",
       "community": 77,
-      "community_name": "external-action-lifecycle.ts",
+      "community_name": "ExternalActionProvider",
       "norm_label": "actionresult"
     },
     {
@@ -12190,7 +12190,7 @@
       "_origin": "ast",
       "id": "packages_providers_src_actions_validateactionpayload",
       "community": 77,
-      "community_name": "external-action-lifecycle.ts",
+      "community_name": "ExternalActionProvider",
       "norm_label": "validateactionpayload()"
     },
     {
@@ -12201,7 +12201,7 @@
       "_origin": "ast",
       "id": "packages_providers_src_actions_builddeeplink",
       "community": 77,
-      "community_name": "external-action-lifecycle.ts",
+      "community_name": "ExternalActionProvider",
       "norm_label": "builddeeplink()"
     },
     {
@@ -12212,7 +12212,7 @@
       "_origin": "ast",
       "id": "packages_providers_src_actions_executeprovideraction",
       "community": 77,
-      "community_name": "external-action-lifecycle.ts",
+      "community_name": "ExternalActionProvider",
       "norm_label": "executeprovideraction()"
     },
     {
@@ -12223,7 +12223,7 @@
       "_origin": "ast",
       "id": "packages_providers_src_index",
       "community": 7,
-      "community_name": "packet-lifecycle.ts",
+      "community_name": "providers/src/index.ts",
       "norm_label": "providers/src/index.ts"
     },
     {
@@ -12234,7 +12234,7 @@
       "_origin": "ast",
       "id": "packages_providers_src_jobs",
       "community": 7,
-      "community_name": "packet-lifecycle.ts",
+      "community_name": "providers/src/index.ts",
       "norm_label": "jobs.ts"
     },
     {
@@ -12245,7 +12245,7 @@
       "_origin": "ast",
       "id": "packages_providers_src_jobs_providerjob",
       "community": 7,
-      "community_name": "packet-lifecycle.ts",
+      "community_name": "providers/src/index.ts",
       "norm_label": "providerjob"
     },
     {
@@ -12256,7 +12256,7 @@
       "_origin": "ast",
       "id": "packages_providers_src_jobs_jobproviderrequest",
       "community": 7,
-      "community_name": "packet-lifecycle.ts",
+      "community_name": "providers/src/index.ts",
       "norm_label": "jobproviderrequest"
     },
     {
@@ -12267,7 +12267,7 @@
       "_origin": "ast",
       "id": "packages_providers_src_jobs_fetcher",
       "community": 7,
-      "community_name": "packet-lifecycle.ts",
+      "community_name": "providers/src/index.ts",
       "norm_label": "fetcher"
     },
     {
@@ -12278,7 +12278,7 @@
       "_origin": "ast",
       "id": "packages_providers_src_jobs_assertboard",
       "community": 7,
-      "community_name": "packet-lifecycle.ts",
+      "community_name": "providers/src/index.ts",
       "norm_label": "assertboard()"
     },
     {
@@ -12289,7 +12289,7 @@
       "_origin": "ast",
       "id": "packages_providers_src_jobs_text",
       "community": 7,
-      "community_name": "packet-lifecycle.ts",
+      "community_name": "providers/src/index.ts",
       "norm_label": "text()"
     },
     {
@@ -12300,7 +12300,7 @@
       "_origin": "ast",
       "id": "packages_providers_src_jobs_outboundurl",
       "community": 7,
-      "community_name": "packet-lifecycle.ts",
+      "community_name": "providers/src/index.ts",
       "norm_label": "outboundurl()"
     },
     {
@@ -12311,7 +12311,7 @@
       "_origin": "ast",
       "id": "packages_providers_src_jobs_stripmarkup",
       "community": 7,
-      "community_name": "packet-lifecycle.ts",
+      "community_name": "providers/src/index.ts",
       "norm_label": "stripmarkup()"
     },
     {
@@ -12322,7 +12322,7 @@
       "_origin": "ast",
       "id": "packages_providers_src_jobs_digest",
       "community": 7,
-      "community_name": "packet-lifecycle.ts",
+      "community_name": "providers/src/index.ts",
       "norm_label": "digest()"
     },
     {
@@ -12333,7 +12333,7 @@
       "_origin": "ast",
       "id": "packages_providers_src_jobs_getjson",
       "community": 7,
-      "community_name": "packet-lifecycle.ts",
+      "community_name": "providers/src/index.ts",
       "norm_label": "getjson()"
     },
     {
@@ -12344,7 +12344,7 @@
       "_origin": "ast",
       "id": "packages_providers_src_jobs_fetchproviderjobs",
       "community": 7,
-      "community_name": "packet-lifecycle.ts",
+      "community_name": "providers/src/index.ts",
       "norm_label": "fetchproviderjobs()"
     },
     {
@@ -12355,7 +12355,7 @@
       "_origin": "ast",
       "id": "packages_providers_src_ollama",
       "community": 7,
-      "community_name": "packet-lifecycle.ts",
+      "community_name": "providers/src/index.ts",
       "norm_label": "ollama.ts"
     },
     {
@@ -12366,7 +12366,7 @@
       "_origin": "ast",
       "id": "packages_providers_src_ollama_localmodelstatus",
       "community": 7,
-      "community_name": "packet-lifecycle.ts",
+      "community_name": "providers/src/index.ts",
       "norm_label": "localmodelstatus"
     },
     {
@@ -12377,7 +12377,7 @@
       "_origin": "ast",
       "id": "packages_providers_src_ollama_localmodeldescriptor",
       "community": 7,
-      "community_name": "packet-lifecycle.ts",
+      "community_name": "providers/src/index.ts",
       "norm_label": "localmodeldescriptor"
     },
     {
@@ -12388,7 +12388,7 @@
       "_origin": "ast",
       "id": "packages_providers_src_ollama_localmodelinventory",
       "community": 7,
-      "community_name": "packet-lifecycle.ts",
+      "community_name": "providers/src/index.ts",
       "norm_label": "localmodelinventory()"
     },
     {
@@ -12399,7 +12399,7 @@
       "_origin": "ast",
       "id": "packages_providers_src_ollama_reviewlocalpacket",
       "community": 7,
-      "community_name": "packet-lifecycle.ts",
+      "community_name": "providers/src/index.ts",
       "norm_label": "reviewlocalpacket()"
     },
     {
@@ -12409,8 +12409,8 @@
       "source_location": "L126",
       "_origin": "ast",
       "id": "packages_providers_src_ollama_draftlocalsummary",
-      "community": 7,
-      "community_name": "packet-lifecycle.ts",
+      "community": 59,
+      "community_name": "buildServer",
       "norm_label": "draftlocalsummary()"
     },
     {
@@ -12421,7 +12421,7 @@
       "_origin": "ast",
       "id": "packages_providers_src_url",
       "community": 7,
-      "community_name": "packet-lifecycle.ts",
+      "community_name": "providers/src/index.ts",
       "norm_label": "url.ts"
     },
     {
@@ -12432,7 +12432,7 @@
       "_origin": "ast",
       "id": "packages_providers_src_url_address",
       "community": 7,
-      "community_name": "packet-lifecycle.ts",
+      "community_name": "providers/src/index.ts",
       "norm_label": "address"
     },
     {
@@ -12443,7 +12443,7 @@
       "_origin": "ast",
       "id": "packages_providers_src_url_response",
       "community": 7,
-      "community_name": "packet-lifecycle.ts",
+      "community_name": "providers/src/index.ts",
       "norm_label": "response"
     },
     {
@@ -12454,7 +12454,7 @@
       "_origin": "ast",
       "id": "packages_providers_src_url_isprivateaddress",
       "community": 7,
-      "community_name": "packet-lifecycle.ts",
+      "community_name": "providers/src/index.ts",
       "norm_label": "isprivateaddress()"
     },
     {
@@ -12465,7 +12465,7 @@
       "_origin": "ast",
       "id": "packages_providers_src_url_requestpinned",
       "community": 7,
-      "community_name": "packet-lifecycle.ts",
+      "community_name": "providers/src/index.ts",
       "norm_label": "requestpinned()"
     },
     {
@@ -12476,7 +12476,7 @@
       "_origin": "ast",
       "id": "packages_providers_src_url_textfrompage",
       "community": 7,
-      "community_name": "packet-lifecycle.ts",
+      "community_name": "providers/src/index.ts",
       "norm_label": "textfrompage()"
     },
     {
@@ -12487,7 +12487,7 @@
       "_origin": "ast",
       "id": "packages_providers_src_url_fetchallowlistedjobpage",
       "community": 7,
-      "community_name": "packet-lifecycle.ts",
+      "community_name": "providers/src/index.ts",
       "norm_label": "fetchallowlistedjobpage()"
     },
     {
@@ -12498,7 +12498,7 @@
       "_origin": "ast",
       "id": "packages_providers_src_version",
       "community": 7,
-      "community_name": "packet-lifecycle.ts",
+      "community_name": "providers/src/index.ts",
       "norm_label": "providers/src/version.ts"
     },
     {
@@ -12509,7 +12509,7 @@
       "_origin": "ast",
       "id": "packages_providers_test_providers_test",
       "community": 7,
-      "community_name": "packet-lifecycle.ts",
+      "community_name": "providers/src/index.ts",
       "norm_label": "providers.test.ts"
     },
     {
@@ -13404,10 +13404,43 @@
       "norm_label": "verify-sbom-freshness.mjs"
     },
     {
-      "label": "sortedPurls()",
+      "label": "volatileRegistryProperties",
       "file_type": "code",
       "source_file": "scripts/verify-sbom-freshness.mjs",
       "source_location": "L5",
+      "_origin": "ast",
+      "id": "scripts_verify_sbom_freshness_volatileregistryproperties",
+      "community": 105,
+      "community_name": "verify-sbom-freshness.mjs",
+      "norm_label": "volatileregistryproperties"
+    },
+    {
+      "label": "registryPropertyName()",
+      "file_type": "code",
+      "source_file": "scripts/verify-sbom-freshness.mjs",
+      "source_location": "L7",
+      "_origin": "ast",
+      "id": "scripts_verify_sbom_freshness_registrypropertyname",
+      "community": 105,
+      "community_name": "verify-sbom-freshness.mjs",
+      "norm_label": "registrypropertyname()"
+    },
+    {
+      "label": "stableRegistryMetadata()",
+      "file_type": "code",
+      "source_file": "scripts/verify-sbom-freshness.mjs",
+      "source_location": "L16",
+      "_origin": "ast",
+      "id": "scripts_verify_sbom_freshness_stableregistrymetadata",
+      "community": 105,
+      "community_name": "verify-sbom-freshness.mjs",
+      "norm_label": "stableregistrymetadata()"
+    },
+    {
+      "label": "sortedPurls()",
+      "file_type": "code",
+      "source_file": "scripts/verify-sbom-freshness.mjs",
+      "source_location": "L30",
       "_origin": "ast",
       "id": "scripts_verify_sbom_freshness_sortedpurls",
       "community": 105,
@@ -13418,7 +13451,7 @@
       "label": "cyclonedxPurls()",
       "file_type": "code",
       "source_file": "scripts/verify-sbom-freshness.mjs",
-      "source_location": "L11",
+      "source_location": "L36",
       "_origin": "ast",
       "id": "scripts_verify_sbom_freshness_cyclonedxpurls",
       "community": 105,
@@ -13429,7 +13462,7 @@
       "label": "spdxPurls()",
       "file_type": "code",
       "source_file": "scripts/verify-sbom-freshness.mjs",
-      "source_location": "L18",
+      "source_location": "L43",
       "_origin": "ast",
       "id": "scripts_verify_sbom_freshness_spdxpurls",
       "community": 105,
@@ -13440,7 +13473,7 @@
       "label": "comparePurlSets()",
       "file_type": "code",
       "source_file": "scripts/verify-sbom-freshness.mjs",
-      "source_location": "L22",
+      "source_location": "L47",
       "_origin": "ast",
       "id": "scripts_verify_sbom_freshness_comparepurlsets",
       "community": 105,
@@ -13451,7 +13484,7 @@
       "label": "stableCycloneDx()",
       "file_type": "code",
       "source_file": "scripts/verify-sbom-freshness.mjs",
-      "source_location": "L34",
+      "source_location": "L59",
       "_origin": "ast",
       "id": "scripts_verify_sbom_freshness_stablecyclonedx",
       "community": 105,
@@ -13462,7 +13495,7 @@
       "label": "stableSpdx()",
       "file_type": "code",
       "source_file": "scripts/verify-sbom-freshness.mjs",
-      "source_location": "L42",
+      "source_location": "L67",
       "_origin": "ast",
       "id": "scripts_verify_sbom_freshness_stablespdx",
       "community": 105,
@@ -13473,7 +13506,7 @@
       "label": "compareDocuments()",
       "file_type": "code",
       "source_file": "scripts/verify-sbom-freshness.mjs",
-      "source_location": "L62",
+      "source_location": "L87",
       "_origin": "ast",
       "id": "scripts_verify_sbom_freshness_comparedocuments",
       "community": 105,
@@ -13484,7 +13517,7 @@
       "label": "verifySbomFreshness()",
       "file_type": "code",
       "source_file": "scripts/verify-sbom-freshness.mjs",
-      "source_location": "L68",
+      "source_location": "L93",
       "_origin": "ast",
       "id": "scripts_verify_sbom_freshness_verifysbomfreshness",
       "community": 105,
@@ -42994,7 +43027,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "scripts/verify-sbom-freshness.mjs",
-      "source_location": "L62",
+      "source_location": "L87",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_verify_sbom_freshness",
@@ -43005,7 +43038,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "scripts/verify-sbom-freshness.mjs",
-      "source_location": "L22",
+      "source_location": "L47",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_verify_sbom_freshness",
@@ -43016,7 +43049,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "scripts/verify-sbom-freshness.mjs",
-      "source_location": "L11",
+      "source_location": "L36",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_verify_sbom_freshness",
@@ -43027,7 +43060,18 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "scripts/verify-sbom-freshness.mjs",
-      "source_location": "L5",
+      "source_location": "L7",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_verify_sbom_freshness",
+      "target": "scripts_verify_sbom_freshness_registrypropertyname",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/verify-sbom-freshness.mjs",
+      "source_location": "L30",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_verify_sbom_freshness",
@@ -43038,7 +43082,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "scripts/verify-sbom-freshness.mjs",
-      "source_location": "L18",
+      "source_location": "L43",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_verify_sbom_freshness",
@@ -43049,7 +43093,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "scripts/verify-sbom-freshness.mjs",
-      "source_location": "L34",
+      "source_location": "L59",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_verify_sbom_freshness",
@@ -43060,7 +43104,18 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "scripts/verify-sbom-freshness.mjs",
-      "source_location": "L42",
+      "source_location": "L16",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_verify_sbom_freshness",
+      "target": "scripts_verify_sbom_freshness_stableregistrymetadata",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/verify-sbom-freshness.mjs",
+      "source_location": "L67",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_verify_sbom_freshness",
@@ -43071,7 +43126,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "scripts/verify-sbom-freshness.mjs",
-      "source_location": "L68",
+      "source_location": "L93",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_verify_sbom_freshness",
@@ -43079,11 +43134,58 @@
       "confidence_score": 1.0
     },
     {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/verify-sbom-freshness.mjs",
+      "source_location": "L5",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_verify_sbom_freshness",
+      "target": "scripts_verify_sbom_freshness_volatileregistryproperties",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "calls",
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "scripts/verify-sbom-freshness.mjs",
-      "source_location": "L12",
+      "source_location": "L19",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_verify_sbom_freshness_stableregistrymetadata",
+      "target": "scripts_verify_sbom_freshness_registrypropertyname",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/verify-sbom-freshness.mjs",
+      "source_location": "L64",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_verify_sbom_freshness_stablecyclonedx",
+      "target": "scripts_verify_sbom_freshness_stableregistrymetadata",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/verify-sbom-freshness.mjs",
+      "source_location": "L84",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_verify_sbom_freshness_stablespdx",
+      "target": "scripts_verify_sbom_freshness_stableregistrymetadata",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/verify-sbom-freshness.mjs",
+      "source_location": "L37",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_verify_sbom_freshness_cyclonedxpurls",
@@ -43095,7 +43197,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "scripts/verify-sbom-freshness.mjs",
-      "source_location": "L19",
+      "source_location": "L44",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_verify_sbom_freshness_spdxpurls",
@@ -43107,7 +43209,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "scripts/verify-sbom-freshness.mjs",
-      "source_location": "L79",
+      "source_location": "L104",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_verify_sbom_freshness_verifysbomfreshness",
@@ -43119,7 +43221,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "scripts/verify-sbom-freshness.mjs",
-      "source_location": "L81",
+      "source_location": "L106",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_verify_sbom_freshness_verifysbomfreshness",
@@ -43131,7 +43233,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "scripts/verify-sbom-freshness.mjs",
-      "source_location": "L80",
+      "source_location": "L105",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_verify_sbom_freshness_verifysbomfreshness",
@@ -43143,7 +43245,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "scripts/verify-sbom-freshness.mjs",
-      "source_location": "L84",
+      "source_location": "L109",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_verify_sbom_freshness_verifysbomfreshness",
@@ -43155,7 +43257,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "scripts/verify-sbom-freshness.mjs",
-      "source_location": "L87",
+      "source_location": "L112",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_verify_sbom_freshness_verifysbomfreshness",
@@ -43167,7 +43269,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "scripts/verify-sbom-freshness.mjs",
-      "source_location": "L82",
+      "source_location": "L107",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_verify_sbom_freshness_verifysbomfreshness",
@@ -47600,5 +47702,5 @@
       "source_file": "docs/planning/product-contract.md"
     }
   ],
-  "built_at_commit": "8fb4fc4effcc802d14247b681bfc14e960db2a27"
+  "built_at_commit": "a5d703ca1285e9f1c14395265d1b02683cf27993"
 }
