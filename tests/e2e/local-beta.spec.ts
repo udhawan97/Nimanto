@@ -472,10 +472,14 @@ test("a candidate starts a private workspace and receives deterministic role exp
   }
 
   await page.setViewportSize({ width: 375, height: 812 });
+  // WebKit can report a computed 44 CSS-pixel box a few millionths below 44
+  // after device-scale conversion. Keep a sub-thousandth-pixel tolerance so
+  // this still fails for any meaningful touch-target regression.
+  const minimumTouchTarget = 44 - 0.001;
   const openNavigation = page.getByRole("button", { name: "Open navigation" });
   const openNavigationBox = await openNavigation.boundingBox();
-  expect(openNavigationBox?.width).toBeGreaterThanOrEqual(44);
-  expect(openNavigationBox?.height).toBeGreaterThanOrEqual(44);
+  expect(openNavigationBox?.width).toBeGreaterThanOrEqual(minimumTouchTarget);
+  expect(openNavigationBox?.height).toBeGreaterThanOrEqual(minimumTouchTarget);
   await openNavigation.click();
   const navigationDialog = page.getByRole("dialog", { name: "Workspace navigation" });
   await expect(navigationDialog).toBeVisible();
@@ -483,8 +487,8 @@ test("a candidate starts a private workspace and receives deterministic role exp
   await expect(page.locator(".nav-scrim")).toHaveAttribute("tabindex", "-1");
   const closeNavigation = page.getByRole("button", { name: "Close navigation" }).first();
   const closeNavigationBox = await closeNavigation.boundingBox();
-  expect(closeNavigationBox?.width).toBeGreaterThanOrEqual(44);
-  expect(closeNavigationBox?.height).toBeGreaterThanOrEqual(44);
+  expect(closeNavigationBox?.width).toBeGreaterThanOrEqual(minimumTouchTarget);
+  expect(closeNavigationBox?.height).toBeGreaterThanOrEqual(minimumTouchTarget);
   const brandLink = navigationDialog.locator('a[href="../"]');
   await expect(closeNavigation).toBeVisible();
   await expect(closeNavigation).toBeFocused();
@@ -567,10 +571,19 @@ test("a revoked session clears identity-bound drafts before another workspace op
   await page.getByLabel("Tracking").selectOption("untracked");
   await page.getByRole("button", { name: "Track", exact: true }).first().click();
   await page.getByRole("button", { name: "Add role" }).click();
-  await page.getByLabel("Role title").fill("Must not cross identity boundary");
-  await page.getByLabel("Company").fill("Synthetic Works");
-  await page.getByLabel("Description").fill("Transient candidate draft");
-  await page.getByLabel("Requirements, one per line").fill("TypeScript");
+  const manualRoleDraft = page.locator("#manual-role-draft");
+  const roleTitle = manualRoleDraft.locator('[name="title"]');
+  await roleTitle.fill("Must not cross identity boundary");
+  await expect(roleTitle).toHaveValue("Must not cross identity boundary");
+  const roleCompany = manualRoleDraft.locator('[name="company"]');
+  await roleCompany.fill("Synthetic Works");
+  await expect(roleCompany).toHaveValue("Synthetic Works");
+  const roleDescription = manualRoleDraft.locator('[name="description"]');
+  await roleDescription.fill("Transient candidate draft");
+  await expect(roleDescription).toHaveValue("Transient candidate draft");
+  const roleRequirements = manualRoleDraft.locator('[name="requirements"]');
+  await roleRequirements.fill("TypeScript");
+  await expect(roleRequirements).toHaveValue("TypeScript");
 
   await page.getByRole("button", { name: "Applications" }).click();
   await page.getByRole("button", { name: "Table view" }).click();
