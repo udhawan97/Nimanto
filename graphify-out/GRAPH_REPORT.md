@@ -1,7 +1,7 @@
-# Graph Report - nimanto-architecture-v070.inj3cs  (2026-08-22)
+# Graph Report - Nimanto  (2026-08-25)
 
 ## Corpus Check
-- 208 files · ~6,515,032 words
+- 208 files · ~6,515,195 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `a5d703ca`
+- Built from commit: `b5173e1`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -197,7 +197,7 @@ Nodes (46): dependencies, fastify, @fastify/cookie, @fastify/cors, @fastify/helm
 
 ### Community 9 - "workspace.tsx"
 Cohesion: 0.05
-Nodes (36): Connection, ConnectionBanner(), ConnectionIndicator(), useConnection(), Action, ActionDraft, ActionRunner, ApiError (+28 more)
+Nodes (31): Connection, ConnectionBanner(), ConnectionIndicator(), useConnection(), Action, ActionDraft, ActionRunner, ApiError (+23 more)
 
 ### Community 10 - "dependencies"
 Cohesion: 0.04
@@ -332,8 +332,8 @@ Cohesion: 0.08
 Nodes (42): Applications(), localDayInstant(), useOverflowFlag(), ActionLike, APPLICATION_MATCH_BUCKETS, applicationCohortCounts(), ApplicationLike, ArtifactManifestLike (+34 more)
 
 ### Community 45 - "api"
-Cohesion: 0.16
-Nodes (20): Actions(), ActivityLedger(), api(), DataControls(), emptyActionDraft(), EvidenceVault(), fileBase64(), human() (+12 more)
+Cohesion: 0.12
+Nodes (25): Actions(), ActivityLedger(), api(), cadenceLabel(), DataControls(), emptyActionDraft(), emptyRoleFilters(), EvidenceVault() (+17 more)
 
 ### Community 46 - "worker/tsconfig.json"
 Cohesion: 0.22
