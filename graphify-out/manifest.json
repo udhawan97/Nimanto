@@ -1125,13 +1125,13 @@
     "semantic_hash": ""
   },
   "docs/releases/nimanto-v0.7.0.cdx.json": {
-    "mtime": 1787687332.1615024,
-    "ast_hash": "98411a03a0c21d15e393f939ba53bfb7",
+    "mtime": 1787690362.8972702,
+    "ast_hash": "e100abd5fd31258af34bc6441ad87a3a",
     "semantic_hash": ""
   },
   "docs/releases/nimanto-v0.7.0.spdx.json": {
-    "mtime": 1787687332.1672137,
-    "ast_hash": "6293816426f588c33cf7891507909604",
+    "mtime": 1787690364.8065007,
+    "ast_hash": "5d6f29ad95396a22f9f06ce4dae62807",
     "semantic_hash": ""
   },
   "packages/database/src/migrations.ts": {
@@ -1150,8 +1150,8 @@
     "semantic_hash": ""
   },
   "docs/releases/nimanto-v0.7.0-SHA256SUMS.txt": {
-    "mtime": 1787687332.1556418,
-    "ast_hash": "5dae0c374d9e27e0767af4c81e81c105",
+    "mtime": 1787690365.267282,
+    "ast_hash": "cde977b0a13568566ccaaebfa245cf77",
     "semantic_hash": ""
   },
   "docs/releases/v0.7.0-surface-ledger.md": {
