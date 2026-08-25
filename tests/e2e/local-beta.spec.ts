@@ -280,6 +280,35 @@ test("a candidate starts a private workspace and receives deterministic role exp
   await expect
     .poll(() => page.evaluate(() => sessionStorage.getItem("nimanto_bootstrap")))
     .toBeNull();
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.evaluate(() => scrollTo(0, 0));
+  const firstDecisionOrder = await page.locator(".focus-strip").evaluate((focusStrip) => {
+    const summaries = [".metric-row", ".funnel-strip", ".workspace-columns"].map((selector) =>
+      document.querySelector(selector),
+    );
+    const action = focusStrip.querySelector("button");
+    const actionRect = action?.getBoundingClientRect();
+    return {
+      dom: summaries.every(
+        (summary) =>
+          summary !== null &&
+          Boolean(focusStrip.compareDocumentPosition(summary) & Node.DOCUMENT_POSITION_FOLLOWING),
+      ),
+      visual: summaries.every(
+        (summary) =>
+          summary !== null &&
+          focusStrip.getBoundingClientRect().top < summary.getBoundingClientRect().top,
+      ),
+      actionInFirstViewport:
+        actionRect !== undefined && actionRect.top >= 0 && actionRect.bottom <= window.innerHeight,
+    };
+  });
+  expect(firstDecisionOrder).toEqual({
+    dom: true,
+    visual: true,
+    actionInFirstViewport: true,
+  });
+  await page.setViewportSize({ width: 1280, height: 900 });
   await page.getByRole("button", { name: "Run starter matches" }).click();
   await expect(page.locator(".metric").filter({ hasText: "Explained matches" })).toContainText("2");
 
@@ -1896,15 +1925,22 @@ test("gated and empty-state controls say what they are waiting for", async ({ pa
   await page.getByRole("button", { name: "Review packets" }).click();
   await page.getByRole("button", { name: "Generate", exact: true }).first().click();
   const approve = page.getByRole("button", { name: "Approve", exact: true }).first();
+  const packet = page.locator(".packet-row").filter({ has: approve });
+  const assure = packet.getByRole("button", { name: "Assure", exact: true });
   await expect(approve).toBeDisabled();
+  await expect(packet.locator(".packet-actions .button.primary")).toHaveText("Assure");
+  await page.setViewportSize({ width: 375, height: 812 });
+  await expect(packet.locator(".packet-actions .button.primary")).toHaveText("Assure");
   const gate = await approve.getAttribute("aria-describedby");
   expect(gate).toBeTruthy();
   await expect(page.locator(`#${gate}`)).toContainText("assurance");
-  await page.getByRole("button", { name: "Assure", exact: true }).first().click();
+  await assure.click();
   await expect(approve).toBeEnabled();
+  await expect(packet.locator(".packet-actions .button.primary")).toHaveText("Approve");
   await approve.click();
   await expect(page.getByText("Packet approved for export.")).toBeVisible();
   await expect(page.getByText("Approved", { exact: true })).toBeVisible();
+  await expect(packet.locator(".packet-actions .button.primary")).toHaveCount(0);
   await expect(approve).not.toHaveAttribute("aria-describedby");
   await expect(page.locator(`#${gate}`)).toHaveCount(0);
 });

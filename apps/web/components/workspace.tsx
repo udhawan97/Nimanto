@@ -1706,6 +1706,39 @@ function Overview({
           </button>
         }
       />
+      {/* Keep the first available decision ahead of summary accounting in both
+       * visual and DOM order. CSS-only reordering would make keyboard and
+       * assistive-technology order disagree with the mobile presentation. */}
+      {dashboard.jobs.length > 0 && dashboard.matches.length === 0 && (
+        <div className="focus-strip">
+          <div>
+            <SlidersHorizontal />
+            <span>
+              <strong>Your starter roles are ready.</strong>
+              <small>
+                Run both deterministic explanations—no model is used; only confirmed career evidence
+                is scored.
+              </small>
+            </span>
+          </div>
+          <button
+            className="button inverted"
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              void onAct.run({
+                request: async () => {
+                  for (const job of dashboard.jobs)
+                    await api(`/v1/jobs/${job.id}/match`, { method: "POST" });
+                },
+                success: "Role explanations are ready.",
+              });
+            }}
+          >
+            Run starter matches
+          </button>
+        </div>
+      )}
       <div className="metric-row">
         <Metric
           value={dashboard.evidence.filter((item) => item.status === "confirmed").length}
@@ -1801,36 +1834,6 @@ function Overview({
           )}
         </section>
       </div>
-      {dashboard.jobs.length > 0 && dashboard.matches.length === 0 && (
-        <div className="focus-strip">
-          <div>
-            <SlidersHorizontal />
-            <span>
-              <strong>Your starter roles are ready.</strong>
-              <small>
-                Run both deterministic explanations—no model is used; only confirmed career evidence
-                is scored.
-              </small>
-            </span>
-          </div>
-          <button
-            className="button inverted"
-            type="button"
-            disabled={busy}
-            onClick={() => {
-              void onAct.run({
-                request: async () => {
-                  for (const job of dashboard.jobs)
-                    await api(`/v1/jobs/${job.id}/match`, { method: "POST" });
-                },
-                success: "Role explanations are ready.",
-              });
-            }}
-          >
-            Run starter matches
-          </button>
-        </div>
-      )}
     </>
   );
 }
@@ -4704,7 +4707,7 @@ function Packets({
                       <FileOutput size={15} /> Generate new
                     </button>
                     <button
-                      className="button mini quiet"
+                      className={`button mini ${approvalNeedsAssurance ? "primary" : "quiet"}`}
                       type="button"
                       disabled={busy || packet.status === "approved"}
                       onClick={() => {
@@ -4720,7 +4723,7 @@ function Packets({
                      * pixels above the control it governs, and nowhere that a
                      * screen reader would reach from the button itself. */}
                     <button
-                      className="button mini primary"
+                      className={`button mini ${packet.status === "assurance_passed" ? "primary" : "quiet"}`}
                       type="button"
                       disabled={busy || packet.status !== "assurance_passed"}
                       aria-describedby={
