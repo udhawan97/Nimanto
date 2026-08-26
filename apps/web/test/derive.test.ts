@@ -10,6 +10,7 @@ import {
   confirmationPrompt,
   daysSinceLastRecord,
   failureMessage,
+  filterEvidence,
   filterApplications,
   filterRoles,
   followUpNote,
@@ -26,6 +27,7 @@ import {
   profileVersionDiff,
   recordReviewQueue,
   recordedOutcomeTimeline,
+  sortApplications,
   type ApplicationStatus,
 } from "../lib/derive.js";
 import { sectionFromHash, sectionHash } from "../lib/navigation-transitions.js";
@@ -734,6 +736,48 @@ describe("ephemeral role filters", () => {
   });
 });
 
+describe("ephemeral evidence filters", () => {
+  const evidence = [
+    {
+      id: "skill",
+      kind: "skill",
+      value: "TypeScript platform work",
+      status: "confirmed",
+      sourceName: "resume.pdf",
+      locator: "page 2",
+    },
+    {
+      id: "project",
+      kind: "project",
+      value: "Designed a local-first workbench",
+      status: "pending",
+      sourceName: "portfolio.md",
+      locator: "Nimanto",
+    },
+  ];
+
+  it("searches literal claim and provenance fields without changing the records", () => {
+    const before = structuredClone(evidence);
+    expect(
+      filterEvidence(evidence, {
+        query: "PAGE 2",
+        kind: "all",
+        status: "all",
+        source: "all",
+      }),
+    ).toEqual([evidence[0]]);
+    expect(
+      filterEvidence(evidence, {
+        query: "local-first",
+        kind: "project",
+        status: "pending",
+        source: "portfolio.md",
+      }),
+    ).toEqual([evidence[1]]);
+    expect(evidence).toEqual(before);
+  });
+});
+
 describe("ephemeral application filters", () => {
   const jobs = [
     { id: "job-a", source: "greenhouse" },
@@ -746,6 +790,8 @@ describe("ephemeral application filters", () => {
       status: "tracked" as const,
       followUpOn: "2026-08-05",
       job: { title: "Platform Engineer", company: "Northwind" },
+      outcomes: [{ type: "reply", note: "Recruiter asked about Chicago", occurredAt: daysAgo(1) }],
+      notes: [{ text: "Review the travel policy", recordedAt: daysAgo(2) }],
     },
     {
       id: "b",
@@ -775,6 +821,37 @@ describe("ephemeral application filters", () => {
       ),
     ).toEqual([applications[1]]);
     expect(applications).toEqual(before);
+  });
+
+  it("searches literal private-note and outcome text without inferring a result", () => {
+    expect(
+      filterApplications(
+        applications,
+        jobs,
+        { query: "travel policy", source: "all", status: "all", followUp: "all" },
+        NOW,
+      ),
+    ).toEqual([applications[0]]);
+    expect(
+      filterApplications(
+        applications,
+        jobs,
+        { query: "chicago", source: "all", status: "all", followUp: "all" },
+        NOW,
+      ),
+    ).toEqual([applications[0]]);
+  });
+
+  it("sorts a copied view by explicit literal fields and preserves stored order by default", () => {
+    const dated = [
+      { ...applications[0]!, createdAt: "2026-08-01T00:00:00.000Z", followUpOn: null },
+      { ...applications[1]!, createdAt: "2026-08-03T00:00:00.000Z", followUpOn: "2026-08-07" },
+    ];
+    expect(sortApplications(dated, "stored")).toEqual(dated);
+    expect(sortApplications(dated, "newest").map((item) => item.id)).toEqual(["b", "a"]);
+    expect(sortApplications(dated, "role").map((item) => item.id)).toEqual(["b", "a"]);
+    expect(sortApplications(dated, "follow_up").map((item) => item.id)).toEqual(["b", "a"]);
+    expect(dated[0]?.id).toBe("a");
   });
 });
 

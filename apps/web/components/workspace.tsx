@@ -64,6 +64,7 @@ import {
   countedNoun,
   confirmationPrompt,
   failureMessage,
+  filterEvidence,
   filterApplications,
   filterRoles,
   followUpNote,
@@ -78,6 +79,8 @@ import {
   profileVersionDiff,
   recordReviewQueue,
   recordedApplicationTimeline,
+  sortApplications,
+  type EvidenceFilters,
   type ApplicationStatus,
   type Section,
 } from "../lib/derive.js";
@@ -108,6 +111,7 @@ import {
   type ApplicationNoteDraft,
 } from "../lib/applications-workbench.js";
 import { buildFollowUpCalendar } from "../lib/calendar-export.js";
+import { buildApplicationCsv } from "../lib/application-csv-export.js";
 
 const API = process.env.NEXT_PUBLIC_NIMANTO_API_ORIGIN ?? "http://127.0.0.1:4310";
 const API_HOST_LABEL = new URL(API).host;
@@ -174,6 +178,7 @@ type Match = {
   };
   job: Job;
 };
+type ComparableRole = Job & { match: Match | null; tracked: boolean };
 type Outcome = { id: string; type: string; note: string; occurredAt: string };
 type ApplicationNote = { id: string; text: string; recordedAt: string };
 type Application = {
@@ -183,6 +188,7 @@ type Application = {
   // anything outside the union, so a widened type here just hides the mismatch.
   status: ApplicationStatus;
   followUpOn?: string | null;
+  submittedAt?: string | null;
   // The API has always returned these; the type simply never declared them, and
   // the follow-up observation needs createdAt as its baseline.
   createdAt?: string;
@@ -290,6 +296,12 @@ const emptyRoleFilters = (): RoleFilters => ({
   fit: "all",
   tracking: "all",
   visibility: "active",
+});
+const emptyEvidenceFilters = (): EvidenceFilters => ({
+  query: "",
+  kind: "all",
+  status: "all",
+  source: "all",
 });
 const emptyManualRoleDraft = (): ManualRoleDraft => ({
   title: "",
@@ -558,6 +570,15 @@ function fileBase64(file: File): Promise<string> {
   });
 }
 
+function downloadTextFile(content: string, type: string, filename: string): void {
+  const url = URL.createObjectURL(new Blob([content], { type }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
 const navigation: Array<{ id: Section; label: string; icon: typeof Activity }> = [
   { id: "overview", label: "Overview", icon: Activity },
   { id: "evidence", label: "Evidence vault", icon: FolderSearch2 },
@@ -610,7 +631,9 @@ export function Workspace() {
    * navigation cannot erase them; identity transitions still clear them and
    * nothing is written to browser storage. */
   const [evidenceDraft, setEvidenceDraft] = useState<EvidenceDraft | null>(null);
+  const [evidenceFilters, setEvidenceFilters] = useState<EvidenceFilters>(emptyEvidenceFilters);
   const [roleFilters, setRoleFilters] = useState<RoleFilters>(emptyRoleFilters);
+  const [comparisonRoleIds, setComparisonRoleIds] = useState<string[]>([]);
   const [actionDraft, setActionDraft] = useState<ActionDraft | null>(null);
   const [applicationsWorkbenchState, dispatchApplicationsWorkbench] = useReducer(
     applicationsWorkbenchReducer,
@@ -740,7 +763,9 @@ export function Workspace() {
       setReviewedUrlDraft(null);
       setEvidenceContext(null);
       setEvidenceDraft(null);
+      setEvidenceFilters(emptyEvidenceFilters());
       setRoleFilters(emptyRoleFilters());
+      setComparisonRoleIds([]);
       setActionDraft(null);
       dispatchApplicationsWorkbench({ type: "reset" });
       // Remount the active section too: import previews and other child-local
@@ -1294,6 +1319,8 @@ export function Workspace() {
               }
               roleRequirement={evidenceContext}
               onDismissRoleRequirement={clearEvidenceContext}
+              filters={evidenceFilters}
+              onFiltersChange={setEvidenceFilters}
             />
           )}
           {section === "jobs" && (
@@ -1308,6 +1335,8 @@ export function Workspace() {
               onDraftCommitted={commitManualRoleDraft}
               filters={roleFilters}
               onFiltersChange={setRoleFilters}
+              comparisonRoleIds={comparisonRoleIds}
+              onComparisonRoleIdsChange={setComparisonRoleIds}
               reviewedUrlEnabled={runtimeMeta?.providers.reviewedUrlIntake === true}
               reviewedUrlTermsAt={runtimeMeta?.providers.reviewedUrlTermsAt ?? null}
               reviewedUrlHosts={runtimeMeta?.providers.reviewedUrlHosts ?? []}
@@ -1941,6 +1970,132 @@ function Empty({
   );
 }
 
+function postedCompensation(role: ComparableRole): string {
+  const compensation = role.sourceMeta.compensation;
+  if (!compensation) return "Not recorded";
+  const minimum = compensation.minimum?.toLocaleString() ?? "unknown";
+  const maximum = compensation.maximum?.toLocaleString() ?? "unknown";
+  return `${minimum}–${maximum} ${compensation.currency ?? "USD"}`;
+}
+
+function RoleComparison({
+  roles,
+  onRemove,
+  onClear,
+}: {
+  roles: ComparableRole[];
+  onRemove: (id: string) => void;
+  onClear: () => void;
+}) {
+  const cells = (role: ComparableRole) => {
+    const supported =
+      role.match?.result.requirements.filter((requirement) => requirement.state === "supported")
+        .length ?? 0;
+    const unmet =
+      role.match?.result.requirements
+        .filter((requirement) => requirement.state !== "supported")
+        .map((requirement) => requirement.requirement) ?? [];
+    return {
+      record: role.candidateDisposition.state === "archived" ? "Archived" : "Current shortlist",
+      source: human(role.source),
+      location: role.location || "Not specified",
+      tracking: role.tracked ? "Application tracked" : "Not tracked",
+      fit: role.match ? human(role.match.result.band) : "Not explained",
+      coverage: role.match
+        ? `${human(role.match.result.coverage)} · ${supported}/${role.match.result.requirements.length} requirements supported`
+        : "Not explained",
+      blockers: role.match
+        ? role.match.result.blockers.length
+          ? role.match.result.blockers.map((blocker) => blocker.sourceText).join(" · ")
+          : "None in latest explanation"
+        : "Not explained",
+      unmet: role.match ? (unmet.length ? unmet.join(" · ") : "None") : "Not explained",
+      compensation: postedCompensation(role),
+      benefits: role.sourceMeta.benefits?.length
+        ? role.sourceMeta.benefits.join(" · ")
+        : "Not recorded",
+    };
+  };
+  const comparison = roles.map(cells);
+  const rows: Array<{ label: string; field: keyof ReturnType<typeof cells> }> = [
+    { label: "Candidate view", field: "record" },
+    { label: "Role source", field: "source" },
+    { label: "Location", field: "location" },
+    { label: "Application", field: "tracking" },
+    { label: "Evidence fit", field: "fit" },
+    { label: "Coverage", field: "coverage" },
+    { label: "Explicit blockers", field: "blockers" },
+    { label: "Needs evidence", field: "unmet" },
+    { label: "Posted compensation", field: "compensation" },
+    { label: "Stated benefits", field: "benefits" },
+  ];
+  return (
+    <section className="role-comparison" aria-labelledby="role-comparison-title">
+      <div className="panel-heading">
+        <div>
+          <span>Comparison folio · current stored values</span>
+          <h2 id="role-comparison-title">Read two roles on the same lines</h2>
+          <p>
+            Latest explanations are shown literally. This does not rank roles or predict a hiring
+            outcome.
+          </p>
+        </div>
+        <button className="button mini quiet" type="button" onClick={onClear}>
+          Clear comparison
+        </button>
+      </div>
+      {roles.length === 1 ? (
+        <div className="comparison-awaiting" role="status">
+          <div>
+            <strong>{roles[0]!.title}</strong>
+            <span>{roles[0]!.company}</span>
+          </div>
+          <span>Choose one more role below to open the side-by-side folio.</span>
+        </div>
+      ) : (
+        <div
+          className="role-comparison-scroll"
+          role="region"
+          tabIndex={0}
+          aria-label="Role comparison table"
+        >
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Evidence field</th>
+                {roles.map((role) => (
+                  <th scope="col" key={role.id}>
+                    <strong>{role.title}</strong>
+                    <span>{role.company}</span>
+                    <button
+                      className="button mini quiet"
+                      type="button"
+                      onClick={() => onRemove(role.id)}
+                      aria-label={`Remove ${role.title} at ${role.company} from comparison`}
+                    >
+                      <X size={14} /> Remove
+                    </button>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.field}>
+                  <th scope="row">{row.label}</th>
+                  {comparison.map((entry, index) => (
+                    <td key={roles[index]!.id}>{entry[row.field]}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function EvidenceVault({
   dashboard,
   onAct,
@@ -1950,6 +2105,8 @@ function EvidenceVault({
   onClaimCommitted,
   roleRequirement,
   onDismissRoleRequirement,
+  filters,
+  onFiltersChange,
 }: {
   dashboard: Dashboard;
   onAct: ActionRunner;
@@ -1959,6 +2116,8 @@ function EvidenceVault({
   onClaimCommitted: (submitted: EvidenceDraft) => void;
   roleRequirement?: string | null;
   onDismissRoleRequirement?: () => void;
+  filters: EvidenceFilters;
+  onFiltersChange: (filters: EvidenceFilters) => void;
 }) {
   const [importPreview, setImportPreview] = useState<EvidenceImportPreview | null>(null);
   const claimField = useRef<HTMLTextAreaElement>(null);
@@ -1974,6 +2133,26 @@ function EvidenceVault({
     confirmedClaimIds,
   );
   const unscoredClaims = unscoredConfirmedClaims(dashboard.profile, confirmedClaimIds);
+  const deferredEvidenceQuery = useDeferredValue(filters.query);
+  const evidenceKinds = useMemo(
+    () => [...new Set(dashboard.evidence.map((claim) => claim.kind))].toSorted(),
+    [dashboard.evidence],
+  );
+  const evidenceSources = useMemo(
+    () => [...new Set(dashboard.evidence.map((claim) => claim.sourceName))].toSorted(),
+    [dashboard.evidence],
+  );
+  const visibleEvidence = useMemo(
+    () =>
+      filterEvidence(dashboard.evidence, {
+        ...filters,
+        query: deferredEvidenceQuery,
+      }),
+    [dashboard.evidence, deferredEvidenceQuery, filters.kind, filters.source, filters.status],
+  );
+  const evidenceFiltersActive = Boolean(
+    filters.query || filters.kind !== "all" || filters.status !== "all" || filters.source !== "all",
+  );
 
   /* Arriving from an unmet requirement focuses the candidate's existing draft,
    * but never edits it. Role wording is context, not candidate evidence. */
@@ -2208,8 +2387,84 @@ function EvidenceVault({
               </div>
             </section>
           )}
+          {dashboard.evidence.length > 0 && (
+            <section
+              className="role-filter evidence-filter"
+              aria-labelledby="evidence-filter-title"
+            >
+              <div>
+                <span>Private evidence lens</span>
+                <h3 id="evidence-filter-title">Find a claim or its source</h3>
+                <p>Search and filters stay in this tab. They change no evidence decision.</p>
+              </div>
+              <label className="role-search">
+                Search evidence
+                <input
+                  type="search"
+                  value={filters.query}
+                  placeholder="Claim, source, or locator"
+                  onChange={(event) => onFiltersChange({ ...filters, query: event.target.value })}
+                />
+              </label>
+              <label>
+                Claim type
+                <select
+                  value={filters.kind}
+                  onChange={(event) => onFiltersChange({ ...filters, kind: event.target.value })}
+                >
+                  <option value="all">All types</option>
+                  {evidenceKinds.map((kind) => (
+                    <option key={kind} value={kind}>
+                      {human(kind)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Decision
+                <select
+                  value={filters.status}
+                  onChange={(event) => onFiltersChange({ ...filters, status: event.target.value })}
+                >
+                  <option value="all">All decisions</option>
+                  <option value="pending">Pending</option>
+                  <option value="confirmed">Confirmed</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+              </label>
+              <label>
+                Source
+                <select
+                  value={filters.source}
+                  onChange={(event) => onFiltersChange({ ...filters, source: event.target.value })}
+                >
+                  <option value="all">All sources</option>
+                  {evidenceSources.map((source) => (
+                    <option key={source} value={source}>
+                      {source}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="role-filter-result" aria-live="polite">
+                <strong>
+                  {visibleEvidence.length} of {dashboard.evidence.length}
+                </strong>
+                <span>claims shown</span>
+                {evidenceFiltersActive && (
+                  <button
+                    className="button mini quiet"
+                    type="button"
+                    onClick={() => onFiltersChange(emptyEvidenceFilters())}
+                  >
+                    Clear filters
+                  </button>
+                )}
+              </div>
+            </section>
+          )}
           <div className="evidence-list">
-            {dashboard.evidence.map((claim) => (
+            {visibleEvidence.map((claim) => (
               <article key={claim.id} className="evidence-item">
                 <div className="evidence-kind">{human(claim.kind)}</div>
                 <div>
@@ -2283,6 +2538,13 @@ function EvidenceVault({
                 </div>
               </article>
             ))}
+            {dashboard.evidence.length > 0 && visibleEvidence.length === 0 && (
+              <Empty
+                icon={FolderSearch2}
+                title="No evidence matches this view"
+                copy="Clear one or more private filters to bring claims back. No evidence changed."
+              />
+            )}
           </div>
         </section>
         <div className="stacked-panels">
@@ -2392,6 +2654,8 @@ function Jobs({
   onDraftCommitted,
   filters,
   onFiltersChange,
+  comparisonRoleIds,
+  onComparisonRoleIdsChange,
   reviewedUrlEnabled,
   reviewedUrlTermsAt,
   reviewedUrlHosts,
@@ -2412,6 +2676,8 @@ function Jobs({
   onDraftCommitted: (submitted: ManualRoleDraft) => void;
   filters: RoleFilters;
   onFiltersChange: (filters: RoleFilters) => void;
+  comparisonRoleIds: string[];
+  onComparisonRoleIdsChange: (ids: string[]) => void;
   reviewedUrlEnabled: boolean;
   reviewedUrlTermsAt: string | null;
   reviewedUrlHosts: string[];
@@ -2460,6 +2726,21 @@ function Jobs({
       }),
     [deferredQuery, filters.fit, filters.source, filters.tracking, filters.visibility, roleInputs],
   );
+  const comparisonRoles = useMemo(
+    () =>
+      comparisonRoleIds.flatMap((id) => {
+        const role = roleInputs.find((candidate) => candidate.id === id);
+        return role ? [role] : [];
+      }),
+    [comparisonRoleIds, roleInputs],
+  );
+  const toggleComparisonRole = (id: string) => {
+    if (comparisonRoleIds.includes(id)) {
+      onComparisonRoleIdsChange(comparisonRoleIds.filter((selected) => selected !== id));
+      return;
+    }
+    if (comparisonRoleIds.length < 2) onComparisonRoleIdsChange([...comparisonRoleIds, id]);
+  };
   const filtersActive = Boolean(
     filters.query ||
     filters.source !== "all" ||
@@ -3204,6 +3485,13 @@ function Jobs({
           )}
         </div>
       </section>
+      {comparisonRoles.length > 0 && (
+        <RoleComparison
+          roles={comparisonRoles}
+          onRemove={toggleComparisonRole}
+          onClear={() => onComparisonRoleIdsChange([])}
+        />
+      )}
       <div className="job-list">
         {visibleRoles.map((job) => {
           const match = job.match;
@@ -3239,6 +3527,21 @@ function Jobs({
                 )}
               </div>
               <div className="job-actions">
+                <button
+                  className="button mini quiet"
+                  type="button"
+                  aria-pressed={comparisonRoleIds.includes(job.id)}
+                  disabled={comparisonRoleIds.length === 2 && !comparisonRoleIds.includes(job.id)}
+                  title={
+                    comparisonRoleIds.length === 2 && !comparisonRoleIds.includes(job.id)
+                      ? "Remove one compared role before choosing another"
+                      : "Use current stored values in the comparison folio"
+                  }
+                  onClick={() => toggleComparisonRole(job.id)}
+                >
+                  {comparisonRoleIds.includes(job.id) ? <Check size={15} /> : null}
+                  {comparisonRoleIds.includes(job.id) ? "Comparing" : "Compare"}
+                </button>
                 <button
                   className="button mini quiet"
                   type="button"
@@ -4000,11 +4303,14 @@ function Applications({
   const reviewApplications = workingView.reviewOnly
     ? reviewQueue.map((item) => item.application)
     : dashboard.applications;
-  const visibleApplications = filterApplications(
-    reviewApplications,
-    dashboard.jobs,
-    { ...workingView, query: deferredApplicationQuery },
-    now,
+  const visibleApplications = sortApplications(
+    filterApplications(
+      reviewApplications,
+      dashboard.jobs,
+      { ...workingView, query: deferredApplicationQuery },
+      now,
+    ),
+    workingView.sort,
   );
   const cohort = applicationCohortCounts({
     applications: dashboard.applications,
@@ -4148,14 +4454,12 @@ function Applications({
   const exportCalendar = () => {
     const calendar = buildFollowUpCalendar(dashboard.applications);
     if (calendar.eventCount === 0) return;
-    const url = URL.createObjectURL(
-      new Blob([calendar.content], { type: "text/calendar;charset=utf-8" }),
-    );
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = calendar.filename;
-    link.click();
-    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    downloadTextFile(calendar.content, "text/calendar;charset=utf-8", calendar.filename);
+  };
+  const exportCsv = () => {
+    const csv = buildApplicationCsv(visibleApplications, dashboard.jobs);
+    if (csv.rowCount === 0) return;
+    downloadTextFile(csv.content, "text/csv;charset=utf-8", csv.filename);
   };
   const calendarEventCount = buildFollowUpCalendar(dashboard.applications, now).eventCount;
   useEffect(() => {
@@ -4232,6 +4536,15 @@ function Applications({
             <button
               className="button quiet mini"
               type="button"
+              disabled={visibleApplications.length === 0}
+              onClick={exportCsv}
+              title="Exports the records shown below; private note and outcome text are excluded"
+            >
+              <Download size={15} /> Export shown (.csv)
+            </button>
+            <button
+              className="button quiet mini"
+              type="button"
               disabled={calendarEventCount === 0}
               onClick={exportCalendar}
               title="Downloads a local calendar file; Nimanto creates no notification"
@@ -4282,14 +4595,16 @@ function Applications({
           <div>
             <span>Private decision lens</span>
             <h2 id="application-filter-title">Find an application record</h2>
-            <p>Search and filters stay in this tab. They change no record or funnel count.</p>
+            <p>
+              Search, filters, and sort stay in this tab. They change no record or funnel count.
+            </p>
           </div>
           <label className="role-search">
             Search applications
             <input
               type="search"
               value={workingView.query}
-              placeholder="Role or company"
+              placeholder="Role, company, note, or outcome"
               onChange={(event) =>
                 dispatch({
                   type: "view_changed",
@@ -4358,6 +4673,26 @@ function Applications({
               <option value="scheduled">Scheduled</option>
               <option value="none">No reminder</option>
               <option value="inactive">Inactive reminder</option>
+            </select>
+          </label>
+          <label>
+            Sort
+            <select
+              value={workingView.sort}
+              onChange={(event) =>
+                dispatch({
+                  type: "view_changed",
+                  view: {
+                    ...workingView,
+                    sort: event.target.value as ApplicationViewState["sort"],
+                  },
+                })
+              }
+            >
+              <option value="stored">Stored order</option>
+              <option value="newest">Newest tracked</option>
+              <option value="follow_up">Follow-up date</option>
+              <option value="role">Role A–Z</option>
             </select>
           </label>
           <div className="role-filter-result" aria-live="polite">

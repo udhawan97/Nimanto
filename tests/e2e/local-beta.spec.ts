@@ -1573,9 +1573,29 @@ test("candidate decision tools archive, filter, annotate, and export without inf
   await page.getByLabel("Your email").fill("decision-tools@example.test");
   await page.getByRole("button", { name: "Start private workspace" }).click();
   await page.getByRole("button", { name: "Run starter matches" }).click();
+  await page.getByRole("button", { name: "Evidence vault" }).click();
+  await page.getByRole("searchbox", { name: "Search evidence" }).fill("test-first");
+  await expect(page.getByText("1 of 4")).toBeVisible();
+  await expect(page.locator(".evidence-item")).toContainText("typed service migration");
+  await page.getByRole("button", { name: "Overview" }).click();
+  await page.getByRole("button", { name: "Evidence vault" }).click();
+  await expect(page.getByRole("searchbox", { name: "Search evidence" })).toHaveValue("test-first");
+  await page.getByRole("button", { name: "Clear filters" }).click();
   await page.getByRole("button", { name: "Role discovery" }).click();
   await expect(page.getByRole("button", { name: "Import reviewed URL" })).toHaveCount(0);
   await expect(page.getByText(/Reviewed URL intake is off/)).toBeVisible();
+
+  await page.locator(".job-row").nth(0).getByRole("button", { name: "Compare" }).click();
+  await expect(page.getByText(/Choose one more role below/)).toBeVisible();
+  await page.locator(".job-row").nth(1).getByRole("button", { name: "Compare" }).click();
+  const comparison = page.getByRole("region", { name: "Role comparison table" });
+  await expect(comparison).toContainText("Explicit blockers");
+  await expect(comparison).toContainText("Northwind Systems");
+  await expect(comparison).toContainText("Contoso Labs");
+  await page.getByRole("button", { name: "Overview" }).click();
+  await page.getByRole("button", { name: "Role discovery" }).click();
+  await expect(page.getByRole("region", { name: "Role comparison table" })).toBeVisible();
+  await page.getByRole("button", { name: "Clear comparison" }).click();
 
   const originalRole = page.locator(".job-row").first();
   const roleTitle = (await originalRole.getByRole("heading", { level: 2 }).textContent())!.trim();
@@ -1589,6 +1609,12 @@ test("candidate decision tools archive, filter, annotate, and export without inf
   await page.getByLabel("Candidate view").selectOption("active");
   const restoredRole = page.locator(".job-row").filter({ hasText: roleTitle });
   await restoredRole.getByRole("button", { name: "Track", exact: true }).click();
+  await expect(restoredRole.getByRole("button", { name: "Tracked", exact: true })).toBeVisible();
+  await page
+    .locator(".job-row")
+    .filter({ hasNotText: roleTitle })
+    .getByRole("button", { name: "Track", exact: true })
+    .click();
 
   await page.getByRole("button", { name: "Applications" }).click();
   const card = page.locator(".board-card").filter({ hasText: roleTitle });
@@ -1603,6 +1629,21 @@ test("candidate decision tools archive, filter, annotate, and export without inf
   await card.getByRole("button", { name: "Add note", exact: true }).click();
   await expect(page.getByText("Private note added to the literal timeline.")).toBeVisible();
   await expect(card.locator(".recorded-timeline")).toContainText("Verify the on-call expectation.");
+  await page.getByLabel("Search applications").fill("on-call expectation");
+  await expect(page.locator(".board-card")).toHaveCount(1);
+  const csvDownloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export shown (.csv)" }).click();
+  const csvDownload = await csvDownloadPromise;
+  const csvPath = await csvDownload.path();
+  expect(csvPath).not.toBeNull();
+  const csv = await readFile(csvPath!, "utf8");
+  expect(csv).toContain('"application_id"');
+  expect(csv).toContain(roleTitle);
+  expect(csv).not.toContain("Verify the on-call expectation.");
+  await page.getByRole("button", { name: "Clear filters" }).click();
+  await page.getByLabel("Sort").selectOption("role");
+  const sortedRoles = await page.locator(".board-card > strong").allTextContents();
+  expect(sortedRoles).toEqual([...sortedRoles].sort((left, right) => left.localeCompare(right)));
 
   await card.getByRole("button", { name: "Set follow-up" }).click();
   await card.getByLabel("Candidate follow-up date").fill("2099-12-31");

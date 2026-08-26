@@ -1735,6 +1735,88 @@ svg {
   font-weight: 500;
 }
 
+/* Two roles share one ledger rather than becoming another family of cards.
+ * The fixed first column keeps the evidence field visually authoritative while
+ * the role columns remain source values, never a generated ranking. */
+.role-comparison {
+  display: grid;
+  gap: var(--space-lg);
+  padding: var(--pad-card);
+  border: 1px solid var(--brass-200);
+  border-inline-start: 2px solid var(--brass-500);
+  border-radius: var(--radius-md);
+  background: var(--stone-100);
+  min-width: 0;
+}
+.role-comparison .panel-heading p {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.comparison-awaiting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-lg);
+  padding: var(--space-lg);
+  border: 1px dashed var(--brass-300);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.comparison-awaiting > div,
+.role-comparison thead th:not(:first-child) {
+  display: grid;
+  gap: var(--space-3xs);
+}
+.comparison-awaiting span,
+.role-comparison thead span {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.role-comparison-scroll {
+  overflow: auto;
+  border: 1px solid var(--brass-200);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.role-comparison table {
+  width: 100%;
+  min-width: 48rem;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+.role-comparison th,
+.role-comparison td {
+  padding: var(--space-md) var(--space-lg);
+  border-block-end: 1px solid var(--brass-100);
+  text-align: start;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.role-comparison th:first-child {
+  width: 11rem;
+  color: var(--idle-text);
+  font-family: var(--font-mono);
+  font-size: var(--text-placard);
+  letter-spacing: var(--tracking-placard);
+  text-transform: uppercase;
+}
+.role-comparison thead th {
+  border-block-end-color: var(--brass-300);
+  background: var(--stone-100);
+}
+.role-comparison thead th:not(:first-child) strong {
+  font-size: var(--text-lg);
+  font-weight: 500;
+}
+.role-comparison thead .button {
+  justify-self: start;
+  margin-block-start: var(--space-xs);
+}
+.role-comparison tbody tr:last-child > * {
+  border-block-end: 0;
+}
+
 .match-detail {
   width: 100%;
   padding: var(--space-md) var(--pad-cell-inline);

@@ -1,5 +1,5 @@
 import type { Dispatch } from "react";
-import type { ApplicationMatchBucket } from "./derive.js";
+import type { ApplicationMatchBucket, ApplicationSort } from "./derive.js";
 
 export type OutcomeDraft = {
   applicationId: string;
@@ -29,6 +29,7 @@ export type ApplicationViewState = {
     "all" | "tracked" | "prepared" | "approved_for_export" | "submitted_externally" | "withdrawn";
   source: string;
   followUp: "all" | "due" | "scheduled" | "none" | "inactive";
+  sort: ApplicationSort;
   cohortStart: string;
   cohortEnd: string;
   cohortSource: string;
@@ -88,6 +89,7 @@ export function createApplicationsWorkbenchState(now = new Date()): Applications
       status: "all",
       source: "all",
       followUp: "all",
+      sort: "stored",
       cohortStart: dateInputValue(now, -30),
       cohortEnd: dateInputValue(now),
       cohortSource: "all",

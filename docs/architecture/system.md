@@ -118,11 +118,22 @@ tab-local ownership rule. A mutation clears only the exact snapshot it
 submitted, so a delayed response cannot erase text entered while the request was
 in flight.
 
-The Applications workbench owns its related board/table, search/filter, Review,
-cohort, candidate-outcome, private-note, and follow-up working state in one pure reducer. Components
-retain focus and request sequencing, while the reducer owns identity-bounded
-draft lifecycle and exact-submission clearing. It is deliberately tab-local and
-has no browser-storage seam.
+The Applications workbench owns its related board/table, search/filter/sort,
+Review, cohort, candidate-outcome, private-note, and follow-up working state in
+one pure reducer. Components retain focus and request sequencing, while the
+reducer owns identity-bounded draft lifecycle and exact-submission clearing. It
+is deliberately tab-local and has no browser-storage seam. Application search
+matches only literal stored title, company, private-note, and outcome fields;
+sorting reads explicit stored fields and reconstructs no employer event.
+
+Evidence filters and the two-Role comparison selection live at the same
+workspace identity boundary. Pure derivation filters only visible claim and
+provenance fields. The comparison reads current normalized Role records and the
+latest Match Publication already present in the dashboard; it neither persists
+a preference nor creates a ranking. The focused Application CSV builder is also
+pure: it exports the selected working view with spreadsheet-formula protection,
+counts private notes and outcomes, and excludes their bodies. It adds no API,
+schema, background job, provider, or restore surface.
 
 Manual, allowlisted URL, Greenhouse, Lever, and Ashby adapters each own their
 source-specific retrieval, parsing, identity, provenance, and content hash. They

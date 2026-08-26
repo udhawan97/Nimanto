@@ -19,6 +19,13 @@ export type { ApplicationStatus };
 export type { Section } from "./navigation-transitions.js";
 
 type EvidenceLike = { status: string };
+type FilterEvidenceLike = {
+  kind: string;
+  value: string;
+  status: string;
+  sourceName: string;
+  locator: string;
+};
 type JobLike = {
   id: string;
   candidateDisposition?: { state: "active" | "archived" };
@@ -57,6 +64,38 @@ export type RoleFilters = {
   visibility?: "active" | "archived" | "all";
 };
 
+export type EvidenceFilters = {
+  query: string;
+  kind: string;
+  status: string;
+  source: string;
+};
+
+/** A literal lens over candidate evidence and its stored provenance. Search is
+ * deliberately limited to fields already visible in the vault; it never
+ * derives a skill, confidence, or relationship between claims. */
+export function filterEvidence<T extends FilterEvidenceLike>(
+  evidence: readonly T[],
+  filters: EvidenceFilters,
+): T[] {
+  const query = filters.query.trim().toLocaleLowerCase("en-US");
+  return evidence.filter((claim) => {
+    if (
+      query &&
+      ![claim.value, claim.sourceName, claim.locator]
+        .join(" ")
+        .toLocaleLowerCase("en-US")
+        .includes(query)
+    ) {
+      return false;
+    }
+    if (filters.kind !== "all" && claim.kind !== filters.kind) return false;
+    if (filters.status !== "all" && claim.status !== filters.status) return false;
+    if (filters.source !== "all" && claim.sourceName !== filters.source) return false;
+    return true;
+  });
+}
+
 /* These filters are intentionally pure and ephemeral. The workbench owns the
  * input state for the life of the open section; no query, source, or shortlist
  * preference is written to the API or local storage. */
@@ -92,6 +131,8 @@ export type ApplicationFilters = {
   followUp: "all" | "due" | "scheduled" | "none" | "inactive";
 };
 
+export type ApplicationSort = "stored" | "newest" | "follow_up" | "role";
+
 /** One literal, tab-local lens over Application records. It changes neither the
  * candidate record nor the counts below the work surface. */
 export function filterApplications<T extends ApplicationLike>(
@@ -106,7 +147,15 @@ export function filterApplications<T extends ApplicationLike>(
   return applications.filter((application) => {
     if (
       query &&
-      ![application.job?.title ?? "", application.job?.company ?? ""]
+      ![
+        application.job?.title ?? "",
+        application.job?.company ?? "",
+        ...(application.outcomes ?? []).flatMap((outcome) => [
+          outcome.type ?? "",
+          outcome.note ?? "",
+        ]),
+        ...(application.notes ?? []).map((note) => note.text),
+      ]
         .join(" ")
         .toLocaleLowerCase("en-US")
         .includes(query)
@@ -122,6 +171,40 @@ export function filterApplications<T extends ApplicationLike>(
     }
     if (filters.followUp === "all") return true;
     return applicationFollowUpPolicy.observe(application, today).kind === filters.followUp;
+  });
+}
+
+function parsedInstant(value: string | null | undefined): number {
+  if (!value) return Number.NEGATIVE_INFINITY;
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? Number.NEGATIVE_INFINITY : parsed;
+}
+
+/** Sorts a copied Application view by fields the candidate can inspect. The
+ * default preserves server order; no sort writes state or reconstructs an
+ * employer event. */
+export function sortApplications<T extends ApplicationLike>(
+  applications: readonly T[],
+  sort: ApplicationSort,
+): T[] {
+  if (sort === "stored") return [...applications];
+  return applications.toSorted((left, right) => {
+    if (sort === "newest") {
+      return (
+        parsedInstant(right.createdAt) - parsedInstant(left.createdAt) ||
+        left.id.localeCompare(right.id)
+      );
+    }
+    if (sort === "follow_up") {
+      const leftDate = left.followUpOn ?? "9999-12-31";
+      const rightDate = right.followUpOn ?? "9999-12-31";
+      return leftDate.localeCompare(rightDate) || left.id.localeCompare(right.id);
+    }
+    return (
+      (left.job?.title ?? "").localeCompare(right.job?.title ?? "", "en-US") ||
+      (left.job?.company ?? "").localeCompare(right.job?.company ?? "", "en-US") ||
+      left.id.localeCompare(right.id)
+    );
   });
 }
 

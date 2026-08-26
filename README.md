@@ -53,10 +53,12 @@ half-finished forms. Nimanto gives that work one inspectable path:
 3. **Add a role** by hand—with an in-tab draft that survives section changes—or
    refresh an allowlisted Greenhouse, Lever or Ashby board.
 4. **Match** deterministically, and read the requirement-by-requirement result:
-   what is supported, what is missing, and what blocks you.
+   what is supported, what is missing, what blocks you, and how two current
+   roles differ on the same literal fields.
 5. **Track** the application from a searchable board or table, set a literal
-   follow-up date, export those dates to a local calendar file, and keep private
-   notes separate from candidate-reported outcomes.
+   follow-up date, search private notes and recorded outcomes, sort the working
+   view, export a focused local CSV or calendar file, and keep private notes
+   separate from candidate-reported outcomes.
 6. **Draft and generate**: optionally copy an unverified local Ollama draft from
    only the confirmed evidence you select, then generate JSON, plain text, and
    paired modern and ATS-safe DOCX/PDF from confirmed evidence only.
@@ -312,6 +314,9 @@ artifacts.
   required before a claim can support a match or a packet. The import preview
   lists the claims a file would create — up to the 500 an import stores —
   before anything is written.
+- Search literal claim text, source name, or locator and combine evidence type,
+  decision, and source filters. This view state stays in the signed-in tab and
+  never changes an evidence decision.
 - Immutable profile versions carrying candidate-approved authorization wording.
   A normalized no-op save reuses the latest version instead of manufacturing a
   duplicate history row.
@@ -342,6 +347,10 @@ artifacts.
 - Search by title, company or location and combine source, match-state, and
   tracking filters. These filters live only in the open Role discovery view;
   they are not persisted or sent to the API.
+- Select exactly two roles for a shared-line comparison of current Role fields
+  and each role's latest stored explanation. The folio shows coverage,
+  requirements needing evidence, blockers, compensation, and benefits without
+  ranking the roles or predicting an outcome.
 - Archive or restore a role with a candidate-owned disposition that remains
   separate from the source Role and survives source refreshes. Archived roles
   leave the default shortlist but do not remove or change an Application.
@@ -373,8 +382,10 @@ artifacts.
   candidate-recorded external submission or withdrawal.
 - The actionable board/table surface precedes funnel, review-queue, and cohort
   analytics. Both views use the same labeled, deliberate outcome editor.
-- Search Application records by role/company and combine status, role-source,
-  and literal follow-up filters without changing records or funnel counts.
+- Search Application records by role, company, literal private-note text, or
+  recorded outcome text; combine status, role-source, and literal follow-up
+  filters; and sort by stored order, creation time, follow-up date, or role.
+  None of these controls changes a record or funnel count.
 - A literal timeline shows application creation, candidate-recorded outcomes,
   and private application notes in order. Notes change no status, match, review
   clock, or funnel count; gaps never reconstruct an unrecorded stage.
@@ -389,6 +400,10 @@ artifacts.
   infers an employer response.
 - Export active candidate-set dates as an explicit local `.ics` file. This
   creates no Nimanto notification, scheduled job, or background contact.
+- Export the currently shown Application records as a spreadsheet-safe local
+  `.csv` summary. It includes literal tracker fields and note/outcome counts but
+  deliberately excludes private note and outcome bodies; the JSON inspection
+  export remains the complete candidate-owned archive.
 - Application cohort counts use an explicit local-time creation window and
   optional current job-source/current match-classification filters. The
   classification contains the five domain bands plus separate unmatched and

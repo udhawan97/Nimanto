@@ -114,7 +114,7 @@ describe("Applications workbench working state", () => {
     });
     expect(state).toMatchObject({
       display: "table",
-      view: { reviewOnly: true, cohortSource: "greenhouse" },
+      view: { reviewOnly: true, cohortSource: "greenhouse", sort: "stored" },
       reminders: { activeApplicationId: "application-a" },
       notes: { activeApplicationId: null },
     });

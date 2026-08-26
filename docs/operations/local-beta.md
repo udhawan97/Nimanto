@@ -149,10 +149,19 @@ The queue stores only provider and board identifiers. Scheduled work cannot prep
 
 ## Inspect the evidence thread
 
+- **Evidence vault → Private evidence lens** searches literal claim text,
+  source names, and locators, then filters by evidence type, decision, and
+  source. The lens stays in the signed-in tab, changes no claim, and is cleared
+  at reload or an identity boundary.
 - **Role discovery** search and source/match-state/tracking/archive filters remain in the
   current signed-in tab while the candidate moves between workbench sections.
   Reload, sign-out, deletion, or an identity change clears them; the API never
   receives a filter preference.
+- **Role discovery → Compare** keeps up to two Role IDs in the signed-in tab and
+  lays out current Role values beside each role's latest stored explanation.
+  The folio shows literal coverage, requirements needing evidence, blockers,
+  compensation, and benefits. It does not rank roles or infer an employer
+  outcome.
 - **Role discovery → Archive** stores a candidate disposition beside the source
   Role. A provider refresh cannot erase it; restoring reverses it, and neither
   action changes a tracked Application.
@@ -182,20 +191,28 @@ The queue stores only provider and board identifiers. Scheduled work cannot prep
 - **Applications → Export reminders (.ics)** downloads active candidate-set
   dates as a local all-day calendar file. It creates no notification or job in
   Nimanto.
-- **Applications → Private decision lens** searches role/company and filters by
-  status, current role source, and literal follow-up state. These controls remain
-  tab-local and do not alter funnel or cohort counts.
+- **Applications → Private decision lens** searches role/company plus literal
+  private-note and outcome text, filters by status, current role source, and
+  literal follow-up state, and sorts the working view by one explicit stored
+  field. These controls remain tab-local and do not alter funnel or cohort
+  counts.
+- **Applications → Export shown (.csv)** downloads only the records in the
+  current working view. The spreadsheet-safe summary contains tracker fields
+  and note/outcome counts but excludes private note and outcome bodies. Use the
+  Data controls JSON export for the complete candidate-owned record.
 - **Role discovery → Add role** keeps a draft only in the current signed-in tab
   while the candidate moves between workbench sections. Reload, sign-out,
   identity change, successful save, or confirmed discard clears it.
-- **Evidence vault**, **Approved actions**, and **Applications** keep their
+- **Evidence vault**, **Role discovery**, **Approved actions**, and
+  **Applications** keep their
   unfinished fields in that same signed-in tab across section changes. A
   successful save clears only the exact submitted snapshot, so newer typing is
   preserved when a response returns later. Explicit discard controls clear the
   relevant local draft; reload and identity boundaries clear all of them.
 - **Applications** also keeps the selected board/table view, record-review
-  filter, and cohort inputs while the candidate checks another section. These
-  controls remain local to the tab and are never written as candidate facts.
+  filter, sort, and cohort inputs while the candidate checks another section.
+  These controls remain local to the tab and are never written as candidate
+  facts.
 - **Applications → Record-review queue** prefers a stored candidate-set date
   when present. Without one, it derives review due after 336 elapsed hours from
   the latest literal application creation or candidate-recorded outcome. The
