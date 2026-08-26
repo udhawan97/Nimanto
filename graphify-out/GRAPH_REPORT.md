@@ -1,7 +1,7 @@
 # Graph Report - Nimanto  (2026-08-25)
 
 ## Corpus Check
-- 210 files · ~6,522,338 words
+- 210 files · ~6,522,894 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `9f2ab893`
+- Built from commit: `4f2a29eb`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
