@@ -26,7 +26,7 @@ No network request is made.
 
 ## Connected accounts
 
-Gmail and Microsoft Outlook sending are not implemented or configurable in v0.7.0. No access-token environment variable is read. Connected-account effects require the separately reviewed Slice 4 plan and exact approval before code or onboarding documentation is added.
+Gmail and Microsoft Outlook sending are not implemented or configurable in v0.8.0. No access-token environment variable is read. Connected-account effects require the separately reviewed Slice 4 plan and exact approval before code or onboarding documentation is added.
 
 ## Verification rule
 
@@ -44,7 +44,7 @@ the provider surface first:
   client's Drafts and Sent folders; Nimanto cannot establish whether you later
   pressed Send.
 
-v0.7.0 intentionally has no “mark resolved” or retry transition. If you can
+v0.8.0 intentionally has no “mark resolved” or retry transition. If you can
 establish that no effect occurred and still want to proceed, review the current
 packet and create a new, separately approved action with revised candidate-
 controlled content. Keep the ambiguous record as the audit trail.

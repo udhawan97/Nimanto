@@ -11,7 +11,7 @@ const repository = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".
 const fixture = await mkdtemp(path.join(tmpdir(), "nimanto-release-assets-"));
 after(() => rm(fixture, { recursive: true, force: true }));
 
-test("the committed v0.7.0 inventories and checksums pass the release preflight", () => {
+test("the committed v0.8.0 inventories and checksums pass the release preflight", () => {
   const result = spawnSync("pnpm", ["release:check"], { cwd: repository, encoding: "utf8" });
   assert.equal(result.status, 0, result.stderr || result.stdout);
 });
@@ -23,15 +23,15 @@ test("fresh SBOM commands build before collecting occurrence evidence", async ()
 });
 
 test("the SBOM validator rejects missing and mismatched workspace identities", async () => {
-  const source = path.join(repository, "docs/releases/nimanto-v0.7.0.cdx.json");
+  const source = path.join(repository, "docs/releases/nimanto-v0.8.0.cdx.json");
   const original = await readFile(source, "utf8");
   const target = path.join(fixture, "mutated.cdx.json");
 
   await writeFile(
     target,
     original
-      .replaceAll("pkg:npm/%40nimanto/api@0.7.0", "pkg:npm/%40nimanto/api@0.0.0")
-      .replaceAll("pkg:npm/@nimanto/api@0.7.0", "pkg:npm/@nimanto/api@0.0.0"),
+      .replaceAll("pkg:npm/%40nimanto/api@0.8.0", "pkg:npm/%40nimanto/api@0.0.0")
+      .replaceAll("pkg:npm/@nimanto/api@0.8.0", "pkg:npm/@nimanto/api@0.0.0"),
   );
   let result = spawnSync(process.execPath, ["scripts/validate-sbom.mjs", target], {
     cwd: repository,
@@ -43,8 +43,8 @@ test("the SBOM validator rejects missing and mismatched workspace identities", a
   await writeFile(
     target,
     original
-      .replaceAll("pkg:npm/%40nimanto/api@0.7.0", "pkg:npm/removed-api@0.7.0")
-      .replaceAll("pkg:npm/@nimanto/api@0.7.0", "pkg:npm/removed-api@0.7.0"),
+      .replaceAll("pkg:npm/%40nimanto/api@0.8.0", "pkg:npm/removed-api@0.8.0")
+      .replaceAll("pkg:npm/@nimanto/api@0.8.0", "pkg:npm/removed-api@0.8.0"),
   );
   result = spawnSync(process.execPath, ["scripts/validate-sbom.mjs", target], {
     cwd: repository,

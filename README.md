@@ -31,7 +31,7 @@
   ·
   <a href="#what-it-actually-does"><strong>What it does</strong></a>
   ·
-  <a href="docs/releases/v0.7.0.md"><strong>v0.7.0 notes</strong></a>
+  <a href="docs/releases/v0.8.0.md"><strong>v0.8.0 notes</strong></a>
   ·
   <a href="docs/planning/product-contract.md"><strong>Product contract</strong></a>
 </p>
@@ -71,7 +71,42 @@ Nimanto is a **candidate tool**. It does not screen you for employers, estimate
 your hiring odds, give legal advice, or promise that a company sponsors transfers
 today.
 
-## New in v0.7.0
+## New in v0.8.0
+
+- **Find the evidence you mean.** Evidence vault search covers literal claim,
+  source-name, and locator text, and combines with type, decision, and source
+  filters. The controls are tab-local and never change an evidence decision.
+- **Compare two roles on shared facts.** Role discovery can place exactly two
+  current roles in one neutral folio with literal role fields and each role's
+  latest stored Match Publication. It exposes coverage, unmet requirements,
+  blockers, compensation, and benefits without ranking either role.
+- **Work the Application view you need.** Search covers role, company, private
+  note, and candidate-reported outcome text. Status, role-source, and follow-up
+  filters combine with stored-order, creation-time, follow-up-date, and role
+  sorting without changing records or funnel counts.
+- **Keep candidate decisions beside the work.** Roles can be archived or
+  restored without rewriting source data. Applications retain a literal
+  timeline of candidate-reported outcomes and private notes, while follow-up
+  dates remain candidate-set records rather than notifications or inferred
+  employer events.
+- **Take the focused view with you.** Active follow-up dates export as a local
+  calendar file. The currently shown Applications export as a spreadsheet-safe
+  CSV containing literal tracker fields and note/outcome counts while excluding
+  the private text bodies; the complete JSON inspection export remains separate.
+- **The next action is easier to see.** Overview, Evidence, Match, and
+  Applications surfaces now put the candidate's immediate task before secondary
+  explanation, while destructive or consequential decisions keep their explicit
+  confirmation gates.
+
+### Architecture and data carried with this release
+
+- Schema version 7 adds tenant-scoped Role dispositions and private Application
+  notes without rewriting source Roles or candidate-reported outcomes.
+- Evidence filtering, two-Role comparison, Application working-view derivation,
+  calendar generation, and CSV generation remain pure client-side seams. They
+  add no provider, background job, hosted backend, or external-action authority.
+
+## Previously in v0.7.0
 
 - **Applications now has one tab-local workbench state model.** Board/table
   display, Review filters, cohort inputs, candidate-reported outcomes, and
@@ -239,7 +274,7 @@ something that opens because you opened it.
 
 ## Run it
 
-Nimanto v0.7.0 is source-distributed. It does **not** ship a signed installer or
+Nimanto v0.8.0 is source-distributed. It does **not** ship a signed installer or
 desktop binary.
 
 | Runtime path       | Best for                          | Start here                                                      |
@@ -249,7 +284,7 @@ desktop binary.
 | Docker on loopback | Invite-only local/self-hosted QA  | `docker compose up --build`; keep ports bound to `127.0.0.1`    |
 
 Acquire the exact source from the pinned
-[v0.7.0 release](https://github.com/udhawan97/Nimanto/releases/tag/v0.7.0); GitHub
+[v0.8.0 release](https://github.com/udhawan97/Nimanto/releases/tag/v0.8.0); GitHub
 generates its ZIP and tar archive from that tag.
 
 ### One double-click on macOS
@@ -264,7 +299,7 @@ Requirements: Node.js 24–26, pnpm 11, and macOS, Linux or Windows.
 ```bash
 git clone https://github.com/udhawan97/Nimanto.git
 cd Nimanto
-git checkout v0.7.0
+git checkout v0.8.0
 corepack enable
 pnpm install --frozen-lockfile
 pnpm dev
@@ -285,11 +320,11 @@ issue a hashed, expiring, single-use invitation.
 ### Verify a source release
 
 Every release publishes the two dependency inventories beside one checksum
-manifest. After downloading the three `v0.7.0` assets into an empty directory,
+manifest. After downloading the three `v0.8.0` assets into an empty directory,
 verify both inventories before inspecting or building the source archive:
 
 ```bash
-shasum -a 256 --check nimanto-v0.7.0-SHA256SUMS.txt
+shasum -a 256 --check nimanto-v0.8.0-SHA256SUMS.txt
 ```
 
 The manifest covers the CycloneDX and SPDX files. GitHub generates the source
@@ -527,11 +562,12 @@ boundaries, provider allowlists, durable schedule leases, retries and dead
 letters, application transition legality, modern and ATS-safe packet formats,
 artifact tamper detection, assurance gating, resumable deletion, external-action
 transitions, literal history comparison, sensitive export confirmation,
-design-token contrast, API integration, and twenty sequential WebKit journeys.
+design-token contrast, API integration, twenty-two runnable sequential WebKit
+journeys, and one capability-gated intake journey.
 
 ## Beta boundaries
 
-Version `0.7.0` is a **local beta**:
+Version `0.8.0` is a **local beta**:
 
 - The local candidate workflow is implemented and tested.
 - Public website hosting carries product information and the static workbench
@@ -589,5 +625,5 @@ of scope.
 Apache License 2.0. See [LICENSE](LICENSE), [NOTICE](NOTICE),
 [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md),
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), and the release
-[CycloneDX](docs/releases/nimanto-v0.7.0.cdx.json) /
-[SPDX](docs/releases/nimanto-v0.7.0.spdx.json) inventories.
+[CycloneDX](docs/releases/nimanto-v0.8.0.cdx.json) /
+[SPDX](docs/releases/nimanto-v0.8.0.spdx.json) inventories.
