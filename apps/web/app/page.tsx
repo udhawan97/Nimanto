@@ -100,24 +100,21 @@ export default function Home() {
               <li>Candidate controlled</li>
               <li>No silent send</li>
             </ul>
-            <div className="hero-actions">
-              <a className="button primary" href={startHref}>
-                {hosted ? "Run locally" : "Open the workbench"} <ArrowRight size={16} />
-              </a>
-              <a className="button quiet" href="https://github.com/udhawan97/Nimanto">
-                View source <ArrowUpRight size={15} />
-              </a>
-              <a
-                className="button quiet"
-                href="https://github.com/udhawan97/Nimanto/releases/latest"
-              >
-                Releases &amp; checksums <ArrowUpRight size={15} />
-              </a>
-            </div>
           </div>
           <div className="hero-emblem" aria-hidden="true">
             <Emblem />
             <span className="invitation-thread" />
+          </div>
+          <div className="hero-actions">
+            <a className="button primary" href={startHref}>
+              {hosted ? "Run locally" : "Open the workbench"} <ArrowRight size={16} />
+            </a>
+            <a className="button quiet" href="https://github.com/udhawan97/Nimanto">
+              View source <ArrowUpRight size={15} />
+            </a>
+            <a className="button quiet" href="https://github.com/udhawan97/Nimanto/releases/latest">
+              Releases &amp; checksums <ArrowUpRight size={15} />
+            </a>
           </div>
         </section>
 

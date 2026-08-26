@@ -191,8 +191,8 @@ export function matchJob(input: { evidence: EvidenceClaim[]; job: JobForMatching
     };
   });
 
-  const coverageValue = requirements.length > 0 ? 1 : 0;
   const supported = requirements.filter((item) => item.state === "supported");
+  const coverageValue = requirements.length > 0 ? supported.length / requirements.length : 0;
   const qualificationRatio = requirements.length > 0 ? supported.length / requirements.length : 0;
   const accomplishmentIds = unique(
     supported.flatMap((item) =>

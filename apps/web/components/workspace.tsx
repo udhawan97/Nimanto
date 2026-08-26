@@ -592,10 +592,10 @@ export function Workspace() {
   // Section routing may not touch the hash until the credential handshake below
   // has scrubbed it, or a secret freezes into the back stack.
   const [routeReady, setRouteReady] = useState(false);
-  // Carries only the requirement wording from a blocked match to the claim
-  // form. Never a source name or locator — see the note in EvidenceVault.
-  const [draftClaim, setDraftClaim] = useState<string | null>(null);
-  const clearDraftClaim = useCallback(() => setDraftClaim(null), []);
+  // Carries role wording as visible context beside the candidate's draft. It
+  // must never become evidence or replace candidate-authored text.
+  const [evidenceContext, setEvidenceContext] = useState<string | null>(null);
+  const clearEvidenceContext = useCallback(() => setEvidenceContext(null), []);
   // A manual role can be long. Keep it above the section boundary so navigation
   // cannot erase it, but never persist it or carry it into another identity.
   const [manualRoleDraft, setManualRoleDraft] = useState<ManualRoleDraft | null>(null);
@@ -738,7 +738,7 @@ export function Workspace() {
     if (plan.clearDrafts) {
       setManualRoleDraft(null);
       setReviewedUrlDraft(null);
-      setDraftClaim(null);
+      setEvidenceContext(null);
       setEvidenceDraft(null);
       setRoleFilters(emptyRoleFilters());
       setActionDraft(null);
@@ -1292,8 +1292,8 @@ export function Workspace() {
                     : current,
                 )
               }
-              draftClaim={draftClaim}
-              onDraftUsed={clearDraftClaim}
+              roleRequirement={evidenceContext}
+              onDismissRoleRequirement={clearEvidenceContext}
             />
           )}
           {section === "jobs" && (
@@ -1323,7 +1323,7 @@ export function Workspace() {
                 )
               }
               onAddEvidence={(requirement) => {
-                setDraftClaim(requirement);
+                setEvidenceContext(requirement);
                 goToSection("evidence");
               }}
             />
@@ -1550,16 +1550,29 @@ function useOverflowFlag<T extends HTMLElement>() {
     const element = ref.current;
     if (!element) return;
     const measure = () => setOverflowing(element.scrollWidth > element.clientWidth + 1);
+    const resizeObserver = new ResizeObserver(measure);
+    const observeChildren = () => {
+      for (const child of element.children) resizeObserver.observe(child);
+    };
+    /* Observing only the scroll container misses the important change: its
+     * client width stays fixed while grid tracks establish a wider scroll
+     * width. Observe those tracks too, and re-register when React replaces or
+     * moves their contents. */
+    const contentObserver = new MutationObserver(() => {
+      observeChildren();
+      measure();
+    });
+    resizeObserver.observe(element);
+    observeChildren();
+    contentObserver.observe(element, { childList: true, subtree: true });
     measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(element);
-    for (const child of element.children) observer.observe(child);
     const frame = window.requestAnimationFrame(measure);
     window.addEventListener("resize", measure);
     return () => {
       window.cancelAnimationFrame(frame);
       window.removeEventListener("resize", measure);
-      observer.disconnect();
+      resizeObserver.disconnect();
+      contentObserver.disconnect();
     };
   }, []);
   return { ref, overflowing };
@@ -1935,8 +1948,8 @@ function EvidenceVault({
   draft,
   onDraftChange,
   onClaimCommitted,
-  draftClaim,
-  onDraftUsed,
+  roleRequirement,
+  onDismissRoleRequirement,
 }: {
   dashboard: Dashboard;
   onAct: ActionRunner;
@@ -1944,8 +1957,8 @@ function EvidenceVault({
   draft: EvidenceDraft;
   onDraftChange: (draft: EvidenceDraft) => void;
   onClaimCommitted: (submitted: EvidenceDraft) => void;
-  draftClaim?: string | null;
-  onDraftUsed?: () => void;
+  roleRequirement?: string | null;
+  onDismissRoleRequirement?: () => void;
 }) {
   const [importPreview, setImportPreview] = useState<EvidenceImportPreview | null>(null);
   const claimField = useRef<HTMLTextAreaElement>(null);
@@ -1962,19 +1975,15 @@ function EvidenceVault({
   );
   const unscoredClaims = unscoredConfirmedClaims(dashboard.profile, confirmedClaimIds);
 
-  /* Arrived here from an unmet requirement. Only the wording the candidate has
-   * to answer is carried across — never the posting's source name or locator,
-   * which would attribute a candidate's own claim to an employer's ad. The API
-   * files it as pending and user-attested regardless. */
+  /* Arriving from an unmet requirement focuses the candidate's existing draft,
+   * but never edits it. Role wording is context, not candidate evidence. */
   useEffect(() => {
-    if (!draftClaim) return;
-    onDraftChange({ ...draft, value: draftClaim });
-    onDraftUsed?.();
-    window.requestAnimationFrame(() => {
+    if (!roleRequirement) return;
+    const frame = window.requestAnimationFrame(() => {
       claimField.current?.focus();
-      claimField.current?.setSelectionRange(draftClaim.length, draftClaim.length);
     });
-  }, [draft, draftClaim, onDraftChange, onDraftUsed]);
+    return () => window.cancelAnimationFrame(frame);
+  }, [roleRequirement]);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -2284,6 +2293,26 @@ function EvidenceVault({
                 <h2>Add evidence</h2>
               </div>
             </div>
+            {roleRequirement && (
+              <div className="evidence-context" role="note">
+                <div>
+                  <span>Role requirement to address</span>
+                  <strong>{roleRequirement}</strong>
+                  <small>
+                    Describe your own experience and support it with your own source. Role wording
+                    has not been added to your claim.
+                  </small>
+                </div>
+                <button
+                  className="button mini quiet"
+                  type="button"
+                  aria-label="Dismiss role requirement"
+                  onClick={onDismissRoleRequirement}
+                >
+                  <X size={14} /> Dismiss
+                </button>
+              </div>
+            )}
             <label>
               Evidence type
               <select
@@ -3178,6 +3207,8 @@ function Jobs({
       <div className="job-list">
         {visibleRoles.map((job) => {
           const match = job.match;
+          const supportedRequirementCount =
+            match?.result.requirements.filter((item) => item.state === "supported").length ?? 0;
           return (
             <article key={job.id} className="job-row">
               <div className="job-main">
@@ -3199,11 +3230,8 @@ function Jobs({
                       {human(match.result.band)}
                     </span>
                     <small>
-                      {
-                        match.result.requirements.filter((item) => item.state === "supported")
-                          .length
-                      }
-                      /{match.result.requirements.length} requirements supported
+                      {supportedRequirementCount}/{match.result.requirements.length} requirements
+                      supported
                     </small>
                   </>
                 ) : (
@@ -3285,6 +3313,13 @@ function Jobs({
                       </div>
                       <code>{match.result.ruleVersion}</code>
                     </div>
+                    <p className="coverage-explanation">
+                      Coverage: {supportedRequirementCount} of {match.result.requirements.length}{" "}
+                      known requirements supported. At least 0.60 is required for a scored band.
+                      {match.result.coverage === "coverage_low"
+                        ? " This result is not scored."
+                        : " This result meets the coverage floor."}
+                    </p>
                     {/* Two different things go stale here and they need opposite
                      * actions, so both are reported. Explaining again fixes an old
                      * version; it does nothing at all when the confirmed evidence is
@@ -3321,10 +3356,11 @@ function Jobs({
                       ))}
                     </div>
                     <p className="boundary-note match-boundary">
-                      Roles without requirements remain not scored. Otherwise, the four weighted
-                      dimensions determine the scored band; explicit blockers remain separate and
-                      are never averaged away. Evidence Strength is intentionally excluded from this
-                      view; this is not a hiring probability.
+                      Coverage below 0.60, including roles without known requirements, remains not
+                      scored. At or above that floor, the four weighted dimensions determine the
+                      scored band; explicit blockers remain separate and are never averaged away.
+                      Evidence Strength is intentionally excluded from this view; this is not a
+                      hiring probability.
                     </p>
                     {match.result.blockers.map((blocker) => (
                       <p className="blocker" key={blocker.code}>
@@ -4902,6 +4938,7 @@ function ReminderEditor({
   const editorId = `reminder-editor-${application.id}`;
   const dateId = `${editorId}-date`;
   const noteId = `${editorId}-note`;
+  const missingDate = !inactive && draft.followUpOn.length === 0;
 
   useEffect(() => {
     if (!inactive) {
@@ -4919,7 +4956,7 @@ function ReminderEditor({
       className="outcome-form reminder-form"
       onSubmit={(event) => {
         event.preventDefault();
-        if (inactive) return;
+        if (inactive || missingDate) return;
         const submittedDraft = { ...draft };
         void onAct.run({
           request: () =>
@@ -4934,7 +4971,14 @@ function ReminderEditor({
         });
       }}
     >
-      <label htmlFor={dateId}>Candidate follow-up date</label>
+      <label htmlFor={dateId}>
+        Candidate follow-up date
+        {!inactive && (
+          <span className={`field-state ${missingDate ? "is-required" : "is-ready"}`} role="status">
+            {missingDate ? "Required · no date selected" : "Ready to save"}
+          </span>
+        )}
+      </label>
       <input
         ref={dateField}
         id={dateId}
@@ -4942,17 +4986,20 @@ function ReminderEditor({
         value={draft.followUpOn}
         required={!inactive}
         disabled={inactive}
+        aria-invalid={missingDate}
         aria-describedby={noteId}
         onChange={(event) => onDraftChange({ ...draft, followUpOn: event.target.value })}
       />
       <small className="field-note" id={noteId}>
         {inactive
           ? "This saved date is retained but inactive while this application is withdrawn. Clear it, or move the application back to Tracked to make it active again. Nimanto contacts no one and infers no employer response."
-          : "Stored on this application only. Nimanto will show it in Review due; it will not contact you or infer an employer response."}
+          : missingDate
+            ? "Choose a date to save this reminder. Nimanto will not contact you or infer an employer response."
+            : "Stored on this application only. Nimanto will show it in Review due; it will not contact you or infer an employer response."}
       </small>
       <div className="button-group">
         {!inactive && (
-          <button className="button mini primary" disabled={busy}>
+          <button className="button mini primary" disabled={busy || missingDate}>
             Save reminder
           </button>
         )}

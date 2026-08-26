@@ -68,6 +68,58 @@ describe("evidence-to-match public seam", () => {
     expect(result.coverage).toBe("coverage_low");
   });
 
+  it.each([
+    {
+      label: "below the reviewed floor",
+      evidenceValue: "Python",
+      requirements: ["Python", "Kubernetes", "Rust"],
+      expectedSupported: 1,
+      expectedBand: "not_scored",
+      expectedCoverage: "coverage_low",
+    },
+    {
+      label: "at the reviewed floor",
+      evidenceValue: "Python TypeScript Kubernetes",
+      requirements: ["Python", "TypeScript", "Kubernetes", "Rust", "Go"],
+      expectedSupported: 3,
+      expectedBand: "weak_evidence",
+      expectedCoverage: "coverage_sufficient",
+    },
+    {
+      label: "above the reviewed floor",
+      evidenceValue: "Python TypeScript",
+      requirements: ["Python", "TypeScript", "Kubernetes"],
+      expectedSupported: 2,
+      expectedBand: "weak_evidence",
+      expectedCoverage: "coverage_sufficient",
+    },
+  ])(
+    "uses supported known requirements for coverage $label",
+    ({ evidenceValue, requirements, expectedSupported, expectedBand, expectedCoverage }) => {
+      const result = matchJob({
+        evidence: [
+          {
+            ...confirmedEvidence[0]!,
+            value: evidenceValue,
+          },
+        ],
+        job: {
+          id: "job-coverage",
+          title: "Engineer",
+          company: "Northwind Labs",
+          description: "Build reliable systems.",
+          requirements,
+        },
+      });
+
+      expect(result.requirements.filter((item) => item.state === "supported")).toHaveLength(
+        expectedSupported,
+      );
+      expect(result.band).toBe(expectedBand);
+      expect(result.coverage).toBe(expectedCoverage);
+    },
+  );
+
   it("detects explicit no-sponsorship blockers without converting them into a probability", () => {
     const result = matchJob({
       evidence: confirmedEvidence,

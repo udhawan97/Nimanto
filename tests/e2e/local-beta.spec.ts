@@ -165,7 +165,24 @@ test("the public site reflows, links, and identifies itself in WebKit", async ({
     expect(escapedHeaderLinks, `public navigation geometry at ${viewport.width}px`).toEqual([]);
     if (viewport.width === 375) {
       await page.evaluate(() => scrollTo(0, 0));
-      await expect(page.getByRole("link", { name: /Open the workbench/ })).toBeInViewport();
+      const emblem = page.locator(".hero-emblem");
+      const primaryAction = page.getByRole("link", { name: /Open the workbench/ });
+      await expect(emblem).toBeInViewport();
+      await expect(primaryAction).toBeInViewport();
+      const openingOrder = await page.locator(".hero").evaluate((hero) => {
+        const mark = hero.querySelector(".hero-emblem")?.getBoundingClientRect();
+        const action = hero.querySelector(".hero-actions .primary")?.getBoundingClientRect();
+        return {
+          markBeforeAction: Boolean(mark && action && mark.top < action.top),
+          markInsideViewport: Boolean(mark && mark.top >= 0 && mark.bottom <= innerHeight),
+          actionInsideViewport: Boolean(action && action.top >= 0 && action.bottom <= innerHeight),
+        };
+      });
+      expect(openingOrder).toEqual({
+        markBeforeAction: true,
+        markInsideViewport: true,
+        actionInsideViewport: true,
+      });
       await page.locator("footer").scrollIntoViewIfNeeded();
       await expect(page.getByRole("navigation", { name: "Footer" })).toBeInViewport();
     }
@@ -388,6 +405,28 @@ test("a candidate starts a private workspace and receives deterministic role exp
   await page.getByRole("button", { name: "Role discovery" }).click();
   await expect(page.getByRole("heading", { name: "Platform Engineer" })).toBeVisible();
   await expect(page.getByText("Northwind Systems").first()).toBeVisible();
+
+  // Role context may guide the candidate, but it may never overwrite or
+  // impersonate their unsaved evidence wording.
+  await page.getByRole("button", { name: "Evidence vault" }).click();
+  const candidateDraft = "Candidate wording stays mine while I inspect a role requirement.";
+  await page.getByLabel("Exact claim").fill(candidateDraft);
+  await page.getByRole("button", { name: "Role discovery" }).click();
+  await page.getByText("View match anatomy").first().click();
+  const unmetRequirement = page.getByRole("button", { name: /^Add evidence for / }).first();
+  const unmetRequirementLabel = (await unmetRequirement.getAttribute("aria-label"))!.replace(
+    "Add evidence for ",
+    "",
+  );
+  await unmetRequirement.click();
+  await expect(page.getByLabel("Exact claim")).toHaveValue(candidateDraft);
+  await expect(page.getByText("Role requirement to address", { exact: true })).toBeVisible();
+  await expect(page.getByText(unmetRequirementLabel, { exact: true })).toBeVisible();
+  await expect(page.getByText(/Role wording has not been added to your claim/)).toBeVisible();
+  await page.getByRole("button", { name: "Dismiss role requirement" }).click();
+  await expect(page.getByText("Role requirement to address", { exact: true })).toHaveCount(0);
+  await page.getByLabel("Exact claim").fill("");
+  await page.getByRole("button", { name: "Role discovery" }).click();
 
   // A long manual role is transient, but section navigation is not allowed to
   // erase it. Every field is controlled by the parent workspace boundary.
@@ -1152,7 +1191,10 @@ test("evidence-rich review features stay literal, local, and inspectable", async
   const role = page.locator(".job-row").first();
   await role.getByText("View match anatomy").click();
   await expect(role.locator(".dimension-grid article")).toHaveCount(4);
-  await expect(role.getByText(/Roles without requirements remain not scored/)).toBeVisible();
+  await expect(
+    role.getByText(/Coverage below 0\.60, including roles without known requirements/),
+  ).toBeVisible();
+  await expect(role.getByText(/At least 0\.60 is required for a scored band/)).toBeVisible();
   await expect(role.getByText(/explicit blockers remain separate/)).toBeVisible();
   await expect(role.getByText(/Evidence Strength is intentionally excluded/)).toBeVisible();
   const signal = page.locator(".signal-list article").first();
@@ -1437,7 +1479,12 @@ test("candidate follow-up dates retain drafts, become due, and clear without inf
   await card.getByRole("button", { name: "Set follow-up" }).click();
   const date = card.getByLabel("Candidate follow-up date");
   await expect(date).toBeFocused();
+  await expect(date).toHaveValue("");
+  await expect(card.getByText("Required · no date selected", { exact: true })).toBeVisible();
+  await expect(card.getByRole("button", { name: "Save reminder" })).toBeDisabled();
   await date.fill("2099-12-31");
+  await expect(card.getByText("Ready to save", { exact: true })).toBeVisible();
+  await expect(card.getByRole("button", { name: "Save reminder" })).toBeEnabled();
   for (const width of [320, 375, 1280]) {
     await page.setViewportSize({ width, height: 900 });
     await expectSurfaceContained(page, card, `follow-up editor at ${width}px`);

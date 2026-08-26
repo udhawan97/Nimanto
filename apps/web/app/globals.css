@@ -490,7 +490,7 @@ svg {
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-3xl);
+  gap: var(--space-lg);
   align-items: center;
   width: 100%;
   max-width: var(--shell-max);
@@ -565,7 +565,6 @@ svg {
 }
 .hero .hero-actions {
   justify-content: flex-start;
-  margin-block-start: var(--space-md);
 }
 .hero-boundaries {
   display: flex;
@@ -588,6 +587,21 @@ svg {
 .hero-emblem {
   position: relative;
   min-width: 0;
+}
+
+@media (max-width: 899px) {
+  .hero {
+    gap: var(--space-sm);
+  }
+  .hero-emblem .emblem {
+    width: min(38vw, 9rem);
+    height: clamp(5.5rem, 24vw, 7rem);
+    margin-inline: 0;
+  }
+  .hero-emblem .invitation-thread {
+    inset-inline: 0;
+    width: min(38vw, 9rem);
+  }
 }
 .invitation-thread {
   position: absolute;
@@ -1384,6 +1398,46 @@ svg {
   color: var(--text-muted);
   font-size: var(--text-sm);
 }
+.evidence-context {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  border: 1px solid var(--brass-300);
+  border-inline-start: 2px solid var(--ok-seed);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.evidence-context > div {
+  display: grid;
+  gap: var(--space-3xs);
+  min-width: 0;
+  flex: 1 1 14rem;
+}
+.evidence-context span {
+  color: var(--idle-text);
+  font-family: var(--font-mono);
+  font-size: var(--text-placard);
+  letter-spacing: var(--tracking-placard);
+  text-transform: uppercase;
+}
+.evidence-context strong {
+  color: var(--text-strong);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.evidence-context small,
+.coverage-explanation {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.coverage-explanation {
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--brass-100);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
 /* Why an explanation may not reflect current evidence. Muted rather than
  * alarming: the explanation is correct for what it was scored against. */
 .explanation-freshness {
@@ -2141,6 +2195,17 @@ textarea {
 .field-note {
   margin-block-start: var(--space-2xs);
 }
+.field-state {
+  width: fit-content;
+  color: var(--ok-text);
+  font-family: var(--font-mono);
+  font-size: var(--text-placard);
+  letter-spacing: var(--tracking-placard);
+  text-transform: uppercase;
+}
+.field-state.is-required {
+  color: var(--live-text);
+}
 .field-error {
   color: var(--live-text);
   font-size: var(--text-sm);
@@ -2813,7 +2878,8 @@ textarea {
 @media (min-width: 900px) {
   .hero {
     grid-template-columns: minmax(0, 0.9fr) minmax(22rem, 1.1fr);
-    gap: clamp(2rem, 6vw, 6rem);
+    column-gap: clamp(2rem, 6vw, 6rem);
+    row-gap: var(--space-lg);
   }
   .hero-copy {
     grid-column: 1;
@@ -2821,7 +2887,11 @@ textarea {
   }
   .hero-emblem {
     grid-column: 2;
-    grid-row: 1;
+    grid-row: 1 / span 2;
+  }
+  .hero-actions {
+    grid-column: 1;
+    grid-row: 2;
   }
   .thesis-grid {
     grid-template-columns: 12rem minmax(0, 1fr);
@@ -2930,8 +3000,8 @@ textarea {
   .hero h1 {
     font-size: clamp(3.5rem, 21vw, 5.5rem);
   }
-  .hero .emblem {
-    height: 250px;
+  .hero-copy {
+    gap: var(--space-sm);
   }
   .site-header {
     flex-wrap: wrap;
