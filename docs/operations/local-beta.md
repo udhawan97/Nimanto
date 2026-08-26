@@ -47,8 +47,10 @@ pnpm dev
 ```
 
 v0.7.0 advances the database through ordered, recorded migrations to schema
-version 6. Version 6 transactionally backfills canonical hashes for legacy
-Packet manifests and Action Intents; it adds no candidate-facing column. A
+version 7. Version 6 transactionally backfills canonical hashes for legacy
+Packet manifests and Action Intents. Version 7 adds tenant-scoped role
+dispositions and private application notes without rewriting source roles or
+application outcomes. A
 migration version is recorded only after its work commits, so an interrupted
 upgrade resumes from the last complete step. Startup refuses a database created
 by a newer Nimanto runtime rather than guessing how to open it. On every open,
@@ -58,7 +60,7 @@ one-time schema or data mutations.
 
 Keep the stopped full-directory copy. The beta has no schema downgrade
 guarantee, so restore that copy or fix forward rather than running older source
-against a version-6 database.
+against a version-7 database.
 
 ## Private invitations
 
@@ -147,17 +149,24 @@ The queue stores only provider and board identifiers. Scheduled work cannot prep
 
 ## Inspect the evidence thread
 
-- **Role discovery** search and source/match-state/tracking filters remain in the
+- **Role discovery** search and source/match-state/tracking/archive filters remain in the
   current signed-in tab while the candidate moves between workbench sections.
   Reload, sign-out, deletion, or an identity change clears them; the API never
   receives a filter preference.
+- **Role discovery → Archive** stores a candidate disposition beside the source
+  Role. A provider refresh cannot erase it; restoring reverses it, and neither
+  action changes a tracked Application.
+- **Role discovery → Import reviewed URL** appears only when an exact host
+  allowlist and terms-review date enable that capability. The candidate supplies
+  the URL and normalized fields explicitly; redirects and unsafe destinations
+  still fail closed.
 - **H-1B evidence signals → Source and freshness** shows the stored locator,
   period, observation time, confidence, freshness, any original label that was
   downgraded, and the signal's stated limits. This is historical context, not
   legal advice or a current employer policy.
-- **Applications → Recorded timeline** lists application creation and explicit
-  candidate-reported outcomes only. Missing dates and silence create no inferred
-  stage.
+- **Applications → Recorded timeline** lists application creation, explicit
+  candidate-reported outcomes, and literal private notes. Notes affect no status,
+  match, review clock, or metric; missing dates and silence create no inferred stage.
 - **Applications** places the board/table work surface before funnel, review,
   and cohort counts. Board and table use the same deliberate outcome editor;
   recording an outcome does not change application status.
@@ -170,6 +179,12 @@ The queue stores only provider and board identifiers. Scheduled work cannot prep
   but marks it inactive and removes it from Review due. The candidate can clear
   it while withdrawn, or return the application to Tracked to reactivate it;
   setting or changing the date while withdrawn fails closed.
+- **Applications → Export reminders (.ics)** downloads active candidate-set
+  dates as a local all-day calendar file. It creates no notification or job in
+  Nimanto.
+- **Applications → Private decision lens** searches role/company and filters by
+  status, current role source, and literal follow-up state. These controls remain
+  tab-local and do not alter funnel or cohort counts.
 - **Role discovery → Add role** keeps a draft only in the current signed-in tab
   while the candidate moves between workbench sections. Reload, sign-out,
   identity change, successful save, or confirmed discard clears it.
@@ -196,6 +211,10 @@ The queue stores only provider and board identifiers. Scheduled work cannot prep
   verify claim truth, writing quality, employer acceptance, or delivery.
   Assurance is bound to the exact packet and manifest hashes, and approval fails
   if either changed or a newer assurance superseded the reviewed run.
+- **Review packets → Draft from selected evidence** is available only when a
+  local Ollama model answers. The candidate checks the exact confirmed claims
+  sent to loopback; the unverified result is copy-only and never becomes Packet
+  content without a separate candidate action outside this panel.
 - **Review packets → History** loads retained packet generations for one
   application on demand. The comparison lists literal changed canonical fields
   and artifact-manifest entries; it is history, not lineage. Status and manifests

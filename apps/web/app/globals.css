@@ -930,6 +930,10 @@ svg {
   color: var(--text-display);
   white-space: nowrap;
 }
+.copy-control {
+  display: flex;
+  justify-content: flex-end;
+}
 .copy-button {
   display: inline-flex;
   flex: none;
@@ -1587,7 +1591,7 @@ svg {
  * kind of evidence. */
 .role-filter {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   gap: var(--space-lg);
   align-items: end;
   padding: var(--pad-card);
@@ -1624,6 +1628,52 @@ svg {
   gap: var(--space-3xs);
   align-content: end;
   min-width: 7.5rem;
+}
+
+/* Optional local drafting stays visibly subordinate to packet generation: one
+ * brass-threaded work surface, no new card family or palette. */
+.local-draft-panel {
+  display: grid;
+  gap: var(--space-lg);
+  border-inline-start: 2px solid var(--brass-400);
+}
+.local-draft-panel form,
+.local-draft-result,
+.evidence-selector {
+  display: grid;
+  gap: var(--space-md);
+  min-width: 0;
+}
+.evidence-selector {
+  max-height: 18rem;
+  overflow: auto;
+  padding: var(--space-md);
+  border: 1px solid var(--brass-200);
+  border-radius: var(--radius-md);
+}
+.evidence-selector label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+}
+.evidence-selector input {
+  width: auto;
+}
+.local-draft-result {
+  padding: var(--space-md);
+  border: 1px solid var(--brass-200);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.local-draft-result > span {
+  font-family: var(--font-mono);
+  font-size: var(--text-placard);
+  letter-spacing: var(--tracking-placard);
+  text-transform: uppercase;
+  color: var(--idle-text);
+}
+.local-draft-result textarea {
+  min-height: 8rem;
 }
 .role-filter-result strong {
   color: var(--text);

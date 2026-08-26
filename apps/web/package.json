@@ -6,7 +6,7 @@
   "scripts": {
     "build": "next build",
     "dev": "next dev --hostname 127.0.0.1 --port 4300",
-    "start": "serve out -l 4300 --no-clipboard",
+    "start": "serve out -l ${NIMANTO_WEB_PORT:-4300} --no-clipboard",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

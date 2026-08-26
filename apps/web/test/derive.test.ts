@@ -10,6 +10,7 @@ import {
   confirmationPrompt,
   daysSinceLastRecord,
   failureMessage,
+  filterApplications,
   filterRoles,
   followUpNote,
   funnelStages,
@@ -242,6 +243,20 @@ describe("next-step rail", () => {
     // are real next steps, so assert the one this test is about rather than the
     // total.
     expect(steps.find((step) => step.id === "run-matches")?.title).toContain("1 role");
+  });
+
+  it("removes archived roles from active discovery prompts", () => {
+    const steps = nextSteps({
+      ...empty,
+      jobs: [{ id: "active" }, { id: "archived", candidateDisposition: { state: "archived" } }],
+      matches: [
+        { job: { id: "active" }, result: { blockers: [] } },
+        { job: { id: "archived" }, result: { blockers: ["sponsorship"] } },
+      ],
+      applications: [{ id: "tracked", jobId: "active", status: "tracked" }],
+      packets: [{ status: "approved", applicationId: "tracked" }],
+    });
+    expect(steps).toEqual([]);
   });
 
   it("marks only the steps that are waiting on the candidate as live", () => {
@@ -614,10 +629,21 @@ describe("recorded outcome timeline", () => {
             occurredAt: "2026-07-03T12:00:00.000Z",
           },
         ],
+        notes: [
+          {
+            id: "note-1",
+            text: "Need to verify the travel expectation",
+            recordedAt: "2026-07-04T12:00:00.000Z",
+          },
+        ],
       }),
     ).toEqual([
       expect.objectContaining({ type: "tracked", note: "Application record created" }),
       expect.objectContaining({ type: "reply", note: "Recruiter asked for times" }),
+      expect.objectContaining({
+        type: "private note",
+        note: "Need to verify the travel expectation",
+      }),
       expect.objectContaining({ type: "interview", note: "Panel with the platform team" }),
     ]);
   });
@@ -654,6 +680,7 @@ describe("ephemeral role filters", () => {
       company: "Acme Design",
       location: "Austin",
       tracked: false,
+      candidateDisposition: { state: "archived" as const },
       match: null,
     },
   ];
@@ -679,8 +706,75 @@ describe("ephemeral role filters", () => {
       }),
     ).toEqual([roles[1]]);
     expect(
-      filterRoles(roles, { query: "", source: "all", fit: "unmatched", tracking: "all" }),
+      filterRoles(roles, {
+        query: "",
+        source: "all",
+        fit: "unmatched",
+        tracking: "all",
+        visibility: "archived",
+      }),
     ).toEqual([roles[2]]);
+  });
+
+  it("keeps archived roles out of the current shortlist until explicitly requested", () => {
+    expect(
+      filterRoles(roles, { query: "", source: "all", fit: "all", tracking: "all" }).map(
+        (role) => role.id,
+      ),
+    ).toEqual(["platform", "data"]);
+    expect(
+      filterRoles(roles, {
+        query: "",
+        source: "all",
+        fit: "all",
+        tracking: "all",
+        visibility: "all",
+      }),
+    ).toHaveLength(3);
+  });
+});
+
+describe("ephemeral application filters", () => {
+  const jobs = [
+    { id: "job-a", source: "greenhouse" },
+    { id: "job-b", source: "manual" },
+  ];
+  const applications = [
+    {
+      id: "a",
+      jobId: "job-a",
+      status: "tracked" as const,
+      followUpOn: "2026-08-05",
+      job: { title: "Platform Engineer", company: "Northwind" },
+    },
+    {
+      id: "b",
+      jobId: "job-b",
+      status: "withdrawn" as const,
+      followUpOn: "2026-08-07",
+      job: { title: "Data Engineer", company: "Contoso" },
+    },
+  ];
+
+  it("combines search, source, status, and literal reminder state without mutation", () => {
+    const before = structuredClone(applications);
+    expect(
+      filterApplications(
+        applications,
+        jobs,
+        { query: "north", source: "greenhouse", status: "tracked", followUp: "due" },
+        new Date("2026-08-05T12:00:00.000Z"),
+      ),
+    ).toEqual([applications[0]]);
+    expect(
+      filterApplications(
+        applications,
+        jobs,
+        { query: "", source: "all", status: "all", followUp: "inactive" },
+        new Date("2026-08-05T12:00:00.000Z"),
+      ),
+    ).toEqual([applications[1]]);
+    expect(applications).toEqual(before);
   });
 });
 

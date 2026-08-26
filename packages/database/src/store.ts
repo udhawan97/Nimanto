@@ -92,6 +92,10 @@ export interface JobRecord {
   sourceMeta: Record<string, unknown>;
   contentHash: string;
   updatedAt: string;
+  candidateDisposition: {
+    state: "active" | "archived";
+    archivedAt: string | null;
+  };
 }
 
 export interface MatchRunRecord {
@@ -139,6 +143,7 @@ export interface ApplicationRecord {
   updatedAt: string;
   job?: Pick<JobRecord, "title" | "company">;
   outcomes?: OutcomeRecord[];
+  notes?: ApplicationNoteRecord[];
 }
 
 export interface OutcomeRecord {
@@ -147,6 +152,13 @@ export interface OutcomeRecord {
   type: OutcomeType;
   note: string;
   occurredAt: string;
+}
+
+export interface ApplicationNoteRecord {
+  id: string;
+  applicationId: string;
+  text: string;
+  recordedAt: string;
 }
 
 export interface PacketRecord {
@@ -1065,7 +1077,10 @@ export class NimantoStore {
 
   async upsertJob(
     tenantId: string,
-    input: Omit<JobRecord, "id" | "updatedAt" | "status"> & { id?: string; status?: string },
+    input: Omit<JobRecord, "id" | "updatedAt" | "status" | "candidateDisposition"> & {
+      id?: string;
+      status?: string;
+    },
   ): Promise<JobRecord> {
     const id = input.id ?? randomUUID();
     const sourceJobId = input.sourceJobId || id;
@@ -1117,7 +1132,9 @@ export class NimantoStore {
         input.contentHash,
       ],
     );
-    return this.#mapJob(result.rows[0]!);
+    const saved = await this.getJob(tenantId, result.rows[0]!.id);
+    if (!saved) throw new Error("JOB_NOT_FOUND");
+    return saved;
   }
 
   #mapJob(row: {
@@ -1136,6 +1153,7 @@ export class NimantoStore {
     source_meta: Record<string, unknown>;
     content_hash: string;
     updated_at: string | Date;
+    archived_at?: string | Date | null;
   }): JobRecord {
     return {
       id: row.id,
@@ -1153,14 +1171,22 @@ export class NimantoStore {
       sourceMeta: row.source_meta,
       contentHash: row.content_hash,
       updatedAt: iso(row.updated_at)!,
+      candidateDisposition: {
+        state: row.archived_at ? "archived" : "active",
+        archivedAt: iso(row.archived_at ?? null),
+      },
     };
   }
 
   async getJob(tenantId: string, id: string): Promise<JobRecord | null> {
     const result = await this.#db.query<any>(
-      `SELECT id, source, source_job_id, title, company, description, location,
-        work_mode, url, requirements, status, capability, source_meta, content_hash, updated_at
-       FROM jobs WHERE tenant_id = $1 AND id = $2 LIMIT 1`,
+      `SELECT job.id, job.source, job.source_job_id, job.title, job.company, job.description,
+        job.location, job.work_mode, job.url, job.requirements, job.status, job.capability,
+        job.source_meta, job.content_hash, job.updated_at, disposition.archived_at
+       FROM jobs AS job
+       LEFT JOIN role_dispositions AS disposition
+         ON disposition.tenant_id = job.tenant_id AND disposition.job_id = job.id
+       WHERE job.tenant_id = $1 AND job.id = $2 LIMIT 1`,
       [tenantId, id],
     );
     return result.rows[0] ? this.#mapJob(result.rows[0]) : null;
@@ -1168,9 +1194,13 @@ export class NimantoStore {
 
   async listJobs(tenantId: string): Promise<JobRecord[]> {
     const result = await this.#db.query<any>(
-      `SELECT id, source, source_job_id, title, company, description, location,
-        work_mode, url, requirements, status, capability, source_meta, content_hash, updated_at
-       FROM jobs WHERE tenant_id = $1 ORDER BY updated_at DESC, id`,
+      `SELECT job.id, job.source, job.source_job_id, job.title, job.company, job.description,
+        job.location, job.work_mode, job.url, job.requirements, job.status, job.capability,
+        job.source_meta, job.content_hash, job.updated_at, disposition.archived_at
+       FROM jobs AS job
+       LEFT JOIN role_dispositions AS disposition
+         ON disposition.tenant_id = job.tenant_id AND disposition.job_id = job.id
+       WHERE job.tenant_id = $1 ORDER BY job.updated_at DESC, job.id`,
       [tenantId],
     );
     return result.rows.map((row) => this.#mapJob(row));
@@ -1180,13 +1210,45 @@ export class NimantoStore {
     const uniqueIds = [...new Set(ids)];
     if (uniqueIds.length === 0) return [];
     const result = await this.#db.query<any>(
-      `SELECT id, source, source_job_id, title, company, description, location,
-        work_mode, url, requirements, status, capability, source_meta, content_hash, updated_at
-       FROM jobs WHERE tenant_id = $1 AND id = ANY($2::text[])
-       ORDER BY updated_at DESC, id`,
+      `SELECT job.id, job.source, job.source_job_id, job.title, job.company, job.description,
+        job.location, job.work_mode, job.url, job.requirements, job.status, job.capability,
+        job.source_meta, job.content_hash, job.updated_at, disposition.archived_at
+       FROM jobs AS job
+       LEFT JOIN role_dispositions AS disposition
+         ON disposition.tenant_id = job.tenant_id AND disposition.job_id = job.id
+       WHERE job.tenant_id = $1 AND job.id = ANY($2::text[])
+       ORDER BY job.updated_at DESC, job.id`,
       [tenantId, uniqueIds],
     );
     return result.rows.map((row) => this.#mapJob(row));
+  }
+
+  /** Candidate organization is stored beside Current Role source content. A
+   * provider refresh may update the Role, but it cannot erase this decision. */
+  async setRoleArchived(
+    tenantId: string,
+    id: string,
+    archived: boolean,
+  ): Promise<JobRecord | null> {
+    return this.transaction(async (database) => {
+      await database.lockTenantActive(tenantId);
+      const job = await database.getJob(tenantId, id);
+      if (!job) return null;
+      if (archived) {
+        await database.#db.query(
+          `INSERT INTO role_dispositions(tenant_id, job_id, state, archived_at)
+           VALUES ($1,$2,'archived',now())
+           ON CONFLICT (tenant_id, job_id) DO NOTHING`,
+          [tenantId, id],
+        );
+      } else {
+        await database.#db.query(
+          "DELETE FROM role_dispositions WHERE tenant_id = $1 AND job_id = $2",
+          [tenantId, id],
+        );
+      }
+      return database.getJob(tenantId, id);
+    });
   }
 
   async saveMatch(
@@ -1629,8 +1691,34 @@ export class NimantoStore {
     };
   }
 
+  async addApplicationNote(
+    tenantId: string,
+    applicationId: string,
+    input: { text: string; recordedAt: string },
+  ): Promise<ApplicationNoteRecord> {
+    const text = input.text.normalize("NFC").trim();
+    if (!text || text.length > 2_000) throw new Error("INVALID_APPLICATION_NOTE");
+    if (!Number.isFinite(Date.parse(input.recordedAt))) throw new Error("INVALID_RECORDED_AT");
+    const id = randomUUID();
+    const result = await this.#db.query<any>(
+      `INSERT INTO application_notes(id, tenant_id, application_id, text, recorded_at)
+       SELECT $1,$2,$3,$4,$5
+       WHERE EXISTS (SELECT 1 FROM applications WHERE id = $3 AND tenant_id = $2)
+       RETURNING id, application_id, text, recorded_at`,
+      [id, tenantId, applicationId, text, input.recordedAt],
+    );
+    const row = result.rows[0];
+    if (!row) throw new Error("APPLICATION_NOT_FOUND");
+    return {
+      id: row.id,
+      applicationId: row.application_id,
+      text: row.text,
+      recordedAt: iso(row.recorded_at)!,
+    };
+  }
+
   async listApplications(tenantId: string): Promise<ApplicationRecord[]> {
-    const [applications, outcomes, jobs] = await Promise.all([
+    const [applications, outcomes, notes, jobs] = await Promise.all([
       this.#db.query<any>(
         `SELECT id, job_id, profile_version_id, status, submitted_at, follow_up_on,
            created_at, updated_at
@@ -1640,6 +1728,11 @@ export class NimantoStore {
       this.#db.query<any>(
         `SELECT id, application_id, type, note, occurred_at
          FROM outcomes WHERE tenant_id = $1 ORDER BY occurred_at DESC, id`,
+        [tenantId],
+      ),
+      this.#db.query<any>(
+        `SELECT id, application_id, text, recorded_at
+         FROM application_notes WHERE tenant_id = $1 ORDER BY recorded_at DESC, id`,
         [tenantId],
       ),
       this.listJobs(tenantId),
@@ -1659,6 +1752,14 @@ export class NimantoStore {
             type: outcome.type,
             note: outcome.note,
             occurredAt: iso(outcome.occurred_at)!,
+          })),
+        notes: notes.rows
+          .filter((note) => note.application_id === record.id)
+          .map((note) => ({
+            id: note.id,
+            applicationId: note.application_id,
+            text: note.text,
+            recordedAt: iso(note.recorded_at)!,
           })),
       };
     });

@@ -12,6 +12,11 @@ export type ReminderDraft = {
   followUpOn: string;
 };
 
+export type ApplicationNoteDraft = {
+  applicationId: string;
+  text: string;
+};
+
 type DraftState<T> = {
   activeApplicationId: string | null;
   byApplication: Record<string, T>;
@@ -19,6 +24,11 @@ type DraftState<T> = {
 
 export type ApplicationViewState = {
   reviewOnly: boolean;
+  query: string;
+  status:
+    "all" | "tracked" | "prepared" | "approved_for_export" | "submitted_externally" | "withdrawn";
+  source: string;
+  followUp: "all" | "due" | "scheduled" | "none" | "inactive";
   cohortStart: string;
   cohortEnd: string;
   cohortSource: string;
@@ -30,6 +40,7 @@ export type ApplicationsWorkbenchState = {
   view: ApplicationViewState;
   outcomes: DraftState<OutcomeDraft>;
   reminders: DraftState<ReminderDraft>;
+  notes: DraftState<ApplicationNoteDraft>;
 };
 
 export type ApplicationsWorkbenchAction =
@@ -48,7 +59,11 @@ export type ApplicationsWorkbenchAction =
     }
   | { type: "reminder_changed"; draft: ReminderDraft }
   | { type: "reminder_closed"; applicationId: string }
-  | { type: "reminder_committed"; submitted: ReminderDraft };
+  | { type: "reminder_committed"; submitted: ReminderDraft }
+  | { type: "note_opened"; applicationId: string; activeDraft?: ApplicationNoteDraft | null }
+  | { type: "note_changed"; draft: ApplicationNoteDraft }
+  | { type: "note_closed"; applicationId: string }
+  | { type: "note_committed"; submitted: ApplicationNoteDraft };
 
 export type ApplicationsWorkbench = {
   state: ApplicationsWorkbenchState;
@@ -69,6 +84,10 @@ export function createApplicationsWorkbenchState(now = new Date()): Applications
     display: "board",
     view: {
       reviewOnly: false,
+      query: "",
+      status: "all",
+      source: "all",
+      followUp: "all",
       cohortStart: dateInputValue(now, -30),
       cohortEnd: dateInputValue(now),
       cohortSource: "all",
@@ -76,6 +95,7 @@ export function createApplicationsWorkbenchState(now = new Date()): Applications
     },
     outcomes: { activeApplicationId: null, byApplication: {} },
     reminders: { activeApplicationId: null, byApplication: {} },
+    notes: { activeApplicationId: null, byApplication: {} },
   };
 }
 
@@ -89,6 +109,10 @@ function sameOutcome(left: OutcomeDraft, right: OutcomeDraft): boolean {
 
 function sameReminder(left: ReminderDraft, right: ReminderDraft): boolean {
   return left.applicationId === right.applicationId && left.followUpOn === right.followUpOn;
+}
+
+function sameNote(left: ApplicationNoteDraft, right: ApplicationNoteDraft): boolean {
+  return left.applicationId === right.applicationId && left.text === right.text;
 }
 
 function closeDraft<T>(state: DraftState<T>, applicationId: string): DraftState<T> {
@@ -177,6 +201,37 @@ export function applicationsWorkbenchReducer(
       return !retained || !sameReminder(retained, action.submitted)
         ? state
         : { ...state, reminders: closeDraft(state.reminders, action.submitted.applicationId) };
+    }
+    case "note_opened": {
+      const byApplication = { ...state.notes.byApplication };
+      if (action.activeDraft) byApplication[action.activeDraft.applicationId] = action.activeDraft;
+      byApplication[action.applicationId] ??= {
+        applicationId: action.applicationId,
+        text: "",
+      };
+      return {
+        ...state,
+        notes: { activeApplicationId: action.applicationId, byApplication },
+      };
+    }
+    case "note_changed":
+      return {
+        ...state,
+        notes: {
+          ...state.notes,
+          byApplication: {
+            ...state.notes.byApplication,
+            [action.draft.applicationId]: action.draft,
+          },
+        },
+      };
+    case "note_closed":
+      return { ...state, notes: closeDraft(state.notes, action.applicationId) };
+    case "note_committed": {
+      const retained = state.notes.byApplication[action.submitted.applicationId];
+      return !retained || !sameNote(retained, action.submitted)
+        ? state
+        : { ...state, notes: closeDraft(state.notes, action.submitted.applicationId) };
     }
   }
 }

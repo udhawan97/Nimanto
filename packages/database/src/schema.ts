@@ -94,6 +94,16 @@ CREATE TABLE IF NOT EXISTS jobs (
 );
 CREATE INDEX IF NOT EXISTS jobs_tenant_idx ON jobs(tenant_id, updated_at DESC);
 
+CREATE TABLE IF NOT EXISTS role_dispositions (
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  job_id text NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+  state text NOT NULL CHECK (state IN ('archived')),
+  archived_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (tenant_id, job_id)
+);
+CREATE INDEX IF NOT EXISTS role_dispositions_tenant_idx
+  ON role_dispositions(tenant_id, archived_at DESC);
+
 CREATE TABLE IF NOT EXISTS match_runs (
   id text PRIMARY KEY,
   tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
@@ -144,6 +154,17 @@ CREATE TABLE IF NOT EXISTS outcomes (
   occurred_at timestamptz NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+
+CREATE TABLE IF NOT EXISTS application_notes (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  application_id text NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+  text text NOT NULL,
+  recorded_at timestamptz NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS application_notes_tenant_application_idx
+  ON application_notes(tenant_id, application_id, recorded_at DESC);
 
 CREATE SEQUENCE IF NOT EXISTS packets_generation_sequence_seq;
 
@@ -288,7 +309,8 @@ DECLARE
 BEGIN
   FOREACH table_name IN ARRAY ARRAY[
     'memberships', 'sessions', 'evidence_claims', 'profile_versions', 'jobs',
-    'match_runs', 'h1b_signals', 'applications', 'outcomes', 'packets',
+    'role_dispositions', 'match_runs', 'h1b_signals', 'applications', 'outcomes',
+    'application_notes', 'packets',
     'assurance_runs', 'external_actions', 'receipts', 'source_settings',
     'scheduled_jobs', 'dataset_editions'
   ]
@@ -415,4 +437,43 @@ CREATE UNIQUE INDEX IF NOT EXISTS packets_generation_sequence_unique_idx
 
 export const schemaVersion5Sql = String.raw`
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS follow_up_on date;
+`;
+
+export const schemaVersion7Sql = String.raw`
+CREATE TABLE IF NOT EXISTS role_dispositions (
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  job_id text NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+  state text NOT NULL CHECK (state IN ('archived')),
+  archived_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (tenant_id, job_id)
+);
+CREATE INDEX IF NOT EXISTS role_dispositions_tenant_idx
+  ON role_dispositions(tenant_id, archived_at DESC);
+
+CREATE TABLE IF NOT EXISTS application_notes (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  application_id text NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+  text text NOT NULL,
+  recorded_at timestamptz NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS application_notes_tenant_application_idx
+  ON application_notes(tenant_id, application_id, recorded_at DESC);
+
+DO $$
+DECLARE
+  table_name text;
+BEGIN
+  FOREACH table_name IN ARRAY ARRAY['role_dispositions', 'application_notes']
+  LOOP
+    EXECUTE format('DROP TRIGGER IF EXISTS nimanto_active_tenant_write ON %I', table_name);
+    EXECUTE format(
+      'CREATE TRIGGER nimanto_active_tenant_write BEFORE INSERT OR UPDATE ON %I
+       FOR EACH ROW EXECUTE FUNCTION nimanto_require_active_tenant()',
+      table_name
+    );
+  END LOOP;
+END;
+$$;
 `;

@@ -2,10 +2,13 @@
 
 import {
   Activity,
+  Archive,
+  ArchiveRestore,
   ArrowLeft,
   ArrowRight,
   BriefcaseBusiness,
   CalendarClock,
+  CalendarPlus,
   Check,
   CircleAlert,
   Clock3,
@@ -16,8 +19,10 @@ import {
   FileOutput,
   FolderSearch2,
   LogOut,
+  Link2,
   MailCheck,
   Menu,
+  NotebookPen,
   Pause,
   Play,
   Plus,
@@ -59,6 +64,7 @@ import {
   countedNoun,
   confirmationPrompt,
   failureMessage,
+  filterApplications,
   filterRoles,
   followUpNote,
   funnelStages,
@@ -71,7 +77,7 @@ import {
   unscoredConfirmedClaims,
   profileVersionDiff,
   recordReviewQueue,
-  recordedOutcomeTimeline,
+  recordedApplicationTimeline,
   type ApplicationStatus,
   type Section,
 } from "../lib/derive.js";
@@ -99,9 +105,12 @@ import {
   type ApplicationViewState,
   type OutcomeDraft,
   type ReminderDraft,
+  type ApplicationNoteDraft,
 } from "../lib/applications-workbench.js";
+import { buildFollowUpCalendar } from "../lib/calendar-export.js";
 
 const API = process.env.NEXT_PUBLIC_NIMANTO_API_ORIGIN ?? "http://127.0.0.1:4310";
+const API_HOST_LABEL = new URL(API).host;
 
 /* Often enough that a candidate staring at the workbench learns the API died
  * before they try to use it; rarely enough to stay invisible on a laptop
@@ -129,6 +138,7 @@ type Job = {
   location: string;
   requirements: string[];
   url: string;
+  candidateDisposition: { state: "active" | "archived"; archivedAt: string | null };
   sourceMeta: {
     compensation?: { minimum?: number | null; maximum?: number | null; currency?: string } | null;
     benefits?: string[];
@@ -165,6 +175,7 @@ type Match = {
   job: Job;
 };
 type Outcome = { id: string; type: string; note: string; occurredAt: string };
+type ApplicationNote = { id: string; text: string; recordedAt: string };
 type Application = {
   id: string;
   jobId: string;
@@ -178,6 +189,7 @@ type Application = {
   updatedAt?: string;
   job?: { title: string; company: string };
   outcomes?: Outcome[];
+  notes?: ApplicationNote[];
 };
 type Packet = {
   id: string;
@@ -250,6 +262,7 @@ type RoleFilters = {
   source: string;
   fit: string;
   tracking: "all" | "tracked" | "untracked";
+  visibility: "active" | "archived" | "all";
 };
 type ActionDraft = {
   packetId: string;
@@ -276,6 +289,7 @@ const emptyRoleFilters = (): RoleFilters => ({
   source: "all",
   fit: "all",
   tracking: "all",
+  visibility: "active",
 });
 const emptyManualRoleDraft = (): ManualRoleDraft => ({
   title: "",
@@ -293,6 +307,26 @@ const emptyManualRoleDraft = (): ManualRoleDraft => ({
 });
 const sameManualRoleDraft = (left: ManualRoleDraft, right: ManualRoleDraft) =>
   (Object.keys(left) as Array<keyof ManualRoleDraft>).every(
+    (field) => left[field] === right[field],
+  );
+type ReviewedUrlDraft = {
+  url: string;
+  title: string;
+  company: string;
+  location: string;
+  workMode: string;
+  requirements: string;
+};
+const emptyReviewedUrlDraft = (): ReviewedUrlDraft => ({
+  url: "",
+  title: "",
+  company: "",
+  location: "",
+  workMode: "unspecified",
+  requirements: "",
+});
+const sameReviewedUrlDraft = (left: ReviewedUrlDraft, right: ReviewedUrlDraft) =>
+  (Object.keys(left) as Array<keyof ReviewedUrlDraft>).every(
     (field) => left[field] === right[field],
   );
 type MatchHistoryRun = Omit<Match, "job"> & { currentJob: Job | null };
@@ -374,6 +408,13 @@ type Dashboard = {
     scope: string;
   };
   runtime: { externalActionsEnabled: boolean };
+};
+type RuntimeMeta = {
+  providers: {
+    reviewedUrlIntake: boolean;
+    reviewedUrlTermsAt: string | null;
+    reviewedUrlHosts: string[];
+  };
 };
 type ActionRunner = WorkbenchMutations;
 type EvidenceImportPreview = {
@@ -532,6 +573,7 @@ const navigation: Array<{ id: Section; label: string; icon: typeof Activity }> =
 export function Workspace() {
   const [section, setSection] = useState<Section>("overview");
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
+  const [runtimeMeta, setRuntimeMeta] = useState<RuntimeMeta | null>(null);
   const [authRequired, setAuthRequired] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{
@@ -557,6 +599,7 @@ export function Workspace() {
   // A manual role can be long. Keep it above the section boundary so navigation
   // cannot erase it, but never persist it or carry it into another identity.
   const [manualRoleDraft, setManualRoleDraft] = useState<ManualRoleDraft | null>(null);
+  const [reviewedUrlDraft, setReviewedUrlDraft] = useState<ReviewedUrlDraft | null>(null);
   const commitManualRoleDraft = useCallback((submitted: ManualRoleDraft) => {
     setManualRoleDraft((current) =>
       current && sameManualRoleDraft(current, submitted) ? null : current,
@@ -694,6 +737,7 @@ export function Workspace() {
     }
     if (plan.clearDrafts) {
       setManualRoleDraft(null);
+      setReviewedUrlDraft(null);
       setDraftClaim(null);
       setEvidenceDraft(null);
       setRoleFilters(emptyRoleFilters());
@@ -834,7 +878,10 @@ export function Workspace() {
         requireAuthentication();
         return "signed_out";
       }
-      const value = await api<Dashboard>("/v1/dashboard");
+      const [value, meta] = await Promise.all([
+        api<Dashboard>("/v1/dashboard"),
+        api<RuntimeMeta>("/v1/meta"),
+      ]);
       const incomingIdentity = value.identity.sessionId;
       if (dashboardIdentity.current && dashboardIdentity.current !== incomingIdentity) {
         // A sibling tab rotated the shared authenticated cookie. Clear every
@@ -844,6 +891,7 @@ export function Workspace() {
       dashboardIdentity.current = incomingIdentity;
       expectedSessionId = incomingIdentity;
       setDashboard(value);
+      setRuntimeMeta(meta);
       setAuthRequired(false);
       return "ready";
     } catch (error) {
@@ -1260,6 +1308,20 @@ export function Workspace() {
               onDraftCommitted={commitManualRoleDraft}
               filters={roleFilters}
               onFiltersChange={setRoleFilters}
+              reviewedUrlEnabled={runtimeMeta?.providers.reviewedUrlIntake === true}
+              reviewedUrlTermsAt={runtimeMeta?.providers.reviewedUrlTermsAt ?? null}
+              reviewedUrlHosts={runtimeMeta?.providers.reviewedUrlHosts ?? []}
+              reviewedUrlDraft={reviewedUrlDraft}
+              onReviewedUrlDraftOpen={() =>
+                setReviewedUrlDraft((value) => value ?? emptyReviewedUrlDraft())
+              }
+              onReviewedUrlDraftChange={setReviewedUrlDraft}
+              onReviewedUrlDraftClose={() => setReviewedUrlDraft(null)}
+              onReviewedUrlDraftCommitted={(submitted) =>
+                setReviewedUrlDraft((current) =>
+                  current && sameReviewedUrlDraft(current, submitted) ? null : current,
+                )
+              }
               onAddEvidence={(requirement) => {
                 setDraftClaim(requirement);
                 goToSection("evidence");
@@ -1398,7 +1460,7 @@ function WorkspaceStart({
         <p>
           {unavailable ? (
             <>
-              Start the Nimanto backend at <code>127.0.0.1:4310</code>, then try again.
+              Start the Nimanto backend at <code>{API_HOST_LABEL}</code>, then try again.
             </>
           ) : inviteMode ? (
             "Accept this single-use invitation to create an empty, tenant-isolated candidate workspace."
@@ -1491,7 +1553,14 @@ function useOverflowFlag<T extends HTMLElement>() {
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(element);
-    return () => observer.disconnect();
+    for (const child of element.children) observer.observe(child);
+    const frame = window.requestAnimationFrame(measure);
+    window.addEventListener("resize", measure);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("resize", measure);
+      observer.disconnect();
+    };
   }, []);
   return { ref, overflowing };
 }
@@ -1688,11 +1757,11 @@ function Overview({
   busy: boolean;
 }) {
   const pending = dashboard.evidence.filter((item) => item.status === "pending").length;
-  const blockers = dashboard.matches.reduce(
-    (count, match) => count + match.result.blockers.length,
-    0,
-  );
-  const latestMatches = dashboard.matches.slice(0, 3);
+  const activeJobs = dashboard.jobs.filter((job) => job.candidateDisposition.state !== "archived");
+  const activeJobIds = new Set(activeJobs.map((job) => job.id));
+  const activeMatches = dashboard.matches.filter((match) => activeJobIds.has(match.jobId));
+  const blockers = activeMatches.reduce((count, match) => count + match.result.blockers.length, 0);
+  const latestMatches = activeMatches.slice(0, 3);
   const steps = nextSteps(dashboard);
   return (
     <>
@@ -1709,7 +1778,7 @@ function Overview({
       {/* Keep the first available decision ahead of summary accounting in both
        * visual and DOM order. CSS-only reordering would make keyboard and
        * assistive-technology order disagree with the mobile presentation. */}
-      {dashboard.jobs.length > 0 && dashboard.matches.length === 0 && (
+      {activeJobs.length > 0 && activeMatches.length === 0 && (
         <div className="focus-strip">
           <div>
             <SlidersHorizontal />
@@ -1728,7 +1797,7 @@ function Overview({
             onClick={() => {
               void onAct.run({
                 request: async () => {
-                  for (const job of dashboard.jobs)
+                  for (const job of activeJobs)
                     await api(`/v1/jobs/${job.id}/match`, { method: "POST" });
                 },
                 success: "Role explanations are ready.",
@@ -1746,7 +1815,7 @@ function Overview({
           detail={`${pending} awaiting review`}
         />
         <Metric
-          value={dashboard.matches.length}
+          value={activeMatches.length}
           label="Explained matches"
           detail={`${blockers} visible blocker${blockers === 1 ? "" : "s"}`}
         />
@@ -2294,6 +2363,14 @@ function Jobs({
   onDraftCommitted,
   filters,
   onFiltersChange,
+  reviewedUrlEnabled,
+  reviewedUrlTermsAt,
+  reviewedUrlHosts,
+  reviewedUrlDraft,
+  onReviewedUrlDraftOpen,
+  onReviewedUrlDraftChange,
+  onReviewedUrlDraftClose,
+  onReviewedUrlDraftCommitted,
   onAddEvidence,
 }: {
   dashboard: Dashboard;
@@ -2306,6 +2383,14 @@ function Jobs({
   onDraftCommitted: (submitted: ManualRoleDraft) => void;
   filters: RoleFilters;
   onFiltersChange: (filters: RoleFilters) => void;
+  reviewedUrlEnabled: boolean;
+  reviewedUrlTermsAt: string | null;
+  reviewedUrlHosts: string[];
+  reviewedUrlDraft: ReviewedUrlDraft | null;
+  onReviewedUrlDraftOpen: () => void;
+  onReviewedUrlDraftChange: (draft: ReviewedUrlDraft) => void;
+  onReviewedUrlDraftClose: () => void;
+  onReviewedUrlDraftCommitted: (submitted: ReviewedUrlDraft) => void;
   onAddEvidence: (requirement: string) => void;
 }) {
   const [sourceOpen, setSourceOpen] = useState(false);
@@ -2342,14 +2427,16 @@ function Jobs({
         source: filters.source,
         fit: filters.fit,
         tracking: filters.tracking,
+        visibility: filters.visibility,
       }),
-    [deferredQuery, filters.fit, filters.source, filters.tracking, roleInputs],
+    [deferredQuery, filters.fit, filters.source, filters.tracking, filters.visibility, roleInputs],
   );
   const filtersActive = Boolean(
     filters.query ||
     filters.source !== "all" ||
     filters.fit !== "all" ||
-    filters.tracking !== "all",
+    filters.tracking !== "all" ||
+    filters.visibility !== "active",
   );
   const numberOrNull = (value: string) => {
     const text = value.trim();
@@ -2453,6 +2540,33 @@ function Jobs({
       commit: () => setScheduleOpen(false),
     });
   };
+  const importReviewedUrl = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!reviewedUrlDraft) return;
+    const submitted = { ...reviewedUrlDraft };
+    void onAct.run({
+      request: () =>
+        api("/v1/jobs/url-import", {
+          method: "POST",
+          body: JSON.stringify({
+            ...submitted,
+            requirements: submitted.requirements
+              .split("\n")
+              .map((value) => value.trim())
+              .filter(Boolean),
+          }),
+        }),
+      success: "Reviewed URL saved as a current role.",
+      transient: true,
+      commit: () => onReviewedUrlDraftCommitted(submitted),
+    });
+  };
+  const updateReviewedUrlDraft = <K extends keyof ReviewedUrlDraft>(
+    field: K,
+    value: ReviewedUrlDraft[K],
+  ) => {
+    if (reviewedUrlDraft) onReviewedUrlDraftChange({ ...reviewedUrlDraft, [field]: value });
+  };
   return (
     <>
       <PageIntro
@@ -2461,6 +2575,20 @@ function Jobs({
         copy="Nimanto explains required qualifications, accomplishments, role-level alignment, skills overlap, coverage, and explicit sponsorship blockers."
         action={
           <div className="button-group">
+            {reviewedUrlEnabled ? (
+              <button
+                className="button quiet"
+                type="button"
+                aria-expanded={reviewedUrlDraft !== null}
+                onClick={onReviewedUrlDraftOpen}
+              >
+                <Link2 size={16} /> {reviewedUrlDraft ? "Resume URL intake" : "Import reviewed URL"}
+              </button>
+            ) : (
+              <span className="field-note">
+                Reviewed URL intake is off until an operator configures reviewed hosts.
+              </span>
+            )}
             <button
               className="button quiet"
               type="button"
@@ -2491,7 +2619,7 @@ function Jobs({
           </div>
         }
       />
-      {(draft || sourceOpen || scheduleOpen) && (
+      {(draft || reviewedUrlDraft || sourceOpen || scheduleOpen) && (
         <div className="inline-form-row">
           {draft && (
             <form id="manual-role-draft" className="work-panel form-panel" onSubmit={addJob}>
@@ -2657,6 +2785,90 @@ function Jobs({
                     onDraftClose();
                     window.requestAnimationFrame(() => addRoleButton.current?.focus());
                   }}
+                />
+              </div>
+            </form>
+          )}
+          {reviewedUrlDraft && (
+            <form className="work-panel form-panel compact-form" onSubmit={importReviewedUrl}>
+              <div className="panel-heading">
+                <div>
+                  <span>Reviewed allowlist</span>
+                  <h2>Import one public posting</h2>
+                </div>
+              </div>
+              <label>
+                Allowlisted HTTPS URL
+                <input
+                  type="url"
+                  required
+                  value={reviewedUrlDraft.url}
+                  onChange={(event) => updateReviewedUrlDraft("url", event.target.value)}
+                />
+              </label>
+              <div className="field-grid">
+                <label>
+                  Role title
+                  <input
+                    required
+                    value={reviewedUrlDraft.title}
+                    onChange={(event) => updateReviewedUrlDraft("title", event.target.value)}
+                  />
+                </label>
+                <label>
+                  Company
+                  <input
+                    required
+                    value={reviewedUrlDraft.company}
+                    onChange={(event) => updateReviewedUrlDraft("company", event.target.value)}
+                  />
+                </label>
+                <label>
+                  Location
+                  <input
+                    value={reviewedUrlDraft.location}
+                    onChange={(event) => updateReviewedUrlDraft("location", event.target.value)}
+                  />
+                </label>
+                <label>
+                  Work mode
+                  <select
+                    value={reviewedUrlDraft.workMode}
+                    onChange={(event) => updateReviewedUrlDraft("workMode", event.target.value)}
+                  >
+                    <option value="unspecified">Not specified</option>
+                    <option value="remote">Remote</option>
+                    <option value="hybrid">Hybrid</option>
+                    <option value="onsite">On-site</option>
+                  </select>
+                </label>
+              </div>
+              <label>
+                Requirements, one per line
+                <textarea
+                  required
+                  value={reviewedUrlDraft.requirements}
+                  onChange={(event) => updateReviewedUrlDraft("requirements", event.target.value)}
+                />
+              </label>
+              <p className="field-note">
+                Available only for hosts whose terms were reviewed
+                {reviewedUrlTermsAt ? ` on ${reviewedUrlTermsAt}` : ""}:{" "}
+                {reviewedUrlHosts.join(", ")}. Redirects are rejected; the fetched body is
+                normalized into this private workspace and not retained raw.
+              </p>
+              <div className="button-group">
+                <button className="button primary" disabled={busy}>
+                  Import posting
+                </button>
+                <ConfirmAction
+                  className="button quiet"
+                  label="Discard draft"
+                  question="Discard this unsaved URL intake draft?"
+                  confirmLabel="Discard it"
+                  cancelLabel="Keep editing"
+                  disabled={busy}
+                  onConfirm={onReviewedUrlDraftClose}
                 />
               </div>
             </form>
@@ -2929,6 +3141,22 @@ function Jobs({
             <option value="untracked">Not tracked</option>
           </select>
         </label>
+        <label>
+          Candidate view
+          <select
+            value={filters.visibility}
+            onChange={(event) =>
+              onFiltersChange({
+                ...filters,
+                visibility: event.target.value as RoleFilters["visibility"],
+              })
+            }
+          >
+            <option value="active">Current shortlist</option>
+            <option value="archived">Archived roles</option>
+            <option value="all">Current and archived</option>
+          </select>
+        </label>
         <div className="role-filter-result" aria-live="polite">
           <strong>
             {visibleRoles.length} of {dashboard.jobs.length}
@@ -3015,6 +3243,35 @@ function Jobs({
                   {dashboard.applications.some((item) => item.jobId === job.id)
                     ? "Tracked"
                     : "Track"}
+                </button>
+                <button
+                  className="button mini quiet"
+                  type="button"
+                  disabled={busy}
+                  onClick={() => {
+                    const archived = job.candidateDisposition.state !== "archived";
+                    void onAct.run({
+                      request: () =>
+                        api(`/v1/jobs/${job.id}/disposition`, {
+                          method: "PUT",
+                          body: JSON.stringify({ archived }),
+                        }),
+                      success: archived
+                        ? "Role archived from discovery. Its application record is unchanged."
+                        : "Role restored to the current shortlist.",
+                      transient: true,
+                    });
+                  }}
+                >
+                  {job.candidateDisposition.state === "archived" ? (
+                    <>
+                      <ArchiveRestore size={15} /> Restore
+                    </>
+                  ) : (
+                    <>
+                      <Archive size={15} /> Archive
+                    </>
+                  )}
                 </button>
               </div>
               {match && (
@@ -3689,6 +3946,8 @@ function Applications({
   const outcomeDraft = outcomeFor ? (state.outcomes.byApplication[outcomeFor] ?? null) : null;
   const reminderFor = state.reminders.activeApplicationId;
   const reminderDraft = reminderFor ? (state.reminders.byApplication[reminderFor] ?? null) : null;
+  const noteFor = state.notes.activeApplicationId;
+  const noteDraft = noteFor ? (state.notes.byApplication[noteFor] ?? null) : null;
   const [pendingMove, setPendingMove] = useState<{ id: string; to: ApplicationStatus } | null>(
     null,
   );
@@ -3701,9 +3960,16 @@ function Applications({
     (item) => item.basis === "candidate_reminder",
   ).length;
   const derivedReviewCount = reviewQueue.length - scheduledReviewCount;
-  const visibleApplications = workingView.reviewOnly
+  const deferredApplicationQuery = useDeferredValue(workingView.query);
+  const reviewApplications = workingView.reviewOnly
     ? reviewQueue.map((item) => item.application)
     : dashboard.applications;
+  const visibleApplications = filterApplications(
+    reviewApplications,
+    dashboard.jobs,
+    { ...workingView, query: deferredApplicationQuery },
+    now,
+  );
   const cohort = applicationCohortCounts({
     applications: dashboard.applications,
     jobs: dashboard.jobs,
@@ -3715,6 +3981,12 @@ function Applications({
   });
   const cohortTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const cohortSources = [...new Set(dashboard.jobs.map((job) => job.source))].toSorted();
+  const applicationFiltersActive = Boolean(
+    workingView.query ||
+    workingView.status !== "all" ||
+    workingView.source !== "all" ||
+    workingView.followUp !== "all",
+  );
   const openOutcome = (id: string) => {
     if (outcomeFor === id) {
       document.getElementById(`outcome-editor-${id}-type`)?.focus();
@@ -3807,6 +4079,49 @@ function Applications({
   const changeReminderDraft = (draft: ReminderDraft) => {
     dispatch({ type: "reminder_changed", draft });
   };
+  const openNote = (id: string) => {
+    if (noteFor === id) {
+      document.getElementById(`note-editor-${id}-text`)?.focus();
+      return;
+    }
+    const activeDraft = noteFor ? state.notes.byApplication[noteFor] : null;
+    const liveActiveDraft = activeDraft
+      ? {
+          ...activeDraft,
+          text:
+            (document.getElementById(`note-editor-${noteFor}-text`) as HTMLTextAreaElement | null)
+              ?.value ?? activeDraft.text,
+        }
+      : null;
+    dispatch({ type: "note_opened", applicationId: id, activeDraft: liveActiveDraft });
+  };
+  const focusNoteTrigger = (id: string) => {
+    window.requestAnimationFrame(() =>
+      window.requestAnimationFrame(() =>
+        document.getElementById(`note-trigger-${view}-${id}`)?.focus(),
+      ),
+    );
+  };
+  const closeNote = (id: string) => {
+    dispatch({ type: "note_closed", applicationId: id });
+    focusNoteTrigger(id);
+  };
+  const changeNoteDraft = (draft: ApplicationNoteDraft) => {
+    dispatch({ type: "note_changed", draft });
+  };
+  const exportCalendar = () => {
+    const calendar = buildFollowUpCalendar(dashboard.applications);
+    if (calendar.eventCount === 0) return;
+    const url = URL.createObjectURL(
+      new Blob([calendar.content], { type: "text/calendar;charset=utf-8" }),
+    );
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = calendar.filename;
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  };
+  const calendarEventCount = buildFollowUpCalendar(dashboard.applications, now).eventCount;
   useEffect(() => {
     if (pendingMove || !returnPendingMoveFocus.current) return;
     returnPendingMoveFocus.current = false;
@@ -3881,6 +4196,15 @@ function Applications({
             <button
               className="button quiet mini"
               type="button"
+              disabled={calendarEventCount === 0}
+              onClick={exportCalendar}
+              title="Downloads a local calendar file; Nimanto creates no notification"
+            >
+              <CalendarPlus size={15} /> Export reminders (.ics)
+            </button>
+            <button
+              className="button quiet mini"
+              type="button"
               onClick={() => {
                 dispatch({
                   type: "display_changed",
@@ -3914,6 +4238,120 @@ function Applications({
           </div>
         }
       />
+      {dashboard.applications.length > 0 && (
+        <section
+          className="role-filter application-filter"
+          aria-labelledby="application-filter-title"
+        >
+          <div>
+            <span>Private decision lens</span>
+            <h2 id="application-filter-title">Find an application record</h2>
+            <p>Search and filters stay in this tab. They change no record or funnel count.</p>
+          </div>
+          <label className="role-search">
+            Search applications
+            <input
+              type="search"
+              value={workingView.query}
+              placeholder="Role or company"
+              onChange={(event) =>
+                dispatch({
+                  type: "view_changed",
+                  view: { ...workingView, query: event.target.value },
+                })
+              }
+            />
+          </label>
+          <label>
+            Status
+            <select
+              value={workingView.status}
+              onChange={(event) =>
+                dispatch({
+                  type: "view_changed",
+                  view: {
+                    ...workingView,
+                    status: event.target.value as ApplicationViewState["status"],
+                  },
+                })
+              }
+            >
+              <option value="all">All statuses</option>
+              {BOARD_COLUMNS.map((column) => (
+                <option key={column.id} value={column.id}>
+                  {column.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Source
+            <select
+              value={workingView.source}
+              onChange={(event) =>
+                dispatch({
+                  type: "view_changed",
+                  view: { ...workingView, source: event.target.value },
+                })
+              }
+            >
+              <option value="all">All sources</option>
+              {cohortSources.map((source) => (
+                <option key={source} value={source}>
+                  {human(source)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Follow-up
+            <select
+              value={workingView.followUp}
+              onChange={(event) =>
+                dispatch({
+                  type: "view_changed",
+                  view: {
+                    ...workingView,
+                    followUp: event.target.value as ApplicationViewState["followUp"],
+                  },
+                })
+              }
+            >
+              <option value="all">All reminder states</option>
+              <option value="due">Due</option>
+              <option value="scheduled">Scheduled</option>
+              <option value="none">No reminder</option>
+              <option value="inactive">Inactive reminder</option>
+            </select>
+          </label>
+          <div className="role-filter-result" aria-live="polite">
+            <strong>
+              {visibleApplications.length} of {reviewApplications.length}
+            </strong>
+            <span>records shown</span>
+            {applicationFiltersActive && (
+              <button
+                className="button mini quiet"
+                type="button"
+                onClick={() =>
+                  dispatch({
+                    type: "view_changed",
+                    view: {
+                      ...workingView,
+                      query: "",
+                      status: "all",
+                      source: "all",
+                      followUp: "all",
+                    },
+                  })
+                }
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
+        </section>
+      )}
       {view === "board" && visibleApplications.length > 0 && (
         <section
           className="board"
@@ -4017,6 +4455,31 @@ function Applications({
                           />
                         )}
                       </>
+                    )}
+                    <button
+                      id={`note-trigger-board-${application.id}`}
+                      className="button mini quiet"
+                      type="button"
+                      disabled={busy}
+                      aria-expanded={noteFor === application.id}
+                      aria-controls={
+                        noteFor === application.id ? `note-editor-${application.id}` : undefined
+                      }
+                      onClick={() => openNote(application.id)}
+                    >
+                      <NotebookPen size={15} /> Add private note
+                    </button>
+                    {noteFor === application.id && (
+                      <ApplicationNoteEditor
+                        application={application}
+                        onAct={onAct}
+                        busy={busy}
+                        draft={noteDraft!}
+                        onDraftChange={changeNoteDraft}
+                        onRecorded={(submitted) => dispatch({ type: "note_committed", submitted })}
+                        onFocusTrigger={() => focusNoteTrigger(application.id)}
+                        onClose={() => closeNote(application.id)}
+                      />
                     )}
                     {/* Keyboard-operable by construction: buttons, not drag. */}
                     <div className="board-move">
@@ -4203,6 +4666,31 @@ function Applications({
                     )}
                   </>
                 )}
+                <button
+                  id={`note-trigger-table-${application.id}`}
+                  className="button mini quiet"
+                  type="button"
+                  disabled={busy}
+                  aria-expanded={noteFor === application.id}
+                  aria-controls={
+                    noteFor === application.id ? `note-editor-${application.id}` : undefined
+                  }
+                  onClick={() => openNote(application.id)}
+                >
+                  <NotebookPen size={15} /> Add private note
+                </button>
+                {noteFor === application.id && (
+                  <ApplicationNoteEditor
+                    application={application}
+                    onAct={onAct}
+                    busy={busy}
+                    draft={noteDraft!}
+                    onDraftChange={changeNoteDraft}
+                    onRecorded={(submitted) => dispatch({ type: "note_committed", submitted })}
+                    onFocusTrigger={() => focusNoteTrigger(application.id)}
+                    onClose={() => closeNote(application.id)}
+                  />
+                )}
               </article>
             );
           })}
@@ -4222,9 +4710,17 @@ function Applications({
       )}
       {dashboard.applications.length > 0 && visibleApplications.length === 0 && (
         <Empty
-          icon={Clock3}
-          title="No records are due for review"
-          copy="No candidate-set reminder is due, and no unscheduled active record has crossed 336 elapsed hours since its latest recorded activity."
+          icon={applicationFiltersActive ? FolderSearch2 : Clock3}
+          title={
+            applicationFiltersActive
+              ? "No applications match this view"
+              : "No records are due for review"
+          }
+          copy={
+            applicationFiltersActive
+              ? "Clear one or more private filters to bring records back. No application changed."
+              : "No candidate-set reminder is due, and no unscheduled active record has crossed 336 elapsed hours since its latest recorded activity."
+          }
         />
       )}
       <Funnel funnel={dashboard.personalFunnel} />
@@ -4594,8 +5090,87 @@ function OutcomeEditor({
   );
 }
 
+function ApplicationNoteEditor({
+  application,
+  onAct,
+  busy,
+  draft,
+  onDraftChange,
+  onRecorded,
+  onFocusTrigger,
+  onClose,
+}: {
+  application: Application;
+  onAct: ActionRunner;
+  busy: boolean;
+  draft: ApplicationNoteDraft;
+  onDraftChange: (draft: ApplicationNoteDraft) => void;
+  onRecorded: (submitted: ApplicationNoteDraft) => void;
+  onFocusTrigger: () => void;
+  onClose: () => void;
+}) {
+  const textField = useRef<HTMLTextAreaElement>(null);
+  const editorId = `note-editor-${application.id}`;
+  const textId = `${editorId}-text`;
+
+  useEffect(() => {
+    textField.current?.focus();
+  }, []);
+
+  return (
+    <form
+      id={editorId}
+      className="outcome-form note-form"
+      onSubmit={(event) => {
+        event.preventDefault();
+        const submitted = { ...draft };
+        if (!submitted.text.trim()) return;
+        void onAct.run({
+          request: () =>
+            api(`/v1/applications/${application.id}/notes`, {
+              method: "POST",
+              body: JSON.stringify({ text: submitted.text }),
+            }),
+          success: "Private note added to the literal timeline.",
+          transient: true,
+          commit: () => onRecorded(submitted),
+          focus: onFocusTrigger,
+        });
+      }}
+    >
+      <label htmlFor={textId}>Private application note</label>
+      <textarea
+        ref={textField}
+        id={textId}
+        required
+        maxLength={2_000}
+        value={draft.text}
+        onChange={(event) => onDraftChange({ ...draft, text: event.target.value })}
+      />
+      <small className="field-note">
+        Stored after Unicode normalization and trimming at the edges. It changes no status, outcome,
+        match, review clock, or funnel count.
+      </small>
+      <div className="button-group">
+        <button className="button mini primary" disabled={busy || draft.text.trim().length === 0}>
+          Add note
+        </button>
+        <ConfirmAction
+          className="button mini quiet"
+          label="Discard draft"
+          question="Discard this private note draft?"
+          confirmLabel="Discard it"
+          cancelLabel="Keep editing"
+          disabled={busy}
+          onConfirm={onClose}
+        />
+      </div>
+    </form>
+  );
+}
+
 function RecordedTimeline({ application }: { application: Application }) {
-  const timeline = recordedOutcomeTimeline(application);
+  const timeline = recordedApplicationTimeline(application);
   if (timeline.length === 0) return null;
   return (
     <details className="recorded-timeline">
@@ -4613,10 +5188,210 @@ function RecordedTimeline({ application }: { application: Application }) {
         ))}
       </ol>
       <p className="boundary-note">
-        Only stored application creation and candidate-recorded outcomes appear here. Gaps infer
-        nothing.
+        Only stored application creation, candidate-recorded outcomes, and private notes appear
+        here. Gaps infer nothing; notes change no status or metric.
       </p>
     </details>
+  );
+}
+
+function LocalDraftPanel({ dashboard }: { dashboard: Dashboard }) {
+  const confirmedEvidence = dashboard.evidence.filter((claim) => claim.status === "confirmed");
+  const confirmedEvidenceKey = confirmedEvidence.map((claim) => claim.id).join("\u0000");
+  const [status, setStatus] = useState<{ available: boolean; models: string[] } | null>(null);
+  const [model, setModel] = useState("");
+  const [applicationId, setApplicationId] = useState("");
+  const [evidenceIds, setEvidenceIds] = useState<string[]>([]);
+  const [result, setResult] = useState<{
+    text: string;
+    model: string;
+    label: "unverified_local_draft";
+  } | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const draftRequest = useRef(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    void api<{ available: boolean; models: string[] }>("/v1/models/status")
+      .then((value) => {
+        if (cancelled) return;
+        setStatus(value);
+        setModel((current) => current || value.models[0] || "");
+      })
+      .catch(() => {
+        if (!cancelled) setStatus({ available: false, models: [] });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const currentIds = new Set(confirmedEvidenceKey.split("\u0000").filter(Boolean));
+    setEvidenceIds((selected) => {
+      const retained = selected.filter((id) => currentIds.has(id));
+      if (retained.length !== selected.length) draftRequest.current += 1;
+      return retained;
+    });
+    setResult(null);
+    setError(null);
+  }, [confirmedEvidenceKey]);
+
+  const toggleEvidence = (id: string) => {
+    draftRequest.current += 1;
+    setResult(null);
+    setError(null);
+    setEvidenceIds((current) =>
+      current.includes(id)
+        ? current.filter((candidate) => candidate !== id)
+        : current.length < 12
+          ? [...current, id]
+          : current,
+    );
+  };
+  const selectedApplication = dashboard.applications.find(
+    (application) => application.id === applicationId,
+  );
+
+  return (
+    <section className="work-panel local-draft-panel" aria-labelledby="local-draft-title">
+      <div className="panel-heading">
+        <div>
+          <span>Optional local assist</span>
+          <h2 id="local-draft-title">Draft from selected evidence</h2>
+        </div>
+        <Sparkles aria-hidden="true" />
+      </div>
+      <p className="boundary-note">
+        The selected role title and company, plus only the confirmed claims you check, are sent to
+        Ollama at 127.0.0.1:11434. The result is unverified, copy-only, and is never saved or
+        inserted into a packet.
+      </p>
+      {status === null ? (
+        <p className="field-note">Checking for local Ollama models…</p>
+      ) : !status.available || status.models.length === 0 ? (
+        <p className="field-note">
+          Local Ollama is not available. Packet generation remains deterministic.
+        </p>
+      ) : (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!selectedApplication || !model || evidenceIds.length === 0) return;
+            const requestId = ++draftRequest.current;
+            setGenerating(true);
+            setError(null);
+            setResult(null);
+            void api<{ text: string; model: string; label: "unverified_local_draft" }>(
+              "/v1/models/draft-summary",
+              {
+                method: "POST",
+                body: JSON.stringify({
+                  model,
+                  jobId: selectedApplication.jobId,
+                  evidenceIds,
+                }),
+              },
+            )
+              .then((value) => {
+                if (draftRequest.current === requestId) setResult(value);
+              })
+              .catch((raised: unknown) => {
+                if (draftRequest.current !== requestId) return;
+                setError(
+                  raised instanceof ApiError && raised.code === "EVIDENCE_SELECTION_CHANGED"
+                    ? "One selected claim is no longer confirmed. Review your evidence selection and try again."
+                    : raised instanceof ApiError && raised.code === "LOCAL_DRAFT_INPUT_TOO_LARGE"
+                      ? "The selected role and claims exceed the local-draft size limit. Choose shorter claims; nothing was sent to Ollama."
+                      : "The local model could not produce a safe draft. Nothing was saved.",
+                );
+              })
+              .finally(() => setGenerating(false));
+          }}
+        >
+          <div className="field-grid">
+            <label>
+              Application
+              <select
+                required
+                disabled={generating}
+                value={applicationId}
+                onChange={(event) => {
+                  draftRequest.current += 1;
+                  setApplicationId(event.target.value);
+                  setResult(null);
+                  setError(null);
+                }}
+              >
+                <option value="">Choose an application</option>
+                {dashboard.applications.map((application) => (
+                  <option key={application.id} value={application.id}>
+                    {application.job?.title ?? "Unknown role"} ·{" "}
+                    {application.job?.company ?? "Unknown company"}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Local model
+              <select
+                disabled={generating}
+                value={model}
+                onChange={(event) => {
+                  draftRequest.current += 1;
+                  setModel(event.target.value);
+                  setResult(null);
+                  setError(null);
+                }}
+              >
+                {status.models.map((name) => (
+                  <option key={name}>{name}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <fieldset className="evidence-selector">
+            <legend>Confirmed evidence to share locally · {evidenceIds.length}/12 selected</legend>
+            {confirmedEvidence.length === 0 ? (
+              <p className="field-note">Confirm evidence in the vault before drafting.</p>
+            ) : (
+              confirmedEvidence.map((claim) => (
+                <label key={claim.id}>
+                  <input
+                    type="checkbox"
+                    checked={evidenceIds.includes(claim.id)}
+                    disabled={
+                      generating || (!evidenceIds.includes(claim.id) && evidenceIds.length >= 12)
+                    }
+                    onChange={() => toggleEvidence(claim.id)}
+                  />
+                  <span>{claim.value}</span>
+                </label>
+              ))
+            )}
+          </fieldset>
+          <button
+            className="button primary"
+            disabled={generating || !applicationId || !model || evidenceIds.length === 0}
+          >
+            <Sparkles size={16} /> {generating ? "Drafting locally…" : "Create unverified draft"}
+          </button>
+          {error && (
+            <p className="field-error" role="alert">
+              {error}
+            </p>
+          )}
+          {result && (
+            <div className="local-draft-result">
+              <span>Unverified local draft · {result.model}</span>
+              <textarea readOnly value={result.text} aria-label="Unverified local draft" />
+              <CopyLine command={result.text} showCommand={false} />
+            </div>
+          )}
+        </form>
+      )}
+    </section>
   );
 }
 
@@ -4640,6 +5415,7 @@ function Packets({
         title="Generate once. Inspect every format."
         copy="Packets are assembled from confirmed evidence and locked authorization wording. Assurance runs before candidate approval."
       />
+      <LocalDraftPanel dashboard={dashboard} />
       <div className="packet-list">
         {dashboard.applications.map((application) => {
           const packet = packetByApplication.get(application.id);

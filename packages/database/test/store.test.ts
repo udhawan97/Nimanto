@@ -398,7 +398,7 @@ describe("beta workflow persistence", () => {
       "SELECT version, applied_at FROM schema_versions ORDER BY version",
     );
     await firstInspection.close();
-    expect(firstLedger.rows.map((row) => row.version)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(firstLedger.rows.map((row) => row.version)).toEqual([1, 2, 3, 4, 5, 6, 7]);
     expect(firstLedger.rows.at(-1)?.version).toBe(CURRENT_SCHEMA_VERSION);
 
     const reopened = await NimantoStore.open(data);
@@ -439,7 +439,7 @@ describe("beta workflow persistence", () => {
     const schemaVersions = await migrated.query<{ version: number }>(
       "SELECT version FROM schema_versions ORDER BY version",
     );
-    expect(schemaVersions.rows.map((row) => row.version)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(schemaVersions.rows.map((row) => row.version)).toEqual([1, 2, 3, 4, 5, 6, 7]);
     expect(schemaVersions.rows.at(-1)?.version).toBe(CURRENT_SCHEMA_VERSION);
     const packetSequences = await migrated.query<{ generation_sequence: string | number }>(
       "SELECT generation_sequence FROM packets WHERE id = 'legacy-packet'",
@@ -528,7 +528,7 @@ describe("beta workflow persistence", () => {
         version integer PRIMARY KEY,
         applied_at timestamptz NOT NULL DEFAULT now()
       );
-      INSERT INTO schema_versions(version) VALUES (7);
+      INSERT INTO schema_versions(version) VALUES (8);
     `);
     await future.close();
     await expect(NimantoStore.open(data)).rejects.toThrow("DATABASE_SCHEMA_NEWER_THAN_RUNTIME");
@@ -726,7 +726,7 @@ describe("beta workflow persistence", () => {
     );
     await legacy.exec("ALTER TABLE assurance_runs DROP COLUMN run_sequence");
     await legacy.exec("DROP SEQUENCE IF EXISTS assurance_runs_run_sequence_seq");
-    await legacy.exec("DELETE FROM schema_versions WHERE version IN (3, 4, 5, 6)");
+    await legacy.exec("DELETE FROM schema_versions WHERE version IN (3, 4, 5, 6, 7)");
     await legacy.close();
 
     const reopened = await NimantoStore.open(data);
@@ -806,7 +806,7 @@ describe("beta workflow persistence", () => {
     await legacy.exec("ALTER TABLE packets DROP COLUMN generation_sequence");
     await legacy.exec("ALTER TABLE applications DROP COLUMN follow_up_on");
     await legacy.exec("DROP SEQUENCE IF EXISTS packets_generation_sequence_seq");
-    await legacy.exec("DELETE FROM schema_versions WHERE version IN (4, 5, 6)");
+    await legacy.exec("DELETE FROM schema_versions WHERE version IN (4, 5, 6, 7)");
     await legacy.close();
 
     const upgraded = await NimantoStore.open(data);
@@ -1131,6 +1131,85 @@ describe("beta workflow persistence", () => {
     expect(match.result.requirements[0]?.evidenceIds).toEqual([claim.id]);
     expect(outcome.type).toBe("screen");
     expect((await store.listApplications(identity.tenantId))[0]?.outcomes).toHaveLength(1);
+  });
+
+  it("keeps candidate role disposition separate from refreshed source facts", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nimanto-store-role-disposition-"));
+    const store = await NimantoStore.open(join(root, "data"));
+    stores.push(store);
+    const owner = await store.createLocalTenant("archive@example.test", "Archive Owner");
+    const other = await store.createLocalTenant("other-archive@example.test", "Other Owner");
+    const input = {
+      source: "greenhouse",
+      sourceJobId: "role-17",
+      title: "Platform Engineer",
+      company: "Northwind",
+      description: "Build services",
+      location: "Remote",
+      workMode: "remote",
+      url: "https://example.test/roles/17",
+      requirements: ["TypeScript"],
+      capability: "deep_link",
+      sourceMeta: {},
+      contentHash: "role-17-v1",
+    };
+    const job = await store.upsertJob(owner.tenantId, input);
+    expect(await store.setRoleArchived(other.tenantId, job.id, true)).toBeNull();
+    expect(await store.setRoleArchived(owner.tenantId, job.id, true)).toMatchObject({
+      candidateDisposition: { state: "archived", archivedAt: expect.any(String) },
+    });
+
+    const refreshed = await store.upsertJob(owner.tenantId, {
+      ...input,
+      description: "Build refreshed services",
+      contentHash: "role-17-v2",
+    });
+    expect(refreshed).toMatchObject({
+      description: "Build refreshed services",
+      candidateDisposition: { state: "archived" },
+    });
+    expect(await store.setRoleArchived(owner.tenantId, job.id, false)).toMatchObject({
+      candidateDisposition: { state: "active", archivedAt: null },
+    });
+  });
+
+  it("stores private application notes without creating outcomes or changing status", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nimanto-store-application-note-"));
+    const store = await NimantoStore.open(join(root, "data"));
+    stores.push(store);
+    const owner = await store.createLocalTenant("notes@example.test", "Notes Owner");
+    const other = await store.createLocalTenant("other-notes@example.test", "Other Notes");
+    const job = await store.upsertJob(owner.tenantId, {
+      source: "manual",
+      sourceJobId: "notes-role",
+      title: "Platform Engineer",
+      company: "Northwind",
+      description: "Build services",
+      location: "Remote",
+      workMode: "remote",
+      url: "",
+      requirements: [],
+      capability: "deep_link",
+      sourceMeta: {},
+      contentHash: "notes-role-v1",
+    });
+    const application = await store.createApplication(owner.tenantId, job.id, null);
+    await expect(
+      store.addApplicationNote(other.tenantId, application.id, {
+        text: "Must remain tenant private",
+        recordedAt: "2026-08-25T12:00:00.000Z",
+      }),
+    ).rejects.toThrow("APPLICATION_NOT_FOUND");
+    const note = await store.addApplicationNote(owner.tenantId, application.id, {
+      text: "  Recruiter mentioned a September start.  ",
+      recordedAt: "2026-08-25T12:00:00.000Z",
+    });
+    expect(note.text).toBe("Recruiter mentioned a September start.");
+    expect((await store.listApplications(owner.tenantId))[0]).toMatchObject({
+      status: "tracked",
+      outcomes: [],
+      notes: [note],
+    });
   });
 
   it("stores and clears a candidate follow-up date without changing application state", async () => {

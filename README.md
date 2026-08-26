@@ -54,13 +54,15 @@ half-finished forms. Nimanto gives that work one inspectable path:
    refresh an allowlisted Greenhouse, Lever or Ashby board.
 4. **Match** deterministically, and read the requirement-by-requirement result:
    what is supported, what is missing, and what blocks you.
-5. **Track** the application from an action-first board or table, set a literal
-   follow-up date, record only candidate-reported outcomes, and generate JSON,
-   plain text, and paired modern and ATS-safe DOCX/PDF from confirmed evidence
-   only.
-6. **Inspect** retained profile, match, packet, and assurance records when you
+5. **Track** the application from a searchable board or table, set a literal
+   follow-up date, export those dates to a local calendar file, and keep private
+   notes separate from candidate-reported outcomes.
+6. **Draft and generate**: optionally copy an unverified local Ollama draft from
+   only the confirmed evidence you select, then generate JSON, plain text, and
+   paired modern and ATS-safe DOCX/PDF from confirmed evidence only.
+7. **Inspect** retained profile, match, packet, and assurance records when you
    need them; compare literal stored values without inventing causality.
-7. **Approve** — assurance, then the packet, then the exact action, then a runtime
+8. **Approve** — assurance, then the packet, then the exact action, then a runtime
    switch that resets itself off.
 
 Nimanto is a **candidate tool**. It does not screen you for employers, estimate
@@ -340,12 +342,16 @@ artifacts.
 - Search by title, company or location and combine source, match-state, and
   tracking filters. These filters live only in the open Role discovery view;
   they are not persisted or sent to the API.
+- Archive or restore a role with a candidate-owned disposition that remains
+  separate from the source Role and survives source refreshes. Archived roles
+  leave the default shortlist but do not remove or change an Application.
 - Candidate-controlled hourly-to-weekly discovery schedules with single leases,
   run-now/pause/resume/cancel, bounded retries, visible dead letters,
   deduplication, and deterministic match receipts.
 - Redirect refusal, fixed provider hosts, timeouts, bounded imports.
-- Disabled-by-default, terms-dated exact-host HTTPS intake with pinned public
-  DNS, private-address and redirect rejection, and transient-body deletion.
+- Disabled-by-default, terms-dated exact-host HTTPS intake with a capability-
+  gated workbench form, pinned public DNS, private-address and redirect
+  rejection, and transient-body deletion.
 - Checksum-addressed, idempotent government dataset editions with transformation
   version and trusted-resolution provenance. A conflicting checksum for the same
   source edition is rejected before any signal is written.
@@ -367,9 +373,11 @@ artifacts.
   candidate-recorded external submission or withdrawal.
 - The actionable board/table surface precedes funnel, review-queue, and cohort
   analytics. Both views use the same labeled, deliberate outcome editor.
-- A recorded-outcome timeline shows application creation and the candidate's
-  dated notes in order. It does not reconstruct unrecorded stages or infer an
-  outcome from silence.
+- Search Application records by role/company and combine status, role-source,
+  and literal follow-up filters without changing records or funnel counts.
+- A literal timeline shows application creation, candidate-recorded outcomes,
+  and private application notes in order. Notes change no status, match, review
+  clock, or funnel count; gaps never reconstruct an unrecorded stage.
 - A candidate can store one strict date-only follow-up reminder on any active
   application. Board and table expose the same literal date. When it is due it
   appears in the record-review queue; a future candidate-set date suppresses
@@ -379,6 +387,8 @@ artifacts.
   inactive visible record until the candidate clears it or returns the
   application to Tracked. Neither path contacts anyone, changes status, or
   infers an employer response.
+- Export active candidate-set dates as an explicit local `.ics` file. This
+  creates no Nimanto notification, scheduled job, or background contact.
 - Application cohort counts use an explicit local-time creation window and
   optional current job-source/current match-classification filters. The
   classification contains the five domain bands plus separate unmatched and
@@ -409,8 +419,12 @@ artifacts.
 - `document_assurance_v1` checks artifact names and hashes, canonical JSON,
   critical-text extraction across all five readable formats, Letter page
   size and count, blank pages, PDF metadata, and modern/ATS parity.
-- Optional Ollama draft endpoint on `127.0.0.1:11434`. Output stays labeled
-  **unverified local draft** and never edits a packet on its own.
+- Optional Ollama draft panel and endpoint on `127.0.0.1:11434`. The candidate
+  selects the exact confirmed claims sent locally; output stays labeled
+  **unverified local draft**, is copy-only, and is never saved or inserted into
+  a packet. The endpoint fails closed before model invocation when any selected
+  claim exceeds 8 KiB of UTF-8 text or the role, company, and selected evidence
+  exceed 32 KiB together; it never silently truncates the selection.
 - Optional exact-tag `NIMANTO_ASSURANCE_MODEL`. When configured, its installed
   digest is recorded, and an unavailable, malformed or blocking local review
   fails approval closed with no cloud fallback.

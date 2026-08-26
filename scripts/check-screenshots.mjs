@@ -15,6 +15,10 @@ const repository = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".
 const scratch = await mkdtemp(path.join(tmpdir(), "nimanto-screenshot-check-"));
 const secret = "nimanto-synthetic-screenshot-check-secret";
 const evidenceManifest = "docs/assets/nimanto-screenshots.json";
+const sitePort = Number(process.env.NIMANTO_SCREENSHOT_SITE_PORT ?? 4300);
+const apiPort = Number(process.env.NIMANTO_SCREENSHOT_API_PORT ?? 4310);
+const siteOrigin = `http://127.0.0.1:${sitePort}`;
+const apiOrigin = `http://127.0.0.1:${apiPort}`;
 let service;
 let serviceLog = "";
 const update = process.argv.includes("--update");
@@ -61,7 +65,7 @@ async function waitForApi() {
       throw new Error(`Disposable screenshot service exited before startup:\n${serviceLog}`);
     }
     try {
-      const response = await fetch("http://127.0.0.1:4310/health", {
+      const response = await fetch(`${apiOrigin}/health`, {
         signal: AbortSignal.timeout(1_000),
       });
       if (response.ok) return;
@@ -75,7 +79,7 @@ async function waitForApi() {
 
 try {
   const occupiedPorts = [];
-  for (const port of [4300, 4310]) {
+  for (const port of [sitePort, apiPort]) {
     if (await portIsBusy(port)) occupiedPorts.push(port);
   }
   if (occupiedPorts.length > 0) {
@@ -89,6 +93,9 @@ try {
       ...process.env,
       NIMANTO_BOOTSTRAP_SECRET: secret,
       NIMANTO_DATA_DIR: path.join(scratch, "data"),
+      NIMANTO_API_PORT: String(apiPort),
+      NIMANTO_WEB_ORIGIN: siteOrigin,
+      NIMANTO_WEB_PORT: String(sitePort),
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -103,6 +110,8 @@ try {
       NIMANTO_SCREENSHOT_BOOTSTRAP_SECRET: secret,
       NIMANTO_SCREENSHOT_ASSETS_DIR: assets,
       NIMANTO_SCREENSHOT_PUBLIC_ASSETS_DIR: publicAssets,
+      NIMANTO_SITE_ORIGIN: siteOrigin,
+      NIMANTO_API_ORIGIN: apiOrigin,
     },
   });
 

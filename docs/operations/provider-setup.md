@@ -72,7 +72,7 @@ current employer policy or legal advice.
 
 ## Optional Ollama companion
 
-Nimanto checks only `http://127.0.0.1:11434`. The summary endpoint sends the selected role, company, and confirmed evidence to that loopback process. It accepts a bounded draft, rejects obvious outcome promises, labels the result `unverified_local_draft`, and never edits or approves a packet.
+Nimanto checks only `http://127.0.0.1:11434`. In **Review packets**, the candidate selects one Application, an exact installed model tag, and 1–12 confirmed claims. The summary endpoint revalidates those claim IDs immediately before sending only the selected role, company, and evidence to loopback. It rejects the request before model invocation—without truncation—when any claim exceeds 8 KiB of UTF-8 text or the full selected role, company, and evidence exceed 32 KiB. It accepts a bounded draft, rejects obvious outcome promises, labels the result `unverified_local_draft`, and returns it copy-only; the text is never saved, inserted, approved, or attached to a packet.
 
 Packet approval does not require a model by default. If `NIMANTO_ASSURANCE_MODEL` names an exact installed Ollama tag, the local structured evidence-risk review becomes required: Nimanto records the installed digest, uses an 8K context cap, sends no tools, and resolves an unavailable, malformed, timed-out, or blocking review to `blocked_unavailable`/blocked with no cloud fallback. Deterministic and document checks remain authoritative and always run.
 

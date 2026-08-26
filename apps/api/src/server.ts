@@ -42,6 +42,8 @@ import {
 import { NIMANTO_VERSION } from "./version.js";
 
 const SESSION_COOKIE = "nimanto_session";
+const LOCAL_DRAFT_MAX_CLAIM_BYTES = 8 * 1024;
+const LOCAL_DRAFT_MAX_INPUT_BYTES = 32 * 1024;
 const H1B_LABELS: H1bSignalLabel[] = [
   "current_role_transfer_support",
   "current_company_policy_support",
@@ -172,6 +174,63 @@ function messageForError(error: Error): { code: string; status: number; message:
       message:
         "A withdrawn application cannot take a new follow-up date. Clear the retained date or move the application back to Tracked first.",
     };
+  if (code === "EVIDENCE_SELECTION_CHANGED")
+    return {
+      code,
+      status: 409,
+      message: "One or more selected claims are no longer confirmed. Review the selection again.",
+    };
+  if (code === "LOCAL_DRAFT_INPUT_TOO_LARGE")
+    return {
+      code,
+      status: 413,
+      message:
+        "The selected local-draft inputs exceed the 8 KiB per-claim or 32 KiB total limit. Choose shorter claims; nothing was sent to Ollama.",
+    };
+  if (code === "URL_INTAKE_DISABLED")
+    return {
+      code,
+      status: 409,
+      message: "Reviewed URL intake is not enabled for this local service.",
+    };
+  if (code === "INVALID_SOURCE_URL" || code === "SOURCE_URL_NOT_ALLOWED")
+    return {
+      code,
+      status: 400,
+      message:
+        "Use an allowlisted HTTPS posting URL with no credentials, custom port, or fragment.",
+    };
+  if (code === "SOURCE_URL_UNSAFE_ADDRESS")
+    return {
+      code,
+      status: 400,
+      message: "That host did not resolve to a safe public address, so Nimanto refused the fetch.",
+    };
+  if (code === "SOURCE_URL_REDIRECT_BLOCKED")
+    return {
+      code,
+      status: 422,
+      message: "The posting redirected. Import its final allowlisted HTTPS URL directly.",
+    };
+  if (["URL_CONTENT_TYPE", "URL_TEXT_ENCODING", "URL_TEXT_REQUIRED"].includes(code))
+    return {
+      code,
+      status: 422,
+      message: "The posting is not readable UTF-8 HTML or plain text, so nothing was imported.",
+    };
+  if (code === "URL_BODY_TOO_LARGE")
+    return {
+      code,
+      status: 413,
+      message: "The posting is larger than the reviewed URL intake limit, so nothing was imported.",
+    };
+  if (code === "URL_FETCH_TIMEOUT" || code.startsWith("SOURCE_URL_HTTP_"))
+    return {
+      code,
+      status: code === "URL_FETCH_TIMEOUT" ? 504 : 502,
+      message:
+        "The allowlisted posting host did not return a usable page. Try its direct URL later.",
+    };
   if (code === "IDENTITY_CHANGED")
     return {
       code,
@@ -204,6 +263,13 @@ function messageForError(error: Error): { code: string; status: number; message:
       code,
       status: 409,
       message: "Turn on the external-action runtime switch before execution.",
+    };
+  if (code.startsWith("OLLAMA_"))
+    return {
+      code,
+      status: 503,
+      message:
+        "The selected local model could not produce a bounded draft. Check Ollama and try again.",
     };
   if (code === "EVIDENCE_PREVIEW_CHANGED")
     return { code, status: 409, message: "Review the file preview again before importing it." };
@@ -320,6 +386,11 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
   const dashboardRead = new DashboardRead(store, () => externalActionLifecycle.runtime());
   await externalActionLifecycle.recoverInterrupted();
   const discoveryCycle = new DiscoveryCycle(store, options.providerJobsFetcher);
+  const localModel = options.localModel ?? {
+    status: localModelStatus,
+    draftSummary: draftLocalSummary,
+  };
+  const allowlistedJobPageFetcher = options.allowlistedJobPageFetcher ?? fetchAllowlistedJobPage;
   let governmentDataset: GovernmentDatasetIngestion;
   try {
     governmentDataset = new GovernmentDatasetIngestion(
@@ -407,6 +478,9 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     providers: {
       deepLink: true,
       testOutbox: true,
+      reviewedUrlIntake: options.urlAllowlist.length > 0 && Boolean(options.urlTermsReviewedAt),
+      reviewedUrlTermsAt: options.urlTermsReviewedAt ?? null,
+      reviewedUrlHosts: options.urlAllowlist,
     },
     boundaries: [
       "Candidate-side qualification and role-fit evidence only.",
@@ -634,22 +708,44 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     return schedule;
   });
 
-  app.get("/v1/models/status", async () => localModelStatus());
+  app.get("/v1/models/status", async () => localModel.status());
   app.post("/v1/models/draft-summary", async (request) => {
     const person = identity(request);
     const body = object(request.body);
+    const requestedIds = strings(body.evidenceIds, "evidence_ids");
+    if (
+      requestedIds.length < 1 ||
+      requestedIds.length > 12 ||
+      new Set(requestedIds).size !== requestedIds.length
+    ) {
+      throw new Error("INVALID_EVIDENCE_SELECTION");
+    }
     const [job, evidence] = await Promise.all([
       store.getJob(person.tenantId, string(body.jobId, "job_id")),
-      store.listEvidence(person.tenantId),
+      store.listEvidenceByIds(person.tenantId, requestedIds),
     ]);
     if (!job) throw new Error("JOB_NOT_FOUND");
-    return draftLocalSummary({
+    const byId = new Map(evidence.map((claim) => [claim.id, claim]));
+    const selected = requestedIds.map((id) => byId.get(id));
+    if (selected.some((claim) => !claim || claim.status !== "confirmed")) {
+      throw new Error("EVIDENCE_SELECTION_CHANGED");
+    }
+    const selectedValues = selected.map((claim) => claim!.value);
+    const encoder = new TextEncoder();
+    const inputBytes = encoder.encode(
+      [job.title, job.company, ...selectedValues].join("\n"),
+    ).byteLength;
+    if (
+      inputBytes > LOCAL_DRAFT_MAX_INPUT_BYTES ||
+      selectedValues.some((value) => encoder.encode(value).byteLength > LOCAL_DRAFT_MAX_CLAIM_BYTES)
+    ) {
+      throw new Error("LOCAL_DRAFT_INPUT_TOO_LARGE");
+    }
+    return localModel.draftSummary({
       model: string(body.model, "model"),
       role: job.title,
       company: job.company,
-      evidence: evidence
-        .filter((claim) => claim.status === "confirmed")
-        .map((claim) => claim.value),
+      evidence: selectedValues,
     });
   });
 
@@ -843,7 +939,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
       throw new Error("URL_INTAKE_DISABLED");
     }
     const body = object(request.body);
-    const page = await fetchAllowlistedJobPage({
+    const page = await allowlistedJobPageFetcher({
       url: string(body.url, "url"),
       allowedHosts: options.urlAllowlist,
     });
@@ -884,6 +980,18 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     const person = identity(request);
     const params = request.params as { id: string };
     return publishMatch(store, person.tenantId, params.id, "manual");
+  });
+  app.put("/v1/jobs/:id/disposition", async (request) => {
+    const person = identity(request);
+    const body = object(request.body);
+    if (typeof body.archived !== "boolean") throw new Error("INVALID_ARCHIVED");
+    const job = await store.setRoleArchived(
+      person.tenantId,
+      (request.params as { id: string }).id,
+      body.archived,
+    );
+    if (!job) throw new Error("JOB_NOT_FOUND");
+    return job;
   });
 
   app.post("/v1/h1b-signals", async (request) => {
@@ -962,6 +1070,16 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
       type,
       note: typeof body.note === "string" ? body.note : "",
       occurredAt: typeof body.occurredAt === "string" ? body.occurredAt : new Date().toISOString(),
+    });
+  });
+  app.post("/v1/applications/:id/notes", async (request) => {
+    const person = identity(request);
+    const body = object(request.body);
+    const text = string(body.text, "note");
+    if (text.length > 2_000) throw new Error("INVALID_NOTE");
+    return store.addApplicationNote(person.tenantId, (request.params as { id: string }).id, {
+      text,
+      recordedAt: new Date().toISOString(),
     });
   });
 

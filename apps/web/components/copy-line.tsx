@@ -5,7 +5,13 @@ import { useEffect, useState } from "react";
 
 type CopyState = "idle" | "copied" | "failed";
 
-export function CopyLine({ command }: { command: string }) {
+export function CopyLine({
+  command,
+  showCommand = true,
+}: {
+  command: string;
+  showCommand?: boolean;
+}) {
   const [state, setState] = useState<CopyState>("idle");
 
   useEffect(() => {
@@ -27,8 +33,8 @@ export function CopyLine({ command }: { command: string }) {
   const label = state === "copied" ? "Copied" : state === "failed" ? "Copy failed" : "Copy";
 
   return (
-    <div className="copy-line">
-      <code>{command}</code>
+    <div className={showCommand ? "copy-line" : "copy-control"}>
+      {showCommand && <code>{command}</code>}
       <button type="button" className="copy-button" data-state={state} onClick={() => void copy()}>
         {state === "copied" ? (
           <Check size={15} aria-hidden="true" />

@@ -19,9 +19,13 @@ export type { ApplicationStatus };
 export type { Section } from "./navigation-transitions.js";
 
 type EvidenceLike = { status: string };
-type JobLike = { id: string };
+type JobLike = {
+  id: string;
+  candidateDisposition?: { state: "active" | "archived" };
+};
 type MatchLike = { job: { id: string }; result: { blockers: unknown[] } };
 type OutcomeLike = { id?: string; type?: string; note?: string; occurredAt: string };
+type ApplicationNoteLike = { id?: string; text: string; recordedAt: string };
 type ApplicationLike = {
   id: string;
   jobId?: string;
@@ -29,6 +33,7 @@ type ApplicationLike = {
   createdAt?: string;
   followUpOn?: string | null;
   outcomes?: OutcomeLike[];
+  notes?: ApplicationNoteLike[];
   job?: { title: string; company: string };
 };
 type PacketLike = { status: string; applicationId?: string };
@@ -40,6 +45,7 @@ type RoleLike = {
   company: string;
   location?: string;
   tracked: boolean;
+  candidateDisposition?: { state: "active" | "archived" };
   match: { result: { band: string; blockers: unknown[] } } | null;
 };
 
@@ -48,6 +54,7 @@ export type RoleFilters = {
   source: string;
   fit: string;
   tracking: "all" | "tracked" | "untracked";
+  visibility?: "active" | "archived" | "all";
 };
 
 /* These filters are intentionally pure and ephemeral. The workbench owns the
@@ -67,10 +74,54 @@ export function filterRoles<T extends RoleLike>(roles: readonly T[], filters: Ro
     if (filters.source !== "all" && role.source !== filters.source) return false;
     if (filters.tracking === "tracked" && !role.tracked) return false;
     if (filters.tracking === "untracked" && role.tracked) return false;
+    const archived = role.candidateDisposition?.state === "archived";
+    const visibility = filters.visibility ?? "active";
+    if (visibility === "active" && archived) return false;
+    if (visibility === "archived" && !archived) return false;
     if (filters.fit === "all") return true;
     if (filters.fit === "unmatched") return role.match === null;
     if (filters.fit === "blocked") return Boolean(role.match?.result.blockers.length);
     return role.match?.result.band === filters.fit;
+  });
+}
+
+export type ApplicationFilters = {
+  query: string;
+  status: "all" | ApplicationStatus;
+  source: string;
+  followUp: "all" | "due" | "scheduled" | "none" | "inactive";
+};
+
+/** One literal, tab-local lens over Application records. It changes neither the
+ * candidate record nor the counts below the work surface. */
+export function filterApplications<T extends ApplicationLike>(
+  applications: readonly T[],
+  jobs: ReadonlyArray<{ id: string; source: string }>,
+  filters: ApplicationFilters,
+  now: Date,
+): T[] {
+  const query = filters.query.trim().toLocaleLowerCase("en-US");
+  const jobsById = new Map(jobs.map((job) => [job.id, job]));
+  const today = candidateLocalDate(now);
+  return applications.filter((application) => {
+    if (
+      query &&
+      ![application.job?.title ?? "", application.job?.company ?? ""]
+        .join(" ")
+        .toLocaleLowerCase("en-US")
+        .includes(query)
+    ) {
+      return false;
+    }
+    if (filters.status !== "all" && application.status !== filters.status) return false;
+    if (
+      filters.source !== "all" &&
+      (!application.jobId || jobsById.get(application.jobId)?.source !== filters.source)
+    ) {
+      return false;
+    }
+    if (filters.followUp === "all") return true;
+    return applicationFollowUpPolicy.observe(application, today).kind === filters.followUp;
   });
 }
 
@@ -100,6 +151,9 @@ export function nextSteps(
   now = new Date(),
 ): NextStep[] {
   const steps: NextStep[] = [];
+  const activeJobs = input.jobs.filter((job) => job.candidateDisposition?.state !== "archived");
+  const activeJobIds = new Set(activeJobs.map((job) => job.id));
+  const activeMatches = input.matches.filter((match) => activeJobIds.has(match.job.id));
   const pending = input.evidence.filter((item) => item.status === "pending").length;
   if (pending > 0) {
     steps.push({
@@ -111,8 +165,8 @@ export function nextSteps(
     });
   }
 
-  const matched = new Set(input.matches.map((match) => match.job.id));
-  const unmatched = input.jobs.filter((job) => !matched.has(job.id)).length;
+  const matched = new Set(activeMatches.map((match) => match.job.id));
+  const unmatched = activeJobs.filter((job) => !matched.has(job.id)).length;
   if (unmatched > 0) {
     steps.push({
       id: "run-matches",
@@ -123,7 +177,7 @@ export function nextSteps(
     });
   }
 
-  const blocked = input.matches.filter((match) => match.result.blockers.length > 0).length;
+  const blocked = activeMatches.filter((match) => match.result.blockers.length > 0).length;
   if (blocked > 0) {
     steps.push({
       id: "review-blockers",
@@ -142,7 +196,7 @@ export function nextSteps(
   // Withdrawn counts as decided: the candidate already answered this role, and
   // re-suggesting it would be the rail arguing with them.
   const applied = new Set(input.applications.map((application) => application.jobId));
-  const untracked = input.matches.filter((match) => !applied.has(match.job.id)).length;
+  const untracked = activeMatches.filter((match) => !applied.has(match.job.id)).length;
   if (untracked > 0) {
     steps.push({
       id: "track-roles",
@@ -532,12 +586,13 @@ export type RecordedTimelineEntry = {
   type: string;
   note: string;
   occurredAt: string;
+  kind: "application" | "outcome" | "note";
 };
 
 /* A chronology of records, not a reconstructed hiring process. In particular,
  * status transitions are absent because the current application status does not
  * tell us when a real-world event occurred. */
-export function recordedOutcomeTimeline(application: ApplicationLike): RecordedTimelineEntry[] {
+export function recordedApplicationTimeline(application: ApplicationLike): RecordedTimelineEntry[] {
   const entries: RecordedTimelineEntry[] = [];
   if (application.createdAt) {
     entries.push({
@@ -545,6 +600,7 @@ export function recordedOutcomeTimeline(application: ApplicationLike): RecordedT
       type: "tracked",
       note: "Application record created",
       occurredAt: application.createdAt,
+      kind: "application",
     });
   }
   for (const outcome of application.outcomes ?? []) {
@@ -553,6 +609,16 @@ export function recordedOutcomeTimeline(application: ApplicationLike): RecordedT
       type: outcome.type ?? "outcome",
       note: outcome.note ?? "",
       occurredAt: outcome.occurredAt,
+      kind: "outcome",
+    });
+  }
+  for (const note of application.notes ?? []) {
+    entries.push({
+      id: note.id ?? `${application.id}-${note.recordedAt}-note`,
+      type: "private note",
+      note: note.text,
+      occurredAt: note.recordedAt,
+      kind: "note",
     });
   }
   return entries.toSorted((left, right) => {
@@ -560,6 +626,9 @@ export function recordedOutcomeTimeline(application: ApplicationLike): RecordedT
     return Number.isNaN(time) || time === 0 ? left.id.localeCompare(right.id) : time;
   });
 }
+
+/** Kept as a compatibility name for tests and downstream imports. */
+export const recordedOutcomeTimeline = recordedApplicationTimeline;
 
 /* ── F1 · pipeline board ─────────────────────────────────────────────────── */
 

@@ -77,6 +77,29 @@ describe("Applications workbench working state", () => {
     expect(state.reminders.byApplication).toEqual({});
   });
 
+  it("retains a newer private note draft when an older save completes", () => {
+    let state = createApplicationsWorkbenchState(new Date(2026, 7, 22, 12));
+    const submitted = { applicationId: "application-a", text: "First private note" };
+    state = applicationsWorkbenchReducer(state, {
+      type: "note_opened",
+      applicationId: submitted.applicationId,
+    });
+    state = applicationsWorkbenchReducer(state, { type: "note_changed", draft: submitted });
+    state = applicationsWorkbenchReducer(state, {
+      type: "note_changed",
+      draft: { ...submitted, text: "Typed while saving" },
+    });
+    expect(
+      applicationsWorkbenchReducer(state, { type: "note_committed", submitted }).notes
+        .byApplication[submitted.applicationId]?.text,
+    ).toBe("Typed while saving");
+    state = applicationsWorkbenchReducer(state, {
+      type: "note_committed",
+      submitted: { ...submitted, text: "Typed while saving" },
+    });
+    expect(state.notes.byApplication).toEqual({});
+  });
+
   it("owns display, review, cohort, and Reminder working state behind one reset", () => {
     let state = createApplicationsWorkbenchState(new Date(2026, 7, 22, 12));
     state = applicationsWorkbenchReducer(state, { type: "display_changed", display: "table" });
@@ -93,6 +116,7 @@ describe("Applications workbench working state", () => {
       display: "table",
       view: { reviewOnly: true, cohortSource: "greenhouse" },
       reminders: { activeApplicationId: "application-a" },
+      notes: { activeApplicationId: null },
     });
 
     state = applicationsWorkbenchReducer(state, {

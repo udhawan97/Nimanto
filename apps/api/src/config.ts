@@ -1,7 +1,22 @@
 import { randomBytes } from "node:crypto";
 import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import type { JobProviderRequest, ProviderJob } from "@nimanto/providers";
+import type { JobProviderRequest, LocalModelStatus, ProviderJob } from "@nimanto/providers";
+
+export type LocalModelAdapter = {
+  status: () => Promise<LocalModelStatus>;
+  draftSummary: (input: {
+    model: string;
+    role: string;
+    company: string;
+    evidence: string[];
+  }) => Promise<{ text: string; model: string; label: "unverified_local_draft" }>;
+};
+
+export type AllowlistedJobPageFetcher = (input: {
+  url: string;
+  allowedHosts: string[];
+}) => Promise<{ canonicalUrl: string; text: string; observedAt: string }>;
 
 export interface NimantoApiOptions {
   dataDirectory: string;
@@ -20,6 +35,8 @@ export interface NimantoApiOptions {
     fixtures: Array<{ sourceName: string; expectedId: string | null }>;
   };
   providerJobsFetcher?: (request: JobProviderRequest) => Promise<ProviderJob[]>;
+  allowlistedJobPageFetcher?: AllowlistedJobPageFetcher;
+  localModel?: LocalModelAdapter;
   removePath?: (target: string, options: { recursive?: boolean; force?: boolean }) => Promise<void>;
   port: number;
   host: string;

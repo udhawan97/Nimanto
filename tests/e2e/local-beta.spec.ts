@@ -1,5 +1,8 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { readFile } from "node:fs/promises";
 import { bootstrapSecret } from "../../playwright.config.js";
+
+const TEST_API_ORIGIN = `http://127.0.0.1:${process.env.NIMANTO_PLAYWRIGHT_API_PORT ?? "4310"}`;
 
 async function installClipboardRecorder(page: Page) {
   await page.addInitScript(() => {
@@ -242,7 +245,7 @@ test("a candidate starts a private workspace and receives deterministic role exp
     .poll(
       async () => {
         try {
-          return (await page.request.get("http://127.0.0.1:4310/health")).ok();
+          return (await page.request.get(`${TEST_API_ORIGIN}/health`)).ok();
         } catch {
           return false;
         }
@@ -562,7 +565,7 @@ test("a candidate starts a private workspace and receives deterministic role exp
 });
 
 test("an email-bound invitation creates a separate empty candidate workspace", async ({ page }) => {
-  const invitation = await page.request.post("http://127.0.0.1:4310/v1/auth/invitations", {
+  const invitation = await page.request.post(`${TEST_API_ORIGIN}/v1/auth/invitations`, {
     headers: { "x-nimanto-bootstrap-secret": bootstrapSecret },
     data: { email: "invitee@example.test" },
   });
@@ -635,7 +638,7 @@ test("a revoked session clears identity-bound drafts before another workspace op
   await page.getByLabel("Recipient").fill("identity-bound@example.test");
   await page.getByRole("button", { name: "Role discovery" }).click();
 
-  const revoked = await page.request.delete("http://127.0.0.1:4310/v1/session");
+  const revoked = await page.request.delete(`${TEST_API_ORIGIN}/v1/session`);
   expect(revoked.ok()).toBe(true);
   await page.getByRole("button", { name: "Save role" }).click();
   await expect(page.getByRole("heading", { name: "Your evidence stays with you." })).toBeVisible();
@@ -671,7 +674,7 @@ test("a shared-cookie identity rotation clears every lifted draft before replace
     .poll(
       async () => {
         try {
-          return (await page.request.get("http://127.0.0.1:4310/health")).ok();
+          return (await page.request.get(`${TEST_API_ORIGIN}/health`)).ok();
         } catch {
           return false;
         }
@@ -726,9 +729,9 @@ test("a shared-cookie identity rotation clears every lifted draft before replace
   // Browser tabs share the authenticated cookie. Rotate it from a sibling tab
   // without letting the original page observe an unauthenticated state first.
   const sibling = await context.newPage();
-  const signedOut = await sibling.request.delete("http://127.0.0.1:4310/v1/session");
+  const signedOut = await sibling.request.delete(`${TEST_API_ORIGIN}/v1/session`);
   expect(signedOut.ok()).toBe(true);
-  const replacement = await sibling.request.post("http://127.0.0.1:4310/v1/auth/local", {
+  const replacement = await sibling.request.post(`${TEST_API_ORIGIN}/v1/auth/local`, {
     headers: { "x-nimanto-bootstrap-secret": bootstrapSecret },
     data: {
       displayName: "Replacement Candidate",
@@ -767,7 +770,7 @@ test("a delayed evidence save cannot overwrite newer controlled edits", async ({
     .poll(
       async () => {
         try {
-          return (await page.request.get("http://127.0.0.1:4310/health")).ok();
+          return (await page.request.get(`${TEST_API_ORIGIN}/health`)).ok();
         } catch {
           return false;
         }
@@ -824,7 +827,7 @@ test("delayed role, outcome, and action submissions retain newer candidate edits
     .poll(
       async () => {
         try {
-          return (await page.request.get("http://127.0.0.1:4310/health")).ok();
+          return (await page.request.get(`${TEST_API_ORIGIN}/health`)).ok();
         } catch {
           return false;
         }
@@ -1161,7 +1164,9 @@ test("evidence-rich review features stay literal, local, and inspectable", async
   const timeline = page.locator(".board-card .recorded-timeline").first();
   await timeline.getByText("Recorded timeline").click();
   await expect(timeline.getByText("Application record created")).toBeVisible();
-  await expect(timeline.getByText("Gaps infer nothing.")).toBeVisible();
+  await expect(
+    timeline.getByText(/Gaps infer nothing; notes change no status or metric/),
+  ).toBeVisible();
 
   await page.getByRole("button", { name: "Review packets" }).click();
   await page.getByRole("button", { name: "Generate", exact: true }).first().click();
@@ -1193,7 +1198,7 @@ test("retained history, record review, cohorts, and sensitive export stay bounde
     .poll(
       async () => {
         try {
-          return (await page.request.get("http://127.0.0.1:4310/health")).ok();
+          return (await page.request.get(`${TEST_API_ORIGIN}/health`)).ok();
         } catch {
           return false;
         }
@@ -1344,7 +1349,7 @@ test("outcome drafts remain with each application until recorded or discarded", 
     .poll(
       async () => {
         try {
-          return (await page.request.get("http://127.0.0.1:4310/health")).ok();
+          return (await page.request.get(`${TEST_API_ORIGIN}/health`)).ok();
         } catch {
           return false;
         }
@@ -1402,7 +1407,7 @@ test("candidate follow-up dates retain drafts, become due, and clear without inf
     .poll(
       async () => {
         try {
-          return (await page.request.get("http://127.0.0.1:4310/health")).ok();
+          return (await page.request.get(`${TEST_API_ORIGIN}/health`)).ok();
         } catch {
           return false;
         }
@@ -1501,13 +1506,198 @@ test("candidate follow-up dates retain drafts, become due, and clear without inf
   await expect(card.getByRole("button", { name: "Set follow-up" })).toBeVisible();
 });
 
+test("candidate decision tools archive, filter, annotate, and export without inference", async ({
+  page,
+}) => {
+  await expect
+    .poll(
+      async () => {
+        try {
+          return (await page.request.get(`${TEST_API_ORIGIN}/health`)).ok();
+        } catch {
+          return false;
+        }
+      },
+      { message: "local API health before the decision-tools journey", timeout: 20_000 },
+    )
+    .toBe(true);
+  await page.goto(`/workspace/#bootstrap=${bootstrapSecret}`);
+  await page.getByLabel("Your name").fill("Decision Tools Check");
+  await page.getByLabel("Your email").fill("decision-tools@example.test");
+  await page.getByRole("button", { name: "Start private workspace" }).click();
+  await page.getByRole("button", { name: "Run starter matches" }).click();
+  await page.getByRole("button", { name: "Role discovery" }).click();
+  await expect(page.getByRole("button", { name: "Import reviewed URL" })).toHaveCount(0);
+  await expect(page.getByText(/Reviewed URL intake is off/)).toBeVisible();
+
+  const originalRole = page.locator(".job-row").first();
+  const roleTitle = (await originalRole.getByRole("heading", { level: 2 }).textContent())!.trim();
+  await originalRole.getByRole("button", { name: "Archive" }).click();
+  await expect(page.locator(".job-row").filter({ hasText: roleTitle })).toHaveCount(0);
+  await page.getByLabel("Candidate view").selectOption("archived");
+  const archivedRole = page.locator(".job-row").filter({ hasText: roleTitle });
+  await expect(archivedRole).toBeVisible();
+  await archivedRole.getByRole("button", { name: "Restore" }).click();
+  await expect(archivedRole).toHaveCount(0);
+  await page.getByLabel("Candidate view").selectOption("active");
+  const restoredRole = page.locator(".job-row").filter({ hasText: roleTitle });
+  await restoredRole.getByRole("button", { name: "Track", exact: true }).click();
+
+  await page.getByRole("button", { name: "Applications" }).click();
+  const card = page.locator(".board-card").filter({ hasText: roleTitle });
+  await expect(card).toBeVisible();
+  await page.getByLabel("Search applications").fill("no such application");
+  await expect(page.getByText("No applications match this view", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Clear filters" }).click();
+  await expect(card).toBeVisible();
+
+  await card.getByRole("button", { name: "Add private note" }).click();
+  await card.getByLabel("Private application note").fill("Verify the on-call expectation.");
+  await card.getByRole("button", { name: "Add note", exact: true }).click();
+  await expect(page.getByText("Private note added to the literal timeline.")).toBeVisible();
+  await expect(card.locator(".recorded-timeline")).toContainText("Verify the on-call expectation.");
+
+  await card.getByRole("button", { name: "Set follow-up" }).click();
+  await card.getByLabel("Candidate follow-up date").fill("2099-12-31");
+  await card.getByRole("button", { name: "Save reminder" }).click();
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export reminders (.ics)" }).click();
+  const download = await downloadPromise;
+  const path = await download.path();
+  expect(path).not.toBeNull();
+  const calendar = await readFile(path!, "utf8");
+  expect(calendar).toContain("BEGIN:VCALENDAR\r\n");
+  expect(calendar).toContain("DTSTART;VALUE=DATE:20991231\r\n");
+  expect(calendar).toContain(`Review ${roleTitle}`);
+
+  await page.getByRole("button", { name: "Review packets" }).click();
+  await expect(page.getByRole("heading", { name: "Draft from selected evidence" })).toBeVisible();
+  await expect(page.getByText(/copy-only/)).toBeVisible();
+});
+
+test("enabled reviewed URL intake submits only the explicit posting fields", async ({ page }) => {
+  test.skip(
+    !process.env.NIMANTO_URL_ALLOWLIST,
+    "requires the reviewed URL capability in the disposable Playwright service",
+  );
+  let submitted: Record<string, unknown> | null = null;
+  await page.route("**/v1/jobs/url-import", async (route) => {
+    if (route.request().method() === "OPTIONS") {
+      await route.continue();
+      return;
+    }
+    submitted = route.request().postDataJSON() as Record<string, unknown>;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: {
+        "access-control-allow-origin": new URL(page.url()).origin,
+        "access-control-allow-credentials": "true",
+      },
+      body: JSON.stringify({ id: "reviewed-url-role", source: "allowlisted_url" }),
+    });
+  });
+  await page.goto(`/workspace/#bootstrap=${bootstrapSecret}`);
+  await page.getByLabel("Your name").fill("Reviewed URL Check");
+  await page.getByLabel("Your email").fill("reviewed-url@example.test");
+  await page.getByRole("button", { name: "Start private workspace" }).click();
+  await page.getByRole("button", { name: "Role discovery" }).click();
+  await page.getByRole("button", { name: "Import reviewed URL" }).click();
+  await page.getByLabel("Allowlisted HTTPS URL").fill("https://jobs.example.test/opening/42");
+  await page.getByLabel("Role title").fill("Accessibility Engineer");
+  await page.getByLabel("Company").fill("Example Labs");
+  await page.getByLabel("Location").fill("Remote");
+  await page.getByLabel("Work mode").selectOption("remote");
+  await page.getByLabel("Requirements, one per line").fill("TypeScript\nWCAG");
+  await expect(page.getByText(/jobs\.example\.test/)).toBeVisible();
+  await page.getByRole("button", { name: "Import posting" }).click();
+  await expect(page.getByText("Reviewed URL saved as a current role.")).toBeVisible();
+  expect(submitted).toEqual({
+    url: "https://jobs.example.test/opening/42",
+    title: "Accessibility Engineer",
+    company: "Example Labs",
+    location: "Remote",
+    workMode: "remote",
+    requirements: ["TypeScript", "WCAG"],
+  });
+});
+
+test("available local model drafts and copies only the selected evidence", async ({ page }) => {
+  await installClipboardRecorder(page);
+  let submitted: Record<string, unknown> | null = null;
+  await page.route("**/v1/models/status", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: {
+        "access-control-allow-origin": new URL(page.url()).origin,
+        "access-control-allow-credentials": "true",
+      },
+      body: JSON.stringify({ available: true, models: ["qwen3:local", "llama3:local"] }),
+    });
+  });
+  await page.route("**/v1/models/draft-summary", async (route) => {
+    if (route.request().method() === "OPTIONS") {
+      await route.continue();
+      return;
+    }
+    submitted = route.request().postDataJSON() as Record<string, unknown>;
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: {
+        "access-control-allow-origin": new URL(page.url()).origin,
+        "access-control-allow-credentials": "true",
+      },
+      body: JSON.stringify({
+        text: "Candidate-reviewed local draft.",
+        model: "qwen3:local",
+        label: "unverified_local_draft",
+      }),
+    });
+  });
+  await page.goto(`/workspace/#bootstrap=${bootstrapSecret}`);
+  await page.getByLabel("Your name").fill("Local Draft Check");
+  await page.getByLabel("Your email").fill("local-draft@example.test");
+  await page.getByRole("button", { name: "Start private workspace" }).click();
+  await page.getByRole("button", { name: "Run starter matches" }).click();
+  await page.getByRole("button", { name: "Role discovery" }).click();
+  await page.getByRole("button", { name: "Track", exact: true }).first().click();
+  await page.getByRole("button", { name: "Review packets" }).click();
+  await expect(
+    page.getByText(/selected role title and company, plus only the confirmed claims/i),
+  ).toBeVisible();
+  await page.getByLabel("Application").selectOption({ index: 1 });
+  await expect(page.getByLabel("Local model")).toHaveValue("qwen3:local");
+  const evidence = page.locator(".evidence-selector input").first();
+  await evidence.check();
+  await page.getByRole("button", { name: "Create unverified draft" }).click();
+  await expect(page.getByLabel("Application")).toBeDisabled();
+  await expect(page.getByLabel("Local model")).toBeDisabled();
+  await expect(evidence).toBeDisabled();
+  await expect(page.getByLabel("Unverified local draft")).toHaveValue(
+    "Candidate-reviewed local draft.",
+  );
+  expect(submitted).toMatchObject({ model: "qwen3:local", evidenceIds: [expect.any(String)] });
+  await page.locator(".local-draft-result").getByRole("button", { name: "Copy" }).click();
+  await expect(
+    page.locator(".local-draft-result").getByRole("button", { name: "Copied" }),
+  ).toBeVisible();
+  expect(await page.evaluate(() => sessionStorage.getItem("nimanto-test-copied"))).toBe(
+    "Candidate-reviewed local draft.",
+  );
+  await page.getByLabel("Local model").selectOption("llama3:local");
+  await expect(page.getByLabel("Unverified local draft")).toHaveCount(0);
+});
+
 test("long action references keep their Copy control clear at 320px", async ({ page }) => {
   await installClipboardRecorder(page);
   await expect
     .poll(
       async () => {
         try {
-          return (await page.request.get("http://127.0.0.1:4310/health")).ok();
+          return (await page.request.get(`${TEST_API_ORIGIN}/health`)).ok();
         } catch {
           return false;
         }

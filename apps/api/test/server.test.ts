@@ -21,6 +21,21 @@ async function setup(options?: {
     settings: { recursive?: boolean; force?: boolean },
   ) => Promise<void>;
   assuranceModel?: string;
+  urlAllowlist?: string[];
+  urlTermsReviewedAt?: string;
+  allowlistedJobPageFetcher?: (input: {
+    url: string;
+    allowedHosts: string[];
+  }) => Promise<{ canonicalUrl: string; text: string; observedAt: string }>;
+  localModel?: {
+    status: () => Promise<{ available: boolean; models: string[] }>;
+    draftSummary: (input: {
+      model: string;
+      role: string;
+      company: string;
+      evidence: string[];
+    }) => Promise<{ text: string; model: string; label: "unverified_local_draft" }>;
+  };
   providerJobsFetcher?: (request: {
     provider: "greenhouse" | "lever" | "ashby";
     board: string;
@@ -54,11 +69,16 @@ async function setup(options?: {
     webOrigin: "http://127.0.0.1:4300",
     demoMode: true,
     bootstrapSecret,
-    urlAllowlist: [],
+    urlAllowlist: options?.urlAllowlist ?? [],
     port: 4310,
     host: "127.0.0.1",
     ...(options?.removePath ? { removePath: options.removePath } : {}),
     ...(options?.assuranceModel ? { assuranceModel: options.assuranceModel } : {}),
+    ...(options?.urlTermsReviewedAt ? { urlTermsReviewedAt: options.urlTermsReviewedAt } : {}),
+    ...(options?.allowlistedJobPageFetcher
+      ? { allowlistedJobPageFetcher: options.allowlistedJobPageFetcher }
+      : {}),
+    ...(options?.localModel ? { localModel: options.localModel } : {}),
     ...(options?.providerJobsFetcher ? { providerJobsFetcher: options.providerJobsFetcher } : {}),
   });
   apps.push(app);
@@ -141,6 +161,259 @@ describe("Nimanto beta API", () => {
     expect((await app.inject({ method: "GET", url: "/docs/json" })).json().info.version).toBe(
       NIMANTO_VERSION,
     );
+    expect((await app.inject({ method: "GET", url: "/v1/meta" })).json().providers).toMatchObject({
+      reviewedUrlIntake: false,
+      reviewedUrlTermsAt: null,
+      reviewedUrlHosts: [],
+    });
+  });
+
+  it("reports and completes reviewed URL intake only through the configured capability", async () => {
+    let fetched: { url: string; allowedHosts: string[] } | null = null;
+    const { app, cookie } = await setup({
+      urlAllowlist: ["jobs.example.test"],
+      urlTermsReviewedAt: "2026-08-25",
+      allowlistedJobPageFetcher: async (input) => {
+        fetched = input;
+        if (!input.allowedHosts.includes(new URL(input.url).hostname)) {
+          throw new Error("SOURCE_URL_NOT_ALLOWED");
+        }
+        return {
+          canonicalUrl: "https://jobs.example.test/openings/platform",
+          text: "Build accessible TypeScript services from a reviewed public role posting.",
+          observedAt: "2026-08-25T12:00:00.000Z",
+        };
+      },
+    });
+    expect((await app.inject({ method: "GET", url: "/v1/meta" })).json().providers).toMatchObject({
+      reviewedUrlIntake: true,
+      reviewedUrlTermsAt: "2026-08-25",
+      reviewedUrlHosts: ["jobs.example.test"],
+    });
+
+    const imported = await app.inject({
+      method: "POST",
+      url: "/v1/jobs/url-import",
+      headers: { cookie },
+      payload: {
+        url: "https://jobs.example.test/openings/platform",
+        title: "Platform Engineer",
+        company: "Example Labs",
+        location: "Remote",
+        workMode: "remote",
+        requirements: ["TypeScript", "Accessible interfaces"],
+      },
+    });
+    expect(imported.statusCode).toBe(200);
+    expect(fetched).toEqual({
+      url: "https://jobs.example.test/openings/platform",
+      allowedHosts: ["jobs.example.test"],
+    });
+    expect(imported.json()).toMatchObject({
+      source: "allowlisted_url",
+      title: "Platform Engineer",
+      company: "Example Labs",
+      description: "Build accessible TypeScript services from a reviewed public role posting.",
+      url: "https://jobs.example.test/openings/platform",
+      sourceMeta: {
+        observedAt: "2026-08-25T12:00:00.000Z",
+        termsReviewedAt: "2026-08-25",
+        transientBodyDeleted: true,
+      },
+    });
+
+    const refused = await app.inject({
+      method: "POST",
+      url: "/v1/jobs/url-import",
+      headers: { cookie },
+      payload: {
+        url: "https://other.example.test/opening",
+        title: "Refused role",
+        company: "Other",
+        requirements: [],
+      },
+    });
+    expect(refused.statusCode).toBe(400);
+    expect(refused.json().error).toMatchObject({
+      code: "SOURCE_URL_NOT_ALLOWED",
+      message: expect.stringContaining("allowlisted HTTPS"),
+    });
+  });
+
+  it("archives and restores a role without changing its source record", async () => {
+    const { app, cookie } = await setup();
+    const dashboard = (
+      await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } })
+    ).json();
+    const job = dashboard.jobs[0];
+    const archived = await app.inject({
+      method: "PUT",
+      url: `/v1/jobs/${job.id}/disposition`,
+      headers: { cookie },
+      payload: { archived: true },
+    });
+    expect(archived.statusCode).toBe(200);
+    expect(archived.json()).toMatchObject({
+      id: job.id,
+      source: job.source,
+      title: job.title,
+      candidateDisposition: { state: "archived", archivedAt: expect.any(String) },
+    });
+    const restored = await app.inject({
+      method: "PUT",
+      url: `/v1/jobs/${job.id}/disposition`,
+      headers: { cookie },
+      payload: { archived: false },
+    });
+    expect(restored.json()).toMatchObject({
+      id: job.id,
+      candidateDisposition: { state: "active", archivedAt: null },
+    });
+  });
+
+  it("adds a private application note without changing funnel outcomes", async () => {
+    const { app, cookie } = await setup();
+    const dashboard = (
+      await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } })
+    ).json();
+    const application = await app.inject({
+      method: "POST",
+      url: "/v1/applications",
+      headers: { cookie },
+      payload: { jobId: dashboard.jobs[0].id },
+    });
+    const note = await app.inject({
+      method: "POST",
+      url: `/v1/applications/${application.json().id}/notes`,
+      headers: { cookie },
+      payload: { text: "  Verify the on-call expectation.  " },
+    });
+    expect(note.statusCode).toBe(200);
+    expect(note.json()).toMatchObject({ text: "Verify the on-call expectation." });
+    const refreshed = (
+      await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } })
+    ).json();
+    expect(
+      refreshed.applications.find((item: { id: string }) => item.id === application.json().id),
+    ).toMatchObject({
+      status: "tracked",
+      outcomes: [],
+      notes: [expect.objectContaining({ text: "Verify the on-call expectation." })],
+    });
+    expect(refreshed.personalFunnel).toMatchObject({
+      replies: 0,
+      screens: 0,
+      interviews: 0,
+      offers: 0,
+    });
+  });
+
+  it("drafts locally from only the candidate-selected confirmed evidence", async () => {
+    let received: { model: string; role: string; company: string; evidence: string[] } | null =
+      null;
+    const { app, cookie } = await setup({
+      localModel: {
+        status: async () => ({ available: true, models: ["qwen3:local"] }),
+        draftSummary: async (input) => {
+          received = input;
+          return {
+            text: "Candidate has supported platform evidence. The selected claim is relevant to this role.",
+            model: input.model,
+            label: "unverified_local_draft",
+          };
+        },
+      },
+    });
+    const dashboard = (
+      await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } })
+    ).json();
+    const selected = dashboard.evidence.find(
+      (claim: { status: string }) => claim.status === "confirmed",
+    );
+    expect(selected).toBeTruthy();
+    expect(
+      (await app.inject({ method: "GET", url: "/v1/models/status", headers: { cookie } })).json(),
+    ).toEqual({ available: true, models: ["qwen3:local"] });
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/models/draft-summary",
+      headers: { cookie },
+      payload: {
+        model: "qwen3:local",
+        jobId: dashboard.jobs[0].id,
+        evidenceIds: [selected.id],
+      },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().label).toBe("unverified_local_draft");
+    expect(received).toMatchObject({
+      model: "qwen3:local",
+      role: dashboard.jobs[0].title,
+      company: dashboard.jobs[0].company,
+      evidence: [selected.value],
+    });
+
+    const rejected = await app.inject({
+      method: "POST",
+      url: "/v1/models/draft-summary",
+      headers: { cookie },
+      payload: {
+        model: "qwen3:local",
+        jobId: dashboard.jobs[0].id,
+        evidenceIds: [selected.id, selected.id],
+      },
+    });
+    expect(rejected.statusCode).toBe(400);
+  });
+
+  it("rejects oversized local-draft evidence before calling the model adapter", async () => {
+    let called = false;
+    const { app, cookie } = await setup({
+      localModel: {
+        status: async () => ({ available: true, models: ["qwen3:local"] }),
+        draftSummary: async (input) => {
+          called = true;
+          return {
+            text: input.evidence.join(" "),
+            model: input.model,
+            label: "unverified_local_draft",
+          };
+        },
+      },
+    });
+    const dashboard = (
+      await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } })
+    ).json();
+    const created = await app.inject({
+      method: "POST",
+      url: "/v1/evidence",
+      headers: { cookie },
+      payload: { kind: "project", value: "x".repeat(8 * 1024 + 1) },
+    });
+    expect(created.statusCode).toBe(200);
+    expect(
+      (
+        await app.inject({
+          method: "POST",
+          url: `/v1/evidence/${created.json().id}/confirm`,
+          headers: { cookie },
+        })
+      ).statusCode,
+    ).toBe(200);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/models/draft-summary",
+      headers: { cookie },
+      payload: {
+        model: "qwen3:local",
+        jobId: dashboard.jobs[0].id,
+        evidenceIds: [created.json().id],
+      },
+    });
+    expect(response.statusCode).toBe(413);
+    expect(response.json().error.code).toBe("LOCAL_DRAFT_INPUT_TOO_LARGE");
+    expect(called).toBe(false);
   });
 
   it("assembles a counts-only personalFunnel from candidate-reported outcomes", async () => {

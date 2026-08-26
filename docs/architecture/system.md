@@ -111,14 +111,15 @@ client's disabled no-change control is guidance, not the correctness boundary.
 Manual role drafts deliberately stay outside persistence. The client holds one
 owner-bounded working-state bundle above section routing, clears it at
 authentication and deletion boundaries, and writes a role only after an
-explicit successful save. Evidence fields, role filters, action fields, outcome
-notes, application views, review filters, and cohort inputs use the same
+explicit successful save. Evidence fields, role filters, reviewed-URL fields,
+action fields, outcome and private-note drafts, application views, review
+filters, and cohort inputs use the same
 tab-local ownership rule. A mutation clears only the exact snapshot it
 submitted, so a delayed response cannot erase text entered while the request was
 in flight.
 
-The Applications workbench owns its related board/table, Review, cohort,
-candidate-outcome, and follow-up working state in one pure reducer. Components
+The Applications workbench owns its related board/table, search/filter, Review,
+cohort, candidate-outcome, private-note, and follow-up working state in one pure reducer. Components
 retain focus and request sequencing, while the reducer owns identity-bounded
 draft lifecycle and exact-submission clearing. It is deliberately tab-local and
 has no browser-storage seam.
@@ -134,6 +135,12 @@ observations or deduplicate across sources. A Match Publication separately
 freezes the exact normalized role input it used. Historical planning documents
 describe possible snapshot/history/deduplication systems; those remain future
 proposals, not the implemented model documented here.
+
+Candidate Role disposition is a separate tenant-owned overlay. Archiving never
+rewrites source content, and an adapter refresh cannot clear it. Application
+notes are likewise append-only literal records beside outcomes; they are
+included in export/deletion scope but deliberately excluded from status,
+matching, the review clock, and funnel aggregation.
 
 Candidate Application transitions use the domain legal-edge and confirmation
 policy. The database locks the active tenant and current Application row, repeats
