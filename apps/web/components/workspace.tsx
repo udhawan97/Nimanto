@@ -1572,12 +1572,15 @@ function WorkspaceStart({
  * content column at every width that still shows the desktop sidebar. Scrolling
  * was already possible; nothing said so, and the container could not be reached
  * by keyboard, so two stages were simply unreachable at 1024px. */
-function useOverflowFlag<T extends HTMLElement>() {
+function useOverflowFlag<T extends HTMLElement>(measurementKey?: unknown) {
   const ref = useRef<T>(null);
   const [overflowing, setOverflowing] = useState(false);
   useEffect(() => {
     const element = ref.current;
-    if (!element) return;
+    if (!element) {
+      setOverflowing(false);
+      return;
+    }
     const measure = () => setOverflowing(element.scrollWidth > element.clientWidth + 1);
     const resizeObserver = new ResizeObserver(measure);
     const observeChildren = () => {
@@ -1603,7 +1606,7 @@ function useOverflowFlag<T extends HTMLElement>() {
       resizeObserver.disconnect();
       contentObserver.disconnect();
     };
-  }, []);
+  }, [measurementKey]);
   return { ref, overflowing };
 }
 
@@ -1626,6 +1629,7 @@ function ConfirmAction({
   disabled,
   className = "button mini",
   triggerLabel,
+  descriptionId,
 }: {
   label: ReactNode;
   question: string;
@@ -1635,6 +1639,7 @@ function ConfirmAction({
   disabled?: boolean;
   className?: string;
   triggerLabel?: string;
+  descriptionId?: string;
 }) {
   const [armed, setArmed] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -1662,6 +1667,7 @@ function ConfirmAction({
         disabled={disabled}
         onClick={() => setArmed(true)}
         aria-label={triggerLabel}
+        aria-describedby={descriptionId}
       >
         {label}
       </button>
@@ -1987,6 +1993,24 @@ function RoleComparison({
   onRemove: (id: string) => void;
   onClear: () => void;
 }) {
+  const heading = useRef<HTMLHeadingElement>(null);
+  const previousRoleCount = useRef(roles.length);
+  const scrollRegion = useOverflowFlag<HTMLDivElement>(roles.length);
+  useEffect(() => {
+    const comparisonCompleted = previousRoleCount.current === 1 && roles.length === 2;
+    previousRoleCount.current = roles.length;
+    if (!comparisonCompleted) return;
+    const frame = window.requestAnimationFrame(() => {
+      const target = heading.current;
+      if (!target) return;
+      target.focus({ preventScroll: true });
+      target.scrollIntoView({
+        block: "start",
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [roles.length]);
   const cells = (role: ComparableRole) => {
     const supported =
       role.match?.result.requirements.filter((requirement) => requirement.state === "supported")
@@ -2034,7 +2058,9 @@ function RoleComparison({
       <div className="panel-heading">
         <div>
           <span>Comparison folio · current stored values</span>
-          <h2 id="role-comparison-title">Read two roles on the same lines</h2>
+          <h2 ref={heading} id="role-comparison-title" tabIndex={-1}>
+            Read two roles on the same lines
+          </h2>
           <p>
             Latest explanations are shown literally. This does not rank roles or predict a hiring
             outcome.
@@ -2054,10 +2080,13 @@ function RoleComparison({
         </div>
       ) : (
         <div
+          ref={scrollRegion.ref}
           className="role-comparison-scroll"
           role="region"
           tabIndex={0}
           aria-label="Role comparison table"
+          data-overflowing={scrollRegion.overflowing ? "true" : "false"}
+          aria-describedby={scrollRegion.overflowing ? "role-comparison-scroll-note" : undefined}
         >
           <table>
             <thead>
@@ -2091,6 +2120,12 @@ function RoleComparison({
             </tbody>
           </table>
         </div>
+      )}
+      {roles.length === 2 && scrollRegion.overflowing && (
+        <small className="field-note comparison-scroll-note" id="role-comparison-scroll-note">
+          More comparison columns sit past the right edge. Scroll sideways, or focus the table and
+          use the arrow keys.
+        </small>
       )}
     </section>
   );
@@ -4265,6 +4300,167 @@ function StoredHistory() {
   );
 }
 
+function ApplicationFilterDisclosure({
+  view,
+  dispatch,
+  cohortSources,
+  visibleCount,
+  totalCount,
+  filtersActive,
+}: {
+  view: ApplicationViewState;
+  dispatch: ApplicationsWorkbench["dispatch"];
+  cohortSources: string[];
+  visibleCount: number;
+  totalCount: number;
+  filtersActive: boolean;
+}) {
+  return (
+    <details className="secondary-controls application-filter-disclosure">
+      <summary>
+        <span>
+          <SlidersHorizontal size={16} aria-hidden="true" /> Filter and sort
+        </span>
+        <small>
+          {visibleCount} of {totalCount} records shown
+        </small>
+      </summary>
+      <section
+        className="role-filter application-filter"
+        aria-labelledby="application-filter-title"
+      >
+        <div>
+          <span>Private decision lens</span>
+          <h2 id="application-filter-title">Find an application record</h2>
+          <p>Search, filters, and sort stay in this tab. They change no record or funnel count.</p>
+        </div>
+        <label className="role-search">
+          Search applications
+          <input
+            type="search"
+            value={view.query}
+            placeholder="Role, company, note, or outcome"
+            onChange={(event) =>
+              dispatch({
+                type: "view_changed",
+                view: { ...view, query: event.target.value },
+              })
+            }
+          />
+        </label>
+        <label>
+          Status
+          <select
+            value={view.status}
+            onChange={(event) =>
+              dispatch({
+                type: "view_changed",
+                view: {
+                  ...view,
+                  status: event.target.value as ApplicationViewState["status"],
+                },
+              })
+            }
+          >
+            <option value="all">All statuses</option>
+            {BOARD_COLUMNS.map((column) => (
+              <option key={column.id} value={column.id}>
+                {column.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Source
+          <select
+            value={view.source}
+            onChange={(event) =>
+              dispatch({
+                type: "view_changed",
+                view: { ...view, source: event.target.value },
+              })
+            }
+          >
+            <option value="all">All sources</option>
+            {cohortSources.map((source) => (
+              <option key={source} value={source}>
+                {human(source)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Follow-up
+          <select
+            value={view.followUp}
+            onChange={(event) =>
+              dispatch({
+                type: "view_changed",
+                view: {
+                  ...view,
+                  followUp: event.target.value as ApplicationViewState["followUp"],
+                },
+              })
+            }
+          >
+            <option value="all">All reminder states</option>
+            <option value="due">Due</option>
+            <option value="scheduled">Scheduled</option>
+            <option value="none">No reminder</option>
+            <option value="inactive">Inactive reminder</option>
+          </select>
+        </label>
+        <label>
+          Sort
+          <select
+            value={view.sort}
+            onChange={(event) =>
+              dispatch({
+                type: "view_changed",
+                view: {
+                  ...view,
+                  sort: event.target.value as ApplicationViewState["sort"],
+                },
+              })
+            }
+          >
+            <option value="stored">Stored order</option>
+            <option value="newest">Newest tracked</option>
+            <option value="follow_up">Follow-up date</option>
+            <option value="role">Role A–Z</option>
+          </select>
+        </label>
+        <div className="role-filter-result" aria-live="polite">
+          <strong>
+            {visibleCount} of {totalCount}
+          </strong>
+          <span>records shown</span>
+          {filtersActive && (
+            <button
+              className="button mini quiet"
+              type="button"
+              onClick={() =>
+                dispatch({
+                  type: "view_changed",
+                  view: {
+                    ...view,
+                    query: "",
+                    status: "all",
+                    source: "all",
+                    followUp: "all",
+                  },
+                })
+              }
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+      </section>
+    </details>
+  );
+}
+
 function Applications({
   dashboard,
   onAct,
@@ -4587,142 +4783,6 @@ function Applications({
           </div>
         }
       />
-      {dashboard.applications.length > 0 && (
-        <section
-          className="role-filter application-filter"
-          aria-labelledby="application-filter-title"
-        >
-          <div>
-            <span>Private decision lens</span>
-            <h2 id="application-filter-title">Find an application record</h2>
-            <p>
-              Search, filters, and sort stay in this tab. They change no record or funnel count.
-            </p>
-          </div>
-          <label className="role-search">
-            Search applications
-            <input
-              type="search"
-              value={workingView.query}
-              placeholder="Role, company, note, or outcome"
-              onChange={(event) =>
-                dispatch({
-                  type: "view_changed",
-                  view: { ...workingView, query: event.target.value },
-                })
-              }
-            />
-          </label>
-          <label>
-            Status
-            <select
-              value={workingView.status}
-              onChange={(event) =>
-                dispatch({
-                  type: "view_changed",
-                  view: {
-                    ...workingView,
-                    status: event.target.value as ApplicationViewState["status"],
-                  },
-                })
-              }
-            >
-              <option value="all">All statuses</option>
-              {BOARD_COLUMNS.map((column) => (
-                <option key={column.id} value={column.id}>
-                  {column.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Source
-            <select
-              value={workingView.source}
-              onChange={(event) =>
-                dispatch({
-                  type: "view_changed",
-                  view: { ...workingView, source: event.target.value },
-                })
-              }
-            >
-              <option value="all">All sources</option>
-              {cohortSources.map((source) => (
-                <option key={source} value={source}>
-                  {human(source)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Follow-up
-            <select
-              value={workingView.followUp}
-              onChange={(event) =>
-                dispatch({
-                  type: "view_changed",
-                  view: {
-                    ...workingView,
-                    followUp: event.target.value as ApplicationViewState["followUp"],
-                  },
-                })
-              }
-            >
-              <option value="all">All reminder states</option>
-              <option value="due">Due</option>
-              <option value="scheduled">Scheduled</option>
-              <option value="none">No reminder</option>
-              <option value="inactive">Inactive reminder</option>
-            </select>
-          </label>
-          <label>
-            Sort
-            <select
-              value={workingView.sort}
-              onChange={(event) =>
-                dispatch({
-                  type: "view_changed",
-                  view: {
-                    ...workingView,
-                    sort: event.target.value as ApplicationViewState["sort"],
-                  },
-                })
-              }
-            >
-              <option value="stored">Stored order</option>
-              <option value="newest">Newest tracked</option>
-              <option value="follow_up">Follow-up date</option>
-              <option value="role">Role A–Z</option>
-            </select>
-          </label>
-          <div className="role-filter-result" aria-live="polite">
-            <strong>
-              {visibleApplications.length} of {reviewApplications.length}
-            </strong>
-            <span>records shown</span>
-            {applicationFiltersActive && (
-              <button
-                className="button mini quiet"
-                type="button"
-                onClick={() =>
-                  dispatch({
-                    type: "view_changed",
-                    view: {
-                      ...workingView,
-                      query: "",
-                      status: "all",
-                      source: "all",
-                      followUp: "all",
-                    },
-                  })
-                }
-              >
-                Clear filters
-              </button>
-            )}
-          </div>
-        </section>
-      )}
       {view === "board" && visibleApplications.length > 0 && (
         <section
           className="board"
@@ -5092,6 +5152,16 @@ function Applications({
               ? "Clear one or more private filters to bring records back. No application changed."
               : "No candidate-set reminder is due, and no unscheduled active record has crossed 336 elapsed hours since its latest recorded activity."
           }
+        />
+      )}
+      {dashboard.applications.length > 0 && (
+        <ApplicationFilterDisclosure
+          view={workingView}
+          dispatch={dispatch}
+          cohortSources={cohortSources}
+          visibleCount={visibleApplications.length}
+          totalCount={reviewApplications.length}
+          filtersActive={applicationFiltersActive}
         />
       )}
       <Funnel funnel={dashboard.personalFunnel} />
@@ -5777,6 +5847,29 @@ function LocalDraftPanel({ dashboard }: { dashboard: Dashboard }) {
   );
 }
 
+function LocalDraftDisclosure({ dashboard }: { dashboard: Dashboard }) {
+  const [openedOnce, setOpenedOnce] = useState(false);
+  return (
+    <details
+      className="secondary-controls local-draft-disclosure"
+      onToggle={(event) => {
+        if (event.currentTarget.open) setOpenedOnce(true);
+      }}
+    >
+      <summary>
+        <span>
+          <Sparkles size={16} aria-hidden="true" /> Optional local assist
+        </span>
+        <small>
+          Uses the selected role title and company plus only confirmed claims you select. Nothing is
+          saved to a packet.
+        </small>
+      </summary>
+      {openedOnce && <LocalDraftPanel dashboard={dashboard} />}
+    </details>
+  );
+}
+
 function Packets({
   dashboard,
   onAct,
@@ -5797,7 +5890,6 @@ function Packets({
         title="Generate once. Inspect every format."
         copy="Packets are assembled from confirmed evidence and locked authorization wording. Assurance runs before candidate approval."
       />
-      <LocalDraftPanel dashboard={dashboard} />
       <div className="packet-list">
         {dashboard.applications.map((application) => {
           const packet = packetByApplication.get(application.id);
@@ -5880,23 +5972,28 @@ function Packets({
                     {/* The rule was stated once in the page intro, hundreds of
                      * pixels above the control it governs, and nowhere that a
                      * screen reader would reach from the button itself. */}
-                    <button
+                    <ConfirmAction
                       className={`button mini ${packet.status === "assurance_passed" ? "primary" : "quiet"}`}
-                      type="button"
-                      disabled={busy || packet.status !== "assurance_passed"}
-                      aria-describedby={
-                        approvalNeedsAssurance ? `approve-gate-${packet.id}` : undefined
+                      label={
+                        <>
+                          <Check size={15} /> Approve
+                        </>
                       }
-                      onClick={() => {
+                      question={`Approve packet ${packet.id} with packet hash ${packet.artifactHash}${packet.artifactManifest.artifacts?.length ? ` and artifact hashes ${packet.artifactManifest.artifacts.map((artifact) => artifact.sha256).join(", ")}` : ""} for export? This records approval for this exact frozen packet. A newer packet does not reverse this historical approval, but only the latest approved packet can drive a future action.`}
+                      confirmLabel="Approve this packet"
+                      cancelLabel="Cancel"
+                      disabled={busy || packet.status !== "assurance_passed"}
+                      {...(approvalNeedsAssurance
+                        ? { descriptionId: `approve-gate-${packet.id}` }
+                        : {})}
+                      onConfirm={() => {
                         void onAct.run({
                           request: () =>
                             api(`/v1/packets/${packet.id}/approve`, { method: "POST" }),
                           success: "Packet approved for export.",
                         });
                       }}
-                    >
-                      <Check size={15} /> Approve
-                    </button>
+                    />
                     <button
                       className="button mini quiet"
                       type="button"
@@ -6059,6 +6156,7 @@ function Packets({
           copy="Track an application first, then Nimanto can build its review packet."
         />
       )}
+      <LocalDraftDisclosure dashboard={dashboard} />
     </>
   );
 }

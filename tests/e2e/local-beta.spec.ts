@@ -17,6 +17,11 @@ async function installClipboardRecorder(page: Page) {
   });
 }
 
+async function approveExactPacket(scope: Page | Locator) {
+  await scope.getByRole("button", { name: "Approve", exact: true }).first().click();
+  await scope.getByRole("button", { name: "Approve this packet" }).first().click();
+}
+
 async function expectCopyLineContained(copyLine: Locator) {
   await expect(copyLine).toBeVisible();
   const geometry = await copyLine.evaluate((line) => {
@@ -671,7 +676,7 @@ test("a revoked session clears identity-bound drafts before another workspace op
   await page.getByRole("button", { name: "Review packets" }).click();
   await page.getByRole("button", { name: "Generate", exact: true }).first().click();
   await page.getByRole("button", { name: "Assure", exact: true }).first().click();
-  await page.getByRole("button", { name: "Approve", exact: true }).first().click();
+  await approveExactPacket(page);
   await page.getByRole("button", { name: "Approved actions" }).click();
   await page.getByRole("button", { name: "Prepare action" }).click();
   await page.getByLabel("Recipient").fill("identity-bound@example.test");
@@ -748,7 +753,7 @@ test("a shared-cookie identity rotation clears every lifted draft before replace
   await page.getByRole("button", { name: "Review packets" }).click();
   await page.getByRole("button", { name: "Generate", exact: true }).first().click();
   await page.getByRole("button", { name: "Assure", exact: true }).first().click();
-  await page.getByRole("button", { name: "Approve", exact: true }).first().click();
+  await approveExactPacket(page);
   await page.getByRole("button", { name: "Approved actions" }).click();
   await page.getByRole("button", { name: "Prepare action" }).click();
   await page.getByLabel("Recipient").fill("original-recipient@example.test");
@@ -943,7 +948,7 @@ test("delayed role, outcome, and action submissions retain newer candidate edits
   await page.getByRole("button", { name: "Review packets" }).click();
   await page.getByRole("button", { name: "Generate", exact: true }).first().click();
   await page.getByRole("button", { name: "Assure", exact: true }).first().click();
-  await page.getByRole("button", { name: "Approve", exact: true }).first().click();
+  await approveExactPacket(page);
   await page.getByRole("button", { name: "Approved actions" }).click();
   await page.getByRole("button", { name: "Prepare action" }).click();
   await page.getByLabel("Provider").selectOption("test_outbox");
@@ -1001,19 +1006,29 @@ test("one guarded control owns every status change, and the two views are exclus
 
   // Only the active work surface is mounted. This prevents a hidden second
   // editor from duplicating label and aria-controls IDs.
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.evaluate(() => scrollTo(0, 0));
   await expect(page.locator(".board")).toBeVisible();
   await expect(page.locator(".application-table")).toHaveCount(0);
   const workSurfaceOrder = await page.evaluate(() => {
     const board = document.querySelector(".board");
-    const funnel = document.querySelector(".funnel-strip");
-    return board && funnel
+    const secondary = document.querySelector(".application-filter-disclosure");
+    const firstCard = document.querySelector(".board-card");
+    return board && secondary && firstCard
       ? {
-          dom: Boolean(board.compareDocumentPosition(funnel) & Node.DOCUMENT_POSITION_FOLLOWING),
-          visual: board.getBoundingClientRect().top < funnel.getBoundingClientRect().top,
+          dom: Boolean(board.compareDocumentPosition(secondary) & Node.DOCUMENT_POSITION_FOLLOWING),
+          visual: board.getBoundingClientRect().top < secondary.getBoundingClientRect().top,
+          boardInFirstViewport: board.getBoundingClientRect().top < innerHeight,
+          firstCardInFirstViewport: firstCard.getBoundingClientRect().top < innerHeight,
         }
       : null;
   });
-  expect(workSurfaceOrder).toEqual({ dom: true, visual: true });
+  expect(workSurfaceOrder).toEqual({
+    dom: true,
+    visual: true,
+    boardInFirstViewport: true,
+    firstCardInFirstViewport: true,
+  });
 
   const boardOutcome = page.getByRole("button", { name: "Record outcome" }).first();
   await expect(boardOutcome).not.toHaveAttribute("aria-controls", /.+/);
@@ -1585,13 +1600,28 @@ test("candidate decision tools archive, filter, annotate, and export without inf
   await expect(page.getByRole("button", { name: "Import reviewed URL" })).toHaveCount(0);
   await expect(page.getByText(/Reviewed URL intake is off/)).toBeVisible();
 
+  await page.setViewportSize({ width: 375, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.locator(".job-row").nth(0).getByRole("button", { name: "Compare" }).click();
   await expect(page.getByText(/Choose one more role below/)).toBeVisible();
   await page.locator(".job-row").nth(1).getByRole("button", { name: "Compare" }).click();
   const comparison = page.getByRole("region", { name: "Role comparison table" });
+  const comparisonHeading = page.getByRole("heading", { name: "Read two roles on the same lines" });
+  await expect(comparisonHeading).toBeFocused();
+  expect(
+    await comparisonHeading.evaluate((heading) => {
+      const rect = heading.getBoundingClientRect();
+      return rect.top >= 0 && rect.bottom <= innerHeight;
+    }),
+  ).toBe(true);
   await expect(comparison).toContainText("Explicit blockers");
   await expect(comparison).toContainText("Northwind Systems");
   await expect(comparison).toContainText("Contoso Labs");
+  await expect(comparison).toHaveAttribute("data-overflowing", "true");
+  const comparisonDescription = await comparison.getAttribute("aria-describedby");
+  expect(comparisonDescription).toBeTruthy();
+  await expect(page.locator(`#${comparisonDescription}`)).toContainText("right edge");
+  await page.setViewportSize({ width: 1280, height: 900 });
   await page.getByRole("button", { name: "Overview" }).click();
   await page.getByRole("button", { name: "Role discovery" }).click();
   await expect(page.getByRole("region", { name: "Role comparison table" })).toBeVisible();
@@ -1617,6 +1647,7 @@ test("candidate decision tools archive, filter, annotate, and export without inf
     .click();
 
   await page.getByRole("button", { name: "Applications" }).click();
+  await page.locator(".application-filter-disclosure summary").click();
   const card = page.locator(".board-card").filter({ hasText: roleTitle });
   await expect(card).toBeVisible();
   await page.getByLabel("Search applications").fill("no such application");
@@ -1659,6 +1690,10 @@ test("candidate decision tools archive, filter, annotate, and export without inf
   expect(calendar).toContain(`Review ${roleTitle}`);
 
   await page.getByRole("button", { name: "Review packets" }).click();
+  const localAssist = page.locator(".local-draft-disclosure");
+  await expect(localAssist).toContainText("Optional local assist");
+  await expect(page.getByRole("heading", { name: "Draft from selected evidence" })).toHaveCount(0);
+  await localAssist.locator("summary").click();
   await expect(page.getByRole("heading", { name: "Draft from selected evidence" })).toBeVisible();
   await expect(page.getByText(/copy-only/)).toBeVisible();
 });
@@ -1713,7 +1748,9 @@ test("enabled reviewed URL intake submits only the explicit posting fields", asy
 test("available local model drafts and copies only the selected evidence", async ({ page }) => {
   await installClipboardRecorder(page);
   let submitted: Record<string, unknown> | null = null;
+  let statusProbes = 0;
   await page.route("**/v1/models/status", async (route) => {
+    statusProbes += 1;
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -1753,6 +1790,11 @@ test("available local model drafts and copies only the selected evidence", async
   await page.getByRole("button", { name: "Role discovery" }).click();
   await page.getByRole("button", { name: "Track", exact: true }).first().click();
   await page.getByRole("button", { name: "Review packets" }).click();
+  const localAssist = page.locator(".local-draft-disclosure");
+  await expect(localAssist).toContainText(/only confirmed claims you select/i);
+  expect(statusProbes, "collapsed local assist must not probe Ollama").toBe(0);
+  await localAssist.locator("summary").click();
+  await expect.poll(() => statusProbes).toBe(1);
   await expect(
     page.getByText(/selected role title and company, plus only the confirmed claims/i),
   ).toBeVisible();
@@ -1805,7 +1847,7 @@ test("long action references keep their Copy control clear at 320px", async ({ p
   await page.getByRole("button", { name: "Generate", exact: true }).first().click();
   await page.getByRole("button", { name: "Assure", exact: true }).first().click();
   const packet = page.locator(".packet-row").first();
-  await packet.getByRole("button", { name: "Approve", exact: true }).click();
+  await approveExactPacket(packet);
   await expect(packet.getByText("Approved", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Approved actions" }).click();
@@ -1852,7 +1894,7 @@ test("long action references keep their Copy control clear at 320px", async ({ p
   const replacementPacket = page.locator(".packet-row").first();
   await replacementPacket.getByRole("button", { name: "Generate new" }).click();
   await replacementPacket.getByRole("button", { name: "Assure", exact: true }).click();
-  await replacementPacket.getByRole("button", { name: "Approve", exact: true }).click();
+  await approveExactPacket(replacementPacket);
   await page.getByRole("button", { name: "Approved actions" }).click();
   await expect(page.getByLabel("Approved packet")).toHaveValue("");
   await expect(page.getByLabel("Approved packet")).toHaveAttribute("aria-invalid", "true");
@@ -2202,8 +2244,8 @@ test("gated and empty-state controls say what they are waiting for", async ({ pa
 
   await page.getByRole("button", { name: "Review packets" }).click();
   await page.getByRole("button", { name: "Generate", exact: true }).first().click();
-  const approve = page.getByRole("button", { name: "Approve", exact: true }).first();
-  const packet = page.locator(".packet-row").filter({ has: approve });
+  const packet = page.locator(".packet-row").first();
+  const approve = packet.getByRole("button", { name: "Approve", exact: true });
   const assure = packet.getByRole("button", { name: "Assure", exact: true });
   await expect(approve).toBeDisabled();
   await expect(packet.locator(".packet-actions .button.primary")).toHaveText("Assure");
@@ -2215,9 +2257,32 @@ test("gated and empty-state controls say what they are waiting for", async ({ pa
   await assure.click();
   await expect(approve).toBeEnabled();
   await expect(packet.locator(".packet-actions .button.primary")).toHaveText("Approve");
+  const approvalWrites: string[] = [];
+  page.on("request", (request) => {
+    if (request.method() === "POST" && /\/v1\/packets\/[^/]+\/approve$/.test(request.url())) {
+      approvalWrites.push(request.url());
+    }
+  });
   await approve.click();
+  const approvalConfirmation = packet.locator(".confirm-strip");
+  await expect(approvalConfirmation).toContainText(/Approve packet .+ with packet hash/i);
+  await expect(approvalConfirmation).toContainText(/Only the latest approved packet/i);
+  expect(
+    await approvalConfirmation.evaluate(
+      () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+    ),
+    "the exact hashes must wrap without widening the 375px page",
+  ).toBe(true);
+  expect(approvalWrites, "arming packet approval must not write").toEqual([]);
+  await page.keyboard.press("Escape");
+  await expect(approvalConfirmation).toHaveCount(0);
+  await expect(approve).toBeFocused();
+  expect(approvalWrites, "cancelling packet approval must not write").toEqual([]);
+  await approve.click();
+  await packet.getByRole("button", { name: "Approve this packet" }).click();
   await expect(page.getByText("Packet approved for export.")).toBeVisible();
   await expect(page.getByText("Approved", { exact: true })).toBeVisible();
+  expect(approvalWrites).toHaveLength(1);
   await expect(packet.locator(".packet-actions .button.primary")).toHaveCount(0);
   await expect(approve).not.toHaveAttribute("aria-describedby");
   await expect(page.locator(`#${gate}`)).toHaveCount(0);

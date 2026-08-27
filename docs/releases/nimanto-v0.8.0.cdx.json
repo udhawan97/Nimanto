@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.6",
-  "serialNumber": "urn:uuid:acc333fb-a216-4c5e-937a-c61501f0dc11",
+  "serialNumber": "urn:uuid:1caff459-32fc-443e-afd5-cd880b354f37",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-08-26T06:33:44Z",
+    "timestamp": "2026-08-27T03:09:17Z",
     "tools": {
       "components": [
         {
@@ -11380,7 +11380,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-07-12T20:30:48.129Z"
+          "value": "2026-08-26T06:58:36.802Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -11420,7 +11420,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "73"
+          "value": "74"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -11567,7 +11567,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-07-12T20:30:50.596Z"
+          "value": "2026-08-26T07:00:40.769Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -11607,7 +11607,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "117"
+          "value": "118"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -16791,7 +16791,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-19T07:36:58.931Z"
+          "value": "2026-08-26T06:58:39.452Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -16831,7 +16831,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "71"
+          "value": "72"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -20688,7 +20688,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-23T16:46:21.535Z"
+          "value": "2026-08-26T18:40:09.299Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -20728,7 +20728,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "77"
+          "value": "78"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -29674,7 +29674,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T23:05:51.409Z"
+          "value": "2026-08-26T09:39:56.482Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -29714,7 +29714,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "55"
+          "value": "56"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -29852,7 +29852,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T23:01:53.217Z"
+          "value": "2026-08-26T09:40:00.707Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -29892,7 +29892,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "55"
+          "value": "56"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -30026,7 +30026,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T23:00:52.791Z"
+          "value": "2026-08-26T09:39:00.549Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -30066,7 +30066,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "20"
+          "value": "21"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -30213,7 +30213,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T20:35:26.301Z"
+          "value": "2026-08-26T08:37:12.585Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -30253,7 +30253,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "42"
+          "value": "43"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -30395,7 +30395,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T20:32:17.077Z"
+          "value": "2026-08-26T08:29:02.855Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -30435,7 +30435,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "42"
+          "value": "43"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -30577,7 +30577,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T20:32:41.347Z"
+          "value": "2026-08-26T08:29:25.383Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -30617,7 +30617,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "43"
+          "value": "44"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -30759,7 +30759,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T20:32:33.312Z"
+          "value": "2026-08-26T08:29:17.001Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -30799,7 +30799,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "45"
+          "value": "46"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -30941,7 +30941,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T20:33:04.457Z"
+          "value": "2026-08-26T08:29:50.525Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -30981,7 +30981,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "35"
+          "value": "36"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -31123,7 +31123,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T20:33:14.384Z"
+          "value": "2026-08-26T08:29:58.295Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -31163,7 +31163,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "27"
+          "value": "28"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -31305,7 +31305,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T20:33:23.789Z"
+          "value": "2026-08-26T08:29:07.480Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -31345,7 +31345,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "40"
+          "value": "41"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -31487,7 +31487,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T20:33:31.946Z"
+          "value": "2026-08-26T08:33:23.455Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -31527,7 +31527,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "43"
+          "value": "44"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -31669,7 +31669,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T20:32:49.306Z"
+          "value": "2026-08-26T08:32:34.120Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -31709,7 +31709,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "42"
+          "value": "43"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -31851,7 +31851,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T20:56:01.021Z"
+          "value": "2026-08-26T08:29:41.161Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -31891,7 +31891,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "41"
+          "value": "42"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -32033,7 +32033,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T23:02:08.316Z"
+          "value": "2026-08-26T09:40:16.499Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -32073,7 +32073,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "53"
+          "value": "54"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -32215,7 +32215,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T23:02:05.906Z"
+          "value": "2026-08-26T09:44:12.428Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -32255,7 +32255,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "53"
+          "value": "54"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -32397,7 +32397,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T23:03:15.794Z"
+          "value": "2026-08-26T09:40:21.352Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -32437,7 +32437,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "34"
+          "value": "35"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -32579,7 +32579,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T23:02:21.160Z"
+          "value": "2026-08-26T09:41:25.948Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -32619,7 +32619,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "22"
+          "value": "23"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -32761,7 +32761,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T23:04:30.527Z"
+          "value": "2026-08-26T09:40:29.179Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -32801,7 +32801,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "52"
+          "value": "53"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -32943,7 +32943,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T23:02:30.640Z"
+          "value": "2026-08-26T09:41:34.068Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -32983,7 +32983,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "53"
+          "value": "54"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -33125,7 +33125,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T23:02:36.583Z"
+          "value": "2026-08-26T09:40:37.841Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -33165,7 +33165,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "53"
+          "value": "54"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -33307,7 +33307,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T23:03:44.344Z"
+          "value": "2026-08-26T09:42:45.049Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -33347,7 +33347,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "53"
+          "value": "54"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -33452,7 +33452,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T23:03:50.076Z"
+          "value": "2026-08-26T09:41:50.689Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -33492,7 +33492,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "51"
+          "value": "52"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -33622,7 +33622,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T23:02:54.514Z"
+          "value": "2026-08-26T09:40:53.482Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -33662,7 +33662,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "19"
+          "value": "20"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -33775,7 +33775,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T23:05:03.624Z"
+          "value": "2026-08-26T09:42:01.044Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -33815,7 +33815,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "30"
+          "value": "31"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -33924,7 +33924,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T23:04:09.415Z"
+          "value": "2026-08-26T09:42:08.869Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -33964,7 +33964,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "53"
+          "value": "54"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -34073,7 +34073,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T23:04:15.671Z"
+          "value": "2026-08-26T09:45:20.347Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -34113,7 +34113,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "53"
+          "value": "54"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -37721,7 +37721,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T23:47:58.553Z"
+          "value": "2026-08-27T00:43:17.841Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -37761,7 +37761,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "2977"
+          "value": "2978"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -37899,7 +37899,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-26T01:13:45.190Z"
+          "value": "2026-08-27T00:43:54.625Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -37939,7 +37939,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "2698"
+          "value": "2699"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -38078,7 +38078,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-26T00:09:11.788Z"
+          "value": "2026-08-27T00:48:09.625Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -38118,7 +38118,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "2692"
+          "value": "2693"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -38261,7 +38261,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-26T00:08:44.004Z"
+          "value": "2026-08-27T01:21:11.472Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -38301,7 +38301,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "2575"
+          "value": "2576"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -38444,7 +38444,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T23:46:55.699Z"
+          "value": "2026-08-27T00:42:53.336Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -38484,7 +38484,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "2574"
+          "value": "2575"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -38627,7 +38627,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T23:47:22.601Z"
+          "value": "2026-08-27T00:43:19.471Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -38667,7 +38667,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "2693"
+          "value": "2694"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -38810,7 +38810,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T23:45:53.453Z"
+          "value": "2026-08-27T00:44:22.374Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -38850,7 +38850,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "2562"
+          "value": "2563"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -38989,7 +38989,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T23:46:07.803Z"
+          "value": "2026-08-27T00:44:34.770Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -39029,7 +39029,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "2575"
+          "value": "2576"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -39168,7 +39168,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T23:46:22.509Z"
+          "value": "2026-08-27T00:43:38.510Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -39208,7 +39208,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "2691"
+          "value": "2692"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -41422,7 +41422,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-19T13:32:19.634Z"
+          "value": "2026-08-26T12:05:08.063Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -41462,7 +41462,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "82"
+          "value": "83"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -41601,7 +41601,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-19T13:32:12.745Z"
+          "value": "2026-08-26T12:08:01.904Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -41641,7 +41641,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "607"
+          "value": "608"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -41780,7 +41780,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-19T15:00:30.326Z"
+          "value": "2026-08-26T12:06:23.162Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -41820,7 +41820,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "607"
+          "value": "608"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -41959,7 +41959,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-19T13:33:35.812Z"
+          "value": "2026-08-26T12:19:42.400Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -41999,7 +41999,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "467"
+          "value": "468"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -42138,7 +42138,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-19T13:30:56.723Z"
+          "value": "2026-08-26T12:06:56.034Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -42178,7 +42178,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "607"
+          "value": "608"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -42321,7 +42321,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-19T14:59:51.919Z"
+          "value": "2026-08-26T12:05:23.737Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -42361,7 +42361,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "607"
+          "value": "608"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -42504,7 +42504,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-19T13:34:39.247Z"
+          "value": "2026-08-26T12:05:31.178Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -42544,7 +42544,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "607"
+          "value": "608"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -42687,7 +42687,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-19T13:32:05.642Z"
+          "value": "2026-08-26T12:06:01.526Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -42727,7 +42727,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "29"
+          "value": "30"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -42870,7 +42870,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-19T13:32:11.606Z"
+          "value": "2026-08-26T12:07:09.068Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -42910,7 +42910,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "29"
+          "value": "30"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -43053,7 +43053,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-19T13:31:41.353Z"
+          "value": "2026-08-26T12:06:47.183Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -43093,7 +43093,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "607"
+          "value": "608"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -43236,7 +43236,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-19T13:35:52.390Z"
+          "value": "2026-08-26T12:11:56.339Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -43276,7 +43276,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "607"
+          "value": "608"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -43415,7 +43415,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-19T13:32:51.985Z"
+          "value": "2026-08-26T12:28:42.420Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -43455,7 +43455,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "64"
+          "value": "65"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -43594,7 +43594,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-19T13:31:28.212Z"
+          "value": "2026-08-26T12:06:15.756Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -43634,7 +43634,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "607"
+          "value": "608"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -43773,7 +43773,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-19T13:32:30.464Z"
+          "value": "2026-08-26T12:06:30.390Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -43813,7 +43813,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "606"
+          "value": "607"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -45354,7 +45354,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-24T19:42:31.174Z"
+          "value": "2026-08-27T00:15:56.812Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -45394,7 +45394,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "2357"
+          "value": "2358"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -45528,7 +45528,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-24T19:42:31.174Z"
+          "value": "2026-08-27T00:15:56.812Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -45568,7 +45568,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "2357"
+          "value": "2358"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -47087,7 +47087,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T08:52:19.617Z"
+          "value": "2026-08-26T08:29:36.387Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -47127,7 +47127,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "45"
+          "value": "46"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -47253,7 +47253,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T08:45:15.316Z"
+          "value": "2026-08-26T08:22:31.050Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -47293,7 +47293,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "45"
+          "value": "46"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -47751,7 +47751,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T08:55:30.495Z"
+          "value": "2026-08-26T08:24:44.200Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -47791,7 +47791,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "45"
+          "value": "46"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -47917,7 +47917,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T08:45:18.704Z"
+          "value": "2026-08-26T08:22:34.830Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -47957,7 +47957,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "45"
+          "value": "46"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -48913,7 +48913,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T08:55:33.335Z"
+          "value": "2026-08-26T08:27:49.292Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -48953,7 +48953,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "45"
+          "value": "46"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -49909,7 +49909,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T08:45:29.431Z"
+          "value": "2026-08-26T08:22:46.226Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -49949,7 +49949,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "45"
+          "value": "46"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -50075,7 +50075,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T08:52:40.291Z"
+          "value": "2026-08-26T08:24:56.248Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -50115,7 +50115,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "45"
+          "value": "46"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -77184,7 +77184,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-19T23:45:40.203Z"
+          "value": "2026-08-26T22:58:26.493Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -77224,7 +77224,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "753"
+          "value": "755"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -87606,7 +87606,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-20T02:10:26.794Z"
+          "value": "2026-08-26T10:41:07.332Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -87650,7 +87650,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "131"
+          "value": "132"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -91614,7 +91614,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T23:56:29.743Z"
+          "value": "2026-08-27T00:53:46.195Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -91654,7 +91654,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "3913"
+          "value": "3914"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -100752,7 +100752,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T16:39:05.065Z"
+          "value": "2026-08-26T16:42:15.441Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -100792,7 +100792,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "2873"
+          "value": "2875"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -100931,7 +100931,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T16:38:47.017Z"
+          "value": "2026-08-26T16:39:59.837Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -100971,7 +100971,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "2918"
+          "value": "2920"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -101384,15 +101384,7 @@
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 1639
-          },
-          {
-            "location": "apps/web/components/workspace.tsx",
-            "line": 1640
-          },
-          {
-            "location": "apps/web/components/workspace.tsx",
-            "line": 1641
+            "line": 1644
           },
           {
             "location": "apps/web/components/workspace.tsx",
@@ -101400,39 +101392,31 @@
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 2122
+            "line": 1646
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 2123
+            "line": 1650
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 2124
+            "line": 1996
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 2125
+            "line": 1997
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 2126
+            "line": 1999
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 2136
+            "line": 2157
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 2137
-          },
-          {
-            "location": "apps/web/components/workspace.tsx",
-            "line": 2141
-          },
-          {
-            "location": "apps/web/components/workspace.tsx",
-            "line": 2145
+            "line": 2158
           },
           {
             "location": "apps/web/components/workspace.tsx",
@@ -101440,99 +101424,87 @@
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 2691
+            "line": 2160
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 2692
+            "line": 2161
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 2696
+            "line": 2171
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 2697
+            "line": 2172
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 2698
+            "line": 2176
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 2699
+            "line": 2180
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 2700
+            "line": 2194
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 2701
+            "line": 2726
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 2705
+            "line": 2727
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 2714
+            "line": 2731
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 2718
+            "line": 2732
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 2729
+            "line": 2733
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 3765
+            "line": 2734
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 3900
+            "line": 2735
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 3901
+            "line": 2736
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 3902
+            "line": 2740
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 3903
+            "line": 2749
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 3904
+            "line": 2753
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 3905
+            "line": 2764
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 3906
+            "line": 3800
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 3907
-          },
-          {
-            "location": "apps/web/components/workspace.tsx",
-            "line": 3908
-          },
-          {
-            "location": "apps/web/components/workspace.tsx",
-            "line": 3909
-          },
-          {
-            "location": "apps/web/components/workspace.tsx",
-            "line": 3911
+            "line": 3935
           },
           {
             "location": "apps/web/components/workspace.tsx",
@@ -101540,155 +101512,199 @@
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 4290
+            "line": 3937
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 4293
+            "line": 3938
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 4294
+            "line": 3939
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 4302
+            "line": 3940
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 4465
+            "line": 3941
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 5270
+            "line": 3942
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 5278
+            "line": 3943
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 5403
+            "line": 3944
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 5408
+            "line": 3946
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 5494
+            "line": 3971
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 5498
+            "line": 4486
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 5583
+            "line": 4489
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 5584
+            "line": 4490
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 5585
+            "line": 4498
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 5586
+            "line": 4661
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 5587
+            "line": 5340
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 5592
+            "line": 5348
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 5593
+            "line": 5473
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 5594
+            "line": 5478
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 5596
+            "line": 5564
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 5612
+            "line": 5568
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 5789
+            "line": 5653
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 6067
+            "line": 5654
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 6068
+            "line": 5655
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 6069
+            "line": 5656
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 6070
+            "line": 5657
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 6071
+            "line": 5662
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 6072
+            "line": 5663
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 6073
+            "line": 5664
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 6074
+            "line": 5666
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 6076
+            "line": 5682
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 6096
+            "line": 5851
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 6371
+            "line": 5882
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 6372
+            "line": 6165
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 6689
+            "line": 6166
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 6690
+            "line": 6167
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 6782
+            "line": 6168
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 6783
+            "line": 6169
+          },
+          {
+            "location": "apps/web/components/workspace.tsx",
+            "line": 6170
+          },
+          {
+            "location": "apps/web/components/workspace.tsx",
+            "line": 6171
+          },
+          {
+            "location": "apps/web/components/workspace.tsx",
+            "line": 6172
+          },
+          {
+            "location": "apps/web/components/workspace.tsx",
+            "line": 6174
+          },
+          {
+            "location": "apps/web/components/workspace.tsx",
+            "line": 6194
+          },
+          {
+            "location": "apps/web/components/workspace.tsx",
+            "line": 6469
+          },
+          {
+            "location": "apps/web/components/workspace.tsx",
+            "line": 6470
+          },
+          {
+            "location": "apps/web/components/workspace.tsx",
+            "line": 6787
+          },
+          {
+            "location": "apps/web/components/workspace.tsx",
+            "line": 6788
+          },
+          {
+            "location": "apps/web/components/workspace.tsx",
+            "line": 6880
+          },
+          {
+            "location": "apps/web/components/workspace.tsx",
+            "line": 6881
           }
         ]
       },
@@ -103842,7 +103858,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-19T13:33:55.301Z"
+          "value": "2026-08-26T12:06:58.296Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -103882,7 +103898,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "637"
+          "value": "638"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -105492,7 +105508,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T16:40:25.354Z"
+          "value": "2026-08-26T16:41:36.095Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -105532,7 +105548,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "2750"
+          "value": "2752"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -106967,7 +106983,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T23:09:24.108Z"
+          "value": "2026-08-26T09:42:28.283Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -107007,7 +107023,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "190"
+          "value": "191"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -116382,7 +116398,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T08:53:06.889Z"
+          "value": "2026-08-26T08:28:49.556Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -116422,7 +116438,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "3808"
+          "value": "3809"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -116625,7 +116641,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-25T08:53:06.889Z"
+          "value": "2026-08-26T08:28:49.556Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -116665,7 +116681,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "3808"
+          "value": "3809"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -118890,7 +118906,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-07-16T15:49:58.507Z"
+          "value": "2026-08-26T13:52:35.696Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -118930,7 +118946,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "21"
+          "value": "22"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -125843,8 +125859,8 @@
           ]
         }
       },
-      "timestamp": "2026-08-26T06:33:44Z",
-      "text": "This Software Bill-of-Materials (SBOM) document was created on Wednesday, August 26, 2026 with cdxgen. The data was captured during the pre-build lifecycle phase without building the application. The document describes an application named 'nimanto' with version '0.8.0'. The application also has 8 child modules/components. Trusted publishing metadata is present for 287 npm component(s) and 0 PyPI component(s). The package type in this SBOM is npm with 34 purl namespaces described under components. The components were identified from the source files: pnpm-lock.yaml."
+      "timestamp": "2026-08-27T03:09:17Z",
+      "text": "This Software Bill-of-Materials (SBOM) document was created on Thursday, August 27, 2026 with cdxgen. The data was captured during the pre-build lifecycle phase without building the application. The document describes an application named 'nimanto' with version '0.8.0'. The application also has 8 child modules/components. Trusted publishing metadata is present for 287 npm component(s) and 0 PyPI component(s). The package type in this SBOM is npm with 34 purl namespaces described under components. The components were identified from the source files: pnpm-lock.yaml."
     }
   ]
 }

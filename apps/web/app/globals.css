@@ -1684,6 +1684,74 @@ svg {
   min-width: 7.5rem;
 }
 
+/* Secondary controls use one brass-edged disclosure grammar. Primary records
+ * stay first in DOM and visual order; opening or closing these panels never
+ * clears their tab-local state. */
+.secondary-controls {
+  min-width: 0;
+  border: 1px solid var(--brass-200);
+  border-inline-start: 2px solid var(--brass-400);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+.secondary-controls > summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-lg);
+  min-width: 0;
+  padding: var(--space-lg);
+  color: var(--text);
+  cursor: pointer;
+  list-style: none;
+}
+.secondary-controls > summary::-webkit-details-marker {
+  display: none;
+}
+.secondary-controls > summary > span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-weight: 500;
+}
+.secondary-controls > summary > small {
+  max-width: 42rem;
+  color: var(--text-muted);
+  text-align: end;
+}
+.secondary-controls > summary::after {
+  flex: none;
+  color: var(--brass-500);
+  content: "+";
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
+}
+.secondary-controls[open] > summary {
+  border-block-end: 1px solid var(--brass-200);
+}
+.secondary-controls[open] > summary::after {
+  content: "−";
+}
+@media (max-width: 48rem) {
+  .secondary-controls > summary {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-xs) var(--space-md);
+  }
+  .secondary-controls > summary > small {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    max-width: none;
+    text-align: start;
+  }
+}
+.secondary-controls > .application-filter,
+.secondary-controls > .local-draft-panel {
+  border: 0;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  border-inline-start: 0;
+  background: transparent;
+}
+
 /* Optional local drafting stays visibly subordinate to packet generation: one
  * brass-threaded work surface, no new card family or palette. */
 .local-draft-panel {
@@ -1778,6 +1846,22 @@ svg {
   border: 1px solid var(--brass-200);
   border-radius: var(--radius-md);
   background: var(--surface);
+  scrollbar-width: thin;
+  scrollbar-color: var(--brass-200) transparent;
+}
+.role-comparison-scroll[data-overflowing="true"] {
+  mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), rgb(0 0 0 / 35%) 100%);
+}
+.role-comparison-scroll:focus-visible,
+.role-comparison h2:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 4px;
+}
+.role-comparison h2 {
+  scroll-margin-block-start: 7rem;
+}
+.comparison-scroll-note {
+  margin-block-start: calc(-1 * var(--space-sm));
 }
 .role-comparison table {
   width: 100%;
