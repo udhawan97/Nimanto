@@ -46,16 +46,27 @@ type ApplicationLike = {
 type PacketLike = { status: string; applicationId?: string };
 type ActionLike = { state: string };
 
+type StructuredAreaLike = {
+  displayLabel?: unknown;
+  countryCode?: unknown;
+  subdivisionCode?: unknown;
+  metroId?: unknown;
+  timeZone?: unknown;
+  resolution?: unknown;
+};
+
 type RoleLike = {
   source: string;
   title: string;
   company: string;
+  description?: string;
+  requirements?: readonly string[];
   location?: string;
   workMode?: string;
   roleFamily?: string;
   workplaceEvidence?: Array<{
-    eligibleRemoteAreas?: Array<{ displayLabel?: string; countryCode?: string | null }>;
-    physicalLocations?: Array<{ displayLabel?: string; countryCode?: string | null }>;
+    eligibleRemoteAreas?: StructuredAreaLike[];
+    physicalLocations?: StructuredAreaLike[];
   }>;
   availability?: {
     publicationState: string;
@@ -65,18 +76,60 @@ type RoleLike = {
   tracked: boolean;
   candidateDisposition?: { state: "active" | "archived" };
   match: { result: { band: string; blockers: unknown[] } } | null;
+  sourceMeta?: {
+    compensation?: {
+      minimum?: number | null;
+      maximum?: number | null;
+      currency?: string;
+    } | null;
+  };
 };
 
 type DiscoveryProfileLike = {
   roleFamilies: readonly string[];
   includeTitles: readonly string[];
   excludeTitles: readonly string[];
-  acceptedPhysicalAreas: ReadonlyArray<{ displayLabel?: unknown; countryCode?: unknown }>;
+  seniorityLevels?: readonly string[];
+  industries?: readonly string[];
+  mustHaveSkills?: readonly string[];
+  preferredSkills?: readonly string[];
+  acceptedPhysicalAreas: readonly StructuredAreaLike[];
+  commuteRadiusMiles?: number | null;
+  relocationPreference?: "no" | "consider" | "yes";
   workModes: readonly string[];
-  eligibleRemoteAreas: ReadonlyArray<{ displayLabel?: unknown; countryCode?: unknown }>;
+  eligibleRemoteAreas: readonly StructuredAreaLike[];
+  minimumCompensation?: Readonly<{ amount: number; currency: string }> | null;
+  authorizationStatementVersionId?: string | null;
+  authorizationStatementExpiresAt?: string | null;
   freshnessMaximumHours: number;
   sourceIds: readonly string[];
 };
+
+export type DiscoveryProfileReason = Readonly<{
+  code:
+    | "role_family"
+    | "include_title"
+    | "exclude_title"
+    | "seniority"
+    | "industry"
+    | "must_have_skill"
+    | "preferred_skill"
+    | "area"
+    | "commute_radius"
+    | "relocation"
+    | "work_mode"
+    | "minimum_compensation"
+    | "freshness"
+    | "source"
+    | "authorization_expiry";
+  state: "matched" | "excluded" | "unresolved";
+  detail: string;
+}>;
+
+export type DiscoveryProfileAssessment = Readonly<{
+  included: boolean;
+  reasons: readonly DiscoveryProfileReason[];
+}>;
 
 export type RoleFilters = {
   query: string;
@@ -130,7 +183,13 @@ export function filterRoles<T extends RoleLike>(roles: readonly T[], filters: Ro
   return roles.filter((role) => {
     if (
       query &&
-      ![role.title, role.company, role.location ?? ""]
+      ![
+        role.title,
+        role.company,
+        role.location ?? "",
+        role.description ?? "",
+        ...(role.requirements ?? []),
+      ]
         .join(" ")
         .toLocaleLowerCase("en-US")
         .includes(query)
@@ -175,6 +234,262 @@ export function filterRoles<T extends RoleLike>(roles: readonly T[], filters: Ro
   });
 }
 
+function discoveryText(value: string): string {
+  return value.normalize("NFKC").trim().replace(/\s+/gu, " ").toLocaleLowerCase("en-US");
+}
+
+function discoveryTerms(values: readonly string[] | undefined): string[] {
+  return (values ?? []).map(discoveryText).filter(Boolean);
+}
+
+function literalPhraseMatch(corpus: string, term: string): boolean {
+  if (!term) return false;
+  const escaped = term.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+  return new RegExp(
+    `(?:^|[^\\p{L}\\p{N}\\p{M}\\p{Pc}])${escaped}(?=$|[^\\p{L}\\p{N}\\p{M}\\p{Pc}])`,
+    "iu",
+  ).test(corpus);
+}
+
+function areaValue(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? discoveryText(value) : null;
+}
+
+function confirmedArea(area: StructuredAreaLike): boolean {
+  return area.resolution === "confirmed";
+}
+
+function countryLevelArea(area: StructuredAreaLike): boolean {
+  const countryCode = areaValue(area.countryCode)?.toUpperCase();
+  const label = areaValue(area.displayLabel);
+  if (!countryCode || !label) return false;
+  if (areaValue(area.metroId) || areaValue(area.subdivisionCode) || areaValue(area.timeZone)) {
+    return false;
+  }
+  if (label === discoveryText(countryCode)) return true;
+  try {
+    const displayName = new Intl.DisplayNames(["en"], { type: "region" }).of(countryCode);
+    if (displayName && label === discoveryText(displayName)) return true;
+  } catch {
+    return false;
+  }
+  return countryCode === "US" && ["usa", "u.s.", "u.s.a."].includes(label);
+}
+
+function compareCanonicalAreas(
+  candidate: StructuredAreaLike,
+  observed: StructuredAreaLike,
+): boolean | null {
+  if (!confirmedArea(candidate) || !confirmedArea(observed)) return null;
+  const fields = ["countryCode", "subdivisionCode", "metroId", "timeZone"] as const;
+  const expected = fields.flatMap((field) => {
+    const value = areaValue(candidate[field]);
+    return value ? [{ field, value }] : [];
+  });
+  if (expected.length === 0) return null;
+  if (
+    expected.length === 1 &&
+    expected[0]?.field === "countryCode" &&
+    !countryLevelArea(candidate)
+  ) {
+    return null;
+  }
+  let incomplete = false;
+  for (const identity of expected) {
+    const actual = areaValue(observed[identity.field]);
+    if (!actual) incomplete = true;
+    else if (actual !== identity.value) return false;
+  }
+  return incomplete ? null : true;
+}
+
+/** Explain one role against only the candidate-approved discovery inputs. The
+ * literal posting corpus is deterministic; unknown compensation, distance, or
+ * authorization state stays visible and explicitly unresolved. */
+export function assessDiscoveryProfile(
+  role: RoleLike,
+  profile: DiscoveryProfileLike | null,
+  now: Date,
+): DiscoveryProfileAssessment {
+  if (!profile) return { included: true, reasons: [] };
+  const reasons: DiscoveryProfileReason[] = [];
+  const add = (
+    code: DiscoveryProfileReason["code"],
+    state: DiscoveryProfileReason["state"],
+    detail: string,
+  ) => reasons.push({ code, state, detail });
+  const postingText = discoveryText(
+    [role.title, role.description ?? "", ...(role.requirements ?? [])].join(" "),
+  );
+  const industryText = discoveryText(`${role.company} ${postingText}`);
+  const title = discoveryText(role.title);
+  const matchAny = (corpus: string, terms: readonly string[]) =>
+    terms.some((term) => literalPhraseMatch(corpus, term));
+
+  if (profile.roleFamilies.length > 0) {
+    const matched = profile.roleFamilies.includes(role.roleFamily ?? "");
+    add("role_family", matched ? "matched" : "excluded", role.roleFamily ?? "unknown");
+  }
+  const includeTitles = discoveryTerms(profile.includeTitles);
+  if (includeTitles.length > 0) {
+    const matched = matchAny(title, includeTitles);
+    add("include_title", matched ? "matched" : "excluded", matched ? role.title : "No title match");
+  }
+  const excludeTitles = discoveryTerms(profile.excludeTitles);
+  const excludedTitle = excludeTitles.find((value) => literalPhraseMatch(title, value));
+  if (excludedTitle) add("exclude_title", "excluded", excludedTitle);
+
+  const seniority = discoveryTerms(profile.seniorityLevels);
+  if (seniority.length > 0) {
+    const matched = matchAny(postingText, seniority);
+    add(
+      "seniority",
+      matched ? "matched" : "excluded",
+      matched ? "Literal posting match" : "No literal posting match",
+    );
+  }
+  const industries = discoveryTerms(profile.industries);
+  if (industries.length > 0) {
+    const matched = matchAny(industryText, industries);
+    add(
+      "industry",
+      matched ? "matched" : "excluded",
+      matched ? "Literal posting match" : "No literal posting match",
+    );
+  }
+  const mustHaveSkills = discoveryTerms(profile.mustHaveSkills);
+  if (mustHaveSkills.length > 0) {
+    const missing = mustHaveSkills.filter((skill) => !literalPhraseMatch(postingText, skill));
+    add(
+      "must_have_skill",
+      missing.length === 0 ? "matched" : "excluded",
+      missing.length === 0 ? "All literal skill terms found" : `Missing: ${missing.join(", ")}`,
+    );
+  }
+  const preferredSkills = discoveryTerms(profile.preferredSkills);
+  if (preferredSkills.length > 0) {
+    const found = preferredSkills.filter((skill) => literalPhraseMatch(postingText, skill));
+    add(
+      "preferred_skill",
+      found.length > 0 ? "matched" : "unresolved",
+      found.length > 0 ? `Found: ${found.join(", ")}` : "No literal preferred-skill match",
+    );
+  }
+
+  if (profile.workModes.length > 0) {
+    const matched = profile.workModes.includes(role.workMode ?? "unknown");
+    add("work_mode", matched ? "matched" : "excluded", role.workMode ?? "unknown");
+  }
+  if (profile.sourceIds.length > 0) {
+    const matched = profile.sourceIds.includes(role.source);
+    add("source", matched ? "matched" : "excluded", role.source);
+  }
+
+  const cutoff = now.getTime() - profile.freshnessMaximumHours * 60 * 60 * 1000;
+  const observedAt = role.availability?.lastSeenAt;
+  if (observedAt) {
+    const observedTime = Date.parse(observedAt);
+    const state = Number.isNaN(observedTime)
+      ? "unresolved"
+      : observedTime < cutoff
+        ? "excluded"
+        : "matched";
+    add("freshness", state, observedAt);
+  } else {
+    add("freshness", "unresolved", "No observation time");
+  }
+
+  const workplaceMode = role.workMode ?? "unknown";
+  const candidateAreas =
+    workplaceMode === "remote"
+      ? profile.eligibleRemoteAreas
+      : workplaceMode === "onsite" || workplaceMode === "hybrid"
+        ? profile.acceptedPhysicalAreas
+        : [...profile.acceptedPhysicalAreas, ...profile.eligibleRemoteAreas];
+  if (candidateAreas.length > 0) {
+    if (workplaceMode === "unknown" || workplaceMode === "conflicting") {
+      add("area", "unresolved", "Workplace mode is not established");
+    } else {
+      const observedAreas = (role.workplaceEvidence ?? []).flatMap((evidence) =>
+        workplaceMode === "remote"
+          ? (evidence.eligibleRemoteAreas ?? [])
+          : (evidence.physicalLocations ?? []),
+      );
+      const comparisons = candidateAreas.flatMap((candidate) =>
+        observedAreas.map((observed) => compareCanonicalAreas(candidate, observed)),
+      );
+      if (comparisons.includes(true)) {
+        add("area", "matched", role.location || "Canonical area match");
+      } else if (
+        comparisons.length === 0 ||
+        comparisons.includes(null) ||
+        candidateAreas.some((area) => !confirmedArea(area)) ||
+        observedAreas.some((area) => !confirmedArea(area))
+      ) {
+        add("area", "unresolved", "Canonical area evidence is incomplete or ambiguous");
+      } else {
+        add("area", "excluded", "Confirmed canonical areas do not match");
+      }
+    }
+  }
+
+  if (profile.commuteRadiusMiles !== null && profile.commuteRadiusMiles !== undefined) {
+    add("commute_radius", "unresolved", "No confirmed role coordinates");
+  }
+  if (profile.relocationPreference && profile.relocationPreference !== "consider") {
+    add("relocation", "unresolved", "Recorded for candidate review; no relocation inference");
+  }
+
+  if (profile.minimumCompensation) {
+    const posted = role.sourceMeta?.compensation;
+    const currency = posted?.currency?.toUpperCase();
+    const floorCurrency = profile.minimumCompensation.currency.toUpperCase();
+    if (!posted || !currency) {
+      add("minimum_compensation", "unresolved", "Posting compensation not established");
+    } else if (currency !== floorCurrency) {
+      add(
+        "minimum_compensation",
+        "unresolved",
+        `${currency} cannot be compared with ${floorCurrency}`,
+      );
+    } else if (
+      posted.maximum !== null &&
+      posted.maximum !== undefined &&
+      posted.maximum < profile.minimumCompensation.amount
+    ) {
+      add("minimum_compensation", "excluded", `Posted maximum ${posted.maximum} ${currency}`);
+    } else if (
+      posted.minimum !== null &&
+      posted.minimum !== undefined &&
+      posted.minimum >= profile.minimumCompensation.amount
+    ) {
+      add("minimum_compensation", "matched", `Posted minimum ${posted.minimum} ${currency}`);
+    } else {
+      add("minimum_compensation", "unresolved", "Posted range crosses or omits the approved floor");
+    }
+  }
+
+  if (profile.authorizationStatementExpiresAt) {
+    const expiry = Date.parse(profile.authorizationStatementExpiresAt);
+    add(
+      "authorization_expiry",
+      !profile.authorizationStatementVersionId || Number.isNaN(expiry) || expiry <= now.getTime()
+        ? "unresolved"
+        : "matched",
+      !profile.authorizationStatementVersionId
+        ? "No linked authorization statement"
+        : Number.isNaN(expiry)
+          ? "Expiry is invalid"
+          : profile.authorizationStatementExpiresAt,
+    );
+  }
+
+  return {
+    included: !reasons.some((reason) => reason.state === "excluded"),
+    reasons,
+  };
+}
+
 /** Apply only the candidate-approved discovery inputs. Resume evidence enters
  * matching through its saved profile version; it is never silently converted
  * into search preferences here. */
@@ -183,50 +498,46 @@ export function applyDiscoveryProfile<T extends RoleLike>(
   profile: DiscoveryProfileLike | null,
   now: Date,
 ): T[] {
-  if (!profile) return [...roles];
-  const includeTitles = profile.includeTitles.map((value) => value.toLocaleLowerCase("en-US"));
-  const excludeTitles = profile.excludeTitles.map((value) => value.toLocaleLowerCase("en-US"));
-  const cutoff = now.getTime() - profile.freshnessMaximumHours * 60 * 60 * 1000;
-  const desiredAreas = [...profile.acceptedPhysicalAreas, ...profile.eligibleRemoteAreas].flatMap(
-    (area) =>
-      [area.displayLabel, area.countryCode]
-        .filter((value): value is string => typeof value === "string" && Boolean(value.trim()))
-        .map((value) => value.toLocaleLowerCase("en-US")),
-  );
-  return roles.filter((role) => {
-    const title = role.title.toLocaleLowerCase("en-US");
-    if (profile.roleFamilies.length > 0 && !profile.roleFamilies.includes(role.roleFamily ?? "")) {
-      return false;
-    }
-    if (profile.workModes.length > 0 && !profile.workModes.includes(role.workMode ?? "unknown")) {
-      return false;
-    }
-    if (profile.sourceIds.length > 0 && !profile.sourceIds.includes(role.source)) return false;
-    if (includeTitles.length > 0 && !includeTitles.some((value) => title.includes(value))) {
-      return false;
-    }
-    if (excludeTitles.some((value) => title.includes(value))) return false;
-    const observedAt = role.availability?.lastSeenAt;
-    if (observedAt && Date.parse(observedAt) < cutoff) return false;
-    if (desiredAreas.length > 0) {
-      const roleAreas = [
-        role.location ?? "",
-        ...(role.workplaceEvidence ?? []).flatMap((evidence) => [
-          ...(evidence.eligibleRemoteAreas ?? []).flatMap((area) => [
-            area.displayLabel ?? "",
-            area.countryCode ?? "",
-          ]),
-          ...(evidence.physicalLocations ?? []).flatMap((area) => [
-            area.displayLabel ?? "",
-            area.countryCode ?? "",
-          ]),
-        ]),
-      ]
-        .join(" ")
-        .toLocaleLowerCase("en-US");
-      if (!desiredAreas.some((area) => roleAreas.includes(area))) return false;
-    }
-    return true;
+  return roles.filter((role) => assessDiscoveryProfile(role, profile, now).included);
+}
+
+export function groupRolesByDiscoveryAssessment<
+  T extends Readonly<{ id: string; cluster: Readonly<{ id: string }> }>,
+>(roles: readonly T[], assessments: ReadonlyMap<string, unknown>): T[][] {
+  const groups = new Map<string, T[]>();
+  for (const role of roles) {
+    const key = `${role.cluster.id}:${JSON.stringify(assessments.get(role.id) ?? null)}`;
+    groups.set(key, [...(groups.get(key) ?? []), role]);
+  }
+  return [...groups.values()];
+}
+
+export function discoveryProfileSuggestions(
+  profile: Pick<
+    DiscoveryProfileLike,
+    | "includeTitles"
+    | "mustHaveSkills"
+    | "preferredSkills"
+    | "acceptedPhysicalAreas"
+    | "eligibleRemoteAreas"
+  > | null,
+): string[] {
+  if (!profile) return [];
+  const candidates = [
+    ...profile.includeTitles,
+    ...(profile.mustHaveSkills ?? []),
+    ...(profile.preferredSkills ?? []),
+    ...[...profile.acceptedPhysicalAreas, ...profile.eligibleRemoteAreas].flatMap((area) =>
+      typeof area.displayLabel === "string" ? [area.displayLabel] : [],
+    ),
+  ];
+  const seen = new Set<string>();
+  return candidates.flatMap((value) => {
+    const normalized = value.normalize("NFC").trim();
+    const key = discoveryText(normalized);
+    if (!normalized || seen.has(key) || seen.size >= 6) return [];
+    seen.add(key);
+    return [normalized];
   });
 }
 

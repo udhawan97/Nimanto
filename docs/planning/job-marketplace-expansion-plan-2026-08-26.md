@@ -27,12 +27,14 @@ This approach maximizes freshness and provenance while keeping the architecture 
 | Posting lifecycle | Schema version 8 stores source runs, immutable normalized observations, role availability, and verification attempts. Raw provider payloads are hashed and discarded under the current zero-hour policy. |
 | Stale protection | One complete-list miss sets `possibly_closed`; a second complete miss at least six hours later sets `closed`. Failed and partial runs never close a role. Source `validThrough` can set `expired`; elapsed recheck time becomes `overdue`, not closed. |
 | Work mode | `remote`, `hybrid`, `onsite`, `unknown`, and `conflicting` are canonical domain values with source-field evidence and structured areas. The workbench includes remote, non-remote, individual-mode, role-family, posting-state, and verification filters. |
-| Personalization | Candidate-approved Discovery Profiles are versioned, idempotent, linked to an exact Evidence Profile, and applied to title, role-family, source, area, work-mode, and observation-age discovery. No résumé inference is silently persisted. |
+| Personalization | Candidate-approved Discovery Profiles are versioned, idempotent, linked to an exact Evidence Profile, and applied to title, role-family, literal seniority/industry/skill terms, source, physical/remote area, work mode, compensation, and observation-age discovery. A visible contract summary, bounded approved-term suggestions, and per-role reason ledger distinguish matched, excluded, and unresolved inputs. No résumé inference is silently persisted. |
 | Aggregation | Exact-field normalized company/title/location clusters group possible cross-source variants while retaining every source record, link, wording, and verification label. Same-source roles are not collapsed by title/location alone. |
 | H-1B boundary | Exact current-posting wording is a visible warning with locator/time evidence. Historical company signals are displayed separately and never treated as current sponsorship proof or an automatic rejection. |
 | Data control | `nimanto_export_v3` includes discovery profiles, source runs, observations, verification attempts, and availability; tenant deletion cascades through all new tenant-owned tables. |
 
 Licensed feeds, partner-only sources, and terms-conflicted aggregators are deliberately not executable. Their registry entries make future activation explicit without treating adapter code, a public endpoint, or user demand as data rights.
+
+**Delivery status:** Phases 0–2 are implemented in the current source tree. Phase 3 has a tested SmartRecruiters adapter and existing schedule/provenance seams, but its source execution and rights-permitted routing remain gated. Phase 4 cannot begin honestly without written feed rights and the named 14-day non-production bake-off.
 
 ## Product outcome
 
@@ -364,6 +366,8 @@ Backfill existing roles with unknown verification and `lastVerifiedAt = null`, t
 
 **Deliverables:** candidate-approved Discovery Profile with titles, families, seniority, industries, skills, commute/relocation, work mode/geography, compensation, source/freshness preferences, authorization statement version/expiry, matcher/normalizer versions, and deterministic query suggestions/explanations.
 
+**Implemented:** the candidate edits and approves every currently permitted preference above; the safe sponsorship rule remains fixed to warning-only `show_all` until its precision-first gate passes. Saved input is replayed locally with grapheme-safe boundary-aware phrase matching and mode-specific canonical geography. Every area and stable identifier remains in the edit draft; changed identifiers must be reconfirmed or explicitly cleared before save, and confirmed saves replay losslessly. Ambiguous candidate or posting geography remains unresolved. Conclusive literal/canonical mismatches affect the recommended view, while every Role remains reachable through the all/outside-recommendations views with its reason ledger. Cross-source variants share a card only when their complete assessments are identical. Missing compensation, coordinates, relocation evidence, or an expired authorization review remains unresolved; a dated review cannot be saved without nonempty candidate-approved authorization wording. Suggested searches contain only approved terms. Each Role exposes the complete profile hash and matcher/normalizer versions. API, persistence, export, deletion, pure-derivation, and WebKit acceptance seams cover the contract.
+
 ### Phase 3 — direct ATS expansion and routing
 
 **Effort:** medium
@@ -381,6 +385,8 @@ Improve the existing adapters at the same time:
 **Effort:** medium plus access dependency
 
 **Deliverables:** one 14-day non-production bake-off—Adzuna only after written rights for Nimanto's exact display/retention and, separately, ATS recheck/canonical-link behavior, or a contracted LinkUp/Lightcast trial—plus source-preserving `RoleCluster` display. Jooble follows only after written clarification. WWR, Remotive, and The Muse remain disabled pending written permission.
+
+**Blocked on external authority:** source-preserving grouping is already present for approved inventory, but no broad feed may be enabled or represented as evaluated until the required written rights and bake-off evidence exist.
 
 Start with one source per class. Measure unique, verified, candidate-relevant roles before adding another feed.
 

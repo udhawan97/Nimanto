@@ -1381,6 +1381,27 @@ describe("beta workflow persistence", () => {
       subdivisionCode: "US-IL",
     });
     expect(await store.listDiscoveryProfiles(owner.tenantId)).toHaveLength(1);
+    const emptyStatement = await store.createProfileVersion(owner.tenantId, "");
+    await expect(
+      store.saveDiscoveryProfile(owner.tenantId, {
+        ...input,
+        authorizationStatementVersionId: emptyStatement.id,
+        authorizationStatementExpiresAt: "2027-01-01T00:00:00.000Z",
+      }),
+    ).rejects.toThrow("DISCOVERY_AUTHORIZATION_STATEMENT_REQUIRED");
+    const statement = await store.createProfileVersion(
+      owner.tenantId,
+      "I require employer-sponsored work authorization.",
+    );
+    const withStatement = await store.saveDiscoveryProfile(owner.tenantId, {
+      ...input,
+      authorizationStatementVersionId: statement.id,
+      authorizationStatementExpiresAt: "2027-01-01T00:00:00.000Z",
+    });
+    expect(withStatement.profile.input).toMatchObject({
+      authorizationStatementVersionId: statement.id,
+      authorizationStatementExpiresAt: "2027-01-01T00:00:00.000Z",
+    });
     const other = await store.createLocalTenant("other-discovery@example.test", "Other Discovery");
     const foreignProfile = await store.createProfileVersion(other.tenantId, "Foreign wording");
     await expect(

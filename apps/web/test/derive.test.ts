@@ -6,16 +6,19 @@ import {
   FOLLOW_UP_DAYS,
   applicationCohortCounts,
   applyDiscoveryProfile,
+  assessDiscoveryProfile,
   boardColumns,
   canMove,
   confirmationPrompt,
   daysSinceLastRecord,
+  discoveryProfileSuggestions,
   failureMessage,
   filterEvidence,
   filterApplications,
   filterRoles,
   followUpNote,
   funnelStages,
+  groupRolesByDiscoveryAssessment,
   lastRecordedAt,
   legalTargets,
   needsConfirmation,
@@ -719,6 +722,23 @@ describe("ephemeral role filters", () => {
     ).toEqual([roles[2]]);
   });
 
+  it("keeps suggested local searches inside visible posting text", () => {
+    const enriched = roles.map((role, index) => ({
+      ...role,
+      description: index === 0 ? "Build resilient TypeScript services" : "Analyze growth data",
+      requirements: index === 0 ? ["PostgreSQL"] : ["SQL"],
+    }));
+    expect(
+      filterRoles(enriched, {
+        query: "PostgreSQL",
+        source: "all",
+        fit: "all",
+        tracking: "all",
+        visibility: "all",
+      }).map((role) => role.id),
+    ).toEqual(["platform"]);
+  });
+
   it("keeps archived roles out of the current shortlist until explicitly requested", () => {
     expect(
       filterRoles(roles, { query: "", source: "all", fit: "all", tracking: "all" }).map(
@@ -800,6 +820,447 @@ describe("ephemeral role filters", () => {
       NOW,
     );
     expect(filtered.map((role) => role.id)).toEqual(["platform"]);
+  });
+
+  it("applies the candidate's literal Phase 2 discovery constraints without inventing role facts", () => {
+    const role = {
+      ...roles[0]!,
+      description: "Lead a healthcare platform team with TypeScript services.",
+      requirements: ["TypeScript", "PostgreSQL"],
+      workMode: "hybrid",
+      roleFamily: "software_technical",
+      availability: {
+        publicationState: "active",
+        verificationHealth: "verified",
+        lastSeenAt: daysAgo(1),
+      },
+      sourceMeta: {
+        compensation: { minimum: 140_000, maximum: 180_000, currency: "USD" },
+      },
+    };
+    const profile = {
+      roleFamilies: ["software_technical"],
+      includeTitles: ["Engineer"],
+      excludeTitles: ["Manager"],
+      seniorityLevels: ["Lead"],
+      industries: ["healthcare"],
+      mustHaveSkills: ["TypeScript"],
+      preferredSkills: ["Rust"],
+      acceptedPhysicalAreas: [],
+      commuteRadiusMiles: 25,
+      relocationPreference: "no" as const,
+      workModes: ["hybrid"],
+      eligibleRemoteAreas: [],
+      minimumCompensation: { amount: 150_000, currency: "USD" },
+      authorizationStatementExpiresAt: "2026-08-01T00:00:00.000Z",
+      freshnessMaximumHours: 7 * 24,
+      sourceIds: ["greenhouse"],
+    };
+
+    const assessment = assessDiscoveryProfile(role, profile, NOW);
+
+    expect(assessment.included).toBe(true);
+    expect(assessment.reasons).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "seniority", state: "matched" }),
+        expect.objectContaining({ code: "industry", state: "matched" }),
+        expect.objectContaining({ code: "must_have_skill", state: "matched" }),
+        expect.objectContaining({ code: "preferred_skill", state: "unresolved" }),
+        expect.objectContaining({ code: "minimum_compensation", state: "unresolved" }),
+        expect.objectContaining({ code: "commute_radius", state: "unresolved" }),
+        expect.objectContaining({ code: "authorization_expiry", state: "unresolved" }),
+      ]),
+    );
+  });
+
+  it("excludes only compensation ranges that are conclusively below the approved floor", () => {
+    const base = {
+      ...roles[0]!,
+      description: "Platform work",
+      requirements: ["TypeScript"],
+      sourceMeta: {},
+    };
+    const profile = {
+      roleFamilies: [],
+      includeTitles: [],
+      excludeTitles: [],
+      seniorityLevels: [],
+      industries: [],
+      mustHaveSkills: [],
+      preferredSkills: [],
+      acceptedPhysicalAreas: [],
+      commuteRadiusMiles: null,
+      relocationPreference: "consider" as const,
+      workModes: [],
+      eligibleRemoteAreas: [],
+      minimumCompensation: { amount: 150_000, currency: "USD" },
+      authorizationStatementExpiresAt: null,
+      freshnessMaximumHours: 7 * 24,
+      sourceIds: [],
+    };
+
+    expect(assessDiscoveryProfile(base, profile, NOW)).toMatchObject({
+      included: true,
+      reasons: expect.arrayContaining([
+        expect.objectContaining({ code: "minimum_compensation", state: "unresolved" }),
+      ]),
+    });
+    expect(
+      assessDiscoveryProfile(
+        {
+          ...base,
+          sourceMeta: {
+            compensation: { minimum: 90_000, maximum: 120_000, currency: "USD" },
+          },
+        },
+        profile,
+        NOW,
+      ),
+    ).toMatchObject({
+      included: false,
+      reasons: expect.arrayContaining([
+        expect.objectContaining({ code: "minimum_compensation", state: "excluded" }),
+      ]),
+    });
+  });
+
+  it("does not turn short approved terms into substring matches", () => {
+    const assessment = assessDiscoveryProfile(
+      {
+        ...roles[0]!,
+        title: "Chair of Operations",
+        company: "Google",
+        description: "Build paid governance systems.",
+        requirements: [],
+      },
+      {
+        roleFamilies: [],
+        includeTitles: ["AI"],
+        excludeTitles: [],
+        seniorityLevels: [],
+        industries: [],
+        mustHaveSkills: ["Go"],
+        preferredSkills: [],
+        acceptedPhysicalAreas: [],
+        commuteRadiusMiles: null,
+        relocationPreference: "consider",
+        workModes: [],
+        eligibleRemoteAreas: [],
+        minimumCompensation: null,
+        authorizationStatementVersionId: null,
+        authorizationStatementExpiresAt: null,
+        freshnessMaximumHours: 7 * 24,
+        sourceIds: [],
+      },
+      NOW,
+    );
+
+    expect(assessment.included).toBe(false);
+    expect(assessment.reasons).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "include_title", state: "excluded" }),
+        expect.objectContaining({ code: "must_have_skill", state: "excluded" }),
+      ]),
+    );
+
+    const combiningMarkAssessment = assessDiscoveryProfile(
+      { ...roles[0]!, title: "का", description: "", requirements: [] },
+      {
+        roleFamilies: [],
+        includeTitles: ["क"],
+        excludeTitles: [],
+        seniorityLevels: [],
+        industries: [],
+        mustHaveSkills: [],
+        preferredSkills: [],
+        acceptedPhysicalAreas: [],
+        commuteRadiusMiles: null,
+        relocationPreference: "consider",
+        workModes: [],
+        eligibleRemoteAreas: [],
+        minimumCompensation: null,
+        authorizationStatementVersionId: null,
+        authorizationStatementExpiresAt: null,
+        freshnessMaximumHours: 7 * 24,
+        sourceIds: [],
+      },
+      NOW,
+    );
+    expect(combiningMarkAssessment).toMatchObject({
+      included: false,
+      reasons: expect.arrayContaining([
+        expect.objectContaining({ code: "include_title", state: "excluded" }),
+      ]),
+    });
+  });
+
+  it("keeps clustered variants with different discovery ledgers on separate cards", () => {
+    const clustered = [
+      { id: "greenhouse", cluster: { id: "same-role" } },
+      { id: "lever", cluster: { id: "same-role" } },
+      { id: "ashby", cluster: { id: "same-role" } },
+    ];
+    const assessments = new Map([
+      [
+        "greenhouse",
+        { included: true, reasons: [{ code: "source", state: "matched", detail: "greenhouse" }] },
+      ],
+      [
+        "lever",
+        { included: false, reasons: [{ code: "source", state: "excluded", detail: "lever" }] },
+      ],
+      [
+        "ashby",
+        { included: true, reasons: [{ code: "source", state: "matched", detail: "greenhouse" }] },
+      ],
+    ]);
+
+    expect(
+      groupRolesByDiscoveryAssessment(clustered, assessments).map((group) =>
+        group.map((role) => role.id),
+      ),
+    ).toEqual([["greenhouse", "ashby"], ["lever"]]);
+  });
+
+  it("keeps physical and remote canonical geography separate by workplace mode", () => {
+    const profile = {
+      roleFamilies: [],
+      includeTitles: [],
+      excludeTitles: [],
+      seniorityLevels: [],
+      industries: [],
+      mustHaveSkills: [],
+      preferredSkills: [],
+      acceptedPhysicalAreas: [
+        {
+          displayLabel: "Chicago, IL",
+          countryCode: "US",
+          subdivisionCode: "US-IL",
+          metroId: "chi",
+          timeZone: "America/Chicago",
+          resolution: "confirmed" as const,
+        },
+      ],
+      commuteRadiusMiles: null,
+      relocationPreference: "consider" as const,
+      workModes: [],
+      eligibleRemoteAreas: [
+        {
+          displayLabel: "United States",
+          countryCode: "US",
+          subdivisionCode: null,
+          metroId: null,
+          timeZone: null,
+          resolution: "confirmed" as const,
+        },
+      ],
+      minimumCompensation: null,
+      authorizationStatementVersionId: null,
+      authorizationStatementExpiresAt: null,
+      freshnessMaximumHours: 7 * 24,
+      sourceIds: [],
+    };
+    const newYork = {
+      displayLabel: "New York, NY",
+      countryCode: "US",
+      subdivisionCode: "US-NY",
+      metroId: "nyc",
+      timeZone: "America/New_York",
+      resolution: "confirmed" as const,
+    };
+    const onsite = assessDiscoveryProfile(
+      {
+        ...roles[0]!,
+        workMode: "onsite",
+        workplaceEvidence: [
+          {
+            physicalLocations: [newYork],
+            eligibleRemoteAreas: [],
+          },
+        ],
+      },
+      profile,
+      NOW,
+    );
+    const remote = assessDiscoveryProfile(
+      {
+        ...roles[0]!,
+        workMode: "remote",
+        workplaceEvidence: [
+          {
+            physicalLocations: [],
+            eligibleRemoteAreas: [
+              {
+                displayLabel: "US",
+                countryCode: "US",
+                subdivisionCode: null,
+                metroId: null,
+                timeZone: null,
+                resolution: "confirmed" as const,
+              },
+            ],
+          },
+        ],
+      },
+      profile,
+      NOW,
+    );
+
+    expect(onsite).toMatchObject({
+      included: false,
+      reasons: expect.arrayContaining([
+        expect.objectContaining({ code: "area", state: "excluded" }),
+      ]),
+    });
+    expect(remote).toMatchObject({
+      included: true,
+      reasons: expect.arrayContaining([
+        expect.objectContaining({ code: "area", state: "matched" }),
+      ]),
+    });
+  });
+
+  it("keeps ambiguous candidate or posting geography unresolved and included", () => {
+    const assessment = assessDiscoveryProfile(
+      {
+        ...roles[0]!,
+        location: "",
+        workMode: "unknown",
+        workplaceEvidence: [],
+      },
+      {
+        roleFamilies: [],
+        includeTitles: [],
+        excludeTitles: [],
+        seniorityLevels: [],
+        industries: [],
+        mustHaveSkills: [],
+        preferredSkills: [],
+        acceptedPhysicalAreas: [
+          {
+            displayLabel: "Georgia",
+            countryCode: null,
+            subdivisionCode: null,
+            metroId: null,
+            timeZone: null,
+            resolution: "unknown",
+          },
+        ],
+        commuteRadiusMiles: null,
+        relocationPreference: "consider",
+        workModes: [],
+        eligibleRemoteAreas: [],
+        minimumCompensation: null,
+        authorizationStatementVersionId: null,
+        authorizationStatementExpiresAt: null,
+        freshnessMaximumHours: 7 * 24,
+        sourceIds: [],
+      },
+      NOW,
+    );
+
+    expect(assessment).toMatchObject({
+      included: true,
+      reasons: expect.arrayContaining([
+        expect.objectContaining({ code: "area", state: "unresolved" }),
+      ]),
+    });
+
+    const missingPostingArea = assessDiscoveryProfile(
+      {
+        ...roles[0]!,
+        location: "",
+        workMode: "onsite",
+        workplaceEvidence: [],
+      },
+      {
+        roleFamilies: [],
+        includeTitles: [],
+        excludeTitles: [],
+        seniorityLevels: [],
+        industries: [],
+        mustHaveSkills: [],
+        preferredSkills: [],
+        acceptedPhysicalAreas: [
+          {
+            displayLabel: "Chicago, IL",
+            countryCode: "US",
+            subdivisionCode: "US-IL",
+            metroId: "chi",
+            timeZone: "America/Chicago",
+            resolution: "confirmed",
+          },
+        ],
+        commuteRadiusMiles: null,
+        relocationPreference: "consider",
+        workModes: [],
+        eligibleRemoteAreas: [],
+        minimumCompensation: null,
+        authorizationStatementVersionId: null,
+        authorizationStatementExpiresAt: null,
+        freshnessMaximumHours: 7 * 24,
+        sourceIds: [],
+      },
+      NOW,
+    );
+    expect(missingPostingArea).toMatchObject({
+      included: true,
+      reasons: expect.arrayContaining([
+        expect.objectContaining({ code: "area", state: "unresolved" }),
+      ]),
+    });
+  });
+
+  it("does not call a future authorization expiry matched without a linked statement", () => {
+    const profile = {
+      roleFamilies: [],
+      includeTitles: [],
+      excludeTitles: [],
+      seniorityLevels: [],
+      industries: [],
+      mustHaveSkills: [],
+      preferredSkills: [],
+      acceptedPhysicalAreas: [],
+      commuteRadiusMiles: null,
+      relocationPreference: "consider" as const,
+      workModes: [],
+      eligibleRemoteAreas: [],
+      minimumCompensation: null,
+      authorizationStatementVersionId: null,
+      authorizationStatementExpiresAt: "2027-01-01T00:00:00.000Z",
+      freshnessMaximumHours: 7 * 24,
+      sourceIds: [],
+    };
+    const assessment = assessDiscoveryProfile(roles[0]!, profile, NOW);
+
+    expect(assessment.reasons).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "authorization_expiry", state: "unresolved" }),
+      ]),
+    );
+    expect(
+      assessDiscoveryProfile(
+        roles[0]!,
+        { ...profile, authorizationStatementVersionId: "approved-statement" },
+        NOW,
+      ).reasons,
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "authorization_expiry", state: "matched" }),
+      ]),
+    );
+  });
+
+  it("builds bounded local query suggestions only from candidate-approved discovery text", () => {
+    expect(
+      discoveryProfileSuggestions({
+        includeTitles: ["Platform Engineer", "ML Engineer"],
+        mustHaveSkills: ["TypeScript"],
+        preferredSkills: ["PostgreSQL", "Rust"],
+        acceptedPhysicalAreas: [{ displayLabel: "Chicago", countryCode: "US" }],
+        eligibleRemoteAreas: [{ displayLabel: "United States", countryCode: "US" }],
+      }),
+    ).toEqual(["Platform Engineer", "ML Engineer", "TypeScript", "PostgreSQL", "Rust", "Chicago"]);
   });
 });
 

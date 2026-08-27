@@ -1895,13 +1895,33 @@ export class NimantoStore {
       normalized.profileVersionId,
       normalized.authorizationStatementVersionId,
     ].filter((id): id is string => id !== null);
+    let linkedProfiles: Array<{ id: string; authorization_wording: string | null }> = [];
     if (linkedProfileIds.length > 0) {
-      const linked = await this.#db.query<{ id: string }>(
-        "SELECT id FROM profile_versions WHERE tenant_id = $1 AND id = ANY($2::text[])",
+      const linked = await this.#db.query<{
+        id: string;
+        authorization_wording: string | null;
+      }>(
+        `SELECT id, authorization_wording FROM profile_versions
+         WHERE tenant_id = $1 AND id = ANY($2::text[])`,
         [tenantId, [...new Set(linkedProfileIds)]],
       );
       if (linked.rows.length !== new Set(linkedProfileIds).size) {
         throw new Error("PROFILE_VERSION_NOT_FOUND");
+      }
+      linkedProfiles = linked.rows;
+    }
+    if (
+      normalized.authorizationStatementExpiresAt !== null &&
+      normalized.authorizationStatementVersionId === null
+    ) {
+      throw new Error("DISCOVERY_AUTHORIZATION_STATEMENT_REQUIRED");
+    }
+    if (normalized.authorizationStatementVersionId !== null) {
+      const statement = linkedProfiles.find(
+        (profile) => profile.id === normalized.authorizationStatementVersionId,
+      );
+      if (!statement?.authorization_wording?.normalize("NFC").trim()) {
+        throw new Error("DISCOVERY_AUTHORIZATION_STATEMENT_REQUIRED");
       }
     }
     const inputHash = canonicalHash(normalized);

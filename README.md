@@ -73,10 +73,14 @@ today.
 
 ## On `main` after v0.8.0 — unreleased
 
-- **One candidate-approved discovery profile.** Choose role families, include or
-  exclude titles, physical/remote-eligible area, work modes, observation age,
-  and enabled sources. The profile links to an exact saved Evidence Profile;
-  résumé evidence is never silently converted into a search preference.
+- **One candidate-approved discovery contract.** Choose role families, titles,
+  literal seniority/industry/skill terms, physical and remote-eligible areas,
+  commute/relocation preferences, work modes, posted-compensation floor,
+  observation age, authorization-review date, and enabled sources. The profile
+  links to an exact saved Evidence Profile; résumé evidence is never silently
+  converted into a search preference. Every shown role can replay the exact
+  matched and unresolved inputs behind its inclusion; outside-recommendation
+  roles remain searchable with their exclusion reasons.
 - **Source-qualified posting freshness.** Source runs, normalized observations,
   availability, and verification attempts are stored separately. One complete
   source-list miss means `possibly_closed`; only a second complete miss at least
@@ -405,14 +409,24 @@ artifacts.
 - Source runs, immutable normalized observations, payload hashes, availability,
   and method-qualified verification attempts remain separate from the mutable
   current Role. Raw provider bodies use the current zero-hour retention policy.
-- Candidate-approved Discovery Profiles apply saved role-family, title, area,
-  work-mode, source, and observation-age choices. Possible cross-source variants
-  with the same normalized fields are grouped for display without merging their
-  records or provenance.
+- Candidate-approved Discovery Profiles apply saved role-family, title,
+  literal seniority/industry/skill, area, work-mode, source, compensation, and
+  observation-age choices. Phrase boundaries prevent short terms from matching
+  inside unrelated words. Physical and remote geography use their separate
+  canonical identifiers; ambiguous areas, unknown compensation, commute
+  distance, relocation, or expired authorization review remain visible as
+  unresolved rather than becoming inferred matches. Edited area identifiers
+  require reconfirmation before save, and a dated authorization review requires
+  nonempty candidate-approved wording. Bounded suggestions reuse approved terms
+  only, and each searchable role exposes the complete profile hash, rule
+  versions, and deterministic reason ledger. Possible cross-source variants
+  with the same normalized fields are grouped only when those ledgers are
+  identical, without merging their records or provenance.
 - Manual role drafts stay in the signed-in browser tab across workbench section
   changes. Reload, sign-out, identity change, successful save, or confirmed
   discard clears them; failed saves preserve them.
-- Search by title, company or location and combine source, remote/non-remote,
+- Search literal title, company, location, description, or requirement text and
+  combine source, remote/non-remote,
   canonical work mode, role family, publication state, verification,
   match-state, and tracking filters. These shortlist filters live only in the
   open Role discovery view; they are not persisted or sent to the API.

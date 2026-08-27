@@ -1255,6 +1255,112 @@ test("evidence-rich review features stay literal, local, and inspectable", async
   expect(overflow).toBeLessThanOrEqual(0);
 });
 
+test("the full discovery contract is candidate-approved, replayed, and explained", async ({
+  page,
+}) => {
+  await page.goto(`/workspace/#bootstrap=${bootstrapSecret}`);
+  await page.getByLabel("Your name").fill("Discovery Review");
+  await page.getByLabel("Your email").fill("discovery-review@example.test");
+  await page.getByRole("button", { name: "Start private workspace" }).click();
+  await page.getByRole("button", { name: "Run starter matches" }).click();
+  await page.getByRole("button", { name: "Role discovery" }).click();
+
+  await page.getByLabel("Seniority terms, one per line").fill("Engineer");
+  await page.getByLabel("Industry terms, one per line").fill("platform");
+  await page.getByLabel("Required skill terms, one per line").fill("TypeScript");
+  await page.getByLabel("Preferred skill terms, one per line").fill("PostgreSQL");
+  await page.getByLabel("Include conflicting evidence").check();
+  await page.getByRole("button", { name: "Add physical area" }).click();
+  await page.getByLabel("Physical area 1 label").fill("Chicago, IL");
+  await page.getByLabel("Physical area 1 country code").fill("US");
+  await page.getByLabel("Physical area 1 subdivision code").fill("US-IL");
+  await page.getByLabel("Physical area 1 metro ID").fill("chi");
+  await page.getByLabel("Physical area 1 timezone").fill("America/Chicago");
+  await page.getByLabel("Physical area 1 confirmation").selectOption("confirmed");
+  await page.getByRole("button", { name: "Add physical area" }).click();
+  await page.getByLabel("Physical area 2 label").fill("Madison, WI");
+  await page.getByLabel("Physical area 2 country code").fill("US");
+  await page.getByLabel("Physical area 2 subdivision code").fill("US-WI");
+  await page.getByLabel("Physical area 2 confirmation").selectOption("confirmed");
+  await page.getByRole("button", { name: "Add remote area" }).click();
+  await page.getByLabel("Remote area 1 label").fill("United States");
+  await page.getByLabel("Remote area 1 country code").fill("US");
+  await page.getByLabel("Remote area 1 confirmation").selectOption("confirmed");
+  await page.getByLabel("Commute radius in miles").fill("25");
+  await page.getByLabel("Willingness to move").selectOption("no");
+  await page.getByLabel("Minimum posted compensation").fill("150000");
+  await page.getByLabel("Compensation currency").fill("USD");
+  await page.getByLabel("Reconfirm authorization statement by").fill("2026-12-31");
+  await page.getByRole("button", { name: "Approve discovery profile" }).click();
+
+  await expect(page.getByText("Discovery profile approved and saved.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Active discovery contract" })).toBeVisible();
+  await expect(page.getByLabel("Exact discovery profile hash")).toHaveText(/^[a-f0-9]{64}$/);
+  await expect(page.locator(".discovery-provenance")).toContainText("scoring_rules_v1");
+  await expect(page.locator(".discovery-provenance")).toContainText("discovery_profile_v1");
+  await expect(page.locator(".job-row")).toHaveCount(1);
+  const role = page.locator(".job-row").first();
+  await role.getByText("Why this role is shown").click();
+  await expect(role.getByText("Seniority · matched")).toBeVisible();
+  await expect(role.getByText("Required skill · matched")).toBeVisible();
+  await expect(role.getByText("Commute radius · unresolved")).toBeVisible();
+  await expect(role.locator(".discovery-rationale code")).toHaveText(/^[a-f0-9]{64}$/);
+
+  await page.getByLabel("Discovery contract view").selectOption("excluded");
+  await expect(page.locator(".job-row")).toHaveCount(1);
+  const excluded = page.locator(".job-row").first();
+  await excluded.getByText("Why this role is outside recommendations").click();
+  await expect(excluded.locator(".discovery-rationale")).toContainText("Excluded");
+  await page.getByLabel("Discovery contract view").selectOption("recommended");
+
+  await page.reload();
+  await page.getByRole("button", { name: "Role discovery" }).click();
+  await expect(page.getByRole("heading", { name: "Active discovery contract" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Discovery profile" }).click();
+  await expect(page.getByLabel("Seniority terms, one per line")).toHaveValue("Engineer");
+  await expect(page.getByLabel("Industry terms, one per line")).toHaveValue("platform");
+  await expect(page.getByLabel("Required skill terms, one per line")).toHaveValue("TypeScript");
+  await expect(page.getByLabel("Preferred skill terms, one per line")).toHaveValue("PostgreSQL");
+  await expect(page.getByLabel("Include conflicting evidence")).toBeChecked();
+  await expect(page.getByLabel("Physical area 1 label")).toHaveValue("Chicago, IL");
+  await expect(page.getByLabel("Physical area 1 subdivision code")).toHaveValue("US-IL");
+  await expect(page.getByLabel("Physical area 1 metro ID")).toHaveValue("chi");
+  await expect(page.getByLabel("Physical area 1 timezone")).toHaveValue("America/Chicago");
+  await expect(page.getByLabel("Physical area 1 confirmation")).toHaveValue("confirmed");
+  await expect(page.getByLabel("Physical area 2 label")).toHaveValue("Madison, WI");
+  await expect(page.getByLabel("Physical area 2 subdivision code")).toHaveValue("US-WI");
+  await expect(page.getByLabel("Remote area 1 label")).toHaveValue("United States");
+  await expect(page.getByLabel("Remote area 1 country code")).toHaveValue("US");
+  await expect(page.getByLabel("Commute radius in miles")).toHaveValue("25");
+  await expect(page.getByLabel("Willingness to move")).toHaveValue("no");
+  await expect(page.getByLabel("Minimum posted compensation")).toHaveValue("150000");
+  await expect(page.getByLabel("Compensation currency")).toHaveValue("USD");
+  await expect(page.getByLabel("Reconfirm authorization statement by")).toHaveValue("2026-12-31");
+
+  await page.getByLabel("Physical area 1 label").fill("Chicago metro");
+  await expect(page.getByLabel("Physical area 1 confirmation")).toHaveValue("unknown");
+  await page.getByRole("button", { name: "Approve discovery profile" }).click();
+  await expect(
+    page.getByText("Confirm each edited structured area before saving", { exact: false }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Physical area 1 subdivision code")).toHaveValue("US-IL");
+  await expect(page.getByLabel("Physical area 1 metro ID")).toHaveValue("chi");
+  await expect(page.getByLabel("Physical area 1 timezone")).toHaveValue("America/Chicago");
+  await page.getByLabel("Physical area 1 confirmation").selectOption("confirmed");
+  await page.getByRole("button", { name: "Approve discovery profile" }).click();
+  await expect(page.getByText("Discovery profile approved and saved.")).toBeVisible();
+
+  await page.reload();
+  await page.getByRole("button", { name: "Role discovery" }).click();
+  await page.getByRole("button", { name: "Discovery profile" }).click();
+  await expect(page.getByLabel("Physical area 1 label")).toHaveValue("Chicago metro");
+  await expect(page.getByLabel("Physical area 1 subdivision code")).toHaveValue("US-IL");
+  await expect(page.getByLabel("Physical area 1 metro ID")).toHaveValue("chi");
+  await expect(page.getByLabel("Physical area 1 timezone")).toHaveValue("America/Chicago");
+  await expect(page.getByLabel("Physical area 1 confirmation")).toHaveValue("confirmed");
+});
+
 test("retained history, record review, cohorts, and sensitive export stay bounded and explicit", async ({
   page,
 }) => {

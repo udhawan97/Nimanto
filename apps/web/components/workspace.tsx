@@ -59,17 +59,19 @@ import {
   BOARD_COLUMNS,
   APPLICATION_MATCH_BUCKETS,
   applicationCohortCounts,
-  applyDiscoveryProfile,
+  assessDiscoveryProfile,
   boardColumns,
   canMove,
   countedNoun,
   confirmationPrompt,
+  discoveryProfileSuggestions,
   failureMessage,
   filterEvidence,
   filterApplications,
   filterRoles,
   followUpNote,
   funnelStages,
+  groupRolesByDiscoveryAssessment,
   legalTargets,
   needsConfirmation,
   nextSteps,
@@ -83,6 +85,7 @@ import {
   sortApplications,
   type EvidenceFilters,
   type ApplicationStatus,
+  type DiscoveryProfileReason,
   type Section,
 } from "../lib/derive.js";
 import {
@@ -156,8 +159,8 @@ type Job = {
     sourceFieldOrLocator: string;
     observedAt: string;
     confidence: string;
-    eligibleRemoteAreas?: Array<{ displayLabel?: string; countryCode?: string | null }>;
-    physicalLocations?: Array<{ displayLabel?: string; countryCode?: string | null }>;
+    eligibleRemoteAreas?: StructuredArea[];
+    physicalLocations?: StructuredArea[];
   }>;
   requirements: string[];
   url: string;
@@ -316,14 +319,40 @@ type RoleFilters = {
   roleFamily: string;
   publication: "current" | "possibly_closed" | "closed" | "all";
   verification: "all" | "verified" | "needs_review";
+  discovery: "recommended" | "excluded" | "all";
+};
+type StructuredArea = {
+  displayLabel: string;
+  countryCode: string | null;
+  subdivisionCode: string | null;
+  metroId: string | null;
+  timeZone: string | null;
+  resolution: "confirmed" | "unknown";
+};
+type StructuredAreaDraft = {
+  displayLabel: string;
+  countryCode: string;
+  subdivisionCode: string;
+  metroId: string;
+  timeZone: string;
+  resolution: "confirmed" | "unknown";
 };
 type DiscoveryDraft = {
   roleFamilies: Job["roleFamily"][];
   includeTitles: string;
   excludeTitles: string;
+  seniorityLevels: string;
+  industries: string;
+  mustHaveSkills: string;
+  preferredSkills: string;
   workModes: Job["workMode"][];
-  areaLabel: string;
-  countryCode: string;
+  acceptedPhysicalAreas: StructuredAreaDraft[];
+  eligibleRemoteAreas: StructuredAreaDraft[];
+  commuteRadiusMiles: string;
+  relocationPreference: "no" | "consider" | "yes";
+  minimumCompensation: string;
+  compensationCurrency: string;
+  authorizationStatementExpiresOn: string;
   sourceIds: string[];
   freshnessDays: string;
 };
@@ -357,6 +386,7 @@ const emptyRoleFilters = (): RoleFilters => ({
   roleFamily: "all",
   publication: "current",
   verification: "all",
+  discovery: "recommended",
 });
 const emptyEvidenceFilters = (): EvidenceFilters => ({
   query: "",
@@ -466,17 +496,19 @@ type DiscoveryProfile = {
     industries: string[];
     mustHaveSkills: string[];
     preferredSkills: string[];
-    acceptedPhysicalAreas: Array<Record<string, unknown>>;
+    acceptedPhysicalAreas: StructuredArea[];
     commuteRadiusMiles: number | null;
     relocationPreference: "no" | "consider" | "yes";
     workModes: Job["workMode"][];
-    eligibleRemoteAreas: Array<Record<string, unknown>>;
+    eligibleRemoteAreas: StructuredArea[];
     minimumCompensation: { amount: number; currency: string } | null;
     currentPostingSponsorshipFilter: "show_all" | "hide_confirmed_exact_conflicts_from_recommended";
     authorizationStatementVersionId: string | null;
     authorizationStatementExpiresAt: string | null;
     freshnessMaximumHours: number;
     sourceIds: string[];
+    matcherVersion: "scoring_rules_v1";
+    normalizerVersion: "discovery_profile_v1";
   };
 };
 type SourceRun = {
@@ -601,6 +633,173 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 
 function human(value: string): string {
   return value.replaceAll("_", " ").replace(/^\w/, (letter) => letter.toUpperCase());
+}
+
+const discoveryReasonLabels: Record<DiscoveryProfileReason["code"], string> = {
+  role_family: "Role family",
+  include_title: "Included title",
+  exclude_title: "Excluded title",
+  seniority: "Seniority",
+  industry: "Industry",
+  must_have_skill: "Required skill",
+  preferred_skill: "Preferred skill",
+  area: "Area",
+  commute_radius: "Commute radius",
+  relocation: "Relocation",
+  work_mode: "Work mode",
+  minimum_compensation: "Minimum compensation",
+  freshness: "Observation age",
+  source: "Source",
+  authorization_expiry: "Authorization review",
+};
+
+function dateInputValue(value: string | null | undefined): string {
+  return value?.slice(0, 10) ?? "";
+}
+
+const emptyStructuredAreaDraft = (): StructuredAreaDraft => ({
+  displayLabel: "",
+  countryCode: "",
+  subdivisionCode: "",
+  metroId: "",
+  timeZone: "",
+  resolution: "unknown",
+});
+
+function structuredAreaDraft(area: StructuredArea): StructuredAreaDraft {
+  return {
+    displayLabel: area.displayLabel,
+    countryCode: area.countryCode ?? "",
+    subdivisionCode: area.subdivisionCode ?? "",
+    metroId: area.metroId ?? "",
+    timeZone: area.timeZone ?? "",
+    resolution: area.resolution,
+  };
+}
+
+function StructuredAreaEditor({
+  kind,
+  areas,
+  onChange,
+}: {
+  kind: "Physical" | "Remote";
+  areas: StructuredAreaDraft[];
+  onChange: (areas: StructuredAreaDraft[]) => void;
+}) {
+  const update = (
+    index: number,
+    field: keyof StructuredAreaDraft,
+    value: StructuredAreaDraft[keyof StructuredAreaDraft],
+  ) =>
+    onChange(
+      areas.map((area, areaIndex) =>
+        areaIndex === index
+          ? {
+              ...area,
+              [field]: value,
+              ...(field === "resolution" ? {} : { resolution: "unknown" as const }),
+            }
+          : area,
+      ),
+    );
+
+  return (
+    <fieldset className="structured-area-editor">
+      <legend>{kind === "Physical" ? "Accepted physical areas" : "Remote-eligible areas"}</legend>
+      <p className="field-note">
+        Keep each stable country, subdivision, metro, and timezone identity. New or edited areas
+        stay unresolved; confirm the exact structured area again before saving identifiers.
+      </p>
+      {areas.map((area, index) => (
+        <div className="structured-area-row" key={`${kind}-${index}`}>
+          <div className="structured-area-heading">
+            <strong>
+              {kind} area {index + 1}
+            </strong>
+            <span className={`state ${area.resolution === "confirmed" ? "supported" : "warning"}`}>
+              {area.resolution === "confirmed" ? "Confirmed" : "Needs confirmation"}
+            </span>
+            <button
+              type="button"
+              className="button mini quiet"
+              onClick={() => onChange(areas.filter((_, areaIndex) => areaIndex !== index))}
+            >
+              Remove
+            </button>
+          </div>
+          <div className="field-grid structured-area-fields">
+            <label>
+              {kind} area {index + 1} label
+              <input
+                required
+                value={area.displayLabel}
+                placeholder={kind === "Physical" ? "Chicago, IL" : "United States"}
+                onChange={(event) => update(index, "displayLabel", event.target.value)}
+              />
+            </label>
+            <label>
+              {kind} area {index + 1} country code
+              <input
+                value={area.countryCode}
+                maxLength={2}
+                pattern="[A-Za-z]{2}"
+                placeholder="US"
+                onChange={(event) => update(index, "countryCode", event.target.value)}
+              />
+            </label>
+            <label>
+              {kind} area {index + 1} subdivision code
+              <input
+                value={area.subdivisionCode}
+                placeholder="US-IL"
+                onChange={(event) => update(index, "subdivisionCode", event.target.value)}
+              />
+            </label>
+            <label>
+              {kind} area {index + 1} metro ID
+              <input
+                value={area.metroId}
+                placeholder="reviewed-chicago"
+                onChange={(event) => update(index, "metroId", event.target.value)}
+              />
+            </label>
+            <label>
+              {kind} area {index + 1} timezone
+              <input
+                value={area.timeZone}
+                placeholder="America/Chicago"
+                onChange={(event) => update(index, "timeZone", event.target.value)}
+              />
+            </label>
+            <label>
+              {kind} area {index + 1} confirmation
+              <select
+                value={area.resolution}
+                onChange={(event) =>
+                  update(
+                    index,
+                    "resolution",
+                    event.target.value as StructuredAreaDraft["resolution"],
+                  )
+                }
+              >
+                <option value="unknown">Needs canonical confirmation</option>
+                <option value="confirmed">Confirmed exact structured area</option>
+              </select>
+            </label>
+          </div>
+        </div>
+      ))}
+      <button
+        type="button"
+        className="button mini quiet"
+        disabled={areas.length >= 20}
+        onClick={() => onChange([...areas, emptyStructuredAreaDraft()])}
+      >
+        <Plus size={14} /> Add {kind.toLocaleLowerCase("en-US")} area
+      </button>
+    </fieldset>
+  );
 }
 
 function cadenceLabel(minutes: number): string {
@@ -2857,11 +3056,24 @@ function Jobs({
     roleFamilies: dashboard.discoveryProfile?.input.roleFamilies ?? ["ai_ml", "software_technical"],
     includeTitles: dashboard.discoveryProfile?.input.includeTitles.join("\n") ?? "",
     excludeTitles: dashboard.discoveryProfile?.input.excludeTitles.join("\n") ?? "",
+    seniorityLevels: dashboard.discoveryProfile?.input.seniorityLevels.join("\n") ?? "",
+    industries: dashboard.discoveryProfile?.input.industries.join("\n") ?? "",
+    mustHaveSkills: dashboard.discoveryProfile?.input.mustHaveSkills.join("\n") ?? "",
+    preferredSkills: dashboard.discoveryProfile?.input.preferredSkills.join("\n") ?? "",
     workModes: dashboard.discoveryProfile?.input.workModes ?? ["remote", "hybrid", "onsite"],
-    areaLabel:
-      (dashboard.discoveryProfile?.input.acceptedPhysicalAreas[0]?.displayLabel as string) ?? "",
-    countryCode:
-      (dashboard.discoveryProfile?.input.acceptedPhysicalAreas[0]?.countryCode as string) ?? "US",
+    acceptedPhysicalAreas:
+      dashboard.discoveryProfile?.input.acceptedPhysicalAreas.map(structuredAreaDraft) ?? [],
+    eligibleRemoteAreas:
+      dashboard.discoveryProfile?.input.eligibleRemoteAreas.map(structuredAreaDraft) ?? [],
+    commuteRadiusMiles: String(dashboard.discoveryProfile?.input.commuteRadiusMiles ?? ""),
+    relocationPreference: dashboard.discoveryProfile?.input.relocationPreference ?? "consider",
+    minimumCompensation: String(
+      dashboard.discoveryProfile?.input.minimumCompensation?.amount ?? "",
+    ),
+    compensationCurrency: dashboard.discoveryProfile?.input.minimumCompensation?.currency ?? "USD",
+    authorizationStatementExpiresOn: dateInputValue(
+      dashboard.discoveryProfile?.input.authorizationStatementExpiresAt,
+    ),
     sourceIds: dashboard.discoveryProfile?.input.sourceIds ?? [
       "manual",
       "allowlisted_url",
@@ -2874,7 +3086,9 @@ function Jobs({
   const confirmedClaimIds = dashboard.evidence
     .filter((claim) => claim.status === "confirmed")
     .map((claim) => claim.id);
+  const hasAuthorizationStatement = Boolean(dashboard.profile?.authorizationWording.trim());
   const [compensationError, setCompensationError] = useState<string | null>(null);
+  const [areaConfirmationError, setAreaConfirmationError] = useState<string | null>(null);
   const addRoleButton = useRef<HTMLButtonElement>(null);
   const roleTitleField = useRef<HTMLInputElement>(null);
   const compensationMaximumField = useRef<HTMLInputElement>(null);
@@ -2896,9 +3110,31 @@ function Jobs({
     () => [...new Set(dashboard.jobs.map((job) => job.source))].toSorted(),
     [dashboard.jobs],
   );
+  const discoveryEvaluation = useMemo(() => {
+    const assessments = new Map<string, ReturnType<typeof assessDiscoveryProfile>>();
+    const evaluatedAt = new Date();
+    for (const role of roleInputs) {
+      const assessment = assessDiscoveryProfile(
+        role,
+        dashboard.discoveryProfile?.input ?? null,
+        evaluatedAt,
+      );
+      assessments.set(role.id, assessment);
+    }
+    return assessments;
+  }, [dashboard.discoveryProfile, roleInputs]);
   const discoveredRoleInputs = useMemo(
-    () => applyDiscoveryProfile(roleInputs, dashboard.discoveryProfile?.input ?? null, new Date()),
-    [dashboard.discoveryProfile, roleInputs],
+    () =>
+      roleInputs.filter((role) => {
+        const included = discoveryEvaluation.get(role.id)?.included ?? true;
+        if (filters.discovery === "all") return true;
+        return filters.discovery === "recommended" ? included : !included;
+      }),
+    [discoveryEvaluation, filters.discovery, roleInputs],
+  );
+  const suggestedQueries = useMemo(
+    () => discoveryProfileSuggestions(dashboard.discoveryProfile?.input ?? null),
+    [dashboard.discoveryProfile],
   );
   const visibleRoles = useMemo(
     () =>
@@ -2926,15 +3162,9 @@ function Jobs({
       discoveredRoleInputs,
     ],
   );
-  const displayedRoles = useMemo(() => {
-    const clusters = new Map<string, ComparableRole[]>();
-    for (const role of visibleRoles) {
-      const members = clusters.get(role.cluster.id) ?? [];
-      members.push(role);
-      clusters.set(role.cluster.id, members);
-    }
-    return [...clusters.values()].map(
-      (members) =>
+  const displayedRoleGroups = useMemo(
+    () =>
+      groupRolesByDiscoveryAssessment(visibleRoles, discoveryEvaluation).map((members) =>
         members.toSorted((left, right) => {
           const leftVerified = left.availability.verificationHealth === "verified" ? 1 : 0;
           const rightVerified = right.availability.verificationHealth === "verified" ? 1 : 0;
@@ -2942,9 +3172,10 @@ function Jobs({
             rightVerified - leftVerified ||
             right.availability.lastSeenAt.localeCompare(left.availability.lastSeenAt)
           );
-        })[0]!,
-    );
-  }, [visibleRoles]);
+        }),
+      ),
+    [discoveryEvaluation, visibleRoles],
+  );
   const comparisonRoles = useMemo(
     () =>
       comparisonRoleIds.flatMap((id) => {
@@ -2969,7 +3200,8 @@ function Jobs({
     filters.workMode !== "all" ||
     filters.roleFamily !== "all" ||
     filters.publication !== "current" ||
-    filters.verification !== "all",
+    filters.verification !== "all" ||
+    filters.discovery !== "recommended",
   );
   const numberOrNull = (value: string) => {
     const text = value.trim();
@@ -2983,19 +3215,40 @@ function Jobs({
     values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
   const saveDiscoveryProfile = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const areaLabel = discoveryDraft.areaLabel.trim();
-    const countryCode = discoveryDraft.countryCode.trim().toUpperCase();
-    const area = areaLabel
-      ? {
-          displayLabel: areaLabel,
-          countryCode: countryCode || null,
-          subdivisionCode: null,
-          metroId: null,
-          timeZone: null,
-          resolution: countryCode ? "confirmed" : "unknown",
-        }
-      : null;
+    const lines = (value: string) =>
+      value
+        .split("\n")
+        .map((item) => item.trim())
+        .filter(Boolean);
+    const areas = (values: StructuredAreaDraft[]): StructuredArea[] =>
+      values.map((area) => ({
+        displayLabel: area.displayLabel.trim(),
+        countryCode: area.countryCode.trim().toUpperCase() || null,
+        subdivisionCode: area.subdivisionCode.trim().toUpperCase() || null,
+        metroId: area.metroId.trim() || null,
+        timeZone: area.timeZone.trim() || null,
+        resolution: area.resolution,
+      }));
     const submitted = { ...discoveryDraft };
+    const pendingCanonicalArea = [
+      ...submitted.acceptedPhysicalAreas,
+      ...submitted.eligibleRemoteAreas,
+    ].some(
+      (area) =>
+        area.resolution === "unknown" &&
+        [area.countryCode, area.subdivisionCode, area.metroId, area.timeZone].some((value) =>
+          Boolean(value.trim()),
+        ),
+    );
+    if (pendingCanonicalArea) {
+      setAreaConfirmationError(
+        "Confirm each edited structured area before saving, or clear its unconfirmed identifiers.",
+      );
+      return;
+    }
+    setAreaConfirmationError(null);
+    const commuteRadiusMiles = numberOrNull(submitted.commuteRadiusMiles);
+    const minimumCompensation = numberOrNull(submitted.minimumCompensation);
     void onAct.run({
       request: () =>
         api("/v1/discovery-profile", {
@@ -3003,27 +3256,34 @@ function Jobs({
           body: JSON.stringify({
             profileVersionId: dashboard.profile?.id ?? null,
             roleFamilies: submitted.roleFamilies,
-            includeTitles: submitted.includeTitles
-              .split("\n")
-              .map((value) => value.trim())
-              .filter(Boolean),
-            excludeTitles: submitted.excludeTitles
-              .split("\n")
-              .map((value) => value.trim())
-              .filter(Boolean),
-            seniorityLevels: [],
-            industries: [],
-            mustHaveSkills: [],
-            preferredSkills: [],
-            acceptedPhysicalAreas: area ? [area] : [],
-            commuteRadiusMiles: null,
-            relocationPreference: "consider",
+            includeTitles: lines(submitted.includeTitles),
+            excludeTitles: lines(submitted.excludeTitles),
+            seniorityLevels: lines(submitted.seniorityLevels),
+            industries: lines(submitted.industries),
+            mustHaveSkills: lines(submitted.mustHaveSkills),
+            preferredSkills: lines(submitted.preferredSkills),
+            acceptedPhysicalAreas: areas(submitted.acceptedPhysicalAreas),
+            commuteRadiusMiles,
+            relocationPreference: submitted.relocationPreference,
             workModes: submitted.workModes,
-            eligibleRemoteAreas: area ? [area] : [],
-            minimumCompensation: null,
+            eligibleRemoteAreas: areas(submitted.eligibleRemoteAreas),
+            minimumCompensation:
+              minimumCompensation === null
+                ? null
+                : {
+                    amount: minimumCompensation,
+                    currency: submitted.compensationCurrency.trim().toUpperCase(),
+                  },
             currentPostingSponsorshipFilter: "show_all",
-            authorizationStatementVersionId: dashboard.profile?.id ?? null,
-            authorizationStatementExpiresAt: null,
+            authorizationStatementVersionId: hasAuthorizationStatement
+              ? (dashboard.profile?.id ?? null)
+              : null,
+            authorizationStatementExpiresAt:
+              hasAuthorizationStatement && submitted.authorizationStatementExpiresOn
+                ? new Date(
+                    `${submitted.authorizationStatementExpiresOn}T23:59:59.999Z`,
+                  ).toISOString()
+                : null,
             freshnessMaximumHours: Math.round(Number(submitted.freshnessDays) * 24),
             sourceIds: submitted.sourceIds,
           }),
@@ -3286,6 +3546,67 @@ function Jobs({
                 />
               </label>
             </div>
+            <fieldset className="discovery-criteria">
+              <legend>Literal role criteria</legend>
+              <p className="field-note">
+                These terms are matched only against stored posting text. Nimanto does not infer a
+                seniority, industry, or skill that the posting does not state.
+              </p>
+              <div className="field-grid">
+                <label>
+                  Seniority terms, one per line
+                  <textarea
+                    value={discoveryDraft.seniorityLevels}
+                    placeholder={"Senior\nLead"}
+                    onChange={(event) =>
+                      setDiscoveryDraft((current) => ({
+                        ...current,
+                        seniorityLevels: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+                <label>
+                  Industry terms, one per line
+                  <textarea
+                    value={discoveryDraft.industries}
+                    placeholder={"Healthcare\nDeveloper tools"}
+                    onChange={(event) =>
+                      setDiscoveryDraft((current) => ({
+                        ...current,
+                        industries: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+                <label>
+                  Required skill terms, one per line
+                  <textarea
+                    value={discoveryDraft.mustHaveSkills}
+                    placeholder={"TypeScript\nPostgreSQL"}
+                    onChange={(event) =>
+                      setDiscoveryDraft((current) => ({
+                        ...current,
+                        mustHaveSkills: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+                <label>
+                  Preferred skill terms, one per line
+                  <textarea
+                    value={discoveryDraft.preferredSkills}
+                    placeholder={"Rust\nKubernetes"}
+                    onChange={(event) =>
+                      setDiscoveryDraft((current) => ({
+                        ...current,
+                        preferredSkills: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+              </div>
+            </fieldset>
             <fieldset>
               <legend>Work modes</legend>
               <div className="choice-row">
@@ -3295,6 +3616,7 @@ function Jobs({
                     ["hybrid", "Hybrid"],
                     ["onsite", "On-site"],
                     ["unknown", "Include unknown"],
+                    ["conflicting", "Include conflicting evidence"],
                   ] as const
                 ).map(([value, label]) => (
                   <label key={value}>
@@ -3313,31 +3635,110 @@ function Jobs({
                 ))}
               </div>
             </fieldset>
+            <StructuredAreaEditor
+              kind="Physical"
+              areas={discoveryDraft.acceptedPhysicalAreas}
+              onChange={(acceptedPhysicalAreas) => {
+                setAreaConfirmationError(null);
+                setDiscoveryDraft((current) => ({ ...current, acceptedPhysicalAreas }));
+              }}
+            />
+            <StructuredAreaEditor
+              kind="Remote"
+              areas={discoveryDraft.eligibleRemoteAreas}
+              onChange={(eligibleRemoteAreas) => {
+                setAreaConfirmationError(null);
+                setDiscoveryDraft((current) => ({ ...current, eligibleRemoteAreas }));
+              }}
+            />
+            {areaConfirmationError && (
+              <p className="field-error" role="alert">
+                {areaConfirmationError}
+              </p>
+            )}
             <div className="field-grid">
               <label>
-                Physical or remote-eligible area
+                Commute radius in miles
                 <input
-                  value={discoveryDraft.areaLabel}
-                  placeholder="Chicago, IL or United States"
+                  type="number"
+                  min="0"
+                  max="500"
+                  step="1"
+                  value={discoveryDraft.commuteRadiusMiles}
                   onChange={(event) =>
-                    setDiscoveryDraft((current) => ({ ...current, areaLabel: event.target.value }))
+                    setDiscoveryDraft((current) => ({
+                      ...current,
+                      commuteRadiusMiles: event.target.value,
+                    }))
                   }
                 />
               </label>
               <label>
-                Country code
-                <input
-                  value={discoveryDraft.countryCode}
-                  maxLength={2}
-                  pattern="[A-Za-z]{2}"
-                  placeholder="US"
+                Willingness to move
+                <select
+                  value={discoveryDraft.relocationPreference}
                   onChange={(event) =>
                     setDiscoveryDraft((current) => ({
                       ...current,
-                      countryCode: event.target.value,
+                      relocationPreference: event.target
+                        .value as DiscoveryDraft["relocationPreference"],
+                    }))
+                  }
+                >
+                  <option value="no">Stay in current area</option>
+                  <option value="consider">Consider moving</option>
+                  <option value="yes">Open to moving</option>
+                </select>
+              </label>
+              <label>
+                Minimum posted compensation
+                <input
+                  type="number"
+                  min="0"
+                  step="1000"
+                  value={discoveryDraft.minimumCompensation}
+                  onChange={(event) =>
+                    setDiscoveryDraft((current) => ({
+                      ...current,
+                      minimumCompensation: event.target.value,
                     }))
                   }
                 />
+              </label>
+              <label>
+                Compensation currency
+                <input
+                  value={discoveryDraft.compensationCurrency}
+                  required={Boolean(discoveryDraft.minimumCompensation.trim())}
+                  maxLength={3}
+                  pattern="[A-Za-z]{3}"
+                  placeholder="USD"
+                  onChange={(event) =>
+                    setDiscoveryDraft((current) => ({
+                      ...current,
+                      compensationCurrency: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+              <label>
+                Reconfirm authorization statement by
+                <input
+                  type="date"
+                  disabled={!hasAuthorizationStatement}
+                  value={discoveryDraft.authorizationStatementExpiresOn}
+                  onChange={(event) =>
+                    setDiscoveryDraft((current) => ({
+                      ...current,
+                      authorizationStatementExpiresOn: event.target.value,
+                    }))
+                  }
+                />
+                <small>
+                  {hasAuthorizationStatement
+                    ? `Linked to authorization statement ${dashboard.profile!.id}.`
+                    : "Save nonempty candidate-approved authorization wording before setting a review date."}
+                </small>
               </label>
               <label>
                 Maximum observation age
@@ -3399,6 +3800,69 @@ function Jobs({
               </span>
             </div>
           </form>
+        )}
+        {dashboard.discoveryProfile && !discoveryOpen && (
+          <section className="discovery-contract" aria-labelledby="active-discovery-title">
+            <div className="panel-heading">
+              <div>
+                <span>Candidate-approved search inputs</span>
+                <h2 id="active-discovery-title">Active discovery contract</h2>
+              </div>
+            </div>
+            <div className="discovery-provenance">
+              <span>Exact profile hash</span>
+              <code aria-label="Exact discovery profile hash">
+                {dashboard.discoveryProfile.inputHash}
+              </code>
+              <small>
+                {dashboard.discoveryProfile.input.matcherVersion} ·{" "}
+                {dashboard.discoveryProfile.input.normalizerVersion}
+              </small>
+            </div>
+            <div className="discovery-contract-grid">
+              <p>
+                <strong>{dashboard.discoveryProfile.input.roleFamilies.length}</strong>
+                <span>role families</span>
+              </p>
+              <p>
+                <strong>
+                  {dashboard.discoveryProfile.input.seniorityLevels.length +
+                    dashboard.discoveryProfile.input.industries.length}
+                </strong>
+                <span>role terms</span>
+              </p>
+              <p>
+                <strong>
+                  {dashboard.discoveryProfile.input.mustHaveSkills.length +
+                    dashboard.discoveryProfile.input.preferredSkills.length}
+                </strong>
+                <span>skill terms</span>
+              </p>
+              <p>
+                <strong>{dashboard.discoveryProfile.input.sourceIds.length}</strong>
+                <span>approved sources</span>
+              </p>
+            </div>
+            <p className="field-note">
+              Literal constraints filter locally. Missing compensation, coordinates, or an expired
+              authorization review stays visible as unresolved; Nimanto does not invent the answer.
+            </p>
+            {suggestedQueries.length > 0 && (
+              <div className="discovery-suggestions" aria-label="Suggested local searches">
+                <span>Try a saved term</span>
+                {suggestedQueries.map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    type="button"
+                    className="button mini quiet"
+                    onClick={() => onFiltersChange({ ...filters, query: suggestion })}
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
         )}
         <details className="source-registry">
           <summary>
@@ -3906,8 +4370,25 @@ function Jobs({
             type="search"
             value={filters.query}
             onChange={(event) => onFiltersChange({ ...filters, query: event.target.value })}
-            placeholder="Title, company, or location"
+            placeholder="Title, company, location, or posting term"
           />
+        </label>
+        <label>
+          Discovery contract view
+          <select
+            value={filters.discovery}
+            disabled={!dashboard.discoveryProfile}
+            onChange={(event) =>
+              onFiltersChange({
+                ...filters,
+                discovery: event.target.value as RoleFilters["discovery"],
+              })
+            }
+          >
+            <option value="recommended">Recommended by profile</option>
+            <option value="excluded">Outside recommendations</option>
+            <option value="all">All searchable roles</option>
+          </select>
         </label>
         <label>
           Source
@@ -4040,7 +4521,8 @@ function Jobs({
             {visibleRoles.length} of {dashboard.jobs.length}
           </strong>
           <span>
-            {displayedRoles.length} role cluster{displayedRoles.length === 1 ? "" : "s"} shown
+            {displayedRoleGroups.length} explanation group
+            {displayedRoleGroups.length === 1 ? "" : "s"} shown
           </span>
           {filtersActive && (
             <button
@@ -4063,17 +4545,16 @@ function Jobs({
         />
       )}
       <div className="job-list">
-        {displayedRoles.map((job) => {
+        {displayedRoleGroups.map((clusterMembers) => {
+          const job = clusterMembers[0]!;
           const match = job.match;
-          const clusterMembers = visibleRoles.filter(
-            (candidate) => candidate.cluster.id === job.cluster.id,
-          );
           const companySignals = dashboard.h1bSignals.filter(
             (signal) =>
               signal.company.toLocaleLowerCase("en-US") === job.company.toLocaleLowerCase("en-US"),
           );
           const supportedRequirementCount =
             match?.result.requirements.filter((item) => item.state === "supported").length ?? 0;
+          const discoveryAssessment = discoveryEvaluation.get(job.id);
           return (
             <article key={job.id} className="job-row">
               <div className="job-main">
@@ -4110,9 +4591,45 @@ function Jobs({
                     </span>
                   </div>
                   <small className="posting-verification">{postingVerificationLabel(job)}</small>
+                  {dashboard.discoveryProfile && discoveryAssessment && (
+                    <details className="discovery-rationale">
+                      <summary>
+                        {discoveryAssessment.included
+                          ? "Why this role is shown"
+                          : "Why this role is outside recommendations"}
+                      </summary>
+                      <p>
+                        <span>Replayed from approved profile </span>
+                        <code>{dashboard.discoveryProfile.inputHash}</code>
+                        <span>
+                          {" "}
+                          with {dashboard.discoveryProfile.input.matcherVersion} and{" "}
+                          {dashboard.discoveryProfile.input.normalizerVersion}
+                        </span>
+                        <span>. Unresolved facts never become inferred matches.</span>
+                      </p>
+                      <ul>
+                        {discoveryAssessment.reasons.map((reason, index) => (
+                          <li key={`${reason.code}-${index}`}>
+                            <span className={`status-dot ${reason.state}`} aria-hidden="true" />
+                            <span>
+                              <strong>
+                                {discoveryReasonLabels[reason.code]} · {human(reason.state)}
+                              </strong>
+                              <small>{reason.detail}</small>
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
                   {clusterMembers.length > 1 && (
                     <details className="source-variants">
                       <summary>{clusterMembers.length} possible source variants</summary>
+                      <small>
+                        Grouped because every variant has the same complete discovery reason ledger;
+                        source records and links remain separate.
+                      </small>
                       <ul>
                         {clusterMembers.map((variant) => (
                           <li key={variant.id}>

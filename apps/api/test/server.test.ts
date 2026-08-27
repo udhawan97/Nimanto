@@ -884,10 +884,41 @@ describe("Nimanto beta API", () => {
       created: false,
       profile: { id: saved.json().profile.id },
     });
+    const emptyStatement = await app.inject({
+      method: "POST",
+      url: "/v1/profile/versions",
+      headers: { cookie },
+      payload: { authorizationWording: "" },
+    });
+    expect(emptyStatement.statusCode).toBe(200);
+    const rejectedExpiry = await app.inject({
+      method: "POST",
+      url: "/v1/discovery-profile",
+      headers: { cookie },
+      payload: {
+        ...payload,
+        authorizationStatementVersionId: emptyStatement.json().id,
+        authorizationStatementExpiresAt: "2027-01-01T00:00:00.000Z",
+      },
+    });
+    expect(rejectedExpiry.statusCode).toBe(400);
+    expect(rejectedExpiry.json()).toMatchObject({
+      error: { code: "DISCOVERY_AUTHORIZATION_STATEMENT_REQUIRED" },
+    });
+    const validExpiry = await app.inject({
+      method: "POST",
+      url: "/v1/discovery-profile",
+      headers: { cookie },
+      payload: {
+        ...payload,
+        authorizationStatementExpiresAt: "2027-01-01T00:00:00.000Z",
+      },
+    });
+    expect(validExpiry.statusCode).toBe(200);
     const refreshed = (
       await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } })
     ).json();
-    expect(refreshed.discoveryProfile.id).toBe(saved.json().profile.id);
+    expect(refreshed.discoveryProfile.id).toBe(validExpiry.json().profile.id);
   });
 
   it("rejects an invalid direct provider batch before writing any roles", async () => {

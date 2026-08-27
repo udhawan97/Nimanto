@@ -163,11 +163,29 @@ the registry so the workbench can distinguish enabled inventory from future or
 prohibited candidates without implying coverage.
 
 Discovery Profile versions store only candidate-approved title, role-family,
-area, work-mode, source, sponsorship-warning, and observation-age inputs. They
-link to an exact saved Evidence Profile but do not silently translate résumé
-text into a saved preference. Pure workbench derivation applies the approved
-profile, and deterministic matching continues to use only confirmed evidence
-from the linked Evidence Profile.
+literal seniority/industry/skill terms, physical and remote-eligible areas,
+commute/relocation preferences, work mode, source, compensation floor,
+sponsorship-warning, authorization-review date, and observation-age inputs.
+They link to an exact saved Evidence Profile but do not silently translate
+résumé text into a saved preference. Pure workbench derivation replays the
+approved profile against stored posting text and source facts. A conclusive
+literal mismatch can exclude a Role; missing compensation, coordinates, or an
+expired authorization review remains visible as unresolved and never becomes
+an inferred match. Term matching respects phrase boundaries, and confirmed
+physical and remote geography is evaluated separately by canonical country,
+subdivision, metro, or timezone identity. Ambiguous areas remain unresolved;
+editing keeps every identifier in the draft but a save is rejected until edited
+identifiers are reconfirmed or explicitly cleared. Confirmed saves replay every
+area losslessly. Bounded query suggestions contain only approved profile terms.
+Clustered variants share a card only when their complete discovery assessments
+are identical; otherwise each receives its own explanation. Every searchable
+Role exposes the complete profile hash, matcher/normalizer versions, and its
+matched, excluded, or unresolved reasons. Authorization-review dates require a
+same-tenant profile version with nonempty candidate-approved wording. The
+sponsorship preference remains fixed to warning-only `show_all` until its
+precision-first exclusion gate passes.
+Deterministic matching continues to use only confirmed evidence from the linked
+Evidence Profile.
 
 Source completeness is explicit. An observed item becomes active and receives
 a method, authority, and verification time. One absence from a complete source
