@@ -1191,6 +1191,13 @@ test("evidence-rich review features stay literal, local, and inspectable", async
   await page.getByRole("button", { name: "Run starter matches" }).click();
 
   await page.getByRole("button", { name: "Role discovery" }).click();
+  await expect(page.getByText(/Source registry · 3 enabled/)).toBeVisible();
+  await page.getByRole("button", { name: "Approve discovery profile" }).click();
+  await expect(page.getByText("Discovery profile approved and saved.")).toBeVisible();
+  await page.getByLabel("Remote / workplace").selectOption("hybrid");
+  await expect(page.locator(".job-row")).toHaveCount(1);
+  await expect(page.locator(".posting-verification")).toContainText("not source-verified");
+  await page.getByRole("button", { name: "Clear filters" }).click();
   await expect(page.getByText("Filters stay in this tab until reload or sign-out.")).toBeVisible();
   await page.getByRole("searchbox", { name: "Search roles" }).fill("Northwind");
   await page.getByLabel("Tracking").selectOption("untracked");

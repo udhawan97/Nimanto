@@ -1684,6 +1684,105 @@ svg {
   min-width: 7.5rem;
 }
 
+.marketplace-controls {
+  display: grid;
+  gap: var(--space-lg);
+}
+.discovery-profile {
+  display: grid;
+  gap: var(--space-lg);
+  border-inline-start: 2px solid var(--live-core);
+}
+.discovery-profile fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-md);
+  border: 1px solid var(--brass-100);
+  border-radius: var(--radius-sm);
+}
+.discovery-profile legend {
+  padding-inline: var(--space-xs);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-placard);
+  letter-spacing: var(--tracking-placard);
+  text-transform: uppercase;
+}
+.choice-row,
+.job-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm) var(--space-lg);
+}
+.choice-row label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  color: var(--text-body);
+  font-size: var(--text-sm);
+}
+.choice-row input {
+  width: auto;
+}
+.source-registry {
+  border: 1px solid var(--brass-200);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+.source-registry > summary {
+  padding: var(--space-lg);
+  color: var(--text);
+  cursor: pointer;
+}
+.source-registry > p {
+  padding: 0 var(--space-lg);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.source-registry-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: var(--space-md);
+  padding: var(--space-lg);
+}
+.source-registry-grid article {
+  display: grid;
+  gap: var(--space-xs);
+  padding: var(--space-md);
+  border: 1px solid var(--brass-100);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+.source-registry-grid article > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+.source-registry-grid :is(p, small) {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.posting-verification,
+.h1b-role-context {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.source-variants {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.source-variants summary {
+  width: fit-content;
+  cursor: pointer;
+}
+.source-variants ul {
+  display: grid;
+  gap: var(--space-3xs);
+  margin: var(--space-xs) 0 0;
+  padding-inline-start: var(--space-lg);
+}
+
 /* Secondary controls use one brass-edged disclosure grammar. Primary records
  * stay first in DOM and visual order; opening or closing these panels never
  * clears their tab-local state. */
@@ -2201,6 +2300,11 @@ svg {
 .blocker-source {
   display: block;
   margin-block-start: var(--space-3xs);
+}
+.blocker-provenance {
+  display: block;
+  margin-block-start: var(--space-3xs);
+  color: var(--text-muted);
 }
 
 /* A preview has to show what it is previewing. */

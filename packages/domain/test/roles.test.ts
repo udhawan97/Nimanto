@@ -14,16 +14,17 @@ describe("current role intake normalization", () => {
         contentHash: " hash-1 ",
         sourceMeta: { manual: true },
       }),
-    ).toEqual({
+    ).toMatchObject({
       source: "manual",
       sourceJobId: "role-1",
       title: "Staff Engineer",
       company: "Northwind",
       description: "Build trustworthy systems.",
       location: "",
-      workMode: "unspecified",
+      workMode: "unknown",
       url: "",
       requirements: ["TypeScript", "Evidence design"],
+      roleFamily: "software_technical",
       capability: "deep_link",
       sourceMeta: { manual: true },
       contentHash: "hash-1",
@@ -51,25 +52,30 @@ describe("current role intake normalization", () => {
     expect(role).toMatchObject({ location: "Chicago", workMode: "hybrid" });
   });
 
-  it.each<RoleSource>(["manual", "allowlisted_url", "greenhouse", "lever", "ashby"])(
-    "accepts the closed %s source variant without changing its identity",
-    (source) => {
-      const role = normalizeRoleObservation({
-        source,
-        sourceRoleId: `${source}-7`,
-        title: "Engineer",
-        company: "Northwind",
-        description: "Build trustworthy systems.",
-        contentHash: `${source}-hash`,
-        sourceMeta: { source },
-      });
-      expect(role).toMatchObject({
-        source,
-        sourceJobId: `${source}-7`,
-        contentHash: `${source}-hash`,
-      });
-    },
-  );
+  it.each<RoleSource>([
+    "manual",
+    "allowlisted_url",
+    "greenhouse",
+    "lever",
+    "ashby",
+    "smartrecruiters",
+    "licensed_feed",
+  ])("accepts the closed %s source variant without changing its identity", (source) => {
+    const role = normalizeRoleObservation({
+      source,
+      sourceRoleId: `${source}-7`,
+      title: "Engineer",
+      company: "Northwind",
+      description: "Build trustworthy systems.",
+      contentHash: `${source}-hash`,
+      sourceMeta: { source },
+    });
+    expect(role).toMatchObject({
+      source,
+      sourceJobId: `${source}-7`,
+      contentHash: `${source}-hash`,
+    });
+  });
 
   it.each([
     ["ROLE_SOURCE_ID_REQUIRED", { sourceRoleId: "" }],

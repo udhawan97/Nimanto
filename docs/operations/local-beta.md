@@ -250,9 +250,11 @@ The queue stores only provider and board identifiers. Scheduled work cannot prep
 ## Inspect a workspace export
 
 Open **Data controls**, read the sensitive-data warning, and confirm it before
-downloading JSON. `nimanto-local-beta-v2` wraps `nimanto_export_v2`, including
-retained profile versions, match runs, assurance runs, packet manifests, dataset editions,
-applications, and receipts. It excludes sessions, invitation secrets, deletion
+downloading JSON. `nimanto-local-beta-v3` wraps `nimanto_export_v3`, including
+retained discovery profiles, source runs, normalized posting observations,
+verification attempts, availability, profile versions, match runs, assurance
+runs, packet manifests, dataset editions, applications, and receipts. It
+excludes discarded raw provider bodies, sessions, invitation secrets, deletion
 internals, and generated packet files.
 
 Treat the file as sensitive candidate data. It is an inspection export—not a

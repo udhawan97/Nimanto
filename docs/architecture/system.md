@@ -24,7 +24,9 @@ flowchart TB
   API --> Packet["Staged packet lifecycle"]
   Packet --> Documents["JSON · TXT · DOCX · PDF renderers"]
   Worker["Durable refresh worker"] -->|"private loopback cycle"| API
-  API -. "fixed public hosts" .-> ATS["Greenhouse · Lever · Ashby"]
+  API --> Registry["Deny-by-default source registry"]
+  Registry -. "enabled fixed public hosts" .-> ATS["Greenhouse · Lever · Ashby"]
+  Registry -. "adapter present, execution gated" .-> Future["SmartRecruiters · licensed and partner candidates"]
   API -. "loopback only" .-> Model["Ollama"]
   API --> Gate["Exact-approved action lifecycle"]
   Gate --> Outbox["Deep link · local test outbox"]
@@ -135,17 +137,44 @@ pure: it exports the selected working view with spreadsheet-formula protection,
 counts private notes and outcomes, and excludes their bodies. It adds no API,
 schema, background job, provider, or restore surface.
 
-Manual, allowlisted URL, Greenhouse, Lever, and Ashby adapters each own their
-source-specific retrieval, parsing, identity, provenance, and content hash. They
-then pass a complete Role Observation through the domain normalizer before any
-write. Common NFC/trim/default rules therefore stay consistent, and an invalid
-provider item rejects the complete bounded batch before its transaction begins.
-Persistence still updates or inserts one current mutable row under exact
-`(tenant, source, sourceJobId)` identity. It does not retain immutable Role
-observations or deduplicate across sources. A Match Publication separately
-freezes the exact normalized role input it used. Historical planning documents
-describe possible snapshot/history/deduplication systems; those remain future
-proposals, not the implemented model documented here.
+Manual, allowlisted URL, Greenhouse, Lever, Ashby, and the gated
+SmartRecruiters adapter each own their source-specific retrieval, parsing,
+identity, provenance, and content hash. They then pass a complete Role
+Observation through the domain normalizer before any write. Common
+NFC/trim/default rules therefore stay consistent, and an invalid provider item
+rejects the complete bounded batch before its transaction begins.
+
+Persistence updates or inserts one current mutable row under exact
+`(tenant, source, sourceJobId)` identity and separately retains the source run,
+an immutable normalized Role Observation, a payload hash, the current Role
+Availability projection, and method-qualified verification attempts. Current
+raw-body policy is zero-hour retention, so provider bodies are hashed and
+discarded while the normalized observation remains tenant-owned. Exact-field
+normalized company/title/location clusters group possible cross-source variants for display
+without merging or deleting any source identity, link, wording, or lifecycle.
+A Match Publication separately freezes the exact normalized role input it used.
+
+The source registry is the execution boundary, not documentation alone. An
+adapter cannot run unless the entry is enabled, execution is allowed, and no
+emergency pause is active. SmartRecruiters is implemented behind this boundary;
+licensed, partner-only, and terms-conflicted sources remain non-executable until
+their source-specific access and product rights are approved. The API returns
+the registry so the workbench can distinguish enabled inventory from future or
+prohibited candidates without implying coverage.
+
+Discovery Profile versions store only candidate-approved title, role-family,
+area, work-mode, source, sponsorship-warning, and observation-age inputs. They
+link to an exact saved Evidence Profile but do not silently translate résumé
+text into a saved preference. Pure workbench derivation applies the approved
+profile, and deterministic matching continues to use only confirmed evidence
+from the linked Evidence Profile.
+
+Source completeness is explicit. An observed item becomes active and receives
+a method, authority, and verification time. One absence from a complete source
+list becomes `possibly_closed`; a second complete miss at least six hours later
+becomes `closed`. Partial and failed runs never close an unseen role. Passing a
+recheck time becomes `overdue`, not closed. Candidate archive state and tracked
+applications remain independent of source publication state.
 
 Candidate Role disposition is a separate tenant-owned overlay. Archiving never
 rewrites source content, and an adapter refresh cannot clear it. Application
@@ -164,11 +193,14 @@ Application is still in a preparation state. If the candidate has recorded
 lifecycle performs no Application write. Persistence, not the pure policy
 module, owns timestamp atomicity.
 
-`nimanto_export_v2` adds complete retained profile-version, match-run,
-assurance-run, and government dataset-edition records to the explicit JSON inspection export. It intentionally
+`nimanto_export_v3` adds complete retained discovery-profile, source-run,
+normalized observation, verification-attempt, role-availability,
+profile-version, match-run, assurance-run, and government dataset-edition
+records to the explicit JSON inspection export. It intentionally
 omits session and invitation credentials, deletion internals, and generated
-packet files. It is not a restore protocol, immutable job-history snapshot, or
-execution replay format.
+packet files. It is not a restore protocol or execution replay format. It
+includes immutable normalized posting observations but not discarded raw
+provider bodies.
 
 Evidence preview and import share one bounded projection and canonical hash.
 The candidate can read every accepted claim before import, the raw upload is not
@@ -205,7 +237,20 @@ not a replacement session token.
 
 ## Durable discovery
 
-Candidates can schedule Greenhouse, Lever, and Ashby public-board refreshes from the workbench. The `DiscoveryCycle` owns separate direct-import and scheduled-refresh operations. Direct import fetches before its database transaction and commits the role batch without scoring. Scheduled refresh first claims a durable lease, then fetches, then publishes through the same exact-snapshot `MatchPublication` used by manual scoring. Schedules are tenant-owned database records with bounded cadence, a single hashed lease, retry backoff, pause/resume/run-now/cancel controls, and a visible dead-letter state after five consecutive failures. Each job/match/receipt batch and recurring-state advance commits in one lease-locked transaction. A worker cycle claims at most three due schedules, imports at most 500 roles per source, and cannot prepare packets, approve, email, or submit.
+Candidates can schedule Greenhouse, Lever, and Ashby public-board refreshes
+from the workbench. The `DiscoveryCycle` owns separate direct-import and
+scheduled-refresh operations. Direct import fetches before its database
+transaction and atomically commits the source run, normalized observation
+batch, availability, and verification evidence without scoring. Scheduled
+refresh first claims a durable lease, then fetches, persists the same evidence,
+and publishes through the exact-snapshot `MatchPublication` used by manual
+scoring. Schedules are tenant-owned database records with bounded cadence, a
+single hashed lease, retry backoff, pause/resume/run-now/cancel controls, and a
+visible dead-letter state after five consecutive failures. Each
+observation/job/match/receipt batch and recurring-state advance commits in one
+lease-locked transaction. A worker cycle claims at most three due schedules,
+imports at most 500 roles per source, and cannot prepare packets, approve,
+email, or submit.
 
 ## External actions
 

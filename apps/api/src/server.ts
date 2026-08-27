@@ -18,10 +18,16 @@ import {
   type ExternalActionProvider,
   type H1bSignalLabel,
   type OutcomeType,
+  type DiscoveryProfileInput,
+  type RoleFamily,
+  type StructuredArea,
+  type WorkplaceMode,
 } from "@nimanto/domain";
 import {
+  assertSourceExecutionEnabled,
   draftLocalSummary,
   fetchAllowlistedJobPage,
+  JOB_SOURCE_REGISTRY,
   localModelInventory,
   localModelStatus,
 } from "@nimanto/providers";
@@ -83,6 +89,91 @@ function strings(value: unknown, field: string): string[] {
     throw new Error(`INVALID_${field.toUpperCase()}`);
   }
   return value.map((entry) => entry.normalize("NFC").trim()).filter(Boolean);
+}
+
+function optionalString(value: unknown, field: string): string | null {
+  return value === undefined || value === null || value === "" ? null : string(value, field);
+}
+
+function structuredAreas(value: unknown, field: string): StructuredArea[] {
+  if (!Array.isArray(value) || value.length > 20) {
+    throw new Error(`INVALID_${field.toUpperCase()}`);
+  }
+  return value.map((entry) => {
+    const area = object(entry);
+    return {
+      displayLabel: string(area.displayLabel, `${field}_label`),
+      countryCode: optionalString(area.countryCode, `${field}_country`),
+      subdivisionCode: optionalString(area.subdivisionCode, `${field}_subdivision`),
+      metroId: optionalString(area.metroId, `${field}_metro`),
+      timeZone: optionalString(area.timeZone, `${field}_timezone`),
+      resolution: area.resolution === "confirmed" ? "confirmed" : "unknown",
+    };
+  });
+}
+
+function discoveryProfileInput(value: unknown): DiscoveryProfileInput {
+  const body = object(value);
+  const roleFamilies = strings(body.roleFamilies ?? [], "role_families") as RoleFamily[];
+  const workModes = strings(body.workModes ?? [], "work_modes") as WorkplaceMode[];
+  const relocationPreference = string(
+    body.relocationPreference ?? "consider",
+    "relocation_preference",
+  ) as DiscoveryProfileInput["relocationPreference"];
+  if (!(["no", "consider", "yes"] as const).includes(relocationPreference)) {
+    throw new Error("INVALID_RELOCATION_PREFERENCE");
+  }
+  const sponsorshipFilter = string(
+    body.currentPostingSponsorshipFilter ?? "show_all",
+    "sponsorship_filter",
+  ) as DiscoveryProfileInput["currentPostingSponsorshipFilter"];
+  if (sponsorshipFilter !== "show_all") {
+    throw new Error("INVALID_SPONSORSHIP_FILTER");
+  }
+  const compensation =
+    body.minimumCompensation === undefined || body.minimumCompensation === null
+      ? null
+      : object(body.minimumCompensation);
+  return {
+    profileVersionId: optionalString(body.profileVersionId, "profile_version_id"),
+    roleFamilies,
+    includeTitles: strings(body.includeTitles ?? [], "include_titles"),
+    excludeTitles: strings(body.excludeTitles ?? [], "exclude_titles"),
+    seniorityLevels: strings(body.seniorityLevels ?? [], "seniority_levels"),
+    industries: strings(body.industries ?? [], "industries"),
+    mustHaveSkills: strings(body.mustHaveSkills ?? [], "must_have_skills"),
+    preferredSkills: strings(body.preferredSkills ?? [], "preferred_skills"),
+    acceptedPhysicalAreas: structuredAreas(
+      body.acceptedPhysicalAreas ?? [],
+      "accepted_physical_areas",
+    ),
+    commuteRadiusMiles:
+      body.commuteRadiusMiles === undefined || body.commuteRadiusMiles === null
+        ? null
+        : Number(body.commuteRadiusMiles),
+    relocationPreference,
+    workModes,
+    eligibleRemoteAreas: structuredAreas(body.eligibleRemoteAreas ?? [], "eligible_remote_areas"),
+    minimumCompensation: compensation
+      ? {
+          amount: Number(compensation.amount),
+          currency: string(compensation.currency, "compensation_currency").toUpperCase(),
+        }
+      : null,
+    currentPostingSponsorshipFilter: sponsorshipFilter,
+    authorizationStatementVersionId: optionalString(
+      body.authorizationStatementVersionId,
+      "authorization_statement_version_id",
+    ),
+    authorizationStatementExpiresAt: optionalString(
+      body.authorizationStatementExpiresAt,
+      "authorization_statement_expires_at",
+    ),
+    freshnessMaximumHours: Number(body.freshnessMaximumHours ?? 168),
+    sourceIds: strings(body.sourceIds ?? [], "source_ids"),
+    matcherVersion: "scoring_rules_v1",
+    normalizerVersion: "discovery_profile_v1",
+  };
 }
 
 function historyOptions(query: unknown): { cursor?: string; limit: number } {
@@ -193,6 +284,12 @@ function messageForError(error: Error): { code: string; status: number; message:
       status: 409,
       message: "Reviewed URL intake is not enabled for this local service.",
     };
+  if (code === "SOURCE_EXECUTION_DISABLED" || code === "SOURCE_NOT_REGISTERED")
+    return {
+      code,
+      status: 409,
+      message: "That job source is not approved for execution in the source registry.",
+    };
   if (code === "INVALID_SOURCE_URL" || code === "SOURCE_URL_NOT_ALLOWED")
     return {
       code,
@@ -246,6 +343,7 @@ function messageForError(error: Error): { code: string; status: number; message:
   if (
     code.includes("REQUIRED") ||
     code.startsWith("INVALID_") ||
+    code.startsWith("DISCOVERY_") ||
     code === "FILE_TOO_LARGE" ||
     code === "TEXT_LIMIT_EXCEEDED" ||
     code === "PROHIBITED_DOCUMENT_CONTENT" ||
@@ -679,6 +777,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     const person = identity(request);
     const body = object(request.body);
     const provider = string(body.provider, "provider") as "greenhouse" | "lever" | "ashby";
+    assertSourceExecutionEnabled(provider);
     if (!["greenhouse", "lever", "ashby"].includes(provider)) throw new Error("INVALID_PROVIDER");
     if (typeof body.cadenceMinutes !== "number") throw new Error("INVALID_CADENCE_MINUTES");
     return store.createSourceSchedule(person.tenantId, {
@@ -706,6 +805,30 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     const schedule = await store.cancelSourceSchedule(person.tenantId, id);
     if (!schedule) throw new Error("SCHEDULE_NOT_FOUND");
     return schedule;
+  });
+
+  app.get("/v1/job-sources", async (request) => {
+    identity(request);
+    return {
+      sources: JOB_SOURCE_REGISTRY,
+      policyVersion: "source_registry_v1",
+      executionPolicy: "deny_by_default",
+    };
+  });
+
+  app.get("/v1/discovery-profile", async (request) => ({
+    profile: await store.latestDiscoveryProfile(identity(request).tenantId),
+  }));
+  app.get("/v1/discovery-profile/history", async (request) => ({
+    profiles: await store.listDiscoveryProfiles(identity(request).tenantId),
+  }));
+  app.post("/v1/discovery-profile", async (request) => {
+    const person = identity(request);
+    return store.saveDiscoveryProfile(
+      person.tenantId,
+      discoveryProfileInput(request.body),
+      new Date().toISOString(),
+    );
   });
 
   app.get("/v1/models/status", async () => localModel.status());
@@ -924,6 +1047,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     const person = identity(request);
     const body = object(request.body);
     const provider = string(body.provider, "provider") as "greenhouse" | "lever" | "ashby";
+    assertSourceExecutionEnabled(provider);
     if (!["greenhouse", "lever", "ashby"].includes(provider)) throw new Error("INVALID_PROVIDER");
     const result = await discoveryCycle.directImport(
       person.tenantId,
@@ -965,6 +1089,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
           transientBodyDeleted: true,
           redistribution: "tenant_private_normalized_text_only",
         },
+        observedAt: page.observedAt,
         contentHash: canonicalHash({
           title,
           company,
@@ -1194,7 +1319,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     const person = identity(request);
     const workspace = await store.exportTenant(person.tenantId);
     return reply.header("content-disposition", 'attachment; filename="nimanto-export.json"').send({
-      exportVersion: "nimanto-local-beta-v2",
+      exportVersion: "nimanto-local-beta-v3",
       exportedAt: new Date().toISOString(),
       identity: {
         displayName: person.displayName,

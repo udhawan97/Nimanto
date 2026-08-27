@@ -5,11 +5,15 @@ import { PGlite } from "@electric-sql/pglite";
 import {
   applicationFollowUpPolicy,
   canonicalHash,
+  classifyRoleFamily,
   applicationTransitions,
+  normalizeWorkplaceMode,
   scheduledFailureEvent,
   scheduledRetryDelayMinutes,
+  validateStructuredArea,
   verifyReceipt,
   type ApplicationStatus,
+  type DiscoveryProfileInput,
   type EvidenceClaim,
   type ExecutionReceipt,
   type ExternalActionProvider,
@@ -17,7 +21,15 @@ import {
   type H1bSignalLabel,
   type MatchResult,
   type OutcomeType,
+  type PublicationState,
+  type RoleFamily,
   type ScheduledJobState,
+  type VerificationAuthority,
+  type VerificationHealth,
+  type VerificationMethod,
+  type VerificationResult,
+  type WorkplaceEvidence,
+  type WorkplaceMode,
   transitionScheduledJob,
 } from "@nimanto/domain";
 import { migrateDatabase } from "./migrations.js";
@@ -84,7 +96,9 @@ export interface JobRecord {
   company: string;
   description: string;
   location: string;
-  workMode: string;
+  workMode: WorkplaceMode;
+  roleFamily: RoleFamily;
+  workplaceEvidence: WorkplaceEvidence[];
   url: string;
   requirements: string[];
   status: string;
@@ -92,10 +106,120 @@ export interface JobRecord {
   sourceMeta: Record<string, unknown>;
   contentHash: string;
   updatedAt: string;
+  availability: RoleAvailabilityRecord;
+  cluster: {
+    id: string;
+    size: number;
+    sources: string[];
+  };
   candidateDisposition: {
     state: "active" | "archived";
     archivedAt: string | null;
   };
+}
+
+export interface RoleAvailabilityRecord {
+  firstSeenAt: string;
+  lastSeenAt: string;
+  lastVerifiedAt: string | null;
+  nextVerifyAt: string | null;
+  sourcePostedAt: string | null;
+  sourceUpdatedAt: string | null;
+  validThrough: string | null;
+  missingSince: string | null;
+  publicationState: PublicationState;
+  verificationHealth: VerificationHealth;
+  verificationAuthority: VerificationAuthority;
+  verificationMethod: VerificationMethod;
+  consecutiveCompleteMisses: number;
+  closedAt: string | null;
+  closureReason: string | null;
+}
+
+export interface SourceRunRecord {
+  id: string;
+  source: string;
+  boardId: string | null;
+  startedAt: string;
+  completedAt: string;
+  complete: boolean;
+  pagesRead: number;
+  sourceItemCount: number;
+  responseFingerprint: string;
+  retryAfterObserved: boolean;
+  sourcePolicyVersion: string;
+}
+
+export interface SourceRunInput extends Omit<SourceRunRecord, "id"> {
+  queryReferenceHmac?: string | null;
+}
+
+export interface RoleObservationRecord {
+  id: string;
+  jobId: string;
+  sourceRunId: string | null;
+  source: string;
+  sourceJobId: string;
+  observedAt: string;
+  contentHash: string;
+  sourcePayloadHash: string;
+  normalizedPayload: Record<string, unknown>;
+  normalizerVersion: string;
+}
+
+export interface VerificationAttemptRecord {
+  id: string;
+  jobId: string;
+  sourceRunId: string | null;
+  attemptedAt: string;
+  authority: VerificationAuthority;
+  method: VerificationMethod;
+  result: VerificationResult;
+  evidence: Record<string, unknown>;
+}
+
+export interface DiscoveryProfileRecord {
+  id: string;
+  input: DiscoveryProfileInput;
+  inputHash: string;
+  approvedAt: string;
+  createdAt: string;
+}
+
+export interface DiscoveryProfileSaveResult {
+  profile: DiscoveryProfileRecord;
+  created: boolean;
+}
+
+export interface JobUpsertInput {
+  id?: string;
+  source: string;
+  sourceJobId: string;
+  title: string;
+  company: string;
+  description: string;
+  location: string;
+  workMode?: WorkplaceMode | string;
+  roleFamily?: RoleFamily;
+  workplaceEvidence?: WorkplaceEvidence[];
+  url: string;
+  requirements: string[];
+  status?: string;
+  capability: string;
+  sourceMeta: Record<string, unknown>;
+  contentHash: string;
+  observedAt?: string;
+  sourcePostedAt?: string | null;
+  sourceUpdatedAt?: string | null;
+  validThrough?: string | null;
+  rawPayload?: Record<string, unknown> | null;
+}
+
+export interface SourceObservationResult {
+  sourceRun: SourceRunRecord;
+  jobs: JobRecord[];
+  possiblyClosed: number;
+  closed: number;
 }
 
 export interface MatchRunRecord {
@@ -240,6 +364,106 @@ function sha256(value: string): string {
 function iso(value: string | Date | null): string | null {
   if (value === null) return null;
   return value instanceof Date ? value.toISOString() : value;
+}
+
+function isoRequired(value: string | Date): string {
+  return value instanceof Date ? value.toISOString() : value;
+}
+
+function normalizeList(values: readonly string[], maximum = 40): string[] {
+  if (values.length > maximum) throw new Error("DISCOVERY_PROFILE_TOO_MANY_VALUES");
+  return [...new Set(values.map((value) => value.normalize("NFC").trim()).filter(Boolean))];
+}
+
+function normalizeDiscoveryProfile(input: DiscoveryProfileInput): DiscoveryProfileInput {
+  const roleFamilies = [...new Set(input.roleFamilies)];
+  const validFamilies: readonly RoleFamily[] = [
+    "ai_ml",
+    "software_technical",
+    "data_analytics",
+    "product",
+    "business_strategy_operations_solutions",
+    "other",
+  ];
+  if (roleFamilies.some((family) => !validFamilies.includes(family))) {
+    throw new Error("DISCOVERY_ROLE_FAMILY_INVALID");
+  }
+  const workModes = [...new Set(input.workModes.map((mode) => normalizeWorkplaceMode(mode)))];
+  if (!Number.isInteger(input.freshnessMaximumHours) || input.freshnessMaximumHours < 1) {
+    throw new Error("DISCOVERY_FRESHNESS_INVALID");
+  }
+  if (input.freshnessMaximumHours > 24 * 90) throw new Error("DISCOVERY_FRESHNESS_INVALID");
+  if (
+    input.commuteRadiusMiles !== null &&
+    (!Number.isFinite(input.commuteRadiusMiles) ||
+      input.commuteRadiusMiles < 0 ||
+      input.commuteRadiusMiles > 500)
+  ) {
+    throw new Error("DISCOVERY_COMMUTE_RADIUS_INVALID");
+  }
+  const compensation = input.minimumCompensation;
+  if (
+    compensation &&
+    (!Number.isFinite(compensation.amount) ||
+      compensation.amount < 0 ||
+      !/^[A-Z]{3}$/u.test(compensation.currency))
+  ) {
+    throw new Error("DISCOVERY_COMPENSATION_INVALID");
+  }
+  let authorizationStatementExpiresAt = input.authorizationStatementExpiresAt;
+  if (authorizationStatementExpiresAt !== null) {
+    const parsed = new Date(authorizationStatementExpiresAt);
+    if (Number.isNaN(parsed.getTime())) throw new Error("DISCOVERY_AUTHORIZATION_EXPIRY_INVALID");
+    authorizationStatementExpiresAt = parsed.toISOString();
+  }
+  return {
+    ...input,
+    roleFamilies,
+    includeTitles: normalizeList(input.includeTitles),
+    excludeTitles: normalizeList(input.excludeTitles),
+    seniorityLevels: normalizeList(input.seniorityLevels, 20),
+    industries: normalizeList(input.industries),
+    mustHaveSkills: normalizeList(input.mustHaveSkills),
+    preferredSkills: normalizeList(input.preferredSkills),
+    acceptedPhysicalAreas: input.acceptedPhysicalAreas.map(validateStructuredArea),
+    workModes,
+    eligibleRemoteAreas: input.eligibleRemoteAreas.map(validateStructuredArea),
+    sourceIds: normalizeList(input.sourceIds, 50),
+    authorizationStatementExpiresAt,
+  };
+}
+
+function clusterKey(row: Pick<JobRecord, "url" | "company" | "title" | "location">): string {
+  return canonicalHash({
+    company: row.company.normalize("NFKC").trim().toLocaleLowerCase("en-US"),
+    title: row.title.normalize("NFKC").trim().toLocaleLowerCase("en-US"),
+    location: row.location.normalize("NFKC").trim().toLocaleLowerCase("en-US"),
+  });
+}
+
+function annotateClusters(jobs: JobRecord[]): JobRecord[] {
+  const clusters = new Map<string, JobRecord[]>();
+  for (const job of jobs) {
+    const id = clusterKey(job);
+    clusters.set(id, [...(clusters.get(id) ?? []), job]);
+  }
+  return jobs.map((job) => {
+    const baseId = clusterKey(job);
+    const members = clusters.get(baseId)!;
+    const sources = [...new Set(members.map((member) => member.source))].sort();
+    const crossSource = sources.length > 1 && sources.length === members.length;
+    const id = crossSource
+      ? baseId
+      : canonicalHash({ baseId, source: job.source, sourceJobId: job.sourceJobId });
+    return {
+      ...job,
+      cluster: {
+        id,
+        size: crossSource ? members.length : 1,
+        sources: crossSource ? sources : [job.source],
+      },
+    };
+  });
 }
 
 function historyLimit(value?: number): number {
@@ -1075,15 +1299,29 @@ export class NimantoStore {
     };
   }
 
-  async upsertJob(
-    tenantId: string,
-    input: Omit<JobRecord, "id" | "updatedAt" | "status" | "candidateDisposition"> & {
-      id?: string;
-      status?: string;
-    },
-  ): Promise<JobRecord> {
+  async upsertJob(tenantId: string, input: JobUpsertInput): Promise<JobRecord> {
     const id = input.id ?? randomUUID();
     const sourceJobId = input.sourceJobId || id;
+    const title = input.title.normalize("NFC").trim();
+    const observedAt = input.observedAt ?? new Date().toISOString();
+    const roleFamily = input.roleFamily ?? classifyRoleFamily(title);
+    const workMode = normalizeWorkplaceMode(input.workMode);
+    const sourceMeta = {
+      ...input.sourceMeta,
+      workplaceEvidence: input.workplaceEvidence ?? [],
+      observedAt,
+    };
+    const verificationAuthority: VerificationAuthority =
+      input.source === "manual"
+        ? "candidate_review"
+        : input.source === "allowlisted_url"
+          ? "authorized_employer_page"
+          : "unknown";
+    const verificationMethod: VerificationMethod =
+      input.source === "allowlisted_url" ? "structured_employer_page" : "manual";
+    const verificationHealth: VerificationHealth =
+      input.source === "allowlisted_url" ? "verified" : "unknown";
+    const lastVerifiedAt = input.source === "allowlisted_url" ? observedAt : null;
     const result = await this.#db.query<{
       id: string;
       source: string;
@@ -1093,6 +1331,7 @@ export class NimantoStore {
       description: string;
       location: string | null;
       work_mode: string | null;
+      role_family: string | null;
       url: string | null;
       requirements: string[];
       status: string;
@@ -1103,33 +1342,68 @@ export class NimantoStore {
     }>(
       `INSERT INTO jobs(
          id, tenant_id, source, source_job_id, title, company, description, location,
-         work_mode, url, requirements, status, capability, source_meta, content_hash
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13,$14::jsonb,$15)
+         work_mode, role_family, url, requirements, status, capability, source_meta, content_hash
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$14,$15::jsonb,$16)
        ON CONFLICT (tenant_id, source, source_job_id) DO UPDATE SET
          title = EXCLUDED.title, company = EXCLUDED.company,
          description = EXCLUDED.description, location = EXCLUDED.location,
-         work_mode = EXCLUDED.work_mode, url = EXCLUDED.url,
+         work_mode = EXCLUDED.work_mode, role_family = EXCLUDED.role_family, url = EXCLUDED.url,
          requirements = EXCLUDED.requirements, status = EXCLUDED.status,
          capability = EXCLUDED.capability, source_meta = EXCLUDED.source_meta,
          content_hash = EXCLUDED.content_hash, updated_at = now()
        RETURNING id, source, source_job_id, title, company, description, location,
-         work_mode, url, requirements, status, capability, source_meta, content_hash, updated_at`,
+         work_mode, role_family, url, requirements, status, capability, source_meta, content_hash, updated_at`,
       [
         id,
         tenantId,
         input.source,
         sourceJobId,
-        input.title.normalize("NFC").trim(),
+        title,
         input.company.normalize("NFC").trim(),
         input.description.normalize("NFC").trim(),
         input.location,
-        input.workMode,
+        workMode,
+        roleFamily,
         input.url,
         JSON.stringify(input.requirements),
         input.status ?? "active",
         input.capability,
-        JSON.stringify(input.sourceMeta),
+        JSON.stringify(sourceMeta),
         input.contentHash,
+      ],
+    );
+    await this.#db.query(
+      `INSERT INTO role_availability(
+         tenant_id, job_id, first_seen_at, last_seen_at, source_posted_at,
+         source_updated_at, valid_through, last_verified_at, next_verify_at,
+         publication_state, verification_health, verification_authority, verification_method
+       ) VALUES (
+         $1,$2,$3,$3,$4,$5,$6,$7,
+         CASE WHEN $7::timestamptz IS NULL THEN NULL ELSE $7::timestamptz + interval '24 hours' END,
+         'active',$8,$9,$10
+       )
+       ON CONFLICT (tenant_id, job_id) DO UPDATE SET
+         last_seen_at = GREATEST(role_availability.last_seen_at, EXCLUDED.last_seen_at),
+         source_posted_at = COALESCE(EXCLUDED.source_posted_at, role_availability.source_posted_at),
+         source_updated_at = COALESCE(EXCLUDED.source_updated_at, role_availability.source_updated_at),
+         valid_through = COALESCE(EXCLUDED.valid_through, role_availability.valid_through),
+         last_verified_at = COALESCE(EXCLUDED.last_verified_at, role_availability.last_verified_at),
+         next_verify_at = COALESCE(EXCLUDED.next_verify_at, role_availability.next_verify_at),
+         verification_health = EXCLUDED.verification_health,
+         verification_authority = EXCLUDED.verification_authority,
+         verification_method = EXCLUDED.verification_method,
+         updated_at = now()`,
+      [
+        tenantId,
+        result.rows[0]!.id,
+        observedAt,
+        input.sourcePostedAt ?? null,
+        input.sourceUpdatedAt ?? null,
+        input.validThrough ?? null,
+        lastVerifiedAt,
+        verificationHealth,
+        verificationAuthority,
+        verificationMethod,
       ],
     );
     const saved = await this.getJob(tenantId, result.rows[0]!.id);
@@ -1146,6 +1420,7 @@ export class NimantoStore {
     description: string;
     location: string | null;
     work_mode: string | null;
+    role_family: string | null;
     url: string | null;
     requirements: string[];
     status: string;
@@ -1154,7 +1429,38 @@ export class NimantoStore {
     content_hash: string;
     updated_at: string | Date;
     archived_at?: string | Date | null;
+    availability_first_seen_at?: string | Date | null;
+    availability_last_seen_at?: string | Date | null;
+    availability_last_verified_at?: string | Date | null;
+    availability_next_verify_at?: string | Date | null;
+    availability_source_posted_at?: string | Date | null;
+    availability_source_updated_at?: string | Date | null;
+    availability_valid_through?: string | Date | null;
+    availability_missing_since?: string | Date | null;
+    availability_publication_state?: PublicationState | null;
+    availability_verification_health?: VerificationHealth | null;
+    availability_verification_authority?: VerificationAuthority | null;
+    availability_verification_method?: VerificationMethod | null;
+    availability_consecutive_complete_misses?: number | null;
+    availability_closed_at?: string | Date | null;
+    availability_closure_reason?: string | null;
   }): JobRecord {
+    const firstSeenAt = iso(row.availability_first_seen_at ?? row.updated_at)!;
+    const lastSeenAt = iso(row.availability_last_seen_at ?? row.updated_at)!;
+    const sourceMeta = row.source_meta ?? {};
+    const evidence = Array.isArray(sourceMeta.workplaceEvidence)
+      ? (sourceMeta.workplaceEvidence as WorkplaceEvidence[])
+      : [];
+    const nextVerifyAt = iso(row.availability_next_verify_at ?? null);
+    const publicationState = row.availability_publication_state ?? "active";
+    const storedVerificationHealth = row.availability_verification_health ?? "unknown";
+    const verificationHealth =
+      nextVerifyAt &&
+      Date.parse(nextVerifyAt) < Date.now() &&
+      publicationState === "active" &&
+      (storedVerificationHealth === "verified" || storedVerificationHealth === "provider_reported")
+        ? "overdue"
+        : storedVerificationHealth;
     return {
       id: row.id,
       source: row.source,
@@ -1163,14 +1469,34 @@ export class NimantoStore {
       company: row.company,
       description: row.description,
       location: row.location ?? "",
-      workMode: row.work_mode ?? "unspecified",
+      workMode: normalizeWorkplaceMode(row.work_mode),
+      roleFamily: (row.role_family as RoleFamily | null) ?? classifyRoleFamily(row.title),
+      workplaceEvidence: evidence,
       url: row.url ?? "",
       requirements: row.requirements,
       status: row.status,
       capability: row.capability,
-      sourceMeta: row.source_meta,
+      sourceMeta,
       contentHash: row.content_hash,
       updatedAt: iso(row.updated_at)!,
+      availability: {
+        firstSeenAt,
+        lastSeenAt,
+        lastVerifiedAt: iso(row.availability_last_verified_at ?? null),
+        nextVerifyAt,
+        sourcePostedAt: iso(row.availability_source_posted_at ?? null),
+        sourceUpdatedAt: iso(row.availability_source_updated_at ?? null),
+        validThrough: iso(row.availability_valid_through ?? null),
+        missingSince: iso(row.availability_missing_since ?? null),
+        publicationState,
+        verificationHealth,
+        verificationAuthority: row.availability_verification_authority ?? "unknown",
+        verificationMethod: row.availability_verification_method ?? "manual",
+        consecutiveCompleteMisses: row.availability_consecutive_complete_misses ?? 0,
+        closedAt: iso(row.availability_closed_at ?? null),
+        closureReason: row.availability_closure_reason ?? null,
+      },
+      cluster: { id: "", size: 1, sources: [row.source] },
       candidateDisposition: {
         state: row.archived_at ? "archived" : "active",
         archivedAt: iso(row.archived_at ?? null),
@@ -1181,29 +1507,64 @@ export class NimantoStore {
   async getJob(tenantId: string, id: string): Promise<JobRecord | null> {
     const result = await this.#db.query<any>(
       `SELECT job.id, job.source, job.source_job_id, job.title, job.company, job.description,
-        job.location, job.work_mode, job.url, job.requirements, job.status, job.capability,
-        job.source_meta, job.content_hash, job.updated_at, disposition.archived_at
+        job.location, job.work_mode, job.role_family, job.url, job.requirements, job.status,
+        job.capability, job.source_meta, job.content_hash, job.updated_at, disposition.archived_at,
+        availability.first_seen_at AS availability_first_seen_at,
+        availability.last_seen_at AS availability_last_seen_at,
+        availability.last_verified_at AS availability_last_verified_at,
+        availability.next_verify_at AS availability_next_verify_at,
+        availability.source_posted_at AS availability_source_posted_at,
+        availability.source_updated_at AS availability_source_updated_at,
+        availability.valid_through AS availability_valid_through,
+        availability.missing_since AS availability_missing_since,
+        availability.publication_state AS availability_publication_state,
+        availability.verification_health AS availability_verification_health,
+        availability.verification_authority AS availability_verification_authority,
+        availability.verification_method AS availability_verification_method,
+        availability.consecutive_complete_misses AS availability_consecutive_complete_misses,
+        availability.closed_at AS availability_closed_at,
+        availability.closure_reason AS availability_closure_reason
        FROM jobs AS job
        LEFT JOIN role_dispositions AS disposition
          ON disposition.tenant_id = job.tenant_id AND disposition.job_id = job.id
+       LEFT JOIN role_availability AS availability
+         ON availability.tenant_id = job.tenant_id AND availability.job_id = job.id
        WHERE job.tenant_id = $1 AND job.id = $2 LIMIT 1`,
       [tenantId, id],
     );
-    return result.rows[0] ? this.#mapJob(result.rows[0]) : null;
+    const mapped = result.rows[0] ? this.#mapJob(result.rows[0]) : null;
+    return mapped ? annotateClusters([mapped])[0]! : null;
   }
 
   async listJobs(tenantId: string): Promise<JobRecord[]> {
     const result = await this.#db.query<any>(
       `SELECT job.id, job.source, job.source_job_id, job.title, job.company, job.description,
-        job.location, job.work_mode, job.url, job.requirements, job.status, job.capability,
-        job.source_meta, job.content_hash, job.updated_at, disposition.archived_at
+        job.location, job.work_mode, job.role_family, job.url, job.requirements, job.status,
+        job.capability, job.source_meta, job.content_hash, job.updated_at, disposition.archived_at,
+        availability.first_seen_at AS availability_first_seen_at,
+        availability.last_seen_at AS availability_last_seen_at,
+        availability.last_verified_at AS availability_last_verified_at,
+        availability.next_verify_at AS availability_next_verify_at,
+        availability.source_posted_at AS availability_source_posted_at,
+        availability.source_updated_at AS availability_source_updated_at,
+        availability.valid_through AS availability_valid_through,
+        availability.missing_since AS availability_missing_since,
+        availability.publication_state AS availability_publication_state,
+        availability.verification_health AS availability_verification_health,
+        availability.verification_authority AS availability_verification_authority,
+        availability.verification_method AS availability_verification_method,
+        availability.consecutive_complete_misses AS availability_consecutive_complete_misses,
+        availability.closed_at AS availability_closed_at,
+        availability.closure_reason AS availability_closure_reason
        FROM jobs AS job
        LEFT JOIN role_dispositions AS disposition
          ON disposition.tenant_id = job.tenant_id AND disposition.job_id = job.id
+       LEFT JOIN role_availability AS availability
+         ON availability.tenant_id = job.tenant_id AND availability.job_id = job.id
        WHERE job.tenant_id = $1 ORDER BY job.updated_at DESC, job.id`,
       [tenantId],
     );
-    return result.rows.map((row) => this.#mapJob(row));
+    return annotateClusters(result.rows.map((row) => this.#mapJob(row)));
   }
 
   async listJobsByIds(tenantId: string, ids: readonly string[]): Promise<JobRecord[]> {
@@ -1211,16 +1572,388 @@ export class NimantoStore {
     if (uniqueIds.length === 0) return [];
     const result = await this.#db.query<any>(
       `SELECT job.id, job.source, job.source_job_id, job.title, job.company, job.description,
-        job.location, job.work_mode, job.url, job.requirements, job.status, job.capability,
-        job.source_meta, job.content_hash, job.updated_at, disposition.archived_at
+        job.location, job.work_mode, job.role_family, job.url, job.requirements, job.status,
+        job.capability, job.source_meta, job.content_hash, job.updated_at, disposition.archived_at,
+        availability.first_seen_at AS availability_first_seen_at,
+        availability.last_seen_at AS availability_last_seen_at,
+        availability.last_verified_at AS availability_last_verified_at,
+        availability.next_verify_at AS availability_next_verify_at,
+        availability.source_posted_at AS availability_source_posted_at,
+        availability.source_updated_at AS availability_source_updated_at,
+        availability.valid_through AS availability_valid_through,
+        availability.missing_since AS availability_missing_since,
+        availability.publication_state AS availability_publication_state,
+        availability.verification_health AS availability_verification_health,
+        availability.verification_authority AS availability_verification_authority,
+        availability.verification_method AS availability_verification_method,
+        availability.consecutive_complete_misses AS availability_consecutive_complete_misses,
+        availability.closed_at AS availability_closed_at,
+        availability.closure_reason AS availability_closure_reason
        FROM jobs AS job
        LEFT JOIN role_dispositions AS disposition
          ON disposition.tenant_id = job.tenant_id AND disposition.job_id = job.id
+       LEFT JOIN role_availability AS availability
+         ON availability.tenant_id = job.tenant_id AND availability.job_id = job.id
        WHERE job.tenant_id = $1 AND job.id = ANY($2::text[])
        ORDER BY job.updated_at DESC, job.id`,
       [tenantId, uniqueIds],
     );
-    return result.rows.map((row) => this.#mapJob(row));
+    return annotateClusters(result.rows.map((row) => this.#mapJob(row)));
+  }
+
+  async recordSourceObservation(
+    tenantId: string,
+    run: SourceRunInput,
+    inputs: readonly JobUpsertInput[],
+  ): Promise<SourceObservationResult> {
+    if (inputs.some((input) => input.source !== run.source)) {
+      throw new Error("SOURCE_RUN_JOB_SOURCE_MISMATCH");
+    }
+    if (new Date(run.completedAt).getTime() < new Date(run.startedAt).getTime()) {
+      throw new Error("SOURCE_RUN_TIME_INVALID");
+    }
+    return this.transaction(async (database) => {
+      await database.lockTenantActive(tenantId);
+      const sourceRunId = randomUUID();
+      await database.#db.query(
+        `INSERT INTO source_runs(
+           id, tenant_id, source, board_id, query_reference_hmac, started_at, completed_at,
+           complete, pages_read, source_item_count, response_fingerprint,
+           retry_after_observed, source_policy_version
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+        [
+          sourceRunId,
+          tenantId,
+          run.source,
+          run.boardId,
+          run.queryReferenceHmac ?? null,
+          run.startedAt,
+          run.completedAt,
+          run.complete,
+          run.pagesRead,
+          run.sourceItemCount,
+          run.responseFingerprint,
+          run.retryAfterObserved,
+          run.sourcePolicyVersion,
+        ],
+      );
+
+      const observedIds: string[] = [];
+      const method: VerificationMethod =
+        run.source === "licensed_feed" ? "provider_feed" : "complete_list";
+      const authority: VerificationAuthority =
+        run.source === "licensed_feed" ? "licensed_provider" : "employer_ats";
+
+      for (const input of inputs) {
+        const observedAt = input.observedAt ?? run.completedAt;
+        const saved = await database.upsertJob(tenantId, { ...input, observedAt });
+        observedIds.push(saved.id);
+        const normalizedPayload = {
+          source: input.source,
+          sourceJobId: input.sourceJobId,
+          title: input.title,
+          company: input.company,
+          description: input.description,
+          location: input.location,
+          workMode: normalizeWorkplaceMode(input.workMode),
+          roleFamily: input.roleFamily ?? classifyRoleFamily(input.title),
+          workplaceEvidence: input.workplaceEvidence ?? [],
+          url: input.url,
+          requirements: input.requirements,
+          sourceMeta: input.sourceMeta,
+          sourcePostedAt: input.sourcePostedAt ?? null,
+          sourceUpdatedAt: input.sourceUpdatedAt ?? null,
+          validThrough: input.validThrough ?? null,
+        };
+        await database.#db.query(
+          `INSERT INTO role_observations(
+             id, tenant_id, job_id, source_run_id, source, source_job_id, observed_at,
+             content_hash, source_payload_hash, raw_payload, raw_retained_until,
+             normalized_payload, normalizer_version
+           ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NULL,NULL,$10::jsonb,'role_normalizer_v2')
+           ON CONFLICT (tenant_id, source, source_job_id, observed_at, content_hash) DO NOTHING`,
+          [
+            randomUUID(),
+            tenantId,
+            saved.id,
+            sourceRunId,
+            input.source,
+            input.sourceJobId,
+            observedAt,
+            input.contentHash,
+            canonicalHash(input.rawPayload ?? normalizedPayload),
+            JSON.stringify(normalizedPayload),
+          ],
+        );
+        await database.#db.query(
+          `UPDATE role_availability SET
+             last_seen_at = $3,
+             last_verified_at = $4,
+             next_verify_at = $4::timestamptz + interval '24 hours',
+             source_posted_at = COALESCE($5, source_posted_at),
+             source_updated_at = COALESCE($6, source_updated_at),
+             valid_through = COALESCE($7, valid_through),
+             missing_since = NULL,
+             publication_state = CASE
+               WHEN $7::timestamptz IS NOT NULL AND $7::timestamptz < $4::timestamptz THEN 'expired'
+               ELSE 'active'
+             END,
+             verification_health = 'verified',
+             verification_authority = $8,
+             verification_method = CASE
+               WHEN $7::timestamptz IS NOT NULL AND $7::timestamptz < $4::timestamptz
+                 THEN 'valid_through'
+               ELSE $9
+             END,
+             consecutive_complete_misses = 0,
+             closed_at = NULL,
+             closure_reason = NULL,
+             updated_at = now()
+           WHERE tenant_id = $1 AND job_id = $2`,
+          [
+            tenantId,
+            saved.id,
+            observedAt,
+            run.completedAt,
+            input.sourcePostedAt ?? null,
+            input.sourceUpdatedAt ?? null,
+            input.validThrough ?? null,
+            authority,
+            method,
+          ],
+        );
+        await database.#db.query(
+          `INSERT INTO verification_attempts(
+             id, tenant_id, job_id, source_run_id, attempted_at, authority, method, result, evidence
+           ) VALUES ($1,$2,$3,$4,$5,$6,$7,'present',$8::jsonb)`,
+          [
+            randomUUID(),
+            tenantId,
+            saved.id,
+            sourceRunId,
+            run.completedAt,
+            authority,
+            method,
+            JSON.stringify({ responseFingerprint: run.responseFingerprint }),
+          ],
+        );
+      }
+
+      let possiblyClosed = 0;
+      let closed = 0;
+      if (run.complete) {
+        const missing = await database.#db.query<{
+          job_id: string;
+          missing_since: string | Date | null;
+          consecutive_complete_misses: number;
+        }>(
+          `SELECT availability.job_id, availability.missing_since,
+             availability.consecutive_complete_misses
+           FROM role_availability AS availability
+           JOIN jobs AS job
+             ON job.tenant_id = availability.tenant_id AND job.id = availability.job_id
+           WHERE job.tenant_id = $1 AND job.source = $2
+             AND COALESCE(job.source_meta->>'board', '') = COALESCE($3, '')
+             AND NOT (job.id = ANY($4::text[]))
+             AND availability.publication_state IN ('active','possibly_closed')
+           FOR UPDATE`,
+          [tenantId, run.source, run.boardId, observedIds],
+        );
+        const completedAtMs = new Date(run.completedAt).getTime();
+        for (const row of missing.rows) {
+          const missingAtMs = row.missing_since ? new Date(row.missing_since).getTime() : null;
+          const closeNow =
+            row.consecutive_complete_misses >= 1 &&
+            missingAtMs !== null &&
+            completedAtMs - missingAtMs >= 6 * 60 * 60 * 1000;
+          if (closeNow) closed += 1;
+          else possiblyClosed += 1;
+          await database.#db.query(
+            `UPDATE role_availability SET
+               missing_since = COALESCE(missing_since, $3),
+               publication_state = $4,
+               verification_health = 'verified',
+               verification_authority = $5,
+               verification_method = $6,
+               consecutive_complete_misses = CASE WHEN $7 THEN 2 ELSE GREATEST(consecutive_complete_misses, 1) END,
+               closed_at = CASE WHEN $7 THEN $3 ELSE NULL END,
+               closure_reason = CASE WHEN $7 THEN 'source_removed_after_two_complete_runs' ELSE NULL END,
+               last_verified_at = $3,
+               next_verify_at = CASE WHEN $7 THEN NULL ELSE $3::timestamptz + interval '6 hours' END,
+               updated_at = now()
+             WHERE tenant_id = $1 AND job_id = $2`,
+            [
+              tenantId,
+              row.job_id,
+              run.completedAt,
+              closeNow ? "closed" : "possibly_closed",
+              authority,
+              method,
+              closeNow,
+            ],
+          );
+          await database.#db.query(
+            `INSERT INTO verification_attempts(
+               id, tenant_id, job_id, source_run_id, attempted_at, authority, method,
+               result, evidence
+             ) VALUES ($1,$2,$3,$4,$5,$6,$7,'absent_from_complete_list',$8::jsonb)`,
+            [
+              randomUUID(),
+              tenantId,
+              row.job_id,
+              sourceRunId,
+              run.completedAt,
+              authority,
+              method,
+              JSON.stringify({
+                responseFingerprint: run.responseFingerprint,
+                consecutiveCompleteMiss: closeNow ? 2 : 1,
+              }),
+            ],
+          );
+        }
+      }
+
+      const jobs = await database.listJobsByIds(tenantId, observedIds);
+      return {
+        sourceRun: { id: sourceRunId, ...run },
+        jobs,
+        possiblyClosed,
+        closed,
+      };
+    });
+  }
+
+  async listSourceRuns(tenantId: string): Promise<SourceRunRecord[]> {
+    const result = await this.#db.query<any>(
+      `SELECT id, source, board_id, started_at, completed_at, complete, pages_read,
+         source_item_count, response_fingerprint, retry_after_observed, source_policy_version
+       FROM source_runs WHERE tenant_id = $1 ORDER BY completed_at DESC, id DESC`,
+      [tenantId],
+    );
+    return result.rows.map((row) => ({
+      id: row.id,
+      source: row.source,
+      boardId: row.board_id,
+      startedAt: isoRequired(row.started_at),
+      completedAt: isoRequired(row.completed_at),
+      complete: row.complete,
+      pagesRead: row.pages_read,
+      sourceItemCount: row.source_item_count,
+      responseFingerprint: row.response_fingerprint,
+      retryAfterObserved: row.retry_after_observed,
+      sourcePolicyVersion: row.source_policy_version,
+    }));
+  }
+
+  async listRoleObservations(tenantId: string): Promise<RoleObservationRecord[]> {
+    const result = await this.#db.query<any>(
+      `SELECT id, job_id, source_run_id, source, source_job_id, observed_at,
+         content_hash, source_payload_hash, normalized_payload, normalizer_version
+       FROM role_observations WHERE tenant_id = $1 ORDER BY observed_at DESC, id DESC`,
+      [tenantId],
+    );
+    return result.rows.map((row) => ({
+      id: row.id,
+      jobId: row.job_id,
+      sourceRunId: row.source_run_id,
+      source: row.source,
+      sourceJobId: row.source_job_id,
+      observedAt: isoRequired(row.observed_at),
+      contentHash: row.content_hash,
+      sourcePayloadHash: row.source_payload_hash,
+      normalizedPayload: row.normalized_payload,
+      normalizerVersion: row.normalizer_version,
+    }));
+  }
+
+  async listVerificationAttempts(tenantId: string): Promise<VerificationAttemptRecord[]> {
+    const result = await this.#db.query<any>(
+      `SELECT id, job_id, source_run_id, attempted_at, authority, method, result, evidence
+       FROM verification_attempts WHERE tenant_id = $1 ORDER BY attempted_at DESC, id DESC`,
+      [tenantId],
+    );
+    return result.rows.map((row) => ({
+      id: row.id,
+      jobId: row.job_id,
+      sourceRunId: row.source_run_id,
+      attemptedAt: isoRequired(row.attempted_at),
+      authority: row.authority,
+      method: row.method,
+      result: row.result,
+      evidence: row.evidence,
+    }));
+  }
+
+  async saveDiscoveryProfile(
+    tenantId: string,
+    input: DiscoveryProfileInput,
+    approvedAt = new Date().toISOString(),
+  ): Promise<DiscoveryProfileSaveResult> {
+    const normalized = normalizeDiscoveryProfile(input);
+    const linkedProfileIds = [
+      normalized.profileVersionId,
+      normalized.authorizationStatementVersionId,
+    ].filter((id): id is string => id !== null);
+    if (linkedProfileIds.length > 0) {
+      const linked = await this.#db.query<{ id: string }>(
+        "SELECT id FROM profile_versions WHERE tenant_id = $1 AND id = ANY($2::text[])",
+        [tenantId, [...new Set(linkedProfileIds)]],
+      );
+      if (linked.rows.length !== new Set(linkedProfileIds).size) {
+        throw new Error("PROFILE_VERSION_NOT_FOUND");
+      }
+    }
+    const inputHash = canonicalHash(normalized);
+    const latest = await this.latestDiscoveryProfile(tenantId);
+    if (latest?.inputHash === inputHash) return { profile: latest, created: false };
+    const id = randomUUID();
+    const saved = await this.#db.query<any>(
+      `INSERT INTO discovery_profiles(
+         id, tenant_id, profile_version_id, input, input_hash, matcher_version,
+         normalizer_version, approved_at
+       ) VALUES ($1,$2,$3,$4::jsonb,$5,$6,$7,$8)
+       RETURNING id, input, input_hash, approved_at, created_at`,
+      [
+        id,
+        tenantId,
+        normalized.profileVersionId,
+        JSON.stringify(normalized),
+        inputHash,
+        normalized.matcherVersion,
+        normalized.normalizerVersion,
+        approvedAt,
+      ],
+    );
+    return { profile: this.#mapDiscoveryProfile(saved.rows[0]), created: true };
+  }
+
+  #mapDiscoveryProfile(row: any): DiscoveryProfileRecord {
+    return {
+      id: row.id,
+      input: row.input,
+      inputHash: row.input_hash,
+      approvedAt: isoRequired(row.approved_at),
+      createdAt: isoRequired(row.created_at),
+    };
+  }
+
+  async latestDiscoveryProfile(tenantId: string): Promise<DiscoveryProfileRecord | null> {
+    const result = await this.#db.query<any>(
+      `SELECT id, input, input_hash, approved_at, created_at
+       FROM discovery_profiles WHERE tenant_id = $1 ORDER BY created_at DESC, id DESC LIMIT 1`,
+      [tenantId],
+    );
+    return result.rows[0] ? this.#mapDiscoveryProfile(result.rows[0]) : null;
+  }
+
+  async listDiscoveryProfiles(tenantId: string): Promise<DiscoveryProfileRecord[]> {
+    const result = await this.#db.query<any>(
+      `SELECT id, input, input_hash, approved_at, created_at
+       FROM discovery_profiles WHERE tenant_id = $1 ORDER BY created_at DESC, id DESC`,
+      [tenantId],
+    );
+    return result.rows.map((row) => this.#mapDiscoveryProfile(row));
   }
 
   /** Candidate organization is stored beside Current Role source content. A
@@ -2330,6 +3063,10 @@ export class NimantoStore {
       matchRunsPage,
       assuranceRuns,
       datasetEditions,
+      sourceRuns,
+      roleObservations,
+      verificationAttempts,
+      discoveryProfiles,
     ] = await Promise.all([
       this.listEvidence(tenantId),
       this.latestProfileVersion(tenantId),
@@ -2345,6 +3082,10 @@ export class NimantoStore {
       this.listMatchRuns(tenantId, { limit: 50 }),
       this.listAssuranceHistory(tenantId),
       this.listDatasetEditions(tenantId),
+      this.listSourceRuns(tenantId),
+      this.listRoleObservations(tenantId),
+      this.listVerificationAttempts(tenantId),
+      this.listDiscoveryProfiles(tenantId),
     ]);
     const profileVersions = [...profileVersionsPage.items];
     let profileCursor = profileVersionsPage.nextCursor;
@@ -2361,7 +3102,7 @@ export class NimantoStore {
       matchCursor = page.nextCursor;
     }
     return {
-      schemaVersion: "nimanto_export_v2",
+      schemaVersion: "nimanto_export_v3",
       exportedAt: new Date().toISOString(),
       evidence,
       profile,
@@ -2377,6 +3118,10 @@ export class NimantoStore {
       matchRuns,
       assuranceRuns,
       datasetEditions,
+      sourceRuns,
+      roleObservations,
+      verificationAttempts,
+      discoveryProfiles,
     };
   }
 

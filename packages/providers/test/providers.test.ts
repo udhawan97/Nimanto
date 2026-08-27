@@ -8,6 +8,8 @@ import {
   executeProviderAction,
   fetchAllowlistedJobPage,
   fetchProviderJobs,
+  fetchProviderJobsResult,
+  JOB_SOURCE_REGISTRY,
   localModelStatus,
   localModelInventory,
   reviewLocalPacket,
@@ -40,6 +42,73 @@ describe("job providers", () => {
       sourceJobId: "7",
       title: "Engineer",
       description: "TypeScript",
+      workMode: "unknown",
+      workplaceEvidence: [expect.objectContaining({ mode: "unknown", confidence: "low" })],
+    });
+  });
+
+  it("keeps every new source disabled until its registry gate is approved", async () => {
+    expect(
+      JOB_SOURCE_REGISTRY.filter((source) =>
+        ["smartrecruiters", "adzuna", "linkedin", "indeed", "glassdoor"].includes(source.id),
+      ).every((source) => !source.executionEnabled),
+    ).toBe(true);
+    await expect(
+      fetchProviderJobsResult(
+        { provider: "smartrecruiters", board: "northwind" },
+        (async () => new Response("{}")) as typeof fetch,
+      ),
+    ).rejects.toThrow("SOURCE_EXECUTION_DISABLED");
+  });
+
+  it("maps the dormant SmartRecruiters adapter without enabling production execution", async () => {
+    const fetcher = async (url: string | URL | Request) => {
+      const value = String(url);
+      if (value.endsWith("postings?limit=100&offset=0")) {
+        return new Response(
+          JSON.stringify({
+            totalFound: 1,
+            content: [{ id: "sr-7", name: "ML Engineer", releasedDate: "2026-08-25" }],
+          }),
+          { headers: { "content-type": "application/json" } },
+        );
+      }
+      expect(value).toContain("/postings/sr-7");
+      return new Response(
+        JSON.stringify({
+          id: "sr-7",
+          name: "ML Engineer",
+          releasedDate: "2026-08-25",
+          company: { name: "Northwind" },
+          location: { city: "Chicago", region: "IL", country: "US", remote: true },
+          ref: { to: "https://jobs.example.test/sr-7" },
+          jobAd: {
+            sections: {
+              jobDescription: { text: "Build models" },
+              qualifications: { text: "Python. ML systems." },
+            },
+          },
+        }),
+        { headers: { "content-type": "application/json" } },
+      );
+    };
+    const result = await fetchProviderJobsResult(
+      { provider: "smartrecruiters", board: "northwind" },
+      fetcher as typeof fetch,
+      { enforceRegistry: false },
+    );
+    expect(result.run).toMatchObject({ complete: true, pagesRead: 1, sourceItemCount: 1 });
+    expect(result.jobs[0]).toMatchObject({
+      sourceJobId: "sr-7",
+      company: "Northwind",
+      workMode: "remote",
+      requirements: ["Python", "ML systems"],
+      workplaceEvidence: [
+        expect.objectContaining({
+          method: "source_structured",
+          sourceFieldOrLocator: "location.remote",
+        }),
+      ],
     });
   });
 
@@ -100,6 +169,27 @@ describe("job providers", () => {
     await expect(
       fetchProviderJobs({ provider: "greenhouse", board: "northwind" }, fetcher as typeof fetch),
     ).rejects.toThrow("PROVIDER_RESPONSE_TOO_LARGE");
+  });
+
+  it("marks a source run partial before truncating an oversized item set", async () => {
+    const payload = {
+      jobs: Array.from({ length: 501 }, (_, index) => ({
+        id: index,
+        title: `Engineer ${index}`,
+        content: "TypeScript",
+        absolute_url: `https://example.test/${index}`,
+        location: { name: "Remote" },
+      })),
+    };
+    const result = await fetchProviderJobsResult(
+      { provider: "greenhouse", board: "northwind" },
+      (async () =>
+        new Response(JSON.stringify(payload), {
+          headers: { "content-type": "application/json" },
+        })) as typeof fetch,
+    );
+    expect(result.jobs).toHaveLength(500);
+    expect(result.run).toMatchObject({ complete: false, sourceItemCount: 501 });
   });
 });
 

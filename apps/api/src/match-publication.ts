@@ -44,6 +44,9 @@ export async function publishMatch(
         requirements: job.requirements,
         location: job.location,
         workMode: job.workMode,
+        roleFamily: job.roleFamily,
+        descriptionLocator: job.url || `${job.source}:${job.sourceJobId}`,
+        observedAt: job.availability.lastSeenAt,
       },
       evidence: confirmed,
     });
@@ -57,6 +60,9 @@ export async function publishMatch(
         requirements: job.requirements,
         location: job.location,
         workMode: job.workMode,
+        roleFamily: job.roleFamily,
+        descriptionLocator: job.url || `${job.source}:${job.sourceJobId}`,
+        observedAt: job.availability.lastSeenAt,
       },
       profile: {
         id: profile.id,

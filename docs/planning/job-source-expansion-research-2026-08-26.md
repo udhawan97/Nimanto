@@ -1,6 +1,6 @@
 # Job-source expansion research
 
-**Status:** research and phased recommendation; no provider access, data-rights approval, implementation, or launch is authorized by this document
+**Status:** research baseline used for the implemented marketplace foundations. It grants no provider access, data-rights approval, partnership, launch, release, or deployment authority; unapproved sources remain disabled in the runtime registry.
 
 **Research date / source access date:** 2026-08-26
 

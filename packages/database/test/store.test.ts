@@ -398,7 +398,7 @@ describe("beta workflow persistence", () => {
       "SELECT version, applied_at FROM schema_versions ORDER BY version",
     );
     await firstInspection.close();
-    expect(firstLedger.rows.map((row) => row.version)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(firstLedger.rows.map((row) => row.version)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
     expect(firstLedger.rows.at(-1)?.version).toBe(CURRENT_SCHEMA_VERSION);
 
     const reopened = await NimantoStore.open(data);
@@ -439,7 +439,7 @@ describe("beta workflow persistence", () => {
     const schemaVersions = await migrated.query<{ version: number }>(
       "SELECT version FROM schema_versions ORDER BY version",
     );
-    expect(schemaVersions.rows.map((row) => row.version)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(schemaVersions.rows.map((row) => row.version)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
     expect(schemaVersions.rows.at(-1)?.version).toBe(CURRENT_SCHEMA_VERSION);
     const packetSequences = await migrated.query<{ generation_sequence: string | number }>(
       "SELECT generation_sequence FROM packets WHERE id = 'legacy-packet'",
@@ -528,7 +528,7 @@ describe("beta workflow persistence", () => {
         version integer PRIMARY KEY,
         applied_at timestamptz NOT NULL DEFAULT now()
       );
-      INSERT INTO schema_versions(version) VALUES (8);
+      INSERT INTO schema_versions(version) VALUES (9);
     `);
     await future.close();
     await expect(NimantoStore.open(data)).rejects.toThrow("DATABASE_SCHEMA_NEWER_THAN_RUNTIME");
@@ -667,7 +667,7 @@ describe("beta workflow persistence", () => {
     ]);
 
     const exported = await store.exportTenant(alpha.tenantId);
-    expect(exported).toMatchObject({ schemaVersion: "nimanto_export_v2" });
+    expect(exported).toMatchObject({ schemaVersion: "nimanto_export_v3" });
     expect(exported.profileVersions).toHaveLength(2);
     expect(exported.matchRuns).toHaveLength(2);
     expect(exported.assuranceRuns).toHaveLength(2);
@@ -1171,6 +1171,224 @@ describe("beta workflow persistence", () => {
     expect(await store.setRoleArchived(owner.tenantId, job.id, false)).toMatchObject({
       candidateDisposition: { state: "active", archivedAt: null },
     });
+  });
+
+  it("groups only unambiguous cross-source role variants without merging records", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nimanto-store-role-clusters-"));
+    const store = await NimantoStore.open(join(root, "data"));
+    stores.push(store);
+    const owner = await store.createLocalTenant("clusters@example.test", "Cluster Owner");
+    const shared = {
+      title: "Platform Engineer",
+      company: "Northwind",
+      description: "Build services",
+      location: "Chicago",
+      workMode: "hybrid" as const,
+      requirements: ["TypeScript"],
+      capability: "deep_link" as const,
+    };
+    await store.upsertJob(owner.tenantId, {
+      ...shared,
+      source: "manual",
+      sourceJobId: "manual-role",
+      url: "https://candidate.example.test/manual-role",
+      sourceMeta: {},
+      contentHash: "manual-role-v1",
+    });
+    await store.upsertJob(owner.tenantId, {
+      ...shared,
+      source: "greenhouse",
+      sourceJobId: "greenhouse-role",
+      url: "https://boards.example.test/greenhouse-role",
+      sourceMeta: { board: "northwind" },
+      contentHash: "greenhouse-role-v1",
+    });
+    expect(await store.listJobs(owner.tenantId)).toEqual([
+      expect.objectContaining({
+        cluster: { id: expect.any(String), size: 2, sources: ["greenhouse", "manual"] },
+      }),
+      expect.objectContaining({
+        cluster: { id: expect.any(String), size: 2, sources: ["greenhouse", "manual"] },
+      }),
+    ]);
+    await store.upsertJob(owner.tenantId, {
+      ...shared,
+      source: "greenhouse",
+      sourceJobId: "greenhouse-role-2",
+      url: "https://boards.example.test/greenhouse-role-2",
+      sourceMeta: { board: "northwind" },
+      contentHash: "greenhouse-role-v2",
+    });
+    expect((await store.listJobs(owner.tenantId)).every((job) => job.cluster.size === 1)).toBe(
+      true,
+    );
+  });
+
+  it("records method-qualified source observations and closes only after spaced complete misses", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nimanto-store-role-verification-"));
+    const store = await NimantoStore.open(join(root, "data"));
+    stores.push(store);
+    const owner = await store.createLocalTenant("verification@example.test", "Verification Owner");
+    const input = {
+      source: "greenhouse",
+      sourceJobId: "verified-role",
+      title: "Machine Learning Engineer",
+      company: "Northwind",
+      description: "Build models",
+      location: "Chicago, IL",
+      workMode: "hybrid" as const,
+      url: "https://example.test/verified-role",
+      requirements: ["Python"],
+      capability: "deep_link" as const,
+      sourceMeta: { board: "northwind" },
+      contentHash: "verified-role-v1",
+      observedAt: "2026-08-26T00:05:00.000Z",
+      sourcePostedAt: "2026-08-25T00:00:00.000Z",
+      rawPayload: { id: "verified-role", confidentialField: "discarded" },
+    };
+    const initial = await store.recordSourceObservation(
+      owner.tenantId,
+      {
+        source: "greenhouse",
+        boardId: "northwind",
+        startedAt: "2026-08-26T00:00:00.000Z",
+        completedAt: "2026-08-26T00:05:00.000Z",
+        complete: true,
+        pagesRead: 1,
+        sourceItemCount: 1,
+        responseFingerprint: "run-1",
+        retryAfterObserved: false,
+        sourcePolicyVersion: "source_registry_v1",
+      },
+      [input],
+    );
+    expect(initial.jobs[0]).toMatchObject({
+      roleFamily: "ai_ml",
+      availability: {
+        publicationState: "active",
+        verificationHealth: expect.stringMatching(/^(verified|overdue)$/u),
+        verificationAuthority: "employer_ats",
+        verificationMethod: "complete_list",
+      },
+    });
+
+    const baseRun = {
+      source: "greenhouse",
+      boardId: "northwind",
+      pagesRead: 1,
+      sourceItemCount: 0,
+      retryAfterObserved: false,
+      sourcePolicyVersion: "source_registry_v1",
+    };
+    await store.recordSourceObservation(
+      owner.tenantId,
+      {
+        ...baseRun,
+        startedAt: "2026-08-26T01:00:00.000Z",
+        completedAt: "2026-08-26T01:01:00.000Z",
+        complete: false,
+        responseFingerprint: "partial-run",
+      },
+      [],
+    );
+    expect(
+      (await store.getJob(owner.tenantId, initial.jobs[0]!.id))?.availability.publicationState,
+    ).toBe("active");
+    await store.recordSourceObservation(
+      owner.tenantId,
+      {
+        ...baseRun,
+        startedAt: "2026-08-26T02:00:00.000Z",
+        completedAt: "2026-08-26T02:01:00.000Z",
+        complete: true,
+        responseFingerprint: "complete-miss-1",
+      },
+      [],
+    );
+    expect((await store.getJob(owner.tenantId, initial.jobs[0]!.id))?.availability).toMatchObject({
+      publicationState: "possibly_closed",
+      consecutiveCompleteMisses: 1,
+    });
+    await store.recordSourceObservation(
+      owner.tenantId,
+      {
+        ...baseRun,
+        startedAt: "2026-08-26T08:05:00.000Z",
+        completedAt: "2026-08-26T08:06:00.000Z",
+        complete: true,
+        responseFingerprint: "complete-miss-2",
+      },
+      [],
+    );
+    expect((await store.getJob(owner.tenantId, initial.jobs[0]!.id))?.availability).toMatchObject({
+      publicationState: "closed",
+      consecutiveCompleteMisses: 2,
+      closureReason: "source_removed_after_two_complete_runs",
+    });
+    expect(await store.listSourceRuns(owner.tenantId)).toHaveLength(4);
+    expect(await store.listRoleObservations(owner.tenantId)).toEqual([
+      expect.objectContaining({ sourcePayloadHash: expect.stringMatching(/^[a-f0-9]{64}$/u) }),
+    ]);
+    expect(await store.listVerificationAttempts(owner.tenantId)).toHaveLength(3);
+    expect(JSON.stringify(await store.exportTenant(owner.tenantId))).not.toContain(
+      "confidentialField",
+    );
+  });
+
+  it("stores only candidate-approved, idempotent discovery profile versions", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nimanto-store-discovery-profile-"));
+    const store = await NimantoStore.open(join(root, "data"));
+    stores.push(store);
+    const owner = await store.createLocalTenant("discovery@example.test", "Discovery Owner");
+    const input = {
+      profileVersionId: null,
+      roleFamilies: ["ai_ml", "software_technical"] as const,
+      includeTitles: [" Machine Learning Engineer "],
+      excludeTitles: [],
+      seniorityLevels: [],
+      industries: [],
+      mustHaveSkills: ["Python"],
+      preferredSkills: [],
+      acceptedPhysicalAreas: [
+        {
+          displayLabel: "Chicago, IL",
+          countryCode: "us",
+          subdivisionCode: "US-IL",
+          metroId: null,
+          timeZone: "America/Chicago",
+          resolution: "confirmed" as const,
+        },
+      ],
+      commuteRadiusMiles: 30,
+      relocationPreference: "consider" as const,
+      workModes: ["remote", "hybrid"] as const,
+      eligibleRemoteAreas: [],
+      minimumCompensation: { amount: 120_000, currency: "USD" },
+      currentPostingSponsorshipFilter: "show_all" as const,
+      authorizationStatementVersionId: null,
+      authorizationStatementExpiresAt: null,
+      freshnessMaximumHours: 168,
+      sourceIds: ["greenhouse", "lever"],
+      matcherVersion: "scoring_rules_v1" as const,
+      normalizerVersion: "discovery_profile_v1" as const,
+    };
+    const first = await store.saveDiscoveryProfile(owner.tenantId, input);
+    const second = await store.saveDiscoveryProfile(owner.tenantId, input);
+    expect(first.created).toBe(true);
+    expect(second).toEqual({ profile: first.profile, created: false });
+    expect(first.profile.input.acceptedPhysicalAreas[0]).toMatchObject({
+      countryCode: "US",
+      subdivisionCode: "US-IL",
+    });
+    expect(await store.listDiscoveryProfiles(owner.tenantId)).toHaveLength(1);
+    const other = await store.createLocalTenant("other-discovery@example.test", "Other Discovery");
+    const foreignProfile = await store.createProfileVersion(other.tenantId, "Foreign wording");
+    await expect(
+      store.saveDiscoveryProfile(owner.tenantId, {
+        ...input,
+        profileVersionId: foreignProfile.id,
+      }),
+    ).rejects.toThrow("PROFILE_VERSION_NOT_FOUND");
   });
 
   it("stores private application notes without creating outcomes or changing status", async () => {

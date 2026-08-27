@@ -1,5 +1,6 @@
 import { type SessionIdentity, NimantoStore } from "@nimanto/database";
 import { freshH1bLabel } from "@nimanto/domain";
+import { JOB_SOURCE_REGISTRY } from "@nimanto/providers";
 
 export class DashboardRead {
   constructor(
@@ -23,6 +24,8 @@ export class DashboardRead {
         receipts,
         profile,
         schedules,
+        discoveryProfile,
+        sourceRuns,
       ] = await Promise.all([
         database.listEvidence(person.tenantId),
         database.listJobs(person.tenantId),
@@ -34,6 +37,8 @@ export class DashboardRead {
         database.listReceipts(person.tenantId),
         database.latestProfileVersion(person.tenantId),
         database.listSourceSchedules(person.tenantId),
+        database.latestDiscoveryProfile(person.tenantId),
+        database.listSourceRuns(person.tenantId),
       ]);
       const actionPackets = await database.listPacketsByIds(
         person.tenantId,
@@ -69,6 +74,9 @@ export class DashboardRead {
         externalActions: actions,
         receipts,
         schedules,
+        discoveryProfile,
+        sourceRuns,
+        sourceRegistry: JOB_SOURCE_REGISTRY,
         personalFunnel: {
           sampleSize: applications.length,
           replies: applications.filter((application) =>

@@ -36,6 +36,9 @@ export interface JobForMatching {
   requirements: string[];
   location?: string;
   workMode?: string;
+  roleFamily?: import("./marketplace.js").RoleFamily;
+  descriptionLocator?: string;
+  observedAt?: string | undefined;
 }
 
 export interface RequirementExplanation {
@@ -52,6 +55,9 @@ export interface MatchBlocker {
     | "clearance_required"
     | "location_conflict";
   sourceText: string;
+  sourceLocator?: string;
+  observedAt?: string | undefined;
+  candidateConfirmed?: boolean;
   consequence: "visible_warning" | "exclude_from_recommendations";
 }
 

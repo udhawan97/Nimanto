@@ -3,6 +3,7 @@ export * from "./application-follow-up.js";
 export * from "./assurance.js";
 export * from "./external-actions.js";
 export * from "./matching.js";
+export * from "./marketplace.js";
 export * from "./receipts.js";
 export * from "./roles.js";
 export * from "./schedules.js";

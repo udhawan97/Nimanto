@@ -5,6 +5,7 @@ import {
   APPLICATION_MATCH_BUCKETS,
   FOLLOW_UP_DAYS,
   applicationCohortCounts,
+  applyDiscoveryProfile,
   boardColumns,
   canMove,
   confirmationPrompt,
@@ -733,6 +734,72 @@ describe("ephemeral role filters", () => {
         visibility: "all",
       }),
     ).toHaveLength(3);
+  });
+
+  it("filters work mode, role family, publication state, and verification independently", () => {
+    const enriched = roles.map((role, index) => ({
+      ...role,
+      workMode: index === 0 ? "hybrid" : index === 1 ? "remote" : "onsite",
+      roleFamily: index < 2 ? "software_technical" : "product",
+      availability: {
+        publicationState: index === 1 ? "possibly_closed" : "active",
+        verificationHealth: index === 0 ? "verified" : "unknown",
+      },
+    }));
+    expect(
+      filterRoles(enriched, {
+        query: "",
+        source: "all",
+        fit: "all",
+        tracking: "all",
+        visibility: "all",
+        workMode: "non_remote",
+        roleFamily: "software_technical",
+        publication: "current",
+        verification: "verified",
+      }).map((role) => role.id),
+    ).toEqual(["platform"]);
+    expect(
+      filterRoles(enriched, {
+        query: "",
+        source: "all",
+        fit: "all",
+        tracking: "all",
+        visibility: "all",
+        workMode: "remote",
+        roleFamily: "all",
+        publication: "possibly_closed",
+        verification: "needs_review",
+      }).map((role) => role.id),
+    ).toEqual(["data"]);
+  });
+
+  it("applies only candidate-approved discovery selections and observation age", () => {
+    const enriched = roles.map((role, index) => ({
+      ...role,
+      workMode: index === 0 ? "hybrid" : "remote",
+      roleFamily: index === 0 ? "software_technical" : "data_analytics",
+      availability: {
+        publicationState: "active",
+        verificationHealth: "verified",
+        lastSeenAt: index === 0 ? daysAgo(1) : daysAgo(20),
+      },
+    }));
+    const filtered = applyDiscoveryProfile(
+      enriched,
+      {
+        roleFamilies: ["software_technical"],
+        includeTitles: ["Engineer"],
+        excludeTitles: ["Manager"],
+        acceptedPhysicalAreas: [{ displayLabel: "Chicago", countryCode: "US" }],
+        workModes: ["hybrid"],
+        eligibleRemoteAreas: [],
+        freshnessMaximumHours: 7 * 24,
+        sourceIds: ["greenhouse"],
+      },
+      NOW,
+    );
+    expect(filtered.map((role) => role.id)).toEqual(["platform"]);
   });
 });
 

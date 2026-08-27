@@ -51,9 +51,31 @@ type RoleLike = {
   title: string;
   company: string;
   location?: string;
+  workMode?: string;
+  roleFamily?: string;
+  workplaceEvidence?: Array<{
+    eligibleRemoteAreas?: Array<{ displayLabel?: string; countryCode?: string | null }>;
+    physicalLocations?: Array<{ displayLabel?: string; countryCode?: string | null }>;
+  }>;
+  availability?: {
+    publicationState: string;
+    verificationHealth: string;
+    lastSeenAt?: string;
+  };
   tracked: boolean;
   candidateDisposition?: { state: "active" | "archived" };
   match: { result: { band: string; blockers: unknown[] } } | null;
+};
+
+type DiscoveryProfileLike = {
+  roleFamilies: readonly string[];
+  includeTitles: readonly string[];
+  excludeTitles: readonly string[];
+  acceptedPhysicalAreas: ReadonlyArray<{ displayLabel?: unknown; countryCode?: unknown }>;
+  workModes: readonly string[];
+  eligibleRemoteAreas: ReadonlyArray<{ displayLabel?: unknown; countryCode?: unknown }>;
+  freshnessMaximumHours: number;
+  sourceIds: readonly string[];
 };
 
 export type RoleFilters = {
@@ -62,6 +84,10 @@ export type RoleFilters = {
   fit: string;
   tracking: "all" | "tracked" | "untracked";
   visibility?: "active" | "archived" | "all";
+  workMode?: string;
+  roleFamily?: string;
+  publication?: "current" | "possibly_closed" | "closed" | "all";
+  verification?: "all" | "verified" | "needs_review";
 };
 
 export type EvidenceFilters = {
@@ -111,6 +137,31 @@ export function filterRoles<T extends RoleLike>(roles: readonly T[], filters: Ro
     )
       return false;
     if (filters.source !== "all" && role.source !== filters.source) return false;
+    if (filters.workMode && filters.workMode !== "all") {
+      if (filters.workMode === "non_remote") {
+        if (role.workMode !== "hybrid" && role.workMode !== "onsite") return false;
+      } else if (role.workMode !== filters.workMode) return false;
+    }
+    if (
+      filters.roleFamily &&
+      filters.roleFamily !== "all" &&
+      role.roleFamily !== filters.roleFamily
+    ) {
+      return false;
+    }
+    const publication = filters.publication ?? "current";
+    const publicationState = role.availability?.publicationState ?? "active";
+    if (publication === "current" && publicationState !== "active") return false;
+    if (publication === "possibly_closed" && publicationState !== "possibly_closed") return false;
+    if (publication === "closed" && !["closed", "expired"].includes(publicationState)) return false;
+    const verification = filters.verification ?? "all";
+    const health = role.availability?.verificationHealth ?? "unknown";
+    if (verification === "verified" && !["verified", "provider_reported"].includes(health)) {
+      return false;
+    }
+    if (verification === "needs_review" && ["verified", "provider_reported"].includes(health)) {
+      return false;
+    }
     if (filters.tracking === "tracked" && !role.tracked) return false;
     if (filters.tracking === "untracked" && role.tracked) return false;
     const archived = role.candidateDisposition?.state === "archived";
@@ -121,6 +172,61 @@ export function filterRoles<T extends RoleLike>(roles: readonly T[], filters: Ro
     if (filters.fit === "unmatched") return role.match === null;
     if (filters.fit === "blocked") return Boolean(role.match?.result.blockers.length);
     return role.match?.result.band === filters.fit;
+  });
+}
+
+/** Apply only the candidate-approved discovery inputs. Resume evidence enters
+ * matching through its saved profile version; it is never silently converted
+ * into search preferences here. */
+export function applyDiscoveryProfile<T extends RoleLike>(
+  roles: readonly T[],
+  profile: DiscoveryProfileLike | null,
+  now: Date,
+): T[] {
+  if (!profile) return [...roles];
+  const includeTitles = profile.includeTitles.map((value) => value.toLocaleLowerCase("en-US"));
+  const excludeTitles = profile.excludeTitles.map((value) => value.toLocaleLowerCase("en-US"));
+  const cutoff = now.getTime() - profile.freshnessMaximumHours * 60 * 60 * 1000;
+  const desiredAreas = [...profile.acceptedPhysicalAreas, ...profile.eligibleRemoteAreas].flatMap(
+    (area) =>
+      [area.displayLabel, area.countryCode]
+        .filter((value): value is string => typeof value === "string" && Boolean(value.trim()))
+        .map((value) => value.toLocaleLowerCase("en-US")),
+  );
+  return roles.filter((role) => {
+    const title = role.title.toLocaleLowerCase("en-US");
+    if (profile.roleFamilies.length > 0 && !profile.roleFamilies.includes(role.roleFamily ?? "")) {
+      return false;
+    }
+    if (profile.workModes.length > 0 && !profile.workModes.includes(role.workMode ?? "unknown")) {
+      return false;
+    }
+    if (profile.sourceIds.length > 0 && !profile.sourceIds.includes(role.source)) return false;
+    if (includeTitles.length > 0 && !includeTitles.some((value) => title.includes(value))) {
+      return false;
+    }
+    if (excludeTitles.some((value) => title.includes(value))) return false;
+    const observedAt = role.availability?.lastSeenAt;
+    if (observedAt && Date.parse(observedAt) < cutoff) return false;
+    if (desiredAreas.length > 0) {
+      const roleAreas = [
+        role.location ?? "",
+        ...(role.workplaceEvidence ?? []).flatMap((evidence) => [
+          ...(evidence.eligibleRemoteAreas ?? []).flatMap((area) => [
+            area.displayLabel ?? "",
+            area.countryCode ?? "",
+          ]),
+          ...(evidence.physicalLocations ?? []).flatMap((area) => [
+            area.displayLabel ?? "",
+            area.countryCode ?? "",
+          ]),
+        ]),
+      ]
+        .join(" ")
+        .toLocaleLowerCase("en-US");
+      if (!desiredAreas.some((area) => roleAreas.includes(area))) return false;
+    }
+    return true;
   });
 }
 

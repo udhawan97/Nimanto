@@ -82,6 +82,7 @@ CREATE TABLE IF NOT EXISTS jobs (
   description text NOT NULL,
   location text,
   work_mode text,
+  role_family text,
   url text,
   requirements jsonb NOT NULL,
   status text NOT NULL DEFAULT 'active',
@@ -288,6 +289,98 @@ CREATE TABLE IF NOT EXISTS dataset_editions (
   created_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (tenant_id, source_type, source_edition)
 );
+
+CREATE TABLE IF NOT EXISTS source_runs (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  source text NOT NULL,
+  board_id text,
+  query_reference_hmac text,
+  started_at timestamptz NOT NULL,
+  completed_at timestamptz NOT NULL,
+  complete boolean NOT NULL,
+  pages_read integer NOT NULL CHECK (pages_read >= 0),
+  source_item_count integer NOT NULL CHECK (source_item_count >= 0),
+  response_fingerprint text NOT NULL,
+  retry_after_observed boolean NOT NULL DEFAULT false,
+  source_policy_version text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS source_runs_tenant_idx
+  ON source_runs(tenant_id, completed_at DESC);
+
+CREATE TABLE IF NOT EXISTS role_availability (
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  job_id text NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+  first_seen_at timestamptz NOT NULL,
+  last_seen_at timestamptz NOT NULL,
+  last_verified_at timestamptz,
+  next_verify_at timestamptz,
+  source_posted_at timestamptz,
+  source_updated_at timestamptz,
+  valid_through timestamptz,
+  missing_since timestamptz,
+  publication_state text NOT NULL CHECK (publication_state IN ('active','possibly_closed','closed','expired')),
+  verification_health text NOT NULL CHECK (verification_health IN ('verified','provider_reported','blocked','overdue','unknown')),
+  verification_authority text NOT NULL CHECK (verification_authority IN ('employer_ats','licensed_provider','authorized_employer_page','candidate_review','unknown')),
+  verification_method text NOT NULL CHECK (verification_method IN ('complete_list','detail_get','provider_feed','structured_employer_page','valid_through','manual')),
+  consecutive_complete_misses integer NOT NULL DEFAULT 0 CHECK (consecutive_complete_misses >= 0),
+  closed_at timestamptz,
+  closure_reason text,
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (tenant_id, job_id)
+);
+CREATE INDEX IF NOT EXISTS role_availability_tenant_idx
+  ON role_availability(tenant_id, publication_state, verification_health, last_verified_at DESC);
+
+CREATE TABLE IF NOT EXISTS role_observations (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  job_id text NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+  source_run_id text REFERENCES source_runs(id) ON DELETE SET NULL,
+  source text NOT NULL,
+  source_job_id text NOT NULL,
+  observed_at timestamptz NOT NULL,
+  content_hash text NOT NULL,
+  source_payload_hash text NOT NULL,
+  raw_payload jsonb,
+  raw_retained_until timestamptz,
+  normalized_payload jsonb NOT NULL,
+  normalizer_version text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (tenant_id, source, source_job_id, observed_at, content_hash)
+);
+CREATE INDEX IF NOT EXISTS role_observations_tenant_job_idx
+  ON role_observations(tenant_id, job_id, observed_at DESC);
+
+CREATE TABLE IF NOT EXISTS verification_attempts (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  job_id text NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+  source_run_id text REFERENCES source_runs(id) ON DELETE SET NULL,
+  attempted_at timestamptz NOT NULL,
+  authority text NOT NULL,
+  method text NOT NULL,
+  result text NOT NULL,
+  evidence jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS verification_attempts_tenant_job_idx
+  ON verification_attempts(tenant_id, job_id, attempted_at DESC);
+
+CREATE TABLE IF NOT EXISTS discovery_profiles (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  profile_version_id text REFERENCES profile_versions(id) ON DELETE SET NULL,
+  input jsonb NOT NULL,
+  input_hash text NOT NULL,
+  matcher_version text NOT NULL,
+  normalizer_version text NOT NULL,
+  approved_at timestamptz NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS discovery_profiles_tenant_idx
+  ON discovery_profiles(tenant_id, created_at DESC, id DESC);
 CREATE OR REPLACE FUNCTION nimanto_require_active_tenant()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -312,7 +405,8 @@ BEGIN
     'role_dispositions', 'match_runs', 'h1b_signals', 'applications', 'outcomes',
     'application_notes', 'packets',
     'assurance_runs', 'external_actions', 'receipts', 'source_settings',
-    'scheduled_jobs', 'dataset_editions'
+    'scheduled_jobs', 'dataset_editions', 'source_runs', 'role_availability',
+    'role_observations', 'verification_attempts', 'discovery_profiles'
   ]
   LOOP
     EXECUTE format('DROP TRIGGER IF EXISTS nimanto_active_tenant_write ON %I', table_name);
@@ -466,6 +560,129 @@ DECLARE
   table_name text;
 BEGIN
   FOREACH table_name IN ARRAY ARRAY['role_dispositions', 'application_notes']
+  LOOP
+    EXECUTE format('DROP TRIGGER IF EXISTS nimanto_active_tenant_write ON %I', table_name);
+    EXECUTE format(
+      'CREATE TRIGGER nimanto_active_tenant_write BEFORE INSERT OR UPDATE ON %I
+       FOR EACH ROW EXECUTE FUNCTION nimanto_require_active_tenant()',
+      table_name
+    );
+  END LOOP;
+END;
+$$;
+`;
+
+export const schemaVersion8Sql = String.raw`
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS role_family text;
+
+CREATE TABLE IF NOT EXISTS source_runs (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  source text NOT NULL,
+  board_id text,
+  query_reference_hmac text,
+  started_at timestamptz NOT NULL,
+  completed_at timestamptz NOT NULL,
+  complete boolean NOT NULL,
+  pages_read integer NOT NULL CHECK (pages_read >= 0),
+  source_item_count integer NOT NULL CHECK (source_item_count >= 0),
+  response_fingerprint text NOT NULL,
+  retry_after_observed boolean NOT NULL DEFAULT false,
+  source_policy_version text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS source_runs_tenant_idx
+  ON source_runs(tenant_id, completed_at DESC);
+
+CREATE TABLE IF NOT EXISTS role_availability (
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  job_id text NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+  first_seen_at timestamptz NOT NULL,
+  last_seen_at timestamptz NOT NULL,
+  last_verified_at timestamptz,
+  next_verify_at timestamptz,
+  source_posted_at timestamptz,
+  source_updated_at timestamptz,
+  valid_through timestamptz,
+  missing_since timestamptz,
+  publication_state text NOT NULL CHECK (publication_state IN ('active','possibly_closed','closed','expired')),
+  verification_health text NOT NULL CHECK (verification_health IN ('verified','provider_reported','blocked','overdue','unknown')),
+  verification_authority text NOT NULL CHECK (verification_authority IN ('employer_ats','licensed_provider','authorized_employer_page','candidate_review','unknown')),
+  verification_method text NOT NULL CHECK (verification_method IN ('complete_list','detail_get','provider_feed','structured_employer_page','valid_through','manual')),
+  consecutive_complete_misses integer NOT NULL DEFAULT 0 CHECK (consecutive_complete_misses >= 0),
+  closed_at timestamptz,
+  closure_reason text,
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (tenant_id, job_id)
+);
+CREATE INDEX IF NOT EXISTS role_availability_tenant_idx
+  ON role_availability(tenant_id, publication_state, verification_health, last_verified_at DESC);
+
+CREATE TABLE IF NOT EXISTS role_observations (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  job_id text NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+  source_run_id text REFERENCES source_runs(id) ON DELETE SET NULL,
+  source text NOT NULL,
+  source_job_id text NOT NULL,
+  observed_at timestamptz NOT NULL,
+  content_hash text NOT NULL,
+  source_payload_hash text NOT NULL,
+  raw_payload jsonb,
+  raw_retained_until timestamptz,
+  normalized_payload jsonb NOT NULL,
+  normalizer_version text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (tenant_id, source, source_job_id, observed_at, content_hash)
+);
+CREATE INDEX IF NOT EXISTS role_observations_tenant_job_idx
+  ON role_observations(tenant_id, job_id, observed_at DESC);
+
+CREATE TABLE IF NOT EXISTS verification_attempts (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  job_id text NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+  source_run_id text REFERENCES source_runs(id) ON DELETE SET NULL,
+  attempted_at timestamptz NOT NULL,
+  authority text NOT NULL,
+  method text NOT NULL,
+  result text NOT NULL,
+  evidence jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS verification_attempts_tenant_job_idx
+  ON verification_attempts(tenant_id, job_id, attempted_at DESC);
+
+CREATE TABLE IF NOT EXISTS discovery_profiles (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  profile_version_id text REFERENCES profile_versions(id) ON DELETE SET NULL,
+  input jsonb NOT NULL,
+  input_hash text NOT NULL,
+  matcher_version text NOT NULL,
+  normalizer_version text NOT NULL,
+  approved_at timestamptz NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS discovery_profiles_tenant_idx
+  ON discovery_profiles(tenant_id, created_at DESC, id DESC);
+
+INSERT INTO role_availability(
+  tenant_id, job_id, first_seen_at, last_seen_at, publication_state,
+  verification_health, verification_authority, verification_method
+)
+SELECT tenant_id, id, created_at, created_at, 'active', 'unknown', 'unknown', 'manual'
+FROM jobs
+ON CONFLICT (tenant_id, job_id) DO NOTHING;
+
+DO $$
+DECLARE
+  table_name text;
+BEGIN
+  FOREACH table_name IN ARRAY ARRAY[
+    'source_runs', 'role_availability', 'role_observations',
+    'verification_attempts', 'discovery_profiles'
+  ]
   LOOP
     EXECUTE format('DROP TRIGGER IF EXISTS nimanto_active_tenant_write ON %I', table_name);
     EXECUTE format(

@@ -1,7 +1,8 @@
 import { randomBytes } from "node:crypto";
 import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import type { JobProviderRequest, LocalModelStatus, ProviderJob } from "@nimanto/providers";
+import type { LocalModelStatus } from "@nimanto/providers";
+import type { ProviderJobsFetcher } from "./discovery-cycle.js";
 
 export type LocalModelAdapter = {
   status: () => Promise<LocalModelStatus>;
@@ -34,7 +35,7 @@ export interface NimantoApiOptions {
     reviewer: string;
     fixtures: Array<{ sourceName: string; expectedId: string | null }>;
   };
-  providerJobsFetcher?: (request: JobProviderRequest) => Promise<ProviderJob[]>;
+  providerJobsFetcher?: ProviderJobsFetcher;
   allowlistedJobPageFetcher?: AllowlistedJobPageFetcher;
   localModel?: LocalModelAdapter;
   removePath?: (target: string, options: { recursive?: boolean; force?: boolean }) => Promise<void>;

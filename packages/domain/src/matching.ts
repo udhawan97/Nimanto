@@ -8,6 +8,7 @@ import type {
   MatchResult,
   RequirementExplanation,
 } from "./types.js";
+import { isValidatedRoleFamily } from "./marketplace.js";
 
 const STOP_WORDS = new Set([
   "a",
@@ -70,7 +71,7 @@ function evidenceMatches(requirement: string, evidence: EvidenceClaim[]): Eviden
   });
 }
 
-function blockerText(description: string): MatchBlocker[] {
+function blockerText(job: JobForMatching): MatchBlocker[] {
   const result: MatchBlocker[] = [];
   const checks: Array<{
     code: MatchBlocker["code"];
@@ -81,7 +82,7 @@ function blockerText(description: string): MatchBlocker[] {
       code: "no_sponsorship_of_any_kind",
       pattern:
         /(?:cannot|can't|unable to|do not|don't|no)\s+(?:provide\s+)?(?:sponsor|sponsorship|visa)|without\s+(?:current or future\s+)?sponsorship/iu,
-      consequence: "exclude_from_recommendations",
+      consequence: "visible_warning",
     },
     {
       code: "citizenship_required",
@@ -96,11 +97,14 @@ function blockerText(description: string): MatchBlocker[] {
   ];
 
   for (const check of checks) {
-    const match = description.match(check.pattern);
+    const match = job.description.match(check.pattern);
     if (match?.[0]) {
       result.push({
         code: check.code,
         sourceText: match[0],
+        sourceLocator: job.descriptionLocator ?? `role:${job.id}:description`,
+        observedAt: job.observedAt,
+        candidateConfirmed: false,
         consequence: check.consequence,
       });
     }
@@ -222,6 +226,9 @@ export function matchJob(input: { evidence: EvidenceClaim[]; job: JobForMatching
     evidence.length > 0 ? Math.min(1, skillEvidence.length / Math.min(3, evidence.length)) : 0;
   const score =
     qualificationRatio * 0.35 + accomplishmentRatio * 0.3 + levelRatio * 0.2 + skillsRatio * 0.15;
+  const roleFamilyValidated = input.job.roleFamily
+    ? isValidatedRoleFamily(input.job.roleFamily)
+    : true;
 
   const dimensions: MatchDimension[] = [
     {
@@ -252,16 +259,19 @@ export function matchJob(input: { evidence: EvidenceClaim[]; job: JobForMatching
 
   return {
     ruleVersion: "scoring_rules_v1",
-    band: coverageValue < 0.6 ? "not_scored" : bandFromValue(score),
-    coverage: coverageValue < 0.6 ? "coverage_low" : "coverage_sufficient",
+    band: coverageValue < 0.6 || !roleFamilyValidated ? "not_scored" : bandFromValue(score),
+    coverage: coverageValue < 0.6 || !roleFamilyValidated ? "coverage_low" : "coverage_sufficient",
     evidenceStrength: evidenceStrength(requirements, evidence),
     requirements,
     dimensions,
-    blockers: [...blockerText(input.job.description), ...locationBlockers(input.job, evidence)],
+    blockers: [...blockerText(input.job), ...locationBlockers(input.job, evidence)],
     exclusions: [
       "Pronouns, standalone year cues, and a conventional name prefix before an em dash are removed from the normalized free-text scoring projection.",
       "This local beta does not claim comprehensive de-identification: do not import sensitive identity details as scoring evidence.",
       "The band is not a hiring probability or immigration determination.",
+      ...(!roleFamilyValidated
+        ? ["This role family is experimental_unvalidated and is not fit-scored."]
+        : []),
     ],
   };
 }

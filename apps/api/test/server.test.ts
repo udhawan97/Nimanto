@@ -777,6 +777,11 @@ describe("Nimanto beta API", () => {
           location: "Remote",
           requirements: ["TypeScript"],
           contentHash: "direct-role-content-1",
+          availability: {
+            publicationState: "active",
+            verificationHealth: "verified",
+            verificationMethod: "complete_list",
+          },
         },
       ],
     });
@@ -790,6 +795,99 @@ describe("Nimanto beta API", () => {
     expect(dashboard.matches.some((match: { jobId: string }) => match.jobId === directJob.id)).toBe(
       false,
     );
+    expect(dashboard.sourceRuns).toEqual([
+      expect.objectContaining({
+        source: "greenhouse",
+        boardId: "direct-board",
+        complete: true,
+        sourceItemCount: 1,
+      }),
+    ]);
+  });
+
+  it("exposes the deny-by-default source registry and candidate-approved discovery profile", async () => {
+    const { app, cookie } = await setup();
+    const registry = await app.inject({
+      method: "GET",
+      url: "/v1/job-sources",
+      headers: { cookie },
+    });
+    expect(registry.statusCode).toBe(200);
+    expect(registry.json()).toMatchObject({
+      executionPolicy: "deny_by_default",
+      sources: expect.arrayContaining([
+        expect.objectContaining({ id: "greenhouse", executionEnabled: true }),
+        expect.objectContaining({ id: "smartrecruiters", executionEnabled: false }),
+        expect.objectContaining({ id: "linkedin", commercialUseDecision: "prohibited" }),
+      ]),
+    });
+    const blocked = await app.inject({
+      method: "POST",
+      url: "/v1/jobs/import",
+      headers: { cookie },
+      payload: { provider: "smartrecruiters", board: "northwind" },
+    });
+    expect(blocked.statusCode).toBe(409);
+    expect(blocked.json()).toMatchObject({ error: { code: "SOURCE_EXECUTION_DISABLED" } });
+
+    const dashboard = (
+      await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } })
+    ).json();
+    const payload = {
+      profileVersionId: dashboard.profile.id,
+      roleFamilies: ["ai_ml", "software_technical"],
+      includeTitles: ["Engineer"],
+      excludeTitles: ["Manager"],
+      seniorityLevels: [],
+      industries: [],
+      mustHaveSkills: ["TypeScript"],
+      preferredSkills: [],
+      acceptedPhysicalAreas: [
+        {
+          displayLabel: "Chicago, IL",
+          countryCode: "US",
+          subdivisionCode: "US-IL",
+          metroId: null,
+          timeZone: "America/Chicago",
+          resolution: "confirmed",
+        },
+      ],
+      commuteRadiusMiles: 30,
+      relocationPreference: "consider",
+      workModes: ["remote", "hybrid"],
+      eligibleRemoteAreas: [],
+      minimumCompensation: { amount: 120000, currency: "USD" },
+      currentPostingSponsorshipFilter: "show_all",
+      authorizationStatementVersionId: dashboard.profile.id,
+      authorizationStatementExpiresAt: null,
+      freshnessMaximumHours: 168,
+      sourceIds: ["greenhouse", "lever", "ashby"],
+    };
+    const saved = await app.inject({
+      method: "POST",
+      url: "/v1/discovery-profile",
+      headers: { cookie },
+      payload,
+    });
+    expect(saved.statusCode).toBe(200);
+    expect(saved.json()).toMatchObject({
+      created: true,
+      profile: { input: { roleFamilies: payload.roleFamilies, workModes: payload.workModes } },
+    });
+    const idempotent = await app.inject({
+      method: "POST",
+      url: "/v1/discovery-profile",
+      headers: { cookie },
+      payload,
+    });
+    expect(idempotent.json()).toMatchObject({
+      created: false,
+      profile: { id: saved.json().profile.id },
+    });
+    const refreshed = (
+      await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } })
+    ).json();
+    expect(refreshed.discoveryProfile.id).toBe(saved.json().profile.id);
   });
 
   it("rejects an invalid direct provider batch before writing any roles", async () => {
@@ -1222,10 +1320,10 @@ describe("Nimanto beta API", () => {
     });
     expect(exported.statusCode).toBe(200);
     expect(exported.json()).toMatchObject({
-      exportVersion: "nimanto-local-beta-v2",
+      exportVersion: "nimanto-local-beta-v3",
       identity: { displayName: "Priya Shah", email: "priya@example.test" },
       workspace: {
-        schemaVersion: "nimanto_export_v2",
+        schemaVersion: "nimanto_export_v3",
         profileVersions: expect.any(Array),
         matchRuns: expect.any(Array),
         assuranceRuns: expect.any(Array),

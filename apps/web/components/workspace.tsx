@@ -59,6 +59,7 @@ import {
   BOARD_COLUMNS,
   APPLICATION_MATCH_BUCKETS,
   applicationCohortCounts,
+  applyDiscoveryProfile,
   boardColumns,
   canMove,
   countedNoun,
@@ -140,8 +141,44 @@ type Job = {
   company: string;
   description: string;
   location: string;
+  workMode: "remote" | "hybrid" | "onsite" | "unknown" | "conflicting";
+  roleFamily:
+    | "ai_ml"
+    | "software_technical"
+    | "data_analytics"
+    | "product"
+    | "business_strategy_operations_solutions"
+    | "other";
+  workplaceEvidence: Array<{
+    mode: string;
+    method: string;
+    sourceText: string;
+    sourceFieldOrLocator: string;
+    observedAt: string;
+    confidence: string;
+    eligibleRemoteAreas?: Array<{ displayLabel?: string; countryCode?: string | null }>;
+    physicalLocations?: Array<{ displayLabel?: string; countryCode?: string | null }>;
+  }>;
   requirements: string[];
   url: string;
+  availability: {
+    firstSeenAt: string;
+    lastSeenAt: string;
+    lastVerifiedAt: string | null;
+    nextVerifyAt: string | null;
+    sourcePostedAt: string | null;
+    sourceUpdatedAt: string | null;
+    validThrough: string | null;
+    missingSince: string | null;
+    publicationState: "active" | "possibly_closed" | "closed" | "expired";
+    verificationHealth: "verified" | "provider_reported" | "blocked" | "overdue" | "unknown";
+    verificationAuthority: string;
+    verificationMethod: string;
+    consecutiveCompleteMisses: number;
+    closedAt: string | null;
+    closureReason: string | null;
+  };
+  cluster: { id: string; size: number; sources: string[] };
   candidateDisposition: { state: "active" | "archived"; archivedAt: string | null };
   sourceMeta: {
     compensation?: { minimum?: number | null; maximum?: number | null; currency?: string } | null;
@@ -167,7 +204,13 @@ type Match = {
       weightUnits: number;
       evidenceIds: string[];
     }>;
-    blockers: Array<{ code: string; sourceText: string }>;
+    blockers: Array<{
+      code: string;
+      sourceText: string;
+      sourceLocator?: string;
+      observedAt?: string;
+      candidateConfirmed?: boolean;
+    }>;
     exclusions: string[];
     requirements: Array<{
       requirement: string;
@@ -269,6 +312,20 @@ type RoleFilters = {
   fit: string;
   tracking: "all" | "tracked" | "untracked";
   visibility: "active" | "archived" | "all";
+  workMode: string;
+  roleFamily: string;
+  publication: "current" | "possibly_closed" | "closed" | "all";
+  verification: "all" | "verified" | "needs_review";
+};
+type DiscoveryDraft = {
+  roleFamilies: Job["roleFamily"][];
+  includeTitles: string;
+  excludeTitles: string;
+  workModes: Job["workMode"][];
+  areaLabel: string;
+  countryCode: string;
+  sourceIds: string[];
+  freshnessDays: string;
 };
 type ActionDraft = {
   packetId: string;
@@ -296,6 +353,10 @@ const emptyRoleFilters = (): RoleFilters => ({
   fit: "all",
   tracking: "all",
   visibility: "active",
+  workMode: "all",
+  roleFamily: "all",
+  publication: "current",
+  verification: "all",
 });
 const emptyEvidenceFilters = (): EvidenceFilters => ({
   query: "",
@@ -392,6 +453,52 @@ type SourceSchedule = {
   lastResult: { imported: number; matched: number } | null;
   lastErrorCode: string | null;
 };
+type DiscoveryProfile = {
+  id: string;
+  inputHash: string;
+  approvedAt: string;
+  input: {
+    profileVersionId: string | null;
+    roleFamilies: Job["roleFamily"][];
+    includeTitles: string[];
+    excludeTitles: string[];
+    seniorityLevels: string[];
+    industries: string[];
+    mustHaveSkills: string[];
+    preferredSkills: string[];
+    acceptedPhysicalAreas: Array<Record<string, unknown>>;
+    commuteRadiusMiles: number | null;
+    relocationPreference: "no" | "consider" | "yes";
+    workModes: Job["workMode"][];
+    eligibleRemoteAreas: Array<Record<string, unknown>>;
+    minimumCompensation: { amount: number; currency: string } | null;
+    currentPostingSponsorshipFilter: "show_all" | "hide_confirmed_exact_conflicts_from_recommended";
+    authorizationStatementVersionId: string | null;
+    authorizationStatementExpiresAt: string | null;
+    freshnessMaximumHours: number;
+    sourceIds: string[];
+  };
+};
+type SourceRun = {
+  id: string;
+  source: string;
+  boardId: string | null;
+  completedAt: string;
+  complete: boolean;
+  sourceItemCount: number;
+};
+type SourceRegistryEntry = {
+  id: string;
+  label: string;
+  accessClass: string;
+  state: string;
+  executionEnabled: boolean;
+  termsUrl: string;
+  termsReviewedAt: string | null;
+  commercialUseDecision: string;
+  supportsCompleteSnapshot: boolean;
+  limitation: string;
+};
 type Dashboard = {
   identity: {
     userId: string;
@@ -411,6 +518,9 @@ type Dashboard = {
   externalActions: Action[];
   receipts: Receipt[];
   schedules: SourceSchedule[];
+  discoveryProfile: DiscoveryProfile | null;
+  sourceRuns: SourceRun[];
+  sourceRegistry: SourceRegistryEntry[];
   personalFunnel: {
     sampleSize: number;
     replies: number;
@@ -508,6 +618,23 @@ function localDateTime(value: string): string {
     hour: "numeric",
     minute: "2-digit",
   }).format(new Date(value));
+}
+
+function postingVerificationLabel(job: Job): string {
+  const availability = job.availability;
+  if (availability.publicationState === "possibly_closed") {
+    return `Possibly closed · missing from one complete source run since ${localDateTime(availability.missingSince ?? availability.lastSeenAt)}`;
+  }
+  if (availability.publicationState === "closed") {
+    return `Closed after two complete source runs · ${localDateTime(availability.closedAt ?? availability.lastSeenAt)}`;
+  }
+  if (availability.publicationState === "expired") {
+    return `Expired by source valid-through date · ${localDateTime(availability.validThrough ?? availability.lastSeenAt)}`;
+  }
+  if (availability.lastVerifiedAt) {
+    return `${human(availability.verificationMethod)} verification · ${localDateTime(availability.lastVerifiedAt)}${availability.verificationHealth === "overdue" ? " · recheck overdue" : ""}`;
+  }
+  return `Observed ${localDateTime(availability.lastSeenAt)} · not source-verified`;
 }
 
 function packetCanonicalDelta(before: PacketHistoryRecord, after: PacketHistoryRecord): string[] {
@@ -2725,6 +2852,25 @@ function Jobs({
 }) {
   const [sourceOpen, setSourceOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [discoveryOpen, setDiscoveryOpen] = useState(!dashboard.discoveryProfile);
+  const [discoveryDraft, setDiscoveryDraft] = useState<DiscoveryDraft>(() => ({
+    roleFamilies: dashboard.discoveryProfile?.input.roleFamilies ?? ["ai_ml", "software_technical"],
+    includeTitles: dashboard.discoveryProfile?.input.includeTitles.join("\n") ?? "",
+    excludeTitles: dashboard.discoveryProfile?.input.excludeTitles.join("\n") ?? "",
+    workModes: dashboard.discoveryProfile?.input.workModes ?? ["remote", "hybrid", "onsite"],
+    areaLabel:
+      (dashboard.discoveryProfile?.input.acceptedPhysicalAreas[0]?.displayLabel as string) ?? "",
+    countryCode:
+      (dashboard.discoveryProfile?.input.acceptedPhysicalAreas[0]?.countryCode as string) ?? "US",
+    sourceIds: dashboard.discoveryProfile?.input.sourceIds ?? [
+      "manual",
+      "allowlisted_url",
+      ...dashboard.sourceRegistry
+        .filter((source) => source.executionEnabled)
+        .map((source) => source.id),
+    ],
+    freshnessDays: String((dashboard.discoveryProfile?.input.freshnessMaximumHours ?? 168) / 24),
+  }));
   const confirmedClaimIds = dashboard.evidence
     .filter((claim) => claim.status === "confirmed")
     .map((claim) => claim.id);
@@ -2750,17 +2896,55 @@ function Jobs({
     () => [...new Set(dashboard.jobs.map((job) => job.source))].toSorted(),
     [dashboard.jobs],
   );
+  const discoveredRoleInputs = useMemo(
+    () => applyDiscoveryProfile(roleInputs, dashboard.discoveryProfile?.input ?? null, new Date()),
+    [dashboard.discoveryProfile, roleInputs],
+  );
   const visibleRoles = useMemo(
     () =>
-      filterRoles(roleInputs, {
+      filterRoles(discoveredRoleInputs, {
         query: deferredQuery,
         source: filters.source,
         fit: filters.fit,
         tracking: filters.tracking,
         visibility: filters.visibility,
+        workMode: filters.workMode,
+        roleFamily: filters.roleFamily,
+        publication: filters.publication,
+        verification: filters.verification,
       }),
-    [deferredQuery, filters.fit, filters.source, filters.tracking, filters.visibility, roleInputs],
+    [
+      deferredQuery,
+      filters.fit,
+      filters.publication,
+      filters.roleFamily,
+      filters.source,
+      filters.tracking,
+      filters.verification,
+      filters.visibility,
+      filters.workMode,
+      discoveredRoleInputs,
+    ],
   );
+  const displayedRoles = useMemo(() => {
+    const clusters = new Map<string, ComparableRole[]>();
+    for (const role of visibleRoles) {
+      const members = clusters.get(role.cluster.id) ?? [];
+      members.push(role);
+      clusters.set(role.cluster.id, members);
+    }
+    return [...clusters.values()].map(
+      (members) =>
+        members.toSorted((left, right) => {
+          const leftVerified = left.availability.verificationHealth === "verified" ? 1 : 0;
+          const rightVerified = right.availability.verificationHealth === "verified" ? 1 : 0;
+          return (
+            rightVerified - leftVerified ||
+            right.availability.lastSeenAt.localeCompare(left.availability.lastSeenAt)
+          );
+        })[0]!,
+    );
+  }, [visibleRoles]);
   const comparisonRoles = useMemo(
     () =>
       comparisonRoleIds.flatMap((id) => {
@@ -2781,7 +2965,11 @@ function Jobs({
     filters.source !== "all" ||
     filters.fit !== "all" ||
     filters.tracking !== "all" ||
-    filters.visibility !== "active",
+    filters.visibility !== "active" ||
+    filters.workMode !== "all" ||
+    filters.roleFamily !== "all" ||
+    filters.publication !== "current" ||
+    filters.verification !== "all",
   );
   const numberOrNull = (value: string) => {
     const text = value.trim();
@@ -2791,6 +2979,60 @@ function Jobs({
     failureMessage({ code: "INVALID_COMPENSATION" }) ?? "Check the posted compensation range.";
   const focusCompensationMaximum = () =>
     window.requestAnimationFrame(() => compensationMaximumField.current?.focus());
+  const toggleDiscoveryValue = <T extends string>(values: T[], value: T): T[] =>
+    values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
+  const saveDiscoveryProfile = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const areaLabel = discoveryDraft.areaLabel.trim();
+    const countryCode = discoveryDraft.countryCode.trim().toUpperCase();
+    const area = areaLabel
+      ? {
+          displayLabel: areaLabel,
+          countryCode: countryCode || null,
+          subdivisionCode: null,
+          metroId: null,
+          timeZone: null,
+          resolution: countryCode ? "confirmed" : "unknown",
+        }
+      : null;
+    const submitted = { ...discoveryDraft };
+    void onAct.run({
+      request: () =>
+        api("/v1/discovery-profile", {
+          method: "POST",
+          body: JSON.stringify({
+            profileVersionId: dashboard.profile?.id ?? null,
+            roleFamilies: submitted.roleFamilies,
+            includeTitles: submitted.includeTitles
+              .split("\n")
+              .map((value) => value.trim())
+              .filter(Boolean),
+            excludeTitles: submitted.excludeTitles
+              .split("\n")
+              .map((value) => value.trim())
+              .filter(Boolean),
+            seniorityLevels: [],
+            industries: [],
+            mustHaveSkills: [],
+            preferredSkills: [],
+            acceptedPhysicalAreas: area ? [area] : [],
+            commuteRadiusMiles: null,
+            relocationPreference: "consider",
+            workModes: submitted.workModes,
+            eligibleRemoteAreas: area ? [area] : [],
+            minimumCompensation: null,
+            currentPostingSponsorshipFilter: "show_all",
+            authorizationStatementVersionId: dashboard.profile?.id ?? null,
+            authorizationStatementExpiresAt: null,
+            freshnessMaximumHours: Math.round(Number(submitted.freshnessDays) * 24),
+            sourceIds: submitted.sourceIds,
+          }),
+        }),
+      success: "Discovery profile approved and saved.",
+      transient: true,
+      commit: () => setDiscoveryOpen(false),
+    });
+  };
   const addJob = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!draft) return;
@@ -2920,6 +3162,14 @@ function Jobs({
         copy="Nimanto explains required qualifications, accomplishments, role-level alignment, skills overlap, coverage, and explicit sponsorship blockers."
         action={
           <div className="button-group">
+            <button
+              className="button quiet"
+              type="button"
+              aria-expanded={discoveryOpen}
+              onClick={() => setDiscoveryOpen((value) => !value)}
+            >
+              <SlidersHorizontal size={16} /> Discovery profile
+            </button>
             {reviewedUrlEnabled ? (
               <button
                 className="button quiet"
@@ -2964,6 +3214,224 @@ function Jobs({
           </div>
         }
       />
+      <section className="marketplace-controls" aria-label="Personal discovery and source registry">
+        {discoveryOpen && (
+          <form className="work-panel discovery-profile" onSubmit={saveDiscoveryProfile}>
+            <div className="panel-heading">
+              <div>
+                <span>Candidate-approved inputs</span>
+                <h2>Your discovery profile</h2>
+              </div>
+              {dashboard.discoveryProfile && (
+                <small>Approved {localDateTime(dashboard.discoveryProfile.approvedAt)}</small>
+              )}
+            </div>
+            <p className="field-note">
+              Your selected role families, titles, area, work modes, and saved evidence-profile
+              version drive discovery. Nimanto does not silently infer or save new preferences from
+              a résumé.
+            </p>
+            <fieldset>
+              <legend>Role families</legend>
+              <div className="choice-row">
+                {(
+                  [
+                    ["ai_ml", "AI / ML"],
+                    ["software_technical", "Software / technical"],
+                    ["data_analytics", "Data / analytics"],
+                    ["product", "Product"],
+                    ["business_strategy_operations_solutions", "Business / strategy / ops"],
+                    ["other", "Other"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <label key={value}>
+                    <input
+                      type="checkbox"
+                      checked={discoveryDraft.roleFamilies.includes(value)}
+                      onChange={() =>
+                        setDiscoveryDraft((current) => ({
+                          ...current,
+                          roleFamilies: toggleDiscoveryValue(current.roleFamilies, value),
+                        }))
+                      }
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            <div className="field-grid">
+              <label>
+                Include titles, one per line
+                <textarea
+                  value={discoveryDraft.includeTitles}
+                  onChange={(event) =>
+                    setDiscoveryDraft((current) => ({
+                      ...current,
+                      includeTitles: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+              <label>
+                Exclude titles, one per line
+                <textarea
+                  value={discoveryDraft.excludeTitles}
+                  onChange={(event) =>
+                    setDiscoveryDraft((current) => ({
+                      ...current,
+                      excludeTitles: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+            </div>
+            <fieldset>
+              <legend>Work modes</legend>
+              <div className="choice-row">
+                {(
+                  [
+                    ["remote", "Remote"],
+                    ["hybrid", "Hybrid"],
+                    ["onsite", "On-site"],
+                    ["unknown", "Include unknown"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <label key={value}>
+                    <input
+                      type="checkbox"
+                      checked={discoveryDraft.workModes.includes(value)}
+                      onChange={() =>
+                        setDiscoveryDraft((current) => ({
+                          ...current,
+                          workModes: toggleDiscoveryValue(current.workModes, value),
+                        }))
+                      }
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            <div className="field-grid">
+              <label>
+                Physical or remote-eligible area
+                <input
+                  value={discoveryDraft.areaLabel}
+                  placeholder="Chicago, IL or United States"
+                  onChange={(event) =>
+                    setDiscoveryDraft((current) => ({ ...current, areaLabel: event.target.value }))
+                  }
+                />
+              </label>
+              <label>
+                Country code
+                <input
+                  value={discoveryDraft.countryCode}
+                  maxLength={2}
+                  pattern="[A-Za-z]{2}"
+                  placeholder="US"
+                  onChange={(event) =>
+                    setDiscoveryDraft((current) => ({
+                      ...current,
+                      countryCode: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+              <label>
+                Maximum observation age
+                <select
+                  value={discoveryDraft.freshnessDays}
+                  onChange={(event) =>
+                    setDiscoveryDraft((current) => ({
+                      ...current,
+                      freshnessDays: event.target.value,
+                    }))
+                  }
+                >
+                  <option value="1">24 hours</option>
+                  <option value="3">3 days</option>
+                  <option value="7">7 days</option>
+                  <option value="14">14 days</option>
+                  <option value="30">30 days</option>
+                </select>
+              </label>
+              <p className="field-note">
+                <strong>Current-posting sponsorship text</strong>
+                <br />
+                Roles remain visible with the exact wording, locator, and observation time. Nimanto
+                does not infer an immigration outcome or hide a role automatically.
+              </p>
+            </div>
+            <fieldset>
+              <legend>Approved sources</legend>
+              <div className="choice-row">
+                {[
+                  { id: "manual", label: "Candidate-saved roles" },
+                  { id: "allowlisted_url", label: "Reviewed URLs" },
+                  ...dashboard.sourceRegistry.filter((source) => source.executionEnabled),
+                ].map((source) => (
+                  <label key={source.id}>
+                    <input
+                      type="checkbox"
+                      checked={discoveryDraft.sourceIds.includes(source.id)}
+                      onChange={() =>
+                        setDiscoveryDraft((current) => ({
+                          ...current,
+                          sourceIds: toggleDiscoveryValue(current.sourceIds, source.id),
+                        }))
+                      }
+                    />
+                    {source.label}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            <div className="button-group">
+              <button className="button primary" disabled={busy}>
+                Approve discovery profile
+              </button>
+              <span className="field-note">
+                {dashboard.profile
+                  ? `Linked to saved evidence profile ${dashboard.profile.id.slice(0, 8)}.`
+                  : "Save an evidence profile to link résumé evidence into matching."}
+              </span>
+            </div>
+          </form>
+        )}
+        <details className="source-registry">
+          <summary>
+            Source registry ·{" "}
+            {dashboard.sourceRegistry.filter((source) => source.executionEnabled).length} enabled ·{" "}
+            {dashboard.sourceRegistry.filter((source) => !source.executionEnabled).length} gated
+          </summary>
+          <p>
+            Adapters and commercial feeds stay off until access, display, retention, deletion, and
+            canonical-link rights are approved. Prohibited aggregators are never scraped.
+          </p>
+          <div className="source-registry-grid">
+            {dashboard.sourceRegistry.map((source) => (
+              <article key={source.id}>
+                <div>
+                  <strong>{source.label}</strong>
+                  <span className={`state ${source.executionEnabled ? "supported" : "muted"}`}>
+                    {source.executionEnabled ? "Enabled" : "Gated"}
+                  </span>
+                </div>
+                <small>
+                  {human(source.accessClass)} · complete snapshot{" "}
+                  {source.supportsCompleteSnapshot ? "supported" : "not established"}
+                </small>
+                <p>{source.limitation}</p>
+                <a href={source.termsUrl} target="_blank" rel="noreferrer">
+                  Review source terms
+                </a>
+              </article>
+            ))}
+          </div>
+        </details>
+      </section>
       {(draft || reviewedUrlDraft || sourceOpen || scheduleOpen) && (
         <div className="inline-form-row">
           {draft && (
@@ -3456,6 +3924,71 @@ function Jobs({
           </select>
         </label>
         <label>
+          Remote / workplace
+          <select
+            value={filters.workMode}
+            onChange={(event) => onFiltersChange({ ...filters, workMode: event.target.value })}
+          >
+            <option value="all">All arrangements</option>
+            <option value="remote">Remote</option>
+            <option value="non_remote">Non-remote</option>
+            <option value="hybrid">Hybrid</option>
+            <option value="onsite">On-site</option>
+            <option value="unknown">Not established</option>
+            <option value="conflicting">Conflicting evidence</option>
+          </select>
+        </label>
+        <label>
+          Role family
+          <select
+            value={filters.roleFamily}
+            onChange={(event) => onFiltersChange({ ...filters, roleFamily: event.target.value })}
+          >
+            <option value="all">All role families</option>
+            <option value="ai_ml">AI / ML</option>
+            <option value="software_technical">Software / technical</option>
+            <option value="data_analytics">Data / analytics</option>
+            <option value="product">Product</option>
+            <option value="business_strategy_operations_solutions">
+              Business / strategy / ops
+            </option>
+            <option value="other">Other</option>
+          </select>
+        </label>
+        <label>
+          Posting state
+          <select
+            value={filters.publication}
+            onChange={(event) =>
+              onFiltersChange({
+                ...filters,
+                publication: event.target.value as RoleFilters["publication"],
+              })
+            }
+          >
+            <option value="current">Current only</option>
+            <option value="possibly_closed">Possibly closed</option>
+            <option value="closed">Closed or expired</option>
+            <option value="all">All posting states</option>
+          </select>
+        </label>
+        <label>
+          Verification
+          <select
+            value={filters.verification}
+            onChange={(event) =>
+              onFiltersChange({
+                ...filters,
+                verification: event.target.value as RoleFilters["verification"],
+              })
+            }
+          >
+            <option value="all">Any verification</option>
+            <option value="verified">Verified by source</option>
+            <option value="needs_review">Needs review</option>
+          </select>
+        </label>
+        <label>
           Evidence fit
           <select
             value={filters.fit}
@@ -3506,7 +4039,9 @@ function Jobs({
           <strong>
             {visibleRoles.length} of {dashboard.jobs.length}
           </strong>
-          <span>roles shown</span>
+          <span>
+            {displayedRoles.length} role cluster{displayedRoles.length === 1 ? "" : "s"} shown
+          </span>
           {filtersActive && (
             <button
               className="button mini quiet"
@@ -3528,8 +4063,15 @@ function Jobs({
         />
       )}
       <div className="job-list">
-        {visibleRoles.map((job) => {
+        {displayedRoles.map((job) => {
           const match = job.match;
+          const clusterMembers = visibleRoles.filter(
+            (candidate) => candidate.cluster.id === job.cluster.id,
+          );
+          const companySignals = dashboard.h1bSignals.filter(
+            (signal) =>
+              signal.company.toLocaleLowerCase("en-US") === job.company.toLocaleLowerCase("en-US"),
+          );
           const supportedRequirementCount =
             match?.result.requirements.filter((item) => item.state === "supported").length ?? 0;
           return (
@@ -3542,6 +4084,62 @@ function Jobs({
                   <p>
                     {job.company} · {job.location || "Location not specified"}
                   </p>
+                  <div className="job-facts" aria-label="Posting facts">
+                    <span className="state muted">{human(job.workMode)}</span>
+                    <span className="state muted">{human(job.roleFamily)}</span>
+                    <span
+                      className={`state ${
+                        job.availability.publicationState === "active"
+                          ? "supported"
+                          : job.availability.publicationState === "possibly_closed"
+                            ? "warning"
+                            : "danger"
+                      }`}
+                    >
+                      {human(job.availability.publicationState)}
+                    </span>
+                    <span
+                      className={`state ${
+                        job.availability.verificationHealth === "verified" ||
+                        job.availability.verificationHealth === "provider_reported"
+                          ? "supported"
+                          : "warning"
+                      }`}
+                    >
+                      {human(job.availability.verificationHealth)}
+                    </span>
+                  </div>
+                  <small className="posting-verification">{postingVerificationLabel(job)}</small>
+                  {clusterMembers.length > 1 && (
+                    <details className="source-variants">
+                      <summary>{clusterMembers.length} possible source variants</summary>
+                      <ul>
+                        {clusterMembers.map((variant) => (
+                          <li key={variant.id}>
+                            {variant.url ? (
+                              <a href={variant.url} target="_blank" rel="noreferrer">
+                                {human(variant.source)} · {postingVerificationLabel(variant)}
+                              </a>
+                            ) : (
+                              <span>
+                                {human(variant.source)} · {postingVerificationLabel(variant)}
+                              </span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
+                  {companySignals.length > 0 && (
+                    <p className="h1b-role-context">
+                      <strong>Historical company signal:</strong>{" "}
+                      {companySignals
+                        .slice(0, 2)
+                        .map((signal) => `${human(signal.label)} (${signal.sourcePeriod})`)
+                        .join(" · ")}
+                      . This is not current-role sponsorship proof.
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="job-match">
@@ -3708,6 +4306,17 @@ function Jobs({
                           {/* Without a separator the label ran straight into the
                            * quoted source: "No sponsorship of any kindNo sponsor". */}
                           <span className="blocker-source">{blocker.sourceText}</span>
+                          {(blocker.sourceLocator || blocker.observedAt) && (
+                            <small className="blocker-provenance">
+                              {blocker.sourceLocator ?? "Posting description"}
+                              {blocker.observedAt
+                                ? ` · observed ${localDateTime(blocker.observedAt)}`
+                                : ""}
+                              {blocker.candidateConfirmed === false
+                                ? " · exact wording not candidate-confirmed as a personal conflict"
+                                : ""}
+                            </small>
+                          )}
                         </span>
                       </p>
                     ))}

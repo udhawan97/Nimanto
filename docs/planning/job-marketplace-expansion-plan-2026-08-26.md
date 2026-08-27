@@ -1,6 +1,6 @@
 # Nimanto job marketplace expansion plan
 
-**Status:** proposed implementation plan; no source access, provider partnership, immigration conclusion, or release is authorized by this document
+**Status:** implemented on `main` for code-owned foundations and approved ATS execution; gated sources remain disabled pending source-specific rights, credentials, and quality acceptance. This document does not authorize a provider partnership, immigration conclusion, release, or deployment.
 
 **Prepared:** 2026-08-26
 **Companion research:** [Job source expansion research](./job-source-expansion-research-2026-08-26.md)
@@ -18,6 +18,22 @@ The best first inventory is not “all of LinkedIn, Indeed, and Glassdoor.” Th
 
 This approach maximizes freshness and provenance while keeping the architecture ready for broader inventory.
 
+## Implemented scope
+
+| Capability | Current state |
+| --- | --- |
+| Source governance | One deny-by-default registry exposes enabled, candidate, prohibited, terms, retention, attribution, and complete-snapshot status. Greenhouse, Lever, and Ashby remain enabled; every new source remains gated. |
+| Provider protocol | Fetches return roles plus a complete/partial source-run record. Greenhouse, Lever, and Ashby preserve richer source dates and workplace evidence. A paginated SmartRecruiters adapter is implemented but cannot execute until its registry gate is approved. |
+| Posting lifecycle | Schema version 8 stores source runs, immutable normalized observations, role availability, and verification attempts. Raw provider payloads are hashed and discarded under the current zero-hour policy. |
+| Stale protection | One complete-list miss sets `possibly_closed`; a second complete miss at least six hours later sets `closed`. Failed and partial runs never close a role. Source `validThrough` can set `expired`; elapsed recheck time becomes `overdue`, not closed. |
+| Work mode | `remote`, `hybrid`, `onsite`, `unknown`, and `conflicting` are canonical domain values with source-field evidence and structured areas. The workbench includes remote, non-remote, individual-mode, role-family, posting-state, and verification filters. |
+| Personalization | Candidate-approved Discovery Profiles are versioned, idempotent, linked to an exact Evidence Profile, and applied to title, role-family, source, area, work-mode, and observation-age discovery. No résumé inference is silently persisted. |
+| Aggregation | Exact-field normalized company/title/location clusters group possible cross-source variants while retaining every source record, link, wording, and verification label. Same-source roles are not collapsed by title/location alone. |
+| H-1B boundary | Exact current-posting wording is a visible warning with locator/time evidence. Historical company signals are displayed separately and never treated as current sponsorship proof or an automatic rejection. |
+| Data control | `nimanto_export_v3` includes discovery profiles, source runs, observations, verification attempts, and availability; tenant deletion cascades through all new tenant-owned tables. |
+
+Licensed feeds, partner-only sources, and terms-conflicted aggregators are deliberately not executable. Their registry entries make future activation explicit without treating adapter code, a public endpoint, or user demand as data rights.
+
 ## Product outcome
 
 The candidate should be able to:
@@ -33,31 +49,17 @@ The candidate should be able to:
 
 Nimanto must not claim that historical filings mean a current employer will sponsor, that a remote job can legally employ a candidate in every location, or that an old but still-live posting is stale.
 
-## Current baseline and root gaps
+## Baseline addressed by this implementation
 
-Nimanto already has useful seams:
+The implementation builds on Nimanto's existing seams:
 
 - `@nimanto/providers` fetches Greenhouse, Lever, and Ashby public boards through fixed HTTPS hosts.
 - `DiscoveryCycle` supports direct imports and durable scheduled refreshes.
-- Provider adapters emit `RoleObservation` in memory before common normalization; only the mutable current job projection is persisted today.
+- Provider adapters emit `RoleObservation` before common normalization and now retain immutable normalized observations alongside the mutable current projection.
 - `(tenant, source, sourceJobId)` prevents duplicate rows from the same source.
 - matching is deterministic and historical H-1B signals have provenance and freshness rules.
 
-The present model cannot yet substantiate an Expedia-like freshness claim:
-
-- provider and schedule unions are hard-coded to three ATS sources;
-- provider `sourceMeta` contains only the board identifier and omits observation/run evidence;
-- refreshing a row updates local `updatedAt` even when the source content is unchanged;
-- a posting missing from a later full board response is not marked unavailable;
-- provider jobs do not retain `firstSeenAt`, `lastSeenAt`, `lastVerifiedAt`, source dates, or closure evidence;
-- raw observations and normalized versions are not retained immutably, so a mutable current row cannot reproduce what changed;
-- `workMode` is an open string, with source spellings such as `on-site`, `onsite`, and `Remote` left uncanonicalized;
-- the workbench has no work-mode or freshness filter;
-- there is no cross-source grouping, so the same role can appear once per source; and
-- H-1B evidence is displayed as a separate company list rather than a source-qualified layer on a role card; and
-- `matching.ts` regex-matches description text and can emit `exclude_from_recommendations` without a persisted, candidate-confirmed exact wording fact and locator.
-
-The first implementation slice should fix those gaps before adding high-volume feeds.
+The code-owned gaps above are now closed. The remaining breadth constraint is external: a broad feed must grant Nimanto the required access, display, caching, retention, canonical-link, deletion, and termination rights and must pass the benchmark described below before its registry entry can be enabled.
 
 ## Source portfolio
 

@@ -128,6 +128,8 @@ describe("evidence-to-match public seam", () => {
         title: "Platform Engineer",
         company: "Northwind Labs",
         description: "We cannot sponsor or transfer employment visas for this role.",
+        descriptionLocator: "https://jobs.example.test/job-3",
+        observedAt: "2026-08-26T12:00:00.000Z",
         requirements: ["Python"],
       },
     });
@@ -136,7 +138,10 @@ describe("evidence-to-match public seam", () => {
       expect.arrayContaining([
         expect.objectContaining({
           code: "no_sponsorship_of_any_kind",
-          consequence: "exclude_from_recommendations",
+          consequence: "visible_warning",
+          candidateConfirmed: false,
+          sourceLocator: "https://jobs.example.test/job-3",
+          observedAt: "2026-08-26T12:00:00.000Z",
         }),
       ]),
     );

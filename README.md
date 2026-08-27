@@ -71,6 +71,30 @@ Nimanto is a **candidate tool**. It does not screen you for employers, estimate
 your hiring odds, give legal advice, or promise that a company sponsors transfers
 today.
 
+## On `main` after v0.8.0 — unreleased
+
+- **One candidate-approved discovery profile.** Choose role families, include or
+  exclude titles, physical/remote-eligible area, work modes, observation age,
+  and enabled sources. The profile links to an exact saved Evidence Profile;
+  résumé evidence is never silently converted into a search preference.
+- **Source-qualified posting freshness.** Source runs, normalized observations,
+  availability, and verification attempts are stored separately. One complete
+  source-list miss means `possibly_closed`; only a second complete miss at least
+  six hours later means `closed`. Failed and partial runs cannot close roles.
+- **Remote and non-remote are evidence-backed filters.** Canonical remote,
+  hybrid, on-site, unknown, and conflicting modes retain their source field,
+  observed time, confidence, and structured locations.
+- **Aggregation without source erasure.** Exact-field company/title/location clusters
+  show each source variant and its own link and verification label. The current
+  source registry enables Greenhouse, Lever, and Ashby; the SmartRecruiters
+  adapter and broader licensed/partner candidates remain gated. Restricted job
+  boards are not scraped.
+- **H-1B context stays honest.** Current posting wording is an exact warning with
+  source locator and observation time. Historical company signals remain
+  separately labeled context, never current-role sponsorship proof.
+
+These changes are merged-source documentation, not a published release claim.
+
 ## New in v0.8.0
 
 - **Find the evidence you mean.** Evidence vault search covers literal claim,
@@ -375,13 +399,23 @@ artifacts.
 
 - Manual job intake, plus allowlisted URL, Greenhouse, Lever and Ashby adapters.
   All five paths share common current-Role normalization after source-specific
-  retrieval, parsing, identity, provenance, and hashing.
+  retrieval, parsing, identity, provenance, and hashing. A SmartRecruiters
+  adapter exists behind the deny-by-default source registry and cannot execute
+  until its source-specific rights gate is approved.
+- Source runs, immutable normalized observations, payload hashes, availability,
+  and method-qualified verification attempts remain separate from the mutable
+  current Role. Raw provider bodies use the current zero-hour retention policy.
+- Candidate-approved Discovery Profiles apply saved role-family, title, area,
+  work-mode, source, and observation-age choices. Possible cross-source variants
+  with the same normalized fields are grouped for display without merging their
+  records or provenance.
 - Manual role drafts stay in the signed-in browser tab across workbench section
   changes. Reload, sign-out, identity change, successful save, or confirmed
   discard clears them; failed saves preserve them.
-- Search by title, company or location and combine source, match-state, and
-  tracking filters. These filters live only in the open Role discovery view;
-  they are not persisted or sent to the API.
+- Search by title, company or location and combine source, remote/non-remote,
+  canonical work mode, role family, publication state, verification,
+  match-state, and tracking filters. These shortlist filters live only in the
+  open Role discovery view; they are not persisted or sent to the API.
 - Select exactly two roles for a shared-line comparison of current Role fields
   and each role's latest stored explanation. The folio shows coverage,
   requirements needing evidence, blockers, compensation, and benefits without
