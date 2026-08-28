@@ -93,6 +93,11 @@ today.
   source registry enables Greenhouse, Lever, and Ashby; the SmartRecruiters
   adapter and broader licensed/partner candidates remain gated. Restricted job
   boards are not scraped.
+- **Fail-closed employer links.** Adapter-owned HTTPS targets and exact recognized
+  Greenhouse, Lever, or Ashby paths can open from a Role card through
+  `ats_routing_v1`. Candidate-entered tracking parameters are excluded from the
+  derived ATS target. SmartRecruiters and discovery-feed redirect routing stay
+  gated until the affected source rights are approved.
 - **H-1B context stays honest.** Current posting wording is an exact warning with
   source locator and observation time. Historical company signals remain
   separately labeled context, never current-role sponsorship proof.
@@ -406,6 +411,10 @@ artifacts.
   retrieval, parsing, identity, provenance, and hashing. A SmartRecruiters
   adapter exists behind the deny-by-default source registry and cannot execute
   until its source-specific rights gate is approved.
+- Read-time ATS routing leaves the retained Role untouched. Provider-owned links
+  must be bounded HTTPS targets; candidate-entered links must match an exact
+  recognized ATS host/path; licensed-feed origins require a concrete registry
+  identity with approved deep-link rights. No redirect is followed by this slice.
 - Source runs, immutable normalized observations, payload hashes, availability,
   and method-qualified verification attempts remain separate from the mutable
   current Role. Raw provider bodies use the current zero-hour retention policy.
@@ -581,8 +590,8 @@ The monorepo keeps the deep seams separate:
 - `packages/database` — tenant-scoped Postgres schema and repository boundary.
 - `packages/parsers` — bounded evidence extraction.
 - `packages/documents` — canonical packet rendering.
-- `packages/providers` — job sources, local model, deep-link and test-outbox
-  adapters.
+- `packages/providers` — job sources, fail-closed ATS routing, local model,
+  deep-link and test-outbox adapters.
 - `apps/api` — authenticated HTTP composition root plus cohesive evidence,
   publication, packet, action, discovery, deletion, and dataset lifecycles.
 - `apps/worker` — durable, leased board refresh and deterministic scoring loop.

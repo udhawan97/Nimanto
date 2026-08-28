@@ -13,9 +13,104 @@ import {
   localModelStatus,
   localModelInventory,
   reviewLocalPacket,
+  routeAtsLink,
 } from "../src/index.js";
 
 describe("job providers", () => {
+  it("routes provider-owned and exact candidate-entered ATS links without fetching them", () => {
+    expect(
+      routeAtsLink({
+        source: "greenhouse",
+        sourceJobId: "17001",
+        url: "https://careers.northwind.example/jobs/17001?source=nimanto#apply",
+        sourceMeta: { board: "northwind" },
+      }),
+    ).toMatchObject({
+      state: "ready",
+      provider: "greenhouse",
+      boardId: "northwind",
+      sourceJobId: "17001",
+      targetUrl: "https://careers.northwind.example/jobs/17001?source=nimanto",
+      routeKind: "provider_source",
+      verificationMethod: "detail_get",
+      verificationState: "ready",
+    });
+
+    expect(
+      routeAtsLink({
+        source: "manual",
+        sourceJobId: "candidate-copy",
+        url: "https://jobs.lever.co/northwind/role-7/apply?lever-source=tracker#form",
+      }),
+    ).toMatchObject({
+      state: "ready",
+      provider: "lever",
+      boardId: "northwind",
+      sourceJobId: "role-7",
+      targetUrl: "https://jobs.lever.co/northwind/role-7",
+      routeKind: "recognized_url",
+      verificationMethod: "detail_get",
+    });
+
+    expect(
+      routeAtsLink({
+        source: "allowlisted_url",
+        sourceJobId: "candidate-copy",
+        url: "https://jobs.ashbyhq.com/northwind/ashby-7/application?utm_source=test",
+      }),
+    ).toMatchObject({
+      state: "ready",
+      provider: "ashby",
+      boardId: "northwind",
+      sourceJobId: "ashby-7",
+      targetUrl: "https://jobs.ashbyhq.com/northwind/ashby-7",
+      routeKind: "recognized_url",
+      verificationMethod: "complete_list",
+    });
+  });
+
+  it("keeps unapproved destinations and discovery-origin rights fail-closed", () => {
+    expect(
+      routeAtsLink({
+        source: "manual",
+        sourceJobId: "candidate-copy",
+        url: "https://jobs.smartrecruiters.com/Northwind/sr-7-role",
+      }),
+    ).toMatchObject({
+      state: "gated",
+      provider: "smartrecruiters",
+      targetUrl: null,
+      reason: "destination_source_rights_required",
+      verificationState: "gated",
+    });
+    expect(
+      routeAtsLink({
+        source: "licensed_feed",
+        sourceJobId: "feed-7",
+        url: "https://job-boards.greenhouse.io/northwind/jobs/17001",
+        sourceMeta: { sourceRegistryId: "adzuna" },
+      }),
+    ).toMatchObject({
+      state: "gated",
+      provider: "greenhouse",
+      targetUrl: null,
+      reason: "origin_source_rights_required",
+    });
+  });
+
+  it.each([
+    "http://jobs.lever.co/northwind/role-7",
+    "https://user:pass@jobs.lever.co/northwind/role-7",
+    "https://jobs.lever.co:8443/northwind/role-7",
+    "https://jobs.lever.co/northwind/%2Fetc",
+    "https://unreviewed.example.test/northwind/role-7",
+  ])("does not route an unsafe or unrecognized candidate link: %s", (url) => {
+    expect(routeAtsLink({ source: "manual", sourceJobId: "candidate-copy", url })).toMatchObject({
+      state: "unrecognized",
+      targetUrl: null,
+    });
+  });
+
   it("maps Greenhouse data through an injected fetch boundary", async () => {
     const fetcher = async (url: string | URL | Request) => {
       expect(String(url)).toContain("boards-api.greenhouse.io");

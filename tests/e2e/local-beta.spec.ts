@@ -489,6 +489,9 @@ test("a candidate starts a private workspace and receives deterministic role exp
   await page.getByRole("button", { name: "Add role" }).click();
   await page.getByLabel("Role title").fill("Saved Synthetic Role");
   await page.getByLabel("Company").fill("Synthetic Works");
+  await page
+    .getByLabel("Posting URL")
+    .fill("https://job-boards.greenhouse.io/nimanto-synthetic/jobs/17001?utm_source=test#apply");
   await page.getByLabel("Description").fill("A role saved exactly once.");
   await page.getByLabel("Requirements, one per line").fill("TypeScript");
   await page.getByLabel("Posted annual minimum (USD)").fill("200000");
@@ -516,6 +519,11 @@ test("a candidate starts a private workspace and receives deterministic role exp
   await page.getByRole("button", { name: "Save role" }).click();
   await expect(page.getByRole("button", { name: "Add role" })).toBeFocused();
   await expect(page.getByRole("heading", { name: "Saved Synthetic Role" })).toHaveCount(1);
+  const savedRole = page.locator(".job-row").filter({ hasText: "Saved Synthetic Role" });
+  await expect(savedRole.getByRole("link", { name: "Open employer posting" })).toHaveAttribute(
+    "href",
+    "https://job-boards.greenhouse.io/nimanto-synthetic/jobs/17001",
+  );
 
   await page.getByRole("button", { name: "Schedule source" }).click();
   await page.getByLabel("Scheduled provider").selectOption("greenhouse");

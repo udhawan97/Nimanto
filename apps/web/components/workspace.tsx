@@ -164,6 +164,18 @@ type Job = {
   }>;
   requirements: string[];
   url: string;
+  atsRoute: {
+    state: "ready" | "gated" | "unrecognized";
+    provider: "greenhouse" | "lever" | "ashby" | "smartrecruiters" | null;
+    boardId: string | null;
+    sourceJobId: string | null;
+    targetUrl: string | null;
+    routeKind: "provider_source" | "recognized_url" | null;
+    verificationMethod: "detail_get" | "complete_list" | null;
+    verificationState: "ready" | "gated" | "unavailable";
+    reason: string;
+    ruleVersion: "ats_routing_v1";
+  };
   availability: {
     firstSeenAt: string;
     lastSeenAt: string;
@@ -847,6 +859,13 @@ function postingVerificationLabel(job: Job): string {
     return `${human(availability.verificationMethod)} verification · ${localDateTime(availability.lastVerifiedAt)}${availability.verificationHealth === "overdue" ? " · recheck overdue" : ""}`;
   }
   return `Observed ${localDateTime(availability.lastSeenAt)} · not source-verified`;
+}
+
+function atsRouteGateLabel(job: Job): string {
+  if (job.atsRoute.reason === "origin_source_rights_required") {
+    return "Original source retained · canonical-link rights are not approved.";
+  }
+  return `${human(job.atsRoute.provider ?? "ATS")} link recognized · deep-link rights gate closed.`;
 }
 
 function packetCanonicalDelta(before: PacketHistoryRecord, after: PacketHistoryRecord): string[] {
@@ -4689,6 +4708,9 @@ function Jobs({
                     </span>
                   </div>
                   <small className="posting-verification">{postingVerificationLabel(job)}</small>
+                  {job.atsRoute.state === "gated" && (
+                    <small className="posting-verification">{atsRouteGateLabel(job)}</small>
+                  )}
                   {dashboard.discoveryProfile && discoveryAssessment && (
                     <details className="discovery-rationale">
                       <summary>
@@ -4731,13 +4753,14 @@ function Jobs({
                       <ul>
                         {clusterMembers.map((variant) => (
                           <li key={variant.id}>
-                            {variant.url ? (
-                              <a href={variant.url} target="_blank" rel="noreferrer">
+                            {variant.atsRoute.state === "ready" && variant.atsRoute.targetUrl ? (
+                              <a href={variant.atsRoute.targetUrl} target="_blank" rel="noreferrer">
                                 {human(variant.source)} · {postingVerificationLabel(variant)}
                               </a>
                             ) : (
                               <span>
                                 {human(variant.source)} · {postingVerificationLabel(variant)}
+                                {variant.atsRoute.state === "gated" ? " · ATS route gated" : ""}
                               </span>
                             )}
                           </li>
@@ -4775,6 +4798,17 @@ function Jobs({
                 )}
               </div>
               <div className="job-actions">
+                {job.atsRoute.state === "ready" && job.atsRoute.targetUrl && (
+                  <a
+                    className="button mini quiet"
+                    href={job.atsRoute.targetUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    title={`${human(job.atsRoute.provider ?? "ATS")} route · ${job.atsRoute.ruleVersion}`}
+                  >
+                    <Link2 size={15} /> Open employer posting
+                  </a>
+                )}
                 <button
                   className="button mini quiet"
                   type="button"

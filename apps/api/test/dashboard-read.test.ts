@@ -11,6 +11,41 @@ afterEach(async () => {
 });
 
 describe("DashboardRead", () => {
+  it("annotates recognized ATS links without mutating the retained role", async () => {
+    const store = await NimantoStore.open("memory://dashboard-ats-routing");
+    stores.push(store);
+    const local = await store.createLocalTenant("route@example.test", "Route Candidate");
+    const session = await store.createSession(local.userId, local.tenantId);
+    const person: SessionIdentity = { ...local, sessionId: session.id };
+    const saved = await store.upsertJob(local.tenantId, {
+      source: "manual",
+      sourceJobId: "candidate-copy",
+      title: "Platform role",
+      company: "Northwind",
+      description: "Build candidate-controlled systems.",
+      location: "Remote",
+      workMode: "remote",
+      url: "https://job-boards.greenhouse.io/northwind/jobs/17001?utm_source=test#apply",
+      requirements: ["TypeScript"],
+      capability: "deep_link",
+      sourceMeta: { candidateEntered: true },
+      contentHash: canonicalHash({ role: "route" }),
+    });
+
+    const dashboard = await new DashboardRead(store, () => false).read(person);
+    expect(dashboard.jobs[0]?.atsRoute).toMatchObject({
+      state: "ready",
+      provider: "greenhouse",
+      boardId: "northwind",
+      sourceJobId: "17001",
+      targetUrl: "https://job-boards.greenhouse.io/northwind/jobs/17001",
+      ruleVersion: "ats_routing_v1",
+    });
+    expect((await store.getJob(local.tenantId, saved.id))?.url).toBe(
+      "https://job-boards.greenhouse.io/northwind/jobs/17001?utm_source=test#apply",
+    );
+  });
+
   it("holds one coherent read transaction against a concurrent Application write", async () => {
     const store = await NimantoStore.open("memory://dashboard-coherence");
     stores.push(store);

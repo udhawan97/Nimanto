@@ -1,6 +1,6 @@
 import { type SessionIdentity, NimantoStore } from "@nimanto/database";
 import { freshH1bLabel } from "@nimanto/domain";
-import { JOB_SOURCE_REGISTRY } from "@nimanto/providers";
+import { JOB_SOURCE_REGISTRY, routeAtsLink } from "@nimanto/providers";
 
 export class DashboardRead {
   constructor(
@@ -54,13 +54,22 @@ export class DashboardRead {
       const assuranceByPacket = new Map(
         assurances.map((assurance) => [assurance.packetId, assurance]),
       );
+      const withAtsRoute = <T extends (typeof jobs)[number]>(job: T) => ({
+        ...job,
+        atsRoute: routeAtsLink({
+          source: job.source,
+          sourceJobId: job.sourceJobId,
+          url: job.url,
+          sourceMeta: job.sourceMeta,
+        }),
+      });
 
       return {
         identity: person,
         profile,
         evidence,
-        jobs,
-        matches,
+        jobs: jobs.map(withAtsRoute),
+        matches: matches.map((match) => ({ ...match, job: withAtsRoute(match.job) })),
         h1bSignals: signals.map((signal) => ({ ...signal, ...freshH1bLabel(signal) })),
         applications,
         packets: packets.map((packet) => ({

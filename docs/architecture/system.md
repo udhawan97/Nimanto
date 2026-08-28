@@ -162,6 +162,16 @@ their source-specific access and product rights are approved. The API returns
 the registry so the workbench can distinguish enabled inventory from future or
 prohibited candidates without implying coverage.
 
+`ats_routing_v1` is a separate read-time boundary. It does not rewrite the
+retained Role URL or make a request. Greenhouse, Lever, and Ashby adapter-owned
+HTTPS targets can be opened because those registry entries grant deep-link use;
+candidate-entered URLs must match one exact ATS hostname and identifier path,
+with tracking queries and fragments removed from that derived target. Generic
+licensed-feed origins fail closed without a named registry entry and approved
+deep-link rights. SmartRecruiters can be recognized for an honest gated label,
+but yields no target while its rights gate is closed. Arbitrary redirect
+following is not implemented.
+
 Discovery Profile versions store only candidate-approved title, role-family,
 literal seniority/industry/skill terms, physical and remote-eligible areas,
 commute/relocation preferences, work mode, source, compensation floor,
