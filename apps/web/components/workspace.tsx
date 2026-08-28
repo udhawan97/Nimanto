@@ -56,6 +56,11 @@ import { CommandPalette, type PaletteEntry } from "./command-palette.js";
 import { ConnectionBanner, ConnectionIndicator, useConnection } from "./connection.js";
 import { CopyLine } from "./copy-line.js";
 import {
+  RoleProvenanceCard,
+  type RoleProvenanceData,
+  type RoleSourcePolicy,
+} from "./role-provenance.js";
+import {
   BOARD_COLUMNS,
   APPLICATION_MATCH_BUCKETS,
   applicationCohortCounts,
@@ -140,6 +145,7 @@ type Evidence = {
 type Job = {
   id: string;
   source: string;
+  sourceJobId: string;
   title: string;
   company: string;
   description: string;
@@ -164,6 +170,8 @@ type Job = {
   }>;
   requirements: string[];
   url: string;
+  contentHash: string;
+  updatedAt: string;
   atsRoute: {
     state: "ready" | "gated" | "unrecognized";
     provider: "greenhouse" | "lever" | "ashby" | "smartrecruiters" | null;
@@ -196,10 +204,12 @@ type Job = {
   cluster: { id: string; size: number; sources: string[] };
   candidateDisposition: { state: "active" | "archived"; archivedAt: string | null };
   sourceMeta: {
+    board?: string;
     compensation?: { minimum?: number | null; maximum?: number | null; currency?: string } | null;
     benefits?: string[];
     interviewEvidence?: { text?: string; sourceLocator?: string; observedAt?: string } | null;
   };
+  provenance: RoleProvenanceData;
 };
 type Match = {
   id: string;
@@ -536,25 +546,12 @@ type DiscoveryProfile = {
     normalizerVersion: "discovery_profile_v1";
   };
 };
-type SourceRun = {
+type SourceRun = NonNullable<RoleProvenanceData["sourceRun"]>;
+type SourceRegistryEntry = RoleSourcePolicy & {
   id: string;
-  source: string;
-  boardId: string | null;
-  completedAt: string;
-  complete: boolean;
-  sourceItemCount: number;
-};
-type SourceRegistryEntry = {
-  id: string;
-  label: string;
-  accessClass: string;
   state: string;
   executionEnabled: boolean;
-  termsUrl: string;
-  termsReviewedAt: string | null;
-  commercialUseDecision: string;
   supportsCompleteSnapshot: boolean;
-  limitation: string;
 };
 type Dashboard = {
   identity: {
@@ -4672,6 +4669,8 @@ function Jobs({
           const supportedRequirementCount =
             match?.result.requirements.filter((item) => item.state === "supported").length ?? 0;
           const discoveryAssessment = discoveryEvaluation.get(job.id);
+          const sourcePolicy =
+            dashboard.sourceRegistry.find((source) => source.id === job.source) ?? null;
           return (
             <article key={job.id} className="job-row">
               <div className="job-main">
@@ -4711,6 +4710,16 @@ function Jobs({
                   {job.atsRoute.state === "gated" && (
                     <small className="posting-verification">{atsRouteGateLabel(job)}</small>
                   )}
+                  <RoleProvenanceCard
+                    source={job.source}
+                    sourceJobId={job.sourceJobId}
+                    boardId={job.sourceMeta.board ?? null}
+                    contentHash={job.contentHash}
+                    localUpdatedAt={job.updatedAt}
+                    availability={job.availability}
+                    provenance={job.provenance}
+                    sourcePolicy={sourcePolicy}
+                  />
                   {dashboard.discoveryProfile && discoveryAssessment && (
                     <details className="discovery-rationale">
                       <summary>

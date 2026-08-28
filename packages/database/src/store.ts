@@ -2008,10 +2008,55 @@ export class NimantoStore {
     }));
   }
 
+  async listLatestRoleObservations(tenantId: string): Promise<RoleObservationRecord[]> {
+    const result = await this.#db.query<any>(
+      `SELECT DISTINCT ON (job_id)
+         id, job_id, source_run_id, source, source_job_id, observed_at,
+         content_hash, source_payload_hash, normalized_payload, normalizer_version
+       FROM role_observations
+       WHERE tenant_id = $1
+       ORDER BY job_id, observed_at DESC, id DESC`,
+      [tenantId],
+    );
+    return result.rows.map((row) => ({
+      id: row.id,
+      jobId: row.job_id,
+      sourceRunId: row.source_run_id,
+      source: row.source,
+      sourceJobId: row.source_job_id,
+      observedAt: isoRequired(row.observed_at),
+      contentHash: row.content_hash,
+      sourcePayloadHash: row.source_payload_hash,
+      normalizedPayload: row.normalized_payload,
+      normalizerVersion: row.normalizer_version,
+    }));
+  }
+
   async listVerificationAttempts(tenantId: string): Promise<VerificationAttemptRecord[]> {
     const result = await this.#db.query<any>(
       `SELECT id, job_id, source_run_id, attempted_at, authority, method, result, evidence
        FROM verification_attempts WHERE tenant_id = $1 ORDER BY attempted_at DESC, id DESC`,
+      [tenantId],
+    );
+    return result.rows.map((row) => ({
+      id: row.id,
+      jobId: row.job_id,
+      sourceRunId: row.source_run_id,
+      attemptedAt: isoRequired(row.attempted_at),
+      authority: row.authority,
+      method: row.method,
+      result: row.result,
+      evidence: row.evidence,
+    }));
+  }
+
+  async listLatestVerificationAttempts(tenantId: string): Promise<VerificationAttemptRecord[]> {
+    const result = await this.#db.query<any>(
+      `SELECT DISTINCT ON (job_id)
+         id, job_id, source_run_id, attempted_at, authority, method, result, evidence
+       FROM verification_attempts
+       WHERE tenant_id = $1
+       ORDER BY job_id, attempted_at DESC, id DESC`,
       [tenantId],
     );
     return result.rows.map((row) => ({

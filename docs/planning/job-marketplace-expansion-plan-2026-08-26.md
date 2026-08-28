@@ -22,9 +22,9 @@ This approach maximizes freshness and provenance while keeping the architecture 
 
 | Capability | Current state |
 | --- | --- |
-| Source governance | One deny-by-default registry exposes enabled, candidate, prohibited, terms, retention, attribution, and complete-snapshot status. Greenhouse, Lever, and Ashby remain enabled; every new source remains gated. |
+| Source governance | One deny-by-default registry exposes enabled, candidate, prohibited, terms, retention, attribution, and complete-snapshot status. Per-role provenance cards show the applicable candidate-visible policy without exposing raw provider bodies. Greenhouse, Lever, and Ashby remain enabled; every new source remains gated. |
 | Provider protocol | Fetches return roles plus a complete/partial source-run record. Greenhouse, Lever, and Ashby preserve richer source dates and workplace evidence. A paginated SmartRecruiters adapter is implemented but cannot execute until its registry gate is approved. |
-| Posting lifecycle | Schema version 8 stores source runs, immutable normalized observations, role availability, and verification attempts. Raw provider payloads are hashed and discarded under the current zero-hour policy. |
+| Posting lifecycle | Schema version 8 stores source runs, immutable normalized observations, role availability, and verification attempts. Each Role can inspect distinct source, observation, verification, and local timestamps plus its linked source-run completeness and bounded integrity hashes. Raw provider payloads are hashed and discarded under the current zero-hour policy. |
 | Stale protection | One complete-list miss sets `possibly_closed`; a second complete miss at least six hours later sets `closed`. Failed and partial runs never close a role. Source `validThrough` can set `expired`; elapsed recheck time becomes `overdue`, not closed. |
 | Work mode | `remote`, `hybrid`, `onsite`, `unknown`, and `conflicting` are canonical domain values with source-field evidence and structured areas. The workbench includes remote, non-remote, individual-mode, role-family, posting-state, and verification filters. |
 | Personalization | Candidate-approved Discovery Profiles are versioned, idempotent, linked to an exact Evidence Profile, and applied to title, role-family, literal seniority/industry/skill terms, source, physical/remote area, work mode, compensation, and observation-age discovery. A visible contract summary, bounded approved-term suggestions, and per-role reason ledger distinguish matched, excluded, and unresolved inputs. No résumé inference is silently persisted. |
@@ -35,7 +35,7 @@ This approach maximizes freshness and provenance while keeping the architecture 
 
 Licensed feeds, partner-only sources, and terms-conflicted aggregators are deliberately not executable. Their registry entries make future activation explicit without treating adapter code, a public endpoint, or user demand as data rights.
 
-**Delivery status:** Phases 0–2 are implemented in the current source tree. Phase 3 now has a tested SmartRecruiters adapter, existing schedule/provenance seams, fail-closed direct ATS routing, and candidate-requested liveness verification for the three approved ATS sources. SmartRecruiters execution and redirect traversal from discovery feeds remain gated pending source-specific rights; Phase 3 is therefore not complete. Phase 4 cannot begin honestly without written feed rights and the named 14-day non-production bake-off.
+**Delivery status:** Phases 0–2 are implemented in the current source tree. Phase 3 now has a tested SmartRecruiters adapter, source schedules, per-role sanitized attribution/provenance cards, fail-closed direct ATS routing, and candidate-requested liveness verification for the three approved ATS sources. SmartRecruiters execution and redirect traversal from discovery feeds remain gated pending source-specific rights; Phase 3 is therefore not complete. Phase 4 cannot begin honestly without written feed rights and the named 14-day non-production bake-off.
 
 ## Product outcome
 

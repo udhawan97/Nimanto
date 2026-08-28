@@ -1309,7 +1309,7 @@ describe("beta workflow persistence", () => {
       publicationState: "possibly_closed",
       consecutiveCompleteMisses: 1,
     });
-    await store.recordSourceObservation(
+    const closedRun = await store.recordSourceObservation(
       owner.tenantId,
       {
         ...baseRun,
@@ -1330,6 +1330,20 @@ describe("beta workflow persistence", () => {
       expect.objectContaining({ sourcePayloadHash: expect.stringMatching(/^[a-f0-9]{64}$/u) }),
     ]);
     expect(await store.listVerificationAttempts(owner.tenantId)).toHaveLength(3);
+    expect(await store.listLatestRoleObservations(owner.tenantId)).toEqual([
+      expect.objectContaining({
+        jobId: initial.jobs[0]!.id,
+        sourceRunId: initial.sourceRun.id,
+        normalizerVersion: "role_normalizer_v2",
+      }),
+    ]);
+    expect(await store.listLatestVerificationAttempts(owner.tenantId)).toEqual([
+      expect.objectContaining({
+        jobId: initial.jobs[0]!.id,
+        sourceRunId: closedRun.sourceRun.id,
+        result: "absent_from_complete_list",
+      }),
+    ]);
     expect(JSON.stringify(await store.exportTenant(owner.tenantId))).not.toContain(
       "confidentialField",
     );

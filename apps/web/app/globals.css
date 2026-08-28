@@ -1926,6 +1926,49 @@ svg {
   color: var(--text-muted);
   font-size: var(--text-sm);
 }
+.role-provenance {
+  max-width: var(--measure-wide);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.role-provenance > summary {
+  width: fit-content;
+  color: var(--text-link);
+  cursor: pointer;
+}
+.role-provenance-note {
+  max-width: var(--measure-body);
+  margin-block-start: var(--space-xs);
+}
+.role-provenance-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: var(--space-sm);
+  margin-block-start: var(--space-sm);
+}
+.role-provenance-grid > div {
+  display: grid;
+  align-content: start;
+  gap: var(--space-3xs);
+  padding: var(--space-sm);
+  border: 1px solid var(--brass-100);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+.role-provenance-grid dt {
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.role-provenance-grid dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.role-provenance-grid code {
+  color: var(--text-body);
+}
 .source-variants {
   color: var(--text-muted);
   font-size: var(--text-sm);

@@ -85,6 +85,11 @@ today.
   availability, and verification attempts are stored separately. One complete
   source-list miss means `possibly_closed`; only a second complete miss at least
   six hours later means `closed`. Failed and partial runs cannot close roles.
+- **Inspectable role provenance.** Each Role can open a normalized provenance
+  card that keeps source-posted, source-updated, observed, and local-update times
+  distinct; links the latest immutable verification and exact source run; and
+  exposes source policy, retention, and bounded integrity hashes. Raw provider
+  bodies remain excluded.
 - **Remote and non-remote are evidence-backed filters.** Canonical remote,
   hybrid, on-site, unknown, and conflicting modes retain their source field,
   observed time, confidence, and structured locations.

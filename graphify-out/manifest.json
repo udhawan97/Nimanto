@@ -100,8 +100,8 @@
     "semantic_hash": "f8d493b6c925f9d3d7a6fc53bac435db"
   },
   "apps/web/components/workspace.tsx": {
-    "mtime": 1787912506.3512251,
-    "ast_hash": "750984f3094737cee4d8c74ebd143dc7",
+    "mtime": 1787915216.0663648,
+    "ast_hash": "b4de75cde12bc8f9fd4a9375695b8de5",
     "semantic_hash": ""
   },
   "apps/web/next-env.d.ts": {
@@ -185,13 +185,13 @@
     "semantic_hash": "6d7b0a5d0ab2bff362a3b35f91cec87c"
   },
   "packages/database/src/store.ts": {
-    "mtime": 1787912262.4792647,
-    "ast_hash": "6fa1ed25db2301061334ff39be9b1a2f",
+    "mtime": 1787915133.8487875,
+    "ast_hash": "9325f8b086ff0e8338b6f5d1665e8cb7",
     "semantic_hash": ""
   },
   "packages/database/test/store.test.ts": {
-    "mtime": 1787913086.3836598,
-    "ast_hash": "4eea56cf1cb567715bb17b1723249f03",
+    "mtime": 1787915251.3971384,
+    "ast_hash": "c07d910805d7d9a30a6553b8783cb913",
     "semantic_hash": ""
   },
   "packages/database/tsconfig.build.json": {
@@ -410,8 +410,8 @@
     "semantic_hash": "f503090cb52954664f4ad03e0713f850"
   },
   "README.md": {
-    "mtime": 1787913252.0586748,
-    "ast_hash": "e7d550223d69c3721f8281478e2a7ecb",
+    "mtime": 1787915448.4672716,
+    "ast_hash": "e65e9ef12ccd9ce52264907395cfb98f",
     "semantic_hash": ""
   },
   "SECURITY.md": {
@@ -435,8 +435,8 @@
     "semantic_hash": "5c27369b226fcf2be8a6cfe52224e767"
   },
   "docs/architecture/system.md": {
-    "mtime": 1787913252.0593126,
-    "ast_hash": "1c0543573ea6c211b4888312553eb5e8",
+    "mtime": 1787915448.4676151,
+    "ast_hash": "82f1fac43eebeed7622c585be9f66fbb",
     "semantic_hash": ""
   },
   "docs/operations/local-beta.md": {
@@ -470,12 +470,12 @@
     "semantic_hash": "c0eae62a965c1b9a06c758c449f4027f"
   },
   "docs/assets/nimanto-landing.png": {
-    "mtime": 1787913461.810989,
+    "mtime": 1787915971.6091337,
     "ast_hash": "81bcb0e06c16343478dc0205786845c8",
     "semantic_hash": "81bcb0e06c16343478dc0205786845c8"
   },
   "docs/assets/nimanto-workbench.png": {
-    "mtime": 1787913461.811286,
+    "mtime": 1787915971.6097503,
     "ast_hash": "a496ac9b0f0768931e1a97fe12cffb5a",
     "semantic_hash": "a496ac9b0f0768931e1a97fe12cffb5a"
   },
@@ -495,8 +495,8 @@
     "semantic_hash": "481edfe45b39e9c6ff191a3bc900e78b"
   },
   "tests/e2e/local-beta.spec.ts": {
-    "mtime": 1787912459.8277955,
-    "ast_hash": "8c583defb327a30bbc4e6d3efcc7210b",
+    "mtime": 1787915315.3530765,
+    "ast_hash": "64287a517bce55f11fc073a5a24f9573",
     "semantic_hash": ""
   },
   "docs/releases/v0.1.0-slice-matrix.md": {
@@ -725,7 +725,7 @@
     "semantic_hash": "e5f2ac0cf10c8d49148fa9aa49c37897"
   },
   "apps/web/public/assets/nimanto-workbench.png": {
-    "mtime": 1787913461.8114967,
+    "mtime": 1787915971.6099772,
     "ast_hash": "a496ac9b0f0768931e1a97fe12cffb5a",
     "semantic_hash": "a496ac9b0f0768931e1a97fe12cffb5a"
   },
@@ -895,9 +895,9 @@
     "semantic_hash": "1c6a4180c745193e7ff49b565ab37725"
   },
   "apps/web/test/browser-components.test.tsx": {
-    "mtime": 1787278571.2606914,
-    "ast_hash": "5a91c32654825d1b3172160e8578f152",
-    "semantic_hash": "5a91c32654825d1b3172160e8578f152"
+    "mtime": 1787915666.209191,
+    "ast_hash": "8e86590c17b68e4bce6ec40a41526b0c",
+    "semantic_hash": ""
   },
   "docs/releases/nimanto-v0.5.1.cdx.json": {
     "mtime": 1787278571.2654722,
@@ -995,8 +995,8 @@
     "semantic_hash": "8b042a63a723bf53886ca4bd7e47cb78"
   },
   "docs/assets/nimanto-screenshots.json": {
-    "mtime": 1787913461.8247552,
-    "ast_hash": "bd647a888ca8123f9e1abc4577e8bcdb",
+    "mtime": 1787915971.6221776,
+    "ast_hash": "87e2bd8b78d1564e1335298a787b06b0",
     "semantic_hash": ""
   },
   "scripts/screenshot-evidence.mjs": {
@@ -1110,8 +1110,8 @@
     "semantic_hash": "447296455ca550cc0795cb0ccbe2398e"
   },
   "apps/api/src/dashboard-read.ts": {
-    "mtime": 1787910520.4407134,
-    "ast_hash": "fd27782ebaf8db0f7c5a813e720c0e33",
+    "mtime": 1787915642.0556118,
+    "ast_hash": "1ef23ab54b591840c77080138df11604",
     "semantic_hash": ""
   },
   "apps/web/lib/applications-workbench.ts": {
@@ -1165,8 +1165,8 @@
     "semantic_hash": "13a4e95a66bc9f67aa42be4b00935dbe"
   },
   "apps/api/test/dashboard-read.test.ts": {
-    "mtime": 1787910520.4446363,
-    "ast_hash": "af07eb3d1ab62b79062c0d4a78781062",
+    "mtime": 1787915642.0559032,
+    "ast_hash": "e8c232e34ba702bb439ed1755b232225",
     "semantic_hash": ""
   },
   "apps/web/lib/calendar-export.ts": {
@@ -1190,18 +1190,18 @@
     "semantic_hash": "5255b4fb7fbd72adece40e59d8580e71"
   },
   "docs/releases/nimanto-v0.8.0.cdx.json": {
-    "mtime": 1787913635.5602953,
-    "ast_hash": "30535565f88a88f39029516ed9b1e5b5",
+    "mtime": 1787916123.7619839,
+    "ast_hash": "a6c37c3df3ab82a3686bd26d1c22e306",
     "semantic_hash": ""
   },
   "docs/releases/nimanto-v0.8.0.spdx.json": {
-    "mtime": 1787913636.0046523,
-    "ast_hash": "05984273d93ff170f42496d9efc082bd",
+    "mtime": 1787916124.6094368,
+    "ast_hash": "8430b924fc9fa29839be660eeac9aaf1",
     "semantic_hash": ""
   },
   "docs/releases/nimanto-v0.8.0-SHA256SUMS.txt": {
-    "mtime": 1787913636.1282568,
-    "ast_hash": "888a84ab23da3842994cf16f2fbc2bee",
+    "mtime": 1787916124.7678916,
+    "ast_hash": "f801cafa0550a514eed32890f5033e53",
     "semantic_hash": ""
   },
   "docs/releases/v0.8.0-surface-ledger.md": {
@@ -1215,8 +1215,8 @@
     "semantic_hash": "106220a44470a8ef2a77cd6116c3bd45"
   },
   "docs/planning/job-marketplace-expansion-plan-2026-08-26.md": {
-    "mtime": 1787913252.059711,
-    "ast_hash": "8a5fab605f391f0ada24a05918a66db6",
+    "mtime": 1787915448.4679112,
+    "ast_hash": "b3aad916f6a6d635d7c70f4da296edad",
     "semantic_hash": ""
   },
   "docs/planning/job-source-expansion-research-2026-08-26.md": {
@@ -1247,6 +1247,11 @@
   "apps/api/src/ats-verification.ts": {
     "mtime": 1787913847.3154984,
     "ast_hash": "bb96528a39c9966a7c31cfb01f014c9d",
+    "semantic_hash": ""
+  },
+  "apps/web/components/role-provenance.tsx": {
+    "mtime": 1787915871.393576,
+    "ast_hash": "0b03b773fa8a86645089c464610515b3",
     "semantic_hash": ""
   }
 }

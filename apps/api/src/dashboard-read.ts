@@ -26,6 +26,8 @@ export class DashboardRead {
         schedules,
         discoveryProfile,
         sourceRuns,
+        latestRoleObservations,
+        latestVerificationAttempts,
       ] = await Promise.all([
         database.listEvidence(person.tenantId),
         database.listJobs(person.tenantId),
@@ -39,6 +41,8 @@ export class DashboardRead {
         database.listSourceSchedules(person.tenantId),
         database.latestDiscoveryProfile(person.tenantId),
         database.listSourceRuns(person.tenantId),
+        database.listLatestRoleObservations(person.tenantId),
+        database.listLatestVerificationAttempts(person.tenantId),
       ]);
       const actionPackets = await database.listPacketsByIds(
         person.tenantId,
@@ -54,6 +58,17 @@ export class DashboardRead {
       const assuranceByPacket = new Map(
         assurances.map((assurance) => [assurance.packetId, assurance]),
       );
+      const sourceRunById = new Map(sourceRuns.map((run) => [run.id, run]));
+      const observationByJob = new Map(
+        latestRoleObservations.map((observation) => [observation.jobId, observation]),
+      );
+      const verificationByJob = new Map(
+        latestVerificationAttempts.map((attempt) => [attempt.jobId, attempt]),
+      );
+      const evidenceText = (evidence: Record<string, unknown>, key: string) => {
+        const value = evidence[key];
+        return typeof value === "string" && value ? value : null;
+      };
       const withAtsRoute = <T extends (typeof jobs)[number]>(job: T) => ({
         ...job,
         atsRoute: routeAtsLink({
@@ -62,6 +77,50 @@ export class DashboardRead {
           url: job.url,
           sourceMeta: job.sourceMeta,
         }),
+        provenance: (() => {
+          const observation = observationByJob.get(job.id) ?? null;
+          const verificationAttempt = verificationByJob.get(job.id) ?? null;
+          const sourceRun = observation?.sourceRunId
+            ? (sourceRunById.get(observation.sourceRunId) ?? null)
+            : null;
+          const verificationSourceRun = verificationAttempt?.sourceRunId
+            ? (sourceRunById.get(verificationAttempt.sourceRunId) ?? null)
+            : null;
+          return {
+            observation: observation
+              ? {
+                  id: observation.id,
+                  sourceRunId: observation.sourceRunId,
+                  observedAt: observation.observedAt,
+                  contentHash: observation.contentHash,
+                  sourcePayloadHash: observation.sourcePayloadHash,
+                  normalizerVersion: observation.normalizerVersion,
+                }
+              : null,
+            verificationAttempt: verificationAttempt
+              ? {
+                  id: verificationAttempt.id,
+                  sourceRunId: verificationAttempt.sourceRunId,
+                  attemptedAt: verificationAttempt.attemptedAt,
+                  authority: verificationAttempt.authority,
+                  method: verificationAttempt.method,
+                  result: verificationAttempt.result,
+                  responseFingerprint: evidenceText(
+                    verificationAttempt.evidence,
+                    "responseFingerprint",
+                  ),
+                  policyVersion:
+                    evidenceText(verificationAttempt.evidence, "verificationPolicyVersion") ??
+                    evidenceText(verificationAttempt.evidence, "ruleVersion"),
+                  failureCode:
+                    evidenceText(verificationAttempt.evidence, "failureCode") ??
+                    evidenceText(verificationAttempt.evidence, "errorCode"),
+                }
+              : null,
+            sourceRun,
+            verificationSourceRun,
+          };
+        })(),
       });
 
       return {

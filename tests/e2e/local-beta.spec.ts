@@ -529,6 +529,15 @@ test("a candidate starts a private workspace and receives deterministic role exp
     "title",
     /Candidate-requested Detail get · no redirects or applications/u,
   );
+  const provenance = savedRole.locator("details.role-provenance");
+  await expect(provenance.locator("summary")).toHaveText("Source provenance");
+  await provenance.locator("summary").click();
+  await expect(provenance).toContainText("Candidate-entered role");
+  await expect(provenance).toContainText("Distinct timestamps");
+  await expect(provenance).toContainText("Current role content");
+  await expect(provenance).toContainText(
+    "No provider registry policy applies to this candidate-entered record.",
+  );
 
   await page.getByRole("button", { name: "Schedule source" }).click();
   await page.getByLabel("Scheduled provider").selectOption("greenhouse");

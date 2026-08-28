@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { CommandPalette } from "../components/command-palette.js";
 import { CopyLine } from "../components/copy-line.js";
 import { ErrorBoundary } from "../components/error-boundary.js";
+import { RoleProvenanceCard } from "../components/role-provenance.js";
 import { isLoopbackHost, serviceWorkerScriptUrl } from "../components/service-worker.js";
 
 let root: Root | null = null;
@@ -69,6 +70,107 @@ describe("copy feedback", () => {
 
     expect(view.querySelector("button")?.textContent).toContain("Copy failed");
     expect(view.querySelector("button")?.dataset.state).toBe("failed");
+  });
+});
+
+describe("role source provenance", () => {
+  it("keeps exact source, timing, verification, run, integrity, and retention facts distinct", async () => {
+    const view = await render(
+      createElement(RoleProvenanceCard, {
+        source: "greenhouse",
+        sourceJobId: "17001",
+        boardId: "northwind",
+        contentHash: "current-content-hash-123456",
+        localUpdatedAt: "2026-08-28T10:01:00.000Z",
+        availability: {
+          lastSeenAt: "2026-08-28T09:00:30.000Z",
+          lastVerifiedAt: "2026-08-28T10:00:00.000Z",
+          sourcePostedAt: "2026-08-27T12:00:00.000Z",
+          sourceUpdatedAt: "2026-08-28T08:00:00.000Z",
+          verificationHealth: "verified",
+          verificationAuthority: "employer_ats",
+          verificationMethod: "detail_get",
+        },
+        provenance: {
+          observation: {
+            id: "observation-1",
+            sourceRunId: "run-1",
+            observedAt: "2026-08-28T09:00:30.000Z",
+            contentHash: "normalized-content-hash-123456",
+            sourcePayloadHash: "source-payload-hash-123456",
+            normalizerVersion: "role_normalizer_v2",
+          },
+          verificationAttempt: {
+            id: "attempt-1",
+            sourceRunId: null,
+            attemptedAt: "2026-08-28T10:00:00.000Z",
+            authority: "employer_ats",
+            method: "detail_get",
+            result: "present",
+            responseFingerprint: "detail-response-fingerprint-123456",
+            policyVersion: "ats_verification_v1",
+            failureCode: null,
+          },
+          sourceRun: {
+            id: "run-1",
+            source: "greenhouse",
+            boardId: "northwind",
+            startedAt: "2026-08-28T09:00:00.000Z",
+            completedAt: "2026-08-28T09:01:00.000Z",
+            complete: true,
+            pagesRead: 1,
+            sourceItemCount: 3,
+            responseFingerprint: "board-response-fingerprint-123456",
+            retryAfterObserved: false,
+            sourcePolicyVersion: "source_registry_v1",
+          },
+          verificationSourceRun: {
+            id: "run-2",
+            source: "greenhouse",
+            boardId: "northwind",
+            startedAt: "2026-08-28T09:59:00.000Z",
+            completedAt: "2026-08-28T10:00:00.000Z",
+            complete: false,
+            pagesRead: 1,
+            sourceItemCount: 1,
+            responseFingerprint: "verification-run-fingerprint-123456",
+            retryAfterObserved: false,
+            sourcePolicyVersion: "ats_verification_v1",
+          },
+        },
+        sourcePolicy: {
+          label: "Greenhouse",
+          accessClass: "public_api",
+          termsUrl: "https://docs.greenhouse.io/job-board.html",
+          termsReviewedAt: "2026-08-26",
+          commercialUseDecision: "unclear",
+          rawBodyTtlHours: 0,
+          normalizedRetentionDays: 365,
+          deletionUpdateSlaHours: 24,
+          attribution: null,
+          limitation: "Company-scoped public ATS intake.",
+        },
+      }),
+    );
+    const details = view.querySelector("details")!;
+    expect(details.open).toBe(false);
+    await act(async () => view.querySelector("summary")?.click());
+    expect(details.open).toBe(true);
+    expect(view.textContent).toContain("Board northwind · Record 17001");
+    expect(view.textContent).toContain("Source posted");
+    expect(view.textContent).toContain("Source updated");
+    expect(view.textContent).toContain("Local record updated");
+    expect(view.textContent).toContain("Present · Employer ATS · Detail Get");
+    expect(view.textContent).toContain("Observation source run");
+    expect(view.textContent).toContain("Complete snapshot");
+    expect(view.textContent).toContain("3 source records · 1 page");
+    expect(view.textContent).toContain("Verification source run");
+    expect(view.textContent).toContain("Partial snapshot");
+    expect(view.textContent).toContain("Raw body · not retained");
+    expect(view.textContent).toContain("role_normalizer_v2");
+    expect(view.querySelector('code[title="source-payload-hash-123456"]')?.textContent).toBe(
+      "source-payload-hash-123456".slice(0, 12),
+    );
   });
 });
 

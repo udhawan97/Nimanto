@@ -154,6 +154,15 @@ normalized company/title/location clusters group possible cross-source variants 
 without merging or deleting any source identity, link, wording, or lifecycle.
 A Match Publication separately freezes the exact normalized role input it used.
 
+The dashboard read model projects one candidate-visible provenance card per
+Role. Persistence selects the latest immutable observation and verification
+attempt for that Role; the read model links the observation to its exact source
+run and combines it with the server-owned source policy. The response includes
+only identifiers, distinct source/observation/local timestamps, qualified
+verification facts, run completeness and counts, policy fields, and bounded
+hash evidence. It does not return the observation's normalized payload, the
+verification attempt's arbitrary evidence object, or a provider response body.
+
 The source registry is the execution boundary, not documentation alone. An
 adapter cannot run unless the entry is enabled, execution is allowed, and no
 emergency pause is active. SmartRecruiters is implemented behind this boundary;
