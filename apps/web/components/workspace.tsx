@@ -388,6 +388,19 @@ const emptyRoleFilters = (): RoleFilters => ({
   verification: "all",
   discovery: "recommended",
 });
+const roleFiltersAreActive = (filters: RoleFilters) =>
+  Boolean(
+    filters.query ||
+    filters.source !== "all" ||
+    filters.fit !== "all" ||
+    filters.tracking !== "all" ||
+    filters.visibility !== "active" ||
+    filters.workMode !== "all" ||
+    filters.roleFamily !== "all" ||
+    filters.publication !== "current" ||
+    filters.verification !== "all" ||
+    filters.discovery !== "recommended",
+  );
 const emptyEvidenceFilters = (): EvidenceFilters => ({
   query: "",
   kind: "all",
@@ -1949,6 +1962,7 @@ function useOverflowFlag<T extends HTMLElement>(measurementKey?: unknown) {
 function ConfirmAction({
   label,
   question,
+  supportingContent,
   confirmLabel,
   cancelLabel,
   onConfirm,
@@ -1959,6 +1973,7 @@ function ConfirmAction({
 }: {
   label: ReactNode;
   question: string;
+  supportingContent?: ReactNode;
   confirmLabel: string;
   cancelLabel: string;
   onConfirm: () => void;
@@ -2003,6 +2018,7 @@ function ConfirmAction({
   return (
     <ConfirmationStrip
       question={question}
+      supportingContent={supportingContent}
       confirmLabel={confirmLabel}
       cancelLabel={cancelLabel}
       onConfirm={() => {
@@ -2017,6 +2033,7 @@ function ConfirmAction({
 
 function ConfirmationStrip({
   question,
+  supportingContent,
   confirmLabel,
   cancelLabel,
   onConfirm,
@@ -2024,6 +2041,7 @@ function ConfirmationStrip({
   disabled,
 }: {
   question: string;
+  supportingContent?: ReactNode;
   confirmLabel: string;
   cancelLabel: string;
   onConfirm: () => void;
@@ -2031,7 +2049,7 @@ function ConfirmationStrip({
   disabled?: boolean | undefined;
 }) {
   return (
-    <span
+    <div
       className="confirm-strip"
       role="group"
       aria-label={question}
@@ -2043,6 +2061,7 @@ function ConfirmationStrip({
       }}
     >
       <span className="confirm-question">{question}</span>
+      {supportingContent && <div className="confirm-support">{supportingContent}</div>}
       <button
         className="button mini danger-button"
         type="button"
@@ -2055,7 +2074,51 @@ function ConfirmationStrip({
       <button className="button mini quiet" type="button" onClick={onCancel}>
         {cancelLabel}
       </button>
-    </span>
+    </div>
+  );
+}
+
+function PacketApprovalContext({ packet }: { packet: Packet }) {
+  const artifacts = packet.artifactManifest.artifacts ?? [];
+  return (
+    <div className="packet-approval-context">
+      <span className="confirm-summary">
+        Assurance passed · {artifacts.length} generated artifact{artifacts.length === 1 ? "" : "s"}
+        {" · "}packet hash <code>{packet.artifactHash.slice(0, 12)}…</code>
+      </span>
+      <span className="confirm-impact">
+        This records approval for this exact frozen packet. Only the latest approved packet can
+        drive a future action.
+      </span>
+      <details className="confirm-details">
+        <summary>Inspect exact packet binding</summary>
+        <dl className="confirm-binding">
+          <div>
+            <dt>Frozen packet ID</dt>
+            <dd>
+              <code aria-label="Exact frozen packet ID">{packet.id}</code>
+            </dd>
+          </div>
+          <div>
+            <dt>Packet SHA-256</dt>
+            <dd>
+              <code aria-label="Full packet SHA-256">{packet.artifactHash}</code>
+            </dd>
+          </div>
+        </dl>
+        <ul className="confirm-artifact-hashes">
+          {artifacts.map((artifact) => (
+            <li key={`${artifact.filename}-${artifact.sha256}`}>
+              <span>{artifact.filename}</span>
+              <code aria-label={`Full SHA-256 for ${artifact.filename}`}>{artifact.sha256}</code>
+            </li>
+          ))}
+        </ul>
+        <small>
+          Inspecting this binding is local and performs no approval, download, or external action.
+        </small>
+      </details>
+    </div>
   );
 }
 
@@ -3051,7 +3114,8 @@ function Jobs({
 }) {
   const [sourceOpen, setSourceOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
-  const [discoveryOpen, setDiscoveryOpen] = useState(!dashboard.discoveryProfile);
+  const [discoveryOpen, setDiscoveryOpen] = useState(false);
+  const [roleFiltersOpen, setRoleFiltersOpen] = useState(() => roleFiltersAreActive(filters));
   const [discoveryDraft, setDiscoveryDraft] = useState<DiscoveryDraft>(() => ({
     roleFamilies: dashboard.discoveryProfile?.input.roleFamilies ?? ["ai_ml", "software_technical"],
     includeTitles: dashboard.discoveryProfile?.input.includeTitles.join("\n") ?? "",
@@ -3092,6 +3156,7 @@ function Jobs({
   const addRoleButton = useRef<HTMLButtonElement>(null);
   const roleTitleField = useRef<HTMLInputElement>(null);
   const compensationMaximumField = useRef<HTMLInputElement>(null);
+  const roleFilterSummary = useRef<HTMLElement>(null);
   const deferredQuery = useDeferredValue(filters.query);
   const latest = useMemo(
     () => new Map(dashboard.matches.map((match) => [match.jobId, match])),
@@ -3191,18 +3256,7 @@ function Jobs({
     }
     if (comparisonRoleIds.length < 2) onComparisonRoleIdsChange([...comparisonRoleIds, id]);
   };
-  const filtersActive = Boolean(
-    filters.query ||
-    filters.source !== "all" ||
-    filters.fit !== "all" ||
-    filters.tracking !== "all" ||
-    filters.visibility !== "active" ||
-    filters.workMode !== "all" ||
-    filters.roleFamily !== "all" ||
-    filters.publication !== "current" ||
-    filters.verification !== "all" ||
-    filters.discovery !== "recommended",
-  );
+  const filtersActive = roleFiltersAreActive(filters);
   const numberOrNull = (value: string) => {
     const text = value.trim();
     return text ? Number(text) : null;
@@ -3474,6 +3528,20 @@ function Jobs({
           </div>
         }
       />
+      <section className="role-results-heading" aria-labelledby="current-roles-title">
+        <div>
+          <span>Candidate-owned shortlist</span>
+          <h2 id="current-roles-title">Current roles</h2>
+        </div>
+        <p aria-live="polite">
+          <strong>{visibleRoles.length}</strong>
+          <span>
+            of {dashboard.jobs.length} role{dashboard.jobs.length === 1 ? "" : "s"} ·{" "}
+            {displayedRoleGroups.length} explanation group
+            {displayedRoleGroups.length === 1 ? "" : "s"}
+          </span>
+        </p>
+      </section>
       <section className="marketplace-controls" aria-label="Personal discovery and source registry">
         {discoveryOpen && (
           <form className="work-panel discovery-profile" onSubmit={saveDiscoveryProfile}>
@@ -3802,67 +3870,80 @@ function Jobs({
           </form>
         )}
         {dashboard.discoveryProfile && !discoveryOpen && (
-          <section className="discovery-contract" aria-labelledby="active-discovery-title">
-            <div className="panel-heading">
-              <div>
-                <span>Candidate-approved search inputs</span>
-                <h2 id="active-discovery-title">Active discovery contract</h2>
-              </div>
-            </div>
-            <div className="discovery-provenance">
-              <span>Exact profile hash</span>
-              <code aria-label="Exact discovery profile hash">
-                {dashboard.discoveryProfile.inputHash}
-              </code>
+          <details className="secondary-controls discovery-contract-disclosure">
+            <summary>
+              <span>
+                <ShieldCheck size={16} aria-hidden="true" /> Active discovery contract
+              </span>
               <small>
-                {dashboard.discoveryProfile.input.matcherVersion} ·{" "}
-                {dashboard.discoveryProfile.input.normalizerVersion}
+                Profile hash {dashboard.discoveryProfile.inputHash.slice(0, 12)}… ·{" "}
+                {dashboard.discoveryProfile.input.sourceIds.length} approved source
+                {dashboard.discoveryProfile.input.sourceIds.length === 1 ? "" : "s"}
               </small>
-            </div>
-            <div className="discovery-contract-grid">
-              <p>
-                <strong>{dashboard.discoveryProfile.input.roleFamilies.length}</strong>
-                <span>role families</span>
-              </p>
-              <p>
-                <strong>
-                  {dashboard.discoveryProfile.input.seniorityLevels.length +
-                    dashboard.discoveryProfile.input.industries.length}
-                </strong>
-                <span>role terms</span>
-              </p>
-              <p>
-                <strong>
-                  {dashboard.discoveryProfile.input.mustHaveSkills.length +
-                    dashboard.discoveryProfile.input.preferredSkills.length}
-                </strong>
-                <span>skill terms</span>
-              </p>
-              <p>
-                <strong>{dashboard.discoveryProfile.input.sourceIds.length}</strong>
-                <span>approved sources</span>
-              </p>
-            </div>
-            <p className="field-note">
-              Literal constraints filter locally. Missing compensation, coordinates, or an expired
-              authorization review stays visible as unresolved; Nimanto does not invent the answer.
-            </p>
-            {suggestedQueries.length > 0 && (
-              <div className="discovery-suggestions" aria-label="Suggested local searches">
-                <span>Try a saved term</span>
-                {suggestedQueries.map((suggestion) => (
-                  <button
-                    key={suggestion}
-                    type="button"
-                    className="button mini quiet"
-                    onClick={() => onFiltersChange({ ...filters, query: suggestion })}
-                  >
-                    {suggestion}
-                  </button>
-                ))}
+            </summary>
+            <section className="discovery-contract" aria-labelledby="active-discovery-title">
+              <div className="panel-heading">
+                <div>
+                  <span>Candidate-approved search inputs</span>
+                  <h2 id="active-discovery-title">Active discovery contract</h2>
+                </div>
               </div>
-            )}
-          </section>
+              <div className="discovery-provenance">
+                <span>Exact profile hash</span>
+                <code aria-label="Exact discovery profile hash">
+                  {dashboard.discoveryProfile.inputHash}
+                </code>
+                <small>
+                  {dashboard.discoveryProfile.input.matcherVersion} ·{" "}
+                  {dashboard.discoveryProfile.input.normalizerVersion}
+                </small>
+              </div>
+              <div className="discovery-contract-grid">
+                <p>
+                  <strong>{dashboard.discoveryProfile.input.roleFamilies.length}</strong>
+                  <span>role families</span>
+                </p>
+                <p>
+                  <strong>
+                    {dashboard.discoveryProfile.input.seniorityLevels.length +
+                      dashboard.discoveryProfile.input.industries.length}
+                  </strong>
+                  <span>role terms</span>
+                </p>
+                <p>
+                  <strong>
+                    {dashboard.discoveryProfile.input.mustHaveSkills.length +
+                      dashboard.discoveryProfile.input.preferredSkills.length}
+                  </strong>
+                  <span>skill terms</span>
+                </p>
+                <p>
+                  <strong>{dashboard.discoveryProfile.input.sourceIds.length}</strong>
+                  <span>approved sources</span>
+                </p>
+              </div>
+              <p className="field-note">
+                Literal constraints filter locally. Missing compensation, coordinates, or an expired
+                authorization review stays visible as unresolved; Nimanto does not invent the
+                answer.
+              </p>
+              {suggestedQueries.length > 0 && (
+                <div className="discovery-suggestions" aria-label="Suggested local searches">
+                  <span>Try a saved term</span>
+                  {suggestedQueries.map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      type="button"
+                      className="button mini quiet"
+                      onClick={() => onFiltersChange({ ...filters, query: suggestion })}
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </section>
+          </details>
         )}
         <details className="source-registry">
           <summary>
@@ -4358,185 +4439,202 @@ function Jobs({
           </div>
         </section>
       )}
-      <section className="role-filter" aria-labelledby="role-filter-title">
-        <div>
-          <span>Private shortlist</span>
-          <h2 id="role-filter-title">Narrow this view</h2>
-          <p>Filters stay in this tab until reload or sign-out. They are not saved or sent.</p>
-        </div>
-        <label className="role-search">
-          Search roles
-          <input
-            type="search"
-            value={filters.query}
-            onChange={(event) => onFiltersChange({ ...filters, query: event.target.value })}
-            placeholder="Title, company, location, or posting term"
-          />
-        </label>
-        <label>
-          Discovery contract view
-          <select
-            value={filters.discovery}
-            disabled={!dashboard.discoveryProfile}
-            onChange={(event) =>
-              onFiltersChange({
-                ...filters,
-                discovery: event.target.value as RoleFilters["discovery"],
-              })
-            }
-          >
-            <option value="recommended">Recommended by profile</option>
-            <option value="excluded">Outside recommendations</option>
-            <option value="all">All searchable roles</option>
-          </select>
-        </label>
-        <label>
-          Source
-          <select
-            value={filters.source}
-            onChange={(event) => onFiltersChange({ ...filters, source: event.target.value })}
-          >
-            <option value="all">All sources</option>
-            {sourceOptions.map((source) => (
-              <option key={source} value={source}>
-                {human(source)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Remote / workplace
-          <select
-            value={filters.workMode}
-            onChange={(event) => onFiltersChange({ ...filters, workMode: event.target.value })}
-          >
-            <option value="all">All arrangements</option>
-            <option value="remote">Remote</option>
-            <option value="non_remote">Non-remote</option>
-            <option value="hybrid">Hybrid</option>
-            <option value="onsite">On-site</option>
-            <option value="unknown">Not established</option>
-            <option value="conflicting">Conflicting evidence</option>
-          </select>
-        </label>
-        <label>
-          Role family
-          <select
-            value={filters.roleFamily}
-            onChange={(event) => onFiltersChange({ ...filters, roleFamily: event.target.value })}
-          >
-            <option value="all">All role families</option>
-            <option value="ai_ml">AI / ML</option>
-            <option value="software_technical">Software / technical</option>
-            <option value="data_analytics">Data / analytics</option>
-            <option value="product">Product</option>
-            <option value="business_strategy_operations_solutions">
-              Business / strategy / ops
-            </option>
-            <option value="other">Other</option>
-          </select>
-        </label>
-        <label>
-          Posting state
-          <select
-            value={filters.publication}
-            onChange={(event) =>
-              onFiltersChange({
-                ...filters,
-                publication: event.target.value as RoleFilters["publication"],
-              })
-            }
-          >
-            <option value="current">Current only</option>
-            <option value="possibly_closed">Possibly closed</option>
-            <option value="closed">Closed or expired</option>
-            <option value="all">All posting states</option>
-          </select>
-        </label>
-        <label>
-          Verification
-          <select
-            value={filters.verification}
-            onChange={(event) =>
-              onFiltersChange({
-                ...filters,
-                verification: event.target.value as RoleFilters["verification"],
-              })
-            }
-          >
-            <option value="all">Any verification</option>
-            <option value="verified">Verified by source</option>
-            <option value="needs_review">Needs review</option>
-          </select>
-        </label>
-        <label>
-          Evidence fit
-          <select
-            value={filters.fit}
-            onChange={(event) => onFiltersChange({ ...filters, fit: event.target.value })}
-          >
-            <option value="all">All explanations</option>
-            <option value="strong_evidence">Strong evidence</option>
-            <option value="promising_evidence">Promising evidence</option>
-            <option value="partial_evidence">Partial evidence</option>
-            <option value="weak_evidence">Weak evidence</option>
-            <option value="blocked">Has explicit blocker</option>
-            <option value="unmatched">Not explained</option>
-          </select>
-        </label>
-        <label>
-          Tracking
-          <select
-            value={filters.tracking}
-            onChange={(event) =>
-              onFiltersChange({
-                ...filters,
-                tracking: event.target.value as RoleFilters["tracking"],
-              })
-            }
-          >
-            <option value="all">All roles</option>
-            <option value="tracked">Tracked</option>
-            <option value="untracked">Not tracked</option>
-          </select>
-        </label>
-        <label>
-          Candidate view
-          <select
-            value={filters.visibility}
-            onChange={(event) =>
-              onFiltersChange({
-                ...filters,
-                visibility: event.target.value as RoleFilters["visibility"],
-              })
-            }
-          >
-            <option value="active">Current shortlist</option>
-            <option value="archived">Archived roles</option>
-            <option value="all">Current and archived</option>
-          </select>
-        </label>
-        <div className="role-filter-result" aria-live="polite">
-          <strong>
-            {visibleRoles.length} of {dashboard.jobs.length}
-          </strong>
+      <details
+        className="secondary-controls role-filter-disclosure"
+        open={roleFiltersOpen}
+        onToggle={(event) => setRoleFiltersOpen(event.currentTarget.open)}
+      >
+        <summary ref={roleFilterSummary}>
           <span>
-            {displayedRoleGroups.length} explanation group
-            {displayedRoleGroups.length === 1 ? "" : "s"} shown
+            <SlidersHorizontal size={16} aria-hidden="true" /> Filter roles
           </span>
-          {filtersActive && (
-            <button
-              className="button mini quiet"
-              type="button"
-              onClick={() => {
-                onFiltersChange(emptyRoleFilters());
-              }}
+          <small>
+            {visibleRoles.length} of {dashboard.jobs.length} current role
+            {dashboard.jobs.length === 1 ? "" : "s"} shown
+          </small>
+        </summary>
+        <section className="role-filter" aria-labelledby="role-filter-title">
+          <div>
+            <span>Private shortlist</span>
+            <h2 id="role-filter-title">Narrow this view</h2>
+            <p>Filters stay in this tab until reload or sign-out. They are not saved or sent.</p>
+          </div>
+          <label className="role-search">
+            Search roles
+            <input
+              type="search"
+              value={filters.query}
+              onChange={(event) => onFiltersChange({ ...filters, query: event.target.value })}
+              placeholder="Title, company, location, or posting term"
+            />
+          </label>
+          <label>
+            Discovery contract view
+            <select
+              value={filters.discovery}
+              disabled={!dashboard.discoveryProfile}
+              onChange={(event) =>
+                onFiltersChange({
+                  ...filters,
+                  discovery: event.target.value as RoleFilters["discovery"],
+                })
+              }
             >
-              Clear filters
-            </button>
-          )}
-        </div>
-      </section>
+              <option value="recommended">Recommended by profile</option>
+              <option value="excluded">Outside recommendations</option>
+              <option value="all">All searchable roles</option>
+            </select>
+          </label>
+          <label>
+            Source
+            <select
+              value={filters.source}
+              onChange={(event) => onFiltersChange({ ...filters, source: event.target.value })}
+            >
+              <option value="all">All sources</option>
+              {sourceOptions.map((source) => (
+                <option key={source} value={source}>
+                  {human(source)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Remote / workplace
+            <select
+              value={filters.workMode}
+              onChange={(event) => onFiltersChange({ ...filters, workMode: event.target.value })}
+            >
+              <option value="all">All arrangements</option>
+              <option value="remote">Remote</option>
+              <option value="non_remote">Non-remote</option>
+              <option value="hybrid">Hybrid</option>
+              <option value="onsite">On-site</option>
+              <option value="unknown">Not established</option>
+              <option value="conflicting">Conflicting evidence</option>
+            </select>
+          </label>
+          <label>
+            Role family
+            <select
+              value={filters.roleFamily}
+              onChange={(event) => onFiltersChange({ ...filters, roleFamily: event.target.value })}
+            >
+              <option value="all">All role families</option>
+              <option value="ai_ml">AI / ML</option>
+              <option value="software_technical">Software / technical</option>
+              <option value="data_analytics">Data / analytics</option>
+              <option value="product">Product</option>
+              <option value="business_strategy_operations_solutions">
+                Business / strategy / ops
+              </option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+          <label>
+            Posting state
+            <select
+              value={filters.publication}
+              onChange={(event) =>
+                onFiltersChange({
+                  ...filters,
+                  publication: event.target.value as RoleFilters["publication"],
+                })
+              }
+            >
+              <option value="current">Current only</option>
+              <option value="possibly_closed">Possibly closed</option>
+              <option value="closed">Closed or expired</option>
+              <option value="all">All posting states</option>
+            </select>
+          </label>
+          <label>
+            Verification
+            <select
+              value={filters.verification}
+              onChange={(event) =>
+                onFiltersChange({
+                  ...filters,
+                  verification: event.target.value as RoleFilters["verification"],
+                })
+              }
+            >
+              <option value="all">Any verification</option>
+              <option value="verified">Verified by source</option>
+              <option value="needs_review">Needs review</option>
+            </select>
+          </label>
+          <label>
+            Evidence fit
+            <select
+              value={filters.fit}
+              onChange={(event) => onFiltersChange({ ...filters, fit: event.target.value })}
+            >
+              <option value="all">All explanations</option>
+              <option value="strong_evidence">Strong evidence</option>
+              <option value="promising_evidence">Promising evidence</option>
+              <option value="partial_evidence">Partial evidence</option>
+              <option value="weak_evidence">Weak evidence</option>
+              <option value="blocked">Has explicit blocker</option>
+              <option value="unmatched">Not explained</option>
+            </select>
+          </label>
+          <label>
+            Tracking
+            <select
+              value={filters.tracking}
+              onChange={(event) =>
+                onFiltersChange({
+                  ...filters,
+                  tracking: event.target.value as RoleFilters["tracking"],
+                })
+              }
+            >
+              <option value="all">All roles</option>
+              <option value="tracked">Tracked</option>
+              <option value="untracked">Not tracked</option>
+            </select>
+          </label>
+          <label>
+            Candidate view
+            <select
+              value={filters.visibility}
+              onChange={(event) =>
+                onFiltersChange({
+                  ...filters,
+                  visibility: event.target.value as RoleFilters["visibility"],
+                })
+              }
+            >
+              <option value="active">Current shortlist</option>
+              <option value="archived">Archived roles</option>
+              <option value="all">Current and archived</option>
+            </select>
+          </label>
+          <div className="role-filter-result" aria-live="polite">
+            <strong>
+              {visibleRoles.length} of {dashboard.jobs.length}
+            </strong>
+            <span>
+              {displayedRoleGroups.length} explanation group
+              {displayedRoleGroups.length === 1 ? "" : "s"} shown
+            </span>
+            {filtersActive && (
+              <button
+                className="button mini quiet"
+                type="button"
+                onClick={() => {
+                  setRoleFiltersOpen(false);
+                  onFiltersChange(emptyRoleFilters());
+                  window.requestAnimationFrame(() => roleFilterSummary.current?.focus());
+                }}
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
+        </section>
+      </details>
       {comparisonRoles.length > 0 && (
         <RoleComparison
           roles={comparisonRoles}
@@ -6464,12 +6562,16 @@ function ReminderEditor({
   onClose: () => void;
 }) {
   const dateField = useRef<HTMLInputElement>(null);
+  const [dateTouched, setDateTouched] = useState(false);
   const inactive = application.status === "withdrawn";
   const persistedDate = application.followUpOn ?? "";
   const editorId = `reminder-editor-${application.id}`;
   const dateId = `${editorId}-date`;
   const noteId = `${editorId}-note`;
   const missingDate = !inactive && draft.followUpOn.length === 0;
+  const invalidDate = missingDate && dateTouched;
+
+  useEffect(() => setDateTouched(false), [application.id]);
 
   useEffect(() => {
     if (!inactive) {
@@ -6505,8 +6607,15 @@ function ReminderEditor({
       <label htmlFor={dateId}>
         Candidate follow-up date
         {!inactive && (
-          <span className={`field-state ${missingDate ? "is-required" : "is-ready"}`} role="status">
-            {missingDate ? "Required · no date selected" : "Ready to save"}
+          <span
+            className={`field-state ${invalidDate ? "is-required" : missingDate ? "is-pending" : "is-ready"}`}
+            role="status"
+          >
+            {invalidDate
+              ? "Required · no date selected"
+              : missingDate
+                ? "Choose a date · required"
+                : "Ready to save"}
           </span>
         )}
       </label>
@@ -6517,9 +6626,14 @@ function ReminderEditor({
         value={draft.followUpOn}
         required={!inactive}
         disabled={inactive}
-        aria-invalid={missingDate}
+        aria-invalid={invalidDate || undefined}
         aria-describedby={noteId}
-        onChange={(event) => onDraftChange({ ...draft, followUpOn: event.target.value })}
+        onBlur={() => setDateTouched(true)}
+        onInvalid={() => setDateTouched(true)}
+        onChange={(event) => {
+          setDateTouched(true);
+          onDraftChange({ ...draft, followUpOn: event.target.value });
+        }}
       />
       <small className="field-note" id={noteId}>
         {inactive
@@ -7095,9 +7209,6 @@ function Packets({
                     >
                       <ShieldCheck size={15} /> Assure
                     </button>
-                    {/* The rule was stated once in the page intro, hundreds of
-                     * pixels above the control it governs, and nowhere that a
-                     * screen reader would reach from the button itself. */}
                     <ConfirmAction
                       className={`button mini ${packet.status === "assurance_passed" ? "primary" : "quiet"}`}
                       label={
@@ -7105,7 +7216,8 @@ function Packets({
                           <Check size={15} /> Approve
                         </>
                       }
-                      question={`Approve packet ${packet.id} with packet hash ${packet.artifactHash}${packet.artifactManifest.artifacts?.length ? ` and artifact hashes ${packet.artifactManifest.artifacts.map((artifact) => artifact.sha256).join(", ")}` : ""} for export? This records approval for this exact frozen packet. A newer packet does not reverse this historical approval, but only the latest approved packet can drive a future action.`}
+                      question={`Approve packet ${packet.id.slice(0, 8)} for export?`}
+                      supportingContent={<PacketApprovalContext packet={packet} />}
                       confirmLabel="Approve this packet"
                       cancelLabel="Cancel"
                       disabled={busy || packet.status !== "assurance_passed"}

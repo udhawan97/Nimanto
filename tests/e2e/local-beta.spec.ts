@@ -525,7 +525,7 @@ test("a candidate starts a private workspace and receives deterministic role exp
   const schedule = page.locator(".schedule-row").filter({ hasText: "northwind-careers" });
   await expect(schedule).toContainText("Every 6 hours");
   await expect(schedule).toContainText("Queued");
-  await page.setViewportSize({ width: 375, height: 812 });
+  await page.setViewportSize({ width: 320, height: 900 });
   await schedule.getByRole("button", { name: "Pause schedule" }).click();
   await expect(schedule).toContainText("Paused");
   const pauseNotice = page.getByRole("status").filter({ hasText: "northwind-careers is paused." });
@@ -643,6 +643,7 @@ test("a revoked session clears identity-bound drafts before another workspace op
   await page.getByLabel("Exact claim").fill("Must not cross identity boundary");
   await page.getByLabel("Candidate-approved statement").fill("Identity-bound candidate wording");
   await page.getByRole("button", { name: "Role discovery" }).click();
+  await page.locator(".role-filter-disclosure summary").click();
   await page.getByLabel("Search roles").fill("Northwind");
   await page.getByLabel("Tracking").selectOption("untracked");
   await page.getByRole("button", { name: "Track", exact: true }).first().click();
@@ -694,6 +695,7 @@ test("a revoked session clears identity-bound drafts before another workspace op
   ).toBeEnabled();
   await page.getByRole("button", { name: "Use clearly labeled synthetic demo" }).click();
   await page.getByRole("button", { name: "Role discovery" }).click();
+  await page.locator(".role-filter-disclosure summary").click();
   await expect(page.getByRole("button", { name: "Add role" })).toBeVisible();
   await expect(page.locator("#manual-role-draft")).toHaveCount(0);
   await expect(page.getByLabel("Search roles")).toHaveValue("");
@@ -737,6 +739,7 @@ test("a shared-cookie identity rotation clears every lifted draft before replace
   await page.getByLabel("Exact claim").fill("Original candidate evidence wording");
   await page.getByLabel("Candidate-approved statement").fill("Original authorization wording");
   await page.getByRole("button", { name: "Role discovery" }).click();
+  await page.locator(".role-filter-disclosure summary").click();
   await page.getByLabel("Search roles").fill("Northwind");
   await page.getByLabel("Tracking").selectOption("untracked");
   await page.getByRole("button", { name: "Track", exact: true }).first().click();
@@ -798,6 +801,7 @@ test("a shared-cookie identity rotation clears every lifted draft before replace
     "Original authorization wording",
   );
   await page.getByRole("button", { name: "Role discovery" }).click();
+  await page.locator(".role-filter-disclosure summary").click();
   await expect(page.locator("#manual-role-draft")).toHaveCount(0);
   await expect(page.getByLabel("Search roles")).toHaveValue("");
   await expect(page.getByLabel("Tracking")).toHaveValue("all");
@@ -1192,22 +1196,62 @@ test("evidence-rich review features stay literal, local, and inspectable", async
 
   await page.getByRole("button", { name: "Role discovery" }).click();
   await expect(page.getByText(/Source registry · 3 enabled/)).toBeVisible();
+  await page.getByRole("button", { name: "Discovery profile" }).click();
   await page.getByRole("button", { name: "Approve discovery profile" }).click();
   await expect(page.getByText("Discovery profile approved and saved.")).toBeVisible();
+  const roleResultsHeading = page.getByRole("heading", { name: "Current roles" });
+  const roleFilters = page.locator(".role-filter-disclosure");
+  const roleFilterSummary = roleFilters.locator("summary");
+  await expect(roleResultsHeading).toBeVisible();
+  await expect(roleFilters).not.toHaveAttribute("open", "");
+  for (const [width, maximumTop] of [
+    [320, 1_800],
+    [1280, 1_100],
+  ] as const) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    const hierarchy = await page.evaluate(() => {
+      const heading = [...document.querySelectorAll("h2")].find(
+        (candidate) => candidate.textContent?.trim() === "Current roles",
+      );
+      const filters = document.querySelector(".role-filter-disclosure");
+      const firstRole = document.querySelector(".job-row");
+      if (!heading || !filters || !firstRole) return null;
+      return {
+        headingTop: heading.getBoundingClientRect().top + window.scrollY,
+        filtersTop: filters.getBoundingClientRect().top + window.scrollY,
+        firstRoleTop: firstRole.getBoundingClientRect().top + window.scrollY,
+      };
+    });
+    expect(hierarchy, `role hierarchy exists at ${width}px`).not.toBeNull();
+    expect(hierarchy!.headingTop).toBeLessThan(hierarchy!.filtersTop);
+    expect(hierarchy!.filtersTop).toBeLessThan(hierarchy!.firstRoleTop);
+    expect(hierarchy!.firstRoleTop, `first role is reachable early at ${width}px`).toBeLessThan(
+      maximumTop,
+    );
+  }
+  await roleFilterSummary.focus();
+  await page.keyboard.press("Enter");
+  await expect(roleFilters).toHaveAttribute("open", "");
+  await expect(roleFilterSummary).toBeFocused();
   await page.getByLabel("Remote / workplace").selectOption("hybrid");
   await expect(page.locator(".job-row")).toHaveCount(1);
   await expect(page.locator(".posting-verification")).toContainText("not source-verified");
   await page.getByRole("button", { name: "Clear filters" }).click();
+  await expect(roleFilterSummary).toBeFocused();
+  await expect(roleFilters).not.toHaveAttribute("open", "");
+  await roleFilterSummary.click();
   await expect(page.getByText("Filters stay in this tab until reload or sign-out.")).toBeVisible();
   await page.getByRole("searchbox", { name: "Search roles" }).fill("Northwind");
   await page.getByLabel("Tracking").selectOption("untracked");
   await expect(page.locator(".job-row")).toHaveCount(1);
-  await expect(page.getByText("1 of 2")).toBeVisible();
+  await expect(page.getByText("1 of 2", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Overview" }).click();
   await page.getByRole("button", { name: "Role discovery" }).click();
   await expect(page.getByRole("searchbox", { name: "Search roles" })).toHaveValue("Northwind");
   await expect(page.getByLabel("Tracking")).toHaveValue("untracked");
   await page.getByRole("button", { name: "Clear filters" }).click();
+  await expect(page.locator(".role-filter-disclosure summary")).toBeFocused();
   await expect(page.locator(".job-row")).toHaveCount(2);
 
   const role = page.locator(".job-row").first();
@@ -1265,6 +1309,15 @@ test("the full discovery contract is candidate-approved, replayed, and explained
   await page.getByRole("button", { name: "Run starter matches" }).click();
   await page.getByRole("button", { name: "Role discovery" }).click();
 
+  await page.setViewportSize({ width: 320, height: 900 });
+  await expect(page.locator(".discovery-profile")).toHaveCount(0);
+  const firstTimeRoleTop = await page
+    .locator(".job-row")
+    .first()
+    .evaluate((role) => role.getBoundingClientRect().top + window.scrollY);
+  expect(firstTimeRoleTop, "first-time role is reachable before profile setup").toBeLessThan(1_800);
+  await page.getByRole("button", { name: "Discovery profile" }).click();
+
   await page.getByLabel("Seniority terms, one per line").fill("Engineer");
   await page.getByLabel("Industry terms, one per line").fill("platform");
   await page.getByLabel("Required skill terms, one per line").fill("TypeScript");
@@ -1294,6 +1347,9 @@ test("the full discovery contract is candidate-approved, replayed, and explained
   await page.getByRole("button", { name: "Approve discovery profile" }).click();
 
   await expect(page.getByText("Discovery profile approved and saved.")).toBeVisible();
+  const discoveryContract = page.locator(".discovery-contract-disclosure");
+  await expect(discoveryContract.locator("summary")).toContainText("Active discovery contract");
+  await discoveryContract.locator("summary").click();
   await expect(page.getByRole("heading", { name: "Active discovery contract" })).toBeVisible();
   await expect(page.getByLabel("Exact discovery profile hash")).toHaveText(/^[a-f0-9]{64}$/);
   await expect(page.locator(".discovery-provenance")).toContainText("scoring_rules_v1");
@@ -1306,6 +1362,7 @@ test("the full discovery contract is candidate-approved, replayed, and explained
   await expect(role.getByText("Commute radius · unresolved")).toBeVisible();
   await expect(role.locator(".discovery-rationale code")).toHaveText(/^[a-f0-9]{64}$/);
 
+  await page.locator(".role-filter-disclosure summary").click();
   await page.getByLabel("Discovery contract view").selectOption("excluded");
   await expect(page.locator(".job-row")).toHaveCount(1);
   const excluded = page.locator(".job-row").first();
@@ -1313,9 +1370,12 @@ test("the full discovery contract is candidate-approved, replayed, and explained
   await expect(excluded.locator(".discovery-rationale")).toContainText("Excluded");
   await page.getByLabel("Discovery contract view").selectOption("recommended");
 
+  await page.setViewportSize({ width: 1280, height: 900 });
   await page.reload();
   await page.getByRole("button", { name: "Role discovery" }).click();
-  await expect(page.getByRole("heading", { name: "Active discovery contract" })).toBeVisible();
+  await expect(page.locator(".discovery-contract-disclosure summary")).toContainText(
+    "Active discovery contract",
+  );
 
   await page.getByRole("button", { name: "Discovery profile" }).click();
   await expect(page.getByLabel("Seniority terms, one per line")).toHaveValue("Engineer");
@@ -1608,11 +1668,20 @@ test("candidate follow-up dates retain drafts, become due, and clear without inf
   const date = card.getByLabel("Candidate follow-up date");
   await expect(date).toBeFocused();
   await expect(date).toHaveValue("");
-  await expect(card.getByText("Required · no date selected", { exact: true })).toBeVisible();
+  await expect(card.getByText("Choose a date · required", { exact: true })).toBeVisible();
+  await expect(date).not.toHaveAttribute("aria-invalid", "true");
   await expect(card.getByRole("button", { name: "Save reminder" })).toBeDisabled();
+  await date.blur();
+  await expect(card.getByText("Required · no date selected", { exact: true })).toBeVisible();
+  await expect(date).toHaveAttribute("aria-invalid", "true");
   await date.fill("2099-12-31");
   await expect(card.getByText("Ready to save", { exact: true })).toBeVisible();
+  await expect(date).not.toHaveAttribute("aria-invalid", "true");
   await expect(card.getByRole("button", { name: "Save reminder" })).toBeEnabled();
+  await date.fill("");
+  await expect(card.getByText("Required · no date selected", { exact: true })).toBeVisible();
+  await expect(date).toHaveAttribute("aria-invalid", "true");
+  await date.fill("2099-12-31");
   for (const width of [320, 375, 1280]) {
     await page.setViewportSize({ width, height: 900 });
     await expectSurfaceContained(page, card, `follow-up editor at ${width}px`);
@@ -1621,6 +1690,14 @@ test("candidate follow-up dates retain drafts, become due, and clear without inf
   await page.getByRole("button", { name: "Applications" }).click();
   await expect(card.getByLabel("Candidate follow-up date")).toHaveValue("2099-12-31");
   expect(followUpWrites, "an unsaved reminder draft must not write").toEqual([]);
+
+  const discardReminder = card.getByRole("button", { name: "Discard draft" });
+  await discardReminder.click();
+  await expect(card.getByText("Discard this follow-up date draft?")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(discardReminder).toBeFocused();
+  await expect(card.getByLabel("Candidate follow-up date")).toHaveValue("2099-12-31");
+  expect(followUpWrites, "cancelling reminder discard must not write").toEqual([]);
 
   await card.getByLabel("Candidate follow-up date").fill("2000-01-01");
   await card.getByRole("button", { name: "Save reminder" }).click();
@@ -1744,6 +1821,7 @@ test("candidate decision tools archive, filter, annotate, and export without inf
   const roleTitle = (await originalRole.getByRole("heading", { level: 2 }).textContent())!.trim();
   await originalRole.getByRole("button", { name: "Archive" }).click();
   await expect(page.locator(".job-row").filter({ hasText: roleTitle })).toHaveCount(0);
+  await page.locator(".role-filter-disclosure summary").click();
   await page.getByLabel("Candidate view").selectOption("archived");
   const archivedRole = page.locator(".job-row").filter({ hasText: roleTitle });
   await expect(archivedRole).toBeVisible();
@@ -2378,15 +2456,44 @@ test("gated and empty-state controls say what they are waiting for", async ({ pa
   });
   await approve.click();
   const approvalConfirmation = packet.locator(".confirm-strip");
-  await expect(approvalConfirmation).toContainText(/Approve packet .+ with packet hash/i);
-  await expect(approvalConfirmation).toContainText(/Only the latest approved packet/i);
+  await expect(approvalConfirmation).toHaveAccessibleName(
+    /^Approve packet [a-f0-9]{8} for export\?$/,
+  );
+  await expect(approvalConfirmation).toContainText(/Assurance passed · 6 generated artifacts/i);
+  const promptPosition = await approvalConfirmation.evaluate((confirmation) => {
+    const header = document.querySelector(".workspace-header")?.getBoundingClientRect();
+    const question = confirmation.querySelector(".confirm-question")?.getBoundingClientRect();
+    return header && question
+      ? { headerBottom: header.bottom, questionTop: question.top, questionBottom: question.bottom }
+      : null;
+  });
+  expect(promptPosition).not.toBeNull();
+  expect(
+    promptPosition!.questionTop,
+    "approval prompt clears the sticky header",
+  ).toBeGreaterThanOrEqual(promptPosition!.headerBottom);
+  expect(promptPosition!.questionBottom, "approval prompt begins inside the viewport").toBeLessThan(
+    900,
+  );
   expect(
     await approvalConfirmation.evaluate(
       () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
     ),
-    "the exact hashes must wrap without widening the 375px page",
+    "the exact binding must not widen the 320px page",
   ).toBe(true);
   expect(approvalWrites, "arming packet approval must not write").toEqual([]);
+  const exactBinding = approvalConfirmation.getByText("Inspect exact packet binding", {
+    exact: true,
+  });
+  await exactBinding.click();
+  await expect(approvalConfirmation.getByLabel("Exact frozen packet ID")).toHaveText(
+    /^[a-f0-9-]{36}$/,
+  );
+  await expect(approvalConfirmation.getByLabel("Full packet SHA-256")).toHaveText(/^[a-f0-9]{64}$/);
+  const artifactHashes = approvalConfirmation.getByLabel(/^Full SHA-256 for /);
+  await expect(artifactHashes).toHaveCount(6);
+  for (const hash of await artifactHashes.all()) await expect(hash).toHaveText(/^[a-f0-9]{64}$/);
+  expect(approvalWrites, "inspecting packet binding must not write").toEqual([]);
   await page.keyboard.press("Escape");
   await expect(approvalConfirmation).toHaveCount(0);
   await expect(approve).toBeFocused();

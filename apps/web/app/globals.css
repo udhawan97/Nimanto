@@ -1684,6 +1684,47 @@ svg {
   min-width: 7.5rem;
 }
 
+/* Results lead the discovery surface. This quiet ledger is the brass thread
+ * between the candidate-owned shortlist and the secondary controls below it. */
+.role-results-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-lg);
+  align-items: end;
+  padding-block: var(--space-lg);
+  border-block: 1px solid var(--brass-200);
+}
+.role-results-heading > div,
+.role-results-heading > p {
+  display: grid;
+  gap: var(--space-3xs);
+}
+.role-results-heading > div > span {
+  color: var(--idle-text);
+  font-family: var(--font-mono);
+  font-size: var(--text-placard);
+  letter-spacing: var(--tracking-placard);
+  text-transform: uppercase;
+}
+.role-results-heading h2 {
+  font-size: var(--text-xl);
+}
+.role-results-heading > p {
+  justify-items: end;
+  color: var(--text-muted);
+  text-align: end;
+}
+.role-results-heading > p strong {
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: 400;
+  line-height: 0.9;
+}
+.role-results-heading > p span {
+  font-size: var(--text-sm);
+}
+
 .marketplace-controls {
   display: grid;
   gap: var(--space-lg);
@@ -1961,11 +2002,26 @@ svg {
   }
 }
 .secondary-controls > .application-filter,
+.secondary-controls > .role-filter,
+.secondary-controls > .discovery-contract,
 .secondary-controls > .local-draft-panel {
   border: 0;
   border-radius: 0 0 var(--radius-md) var(--radius-md);
   border-inline-start: 0;
   background: transparent;
+}
+
+@media (max-width: 48rem) {
+  .role-results-heading {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+  }
+  .role-results-heading > p {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: baseline;
+    justify-items: start;
+    text-align: start;
+  }
 }
 
 /* Optional local drafting stays visibly subordinate to packet generation: one
@@ -2593,6 +2649,9 @@ textarea {
 .field-state.is-required {
   color: var(--live-text);
 }
+.field-state.is-pending {
+  color: var(--text-muted);
+}
 .field-error {
   color: var(--live-text);
   font-size: var(--text-sm);
@@ -3075,6 +3134,87 @@ textarea {
   color: var(--text-body);
   font-size: var(--text-placard);
   overflow-wrap: anywhere;
+}
+.confirm-support {
+  display: grid;
+  flex-basis: 100%;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+.packet-approval-context {
+  display: grid;
+  gap: var(--space-xs);
+  min-width: 0;
+  max-width: 42rem;
+}
+.confirm-summary,
+.confirm-impact {
+  color: var(--text-body);
+  font-size: var(--text-sm);
+}
+.confirm-summary {
+  font-family: var(--font-mono);
+  font-size: var(--text-placard);
+  letter-spacing: var(--tracking-placard);
+  text-transform: uppercase;
+}
+.confirm-summary code {
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.confirm-details {
+  min-width: 0;
+  padding-block-start: var(--space-xs);
+  border-block-start: 1px solid var(--live-edge);
+}
+.confirm-details > summary {
+  width: fit-content;
+  color: var(--text-link);
+  cursor: pointer;
+  font-size: var(--text-sm);
+}
+.confirm-details[open] > summary {
+  margin-block-end: var(--space-sm);
+}
+.confirm-binding,
+.confirm-artifact-hashes {
+  display: grid;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+.confirm-binding {
+  margin: 0;
+}
+.confirm-binding > div,
+.confirm-artifact-hashes li {
+  display: grid;
+  gap: var(--space-3xs);
+  min-width: 0;
+}
+.confirm-binding dt,
+.confirm-artifact-hashes span {
+  color: var(--text-muted);
+  font-size: var(--text-placard);
+}
+.confirm-binding dd {
+  min-width: 0;
+  margin: 0;
+}
+.confirm-binding code,
+.confirm-artifact-hashes code {
+  display: block;
+  min-width: 0;
+  color: var(--text-body);
+  font-size: var(--text-placard);
+  overflow-wrap: anywhere;
+}
+.confirm-artifact-hashes {
+  margin: var(--space-md) 0;
+  padding: 0;
+  list-style: none;
+}
+.confirm-details > small {
+  color: var(--text-muted);
 }
 .button.mini.positive {
   border-color: var(--ok-edge);
