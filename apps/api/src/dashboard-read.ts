@@ -28,6 +28,7 @@ export class DashboardRead {
         sourceRuns,
         latestRoleObservations,
         latestVerificationAttempts,
+        roleWordingReviews,
       ] = await Promise.all([
         database.listEvidence(person.tenantId),
         database.listJobs(person.tenantId),
@@ -43,6 +44,7 @@ export class DashboardRead {
         database.listSourceRuns(person.tenantId),
         database.listLatestRoleObservations(person.tenantId),
         database.listLatestVerificationAttempts(person.tenantId),
+        database.listRoleWordingReviews(person.tenantId),
       ]);
       const actionPackets = await database.listPacketsByIds(
         person.tenantId,
@@ -130,6 +132,7 @@ export class DashboardRead {
         jobs: jobs.map(withAtsRoute),
         matches: matches.map((match) => ({ ...match, job: withAtsRoute(match.job) })),
         h1bSignals: signals.map((signal) => ({ ...signal, ...freshH1bLabel(signal) })),
+        roleWordingReviews,
         applications,
         packets: packets.map((packet) => ({
           ...packet,

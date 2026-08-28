@@ -19,6 +19,7 @@ import {
   type ExternalActionProvider,
   type ExternalActionState,
   type H1bSignalLabel,
+  type MatchBlocker,
   type MatchResult,
   type OutcomeType,
   type PublicationState,
@@ -245,7 +246,20 @@ export interface MatchRunRecord {
   result: MatchResult;
   inputHash: string;
   artifactHash: string;
+  jobContentHash: string;
   createdAt: string;
+}
+
+export interface RoleWordingReviewRecord {
+  id: string;
+  jobId: string;
+  matchRunId: string;
+  blockerCode: Extract<MatchBlocker["code"], "no_sponsorship_of_any_kind" | "citizenship_required">;
+  evidenceHash: string;
+  sourceText: string;
+  sourceLocator: string | null;
+  observedAt: string | null;
+  reviewedAt: string;
 }
 
 export interface H1bSignalRecord {
@@ -2202,10 +2216,12 @@ export class NimantoStore {
     const artifactHash = canonicalHash(result);
     const saved = await this.#db.query<any>(
       `INSERT INTO match_runs(
-         id, tenant_id, job_id, profile_version_id, rule_version, result, input_hash, artifact_hash
-       ) SELECT $1,$2,$3,$4,$5,$6::jsonb,$7,$8
-       WHERE EXISTS (SELECT 1 FROM jobs WHERE id = $3 AND tenant_id = $2)
-       RETURNING id, job_id, profile_version_id, rule_version, result, input_hash, artifact_hash, created_at`,
+         id, tenant_id, job_id, profile_version_id, rule_version, result, input_hash,
+         artifact_hash, job_content_hash
+       ) SELECT $1,$2,$3,$4,$5,$6::jsonb,$7,$8,job.content_hash
+       FROM jobs AS job WHERE job.id = $3 AND job.tenant_id = $2
+       RETURNING id, job_id, profile_version_id, rule_version, result, input_hash,
+         artifact_hash, job_content_hash, created_at`,
       [
         id,
         tenantId,
@@ -2227,6 +2243,7 @@ export class NimantoStore {
       result: row.result,
       inputHash: row.input_hash,
       artifactHash: row.artifact_hash,
+      jobContentHash: row.job_content_hash,
       createdAt: iso(row.created_at)!,
     };
   }
@@ -2235,7 +2252,7 @@ export class NimantoStore {
     const matches = await this.#db.query<any>(
       `SELECT DISTINCT ON (m.job_id)
          m.id, m.job_id, m.profile_version_id, m.rule_version, m.result,
-         m.input_hash, m.artifact_hash, m.created_at
+         m.input_hash, m.artifact_hash, m.job_content_hash, m.created_at
        FROM match_runs m WHERE m.tenant_id = $1
        ORDER BY m.job_id, m.created_at DESC, m.id DESC`,
       [tenantId],
@@ -2253,6 +2270,7 @@ export class NimantoStore {
           result: row.result,
           inputHash: row.input_hash,
           artifactHash: row.artifact_hash,
+          jobContentHash: row.job_content_hash,
           createdAt: iso(row.created_at)!,
           job,
         },
@@ -2281,7 +2299,7 @@ export class NimantoStore {
     }
     const result = await this.#db.query<any>(
       `SELECT id, job_id, profile_version_id, rule_version, result, input_hash,
-              artifact_hash, created_at
+              artifact_hash, job_content_hash, created_at
        FROM match_runs
        WHERE tenant_id = $1
          AND ($2::text IS NULL OR job_id = $2::text)
@@ -2303,12 +2321,124 @@ export class NimantoStore {
       result: row.result,
       inputHash: row.input_hash,
       artifactHash: row.artifact_hash,
+      jobContentHash: row.job_content_hash,
       createdAt: iso(row.created_at)!,
     }));
     return {
       items,
       nextCursor: result.rows.length > limit ? (items.at(-1)?.id ?? null) : null,
     };
+  }
+
+  #mapRoleWordingReview(row: any): RoleWordingReviewRecord {
+    return {
+      id: row.id,
+      jobId: row.job_id,
+      matchRunId: row.match_run_id,
+      blockerCode: row.blocker_code,
+      evidenceHash: row.evidence_hash,
+      sourceText: row.source_text,
+      sourceLocator: row.source_locator,
+      observedAt: iso(row.observed_at),
+      reviewedAt: isoRequired(row.reviewed_at),
+    };
+  }
+
+  async listRoleWordingReviews(tenantId: string): Promise<RoleWordingReviewRecord[]> {
+    const result = await this.#db.query<any>(
+      `SELECT id, job_id, match_run_id, blocker_code, evidence_hash, source_text,
+         source_locator, observed_at, reviewed_at
+       FROM role_wording_reviews
+       WHERE tenant_id = $1
+       ORDER BY reviewed_at DESC, id DESC`,
+      [tenantId],
+    );
+    return result.rows.map((row) => this.#mapRoleWordingReview(row));
+  }
+
+  /** Record only that the candidate inspected an exact, current matcher quote.
+   * This never rewrites the immutable Match Publication, confirms a legal
+   * conclusion, changes fit, or enables recommendation exclusion. */
+  async setRoleWordingReviewed(
+    tenantId: string,
+    jobId: string,
+    matchRunId: string,
+    blockerCode: string,
+    reviewed: boolean,
+  ): Promise<RoleWordingReviewRecord | null> {
+    return this.transaction(async (database) => {
+      await database.lockTenantActive(tenantId);
+      const snapshot = await database.#db.query<any>(
+        `SELECT match_run.id, match_run.result, match_run.artifact_hash,
+           match_run.job_content_hash,
+           job.content_hash AS current_job_content_hash,
+           (
+             SELECT latest.id FROM match_runs AS latest
+             WHERE latest.tenant_id = match_run.tenant_id
+               AND latest.job_id = match_run.job_id
+             ORDER BY latest.created_at DESC, latest.id DESC LIMIT 1
+           ) AS latest_match_run_id
+         FROM match_runs AS match_run
+         JOIN jobs AS job
+           ON job.id = match_run.job_id AND job.tenant_id = match_run.tenant_id
+         WHERE match_run.tenant_id = $1 AND match_run.job_id = $2 AND match_run.id = $3
+         LIMIT 1 FOR UPDATE OF match_run, job`,
+        [tenantId, jobId, matchRunId],
+      );
+      const row = snapshot.rows[0];
+      if (!row) throw new Error("MATCH_RUN_NOT_FOUND");
+      if (
+        row.latest_match_run_id !== matchRunId ||
+        row.job_content_hash !== row.current_job_content_hash
+      ) {
+        throw new Error("ROLE_WORDING_REVIEW_STALE");
+      }
+      const blocker = (row.result as MatchResult).blockers.find(
+        (candidate) => candidate.code === blockerCode,
+      );
+      if (
+        !blocker ||
+        !(["no_sponsorship_of_any_kind", "citizenship_required"] as string[]).includes(blocker.code)
+      ) {
+        throw new Error("ROLE_WORDING_NOT_REVIEWABLE");
+      }
+      const evidenceHash = canonicalHash({
+        matchRunId,
+        matchArtifactHash: row.artifact_hash,
+        jobContentHash: row.job_content_hash,
+        blocker,
+      });
+      if (!reviewed) {
+        await database.#db.query(
+          `DELETE FROM role_wording_reviews
+           WHERE tenant_id = $1 AND match_run_id = $2 AND blocker_code = $3`,
+          [tenantId, matchRunId, blocker.code],
+        );
+        return null;
+      }
+      const saved = await database.#db.query<any>(
+        `INSERT INTO role_wording_reviews(
+           id, tenant_id, job_id, match_run_id, blocker_code, evidence_hash,
+           source_text, source_locator, observed_at
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+         ON CONFLICT (tenant_id, match_run_id, blocker_code) DO UPDATE SET
+           id = role_wording_reviews.id
+         RETURNING id, job_id, match_run_id, blocker_code, evidence_hash,
+           source_text, source_locator, observed_at, reviewed_at`,
+        [
+          randomUUID(),
+          tenantId,
+          jobId,
+          matchRunId,
+          blocker.code,
+          evidenceHash,
+          blocker.sourceText,
+          blocker.sourceLocator ?? null,
+          blocker.observedAt ?? null,
+        ],
+      );
+      return database.#mapRoleWordingReview(saved.rows[0]);
+    });
   }
 
   async createH1bSignal(
@@ -3273,6 +3403,7 @@ export class NimantoStore {
       roleObservations,
       verificationAttempts,
       discoveryProfiles,
+      roleWordingReviews,
     ] = await Promise.all([
       this.listEvidence(tenantId),
       this.latestProfileVersion(tenantId),
@@ -3292,6 +3423,7 @@ export class NimantoStore {
       this.listRoleObservations(tenantId),
       this.listVerificationAttempts(tenantId),
       this.listDiscoveryProfiles(tenantId),
+      this.listRoleWordingReviews(tenantId),
     ]);
     const profileVersions = [...profileVersionsPage.items];
     let profileCursor = profileVersionsPage.nextCursor;
@@ -3308,7 +3440,7 @@ export class NimantoStore {
       matchCursor = page.nextCursor;
     }
     return {
-      schemaVersion: "nimanto_export_v3",
+      schemaVersion: "nimanto_export_v4",
       exportedAt: new Date().toISOString(),
       evidence,
       profile,
@@ -3328,6 +3460,7 @@ export class NimantoStore {
       roleObservations,
       verificationAttempts,
       discoveryProfiles,
+      roleWordingReviews,
     };
   }
 

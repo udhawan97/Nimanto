@@ -246,6 +246,18 @@ function messageForError(error: Error): { code: string; status: number; message:
    * INVALID_TRANSITION's own 409 was unreachable for exactly that reason. */
   if (code === "INVALID_TRANSITION")
     return { code, status: 409, message: "That action is no longer in the required state." };
+  if (code === "ROLE_WORDING_REVIEW_STALE")
+    return {
+      code,
+      status: 409,
+      message: "The role wording changed. Explain fit again before reviewing the new quote.",
+    };
+  if (code === "ROLE_WORDING_NOT_REVIEWABLE")
+    return {
+      code,
+      status: 400,
+      message: "Only an exact current sponsorship or citizenship quote can be reviewed here.",
+    };
   if (code === "INVALID_APPLICATION_TRANSITION")
     return {
       code,
@@ -1137,6 +1149,18 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     if (!job) throw new Error("JOB_NOT_FOUND");
     return job;
   });
+  app.put("/v1/jobs/:id/role-wording-review", async (request) => {
+    const person = identity(request);
+    const body = object(request.body);
+    if (typeof body.reviewed !== "boolean") throw new Error("INVALID_REVIEWED");
+    return store.setRoleWordingReviewed(
+      person.tenantId,
+      (request.params as { id: string }).id,
+      string(body.matchRunId, "match_run_id"),
+      string(body.blockerCode, "blocker_code"),
+      body.reviewed,
+    );
+  });
 
   app.post("/v1/h1b-signals", async (request) => {
     const person = identity(request);
@@ -1338,7 +1362,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     const person = identity(request);
     const workspace = await store.exportTenant(person.tenantId);
     return reply.header("content-disposition", 'attachment; filename="nimanto-export.json"').send({
-      exportVersion: "nimanto-local-beta-v3",
+      exportVersion: "nimanto-local-beta-v4",
       exportedAt: new Date().toISOString(),
       identity: {
         displayName: person.displayName,
@@ -1346,7 +1370,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
       },
       workspace,
       artifactNote:
-        "This inspection export includes stored profile, match, packet, assurance, application, and receipt records. Generated packet files remain individually downloadable. It is not a restore archive, immutable job history, or replay proof.",
+        "This inspection export includes stored profile, match, exact role-wording review, packet, assurance, application, and receipt records. Generated packet files remain individually downloadable. It is not a restore archive, immutable job history, or replay proof.",
     });
   });
   app.delete("/v1/data", async (request, reply) => {

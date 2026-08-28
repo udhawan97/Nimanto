@@ -106,9 +106,10 @@ today.
   records blocked/not-found evidence without applying or following redirects.
   SmartRecruiters and discovery-feed redirect routing stay gated until the
   affected source rights are approved.
-- **H-1B context stays honest.** Current posting wording is an exact warning with
-  source locator and observation time. Historical company signals remain
-  separately labeled context, never current-role sponsorship proof.
+- **H-1B context stays honest.** A role-card ledger separates exact current
+  posting wording, current employer-authored policy, and historical government
+  evidence. Exact-quote acknowledgement is bound to one Role snapshot and stays
+  warning-only; historical records never become current-role sponsorship proof.
 
 These changes are merged-source documentation, not a published release claim.
 
@@ -283,18 +284,18 @@ These changes are merged-source documentation, not a published release claim.
 
 ## What it actually does
 
-| If you need to…                     | Start with                | What stays visible                                                          |
-| ----------------------------------- | ------------------------- | --------------------------------------------------------------------------- |
-| Build a reusable career record      | **Evidence vault**        | Claim status, source name, source locator, confidence, profile version      |
-| Decide whether a role is worth time | **Role discovery**        | Ephemeral filters, four match dimensions, requirements, coverage, blockers  |
-| Keep sponsorship context honest     | **H-1B evidence signals** | Source, period, observation time, confidence, freshness adjustment, limits  |
-| Remember what actually happened     | **Applications**          | Action-first board/table, candidate-recorded outcomes, literal chronology   |
-| Review a bounded application cohort | **Applications**          | Creation-window counts using current role source and match classification   |
-| Prepare application materials       | **Review packets**        | Canonical content, format checks, hashes, stored assurance findings         |
-| Compare retained records            | **Stored history**        | Profile diffs and same-role match runs, fetched only when opened            |
-| Hand work to email safely           | **Approved actions**      | Exact recipient and payload, approval, runtime switch, provider receipt     |
-| Inspect local provenance            | **Local activity**        | Hash-checked match, packet, and executed-action receipts; no delivery claim |
-| Inspect or erase your data          | **Data controls**         | Sensitive workspace JSON, explicit exclusions, resumable deletion           |
+| If you need to…                     | Start with             | What stays visible                                                          |
+| ----------------------------------- | ---------------------- | --------------------------------------------------------------------------- |
+| Build a reusable career record      | **Evidence vault**     | Claim status, source name, source locator, confidence, profile version      |
+| Decide whether a role is worth time | **Role discovery**     | Ephemeral filters, four match dimensions, requirements, coverage, blockers  |
+| Keep sponsorship context honest     | **Role H-1B evidence** | Exact role quote/review, employer policy, historical source facts, limits   |
+| Remember what actually happened     | **Applications**       | Action-first board/table, candidate-recorded outcomes, literal chronology   |
+| Review a bounded application cohort | **Applications**       | Creation-window counts using current role source and match classification   |
+| Prepare application materials       | **Review packets**     | Canonical content, format checks, hashes, stored assurance findings         |
+| Compare retained records            | **Stored history**     | Profile diffs and same-role match runs, fetched only when opened            |
+| Hand work to email safely           | **Approved actions**   | Exact recipient and payload, approval, runtime switch, provider receipt     |
+| Inspect local provenance            | **Local activity**     | Hash-checked match, packet, and executed-action receipts; no delivery claim |
+| Inspect or erase your data          | **Data controls**      | Sensitive workspace JSON, explicit exclusions, resumable deletion           |
 
 ## How it looks
 
@@ -471,6 +472,10 @@ artifacts.
 - Historical H-1B evidence with source type, locator, period, observation time,
   confidence, explicit freshness, any downgraded original label, and stated
   limitations. Current role wording remains controlling.
+- A three-layer role-card H-1B ledger keeps exact current-posting restrictions,
+  current employer-authored policy, and historical government evidence apart.
+  Candidate acknowledgement is bound to the exact Match Publication and role
+  content hash; newer wording requires a new review and remains warning-only.
 - Employer resolution is off by default. Enabling positive upgrades requires a
   server-owned, independently reviewed corpus of at least 300 unique
   predicted-positive fixtures at 0.98 measured precision with a 0.95 Wilson lower

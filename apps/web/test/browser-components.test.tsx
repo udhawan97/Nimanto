@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { CommandPalette } from "../components/command-palette.js";
 import { CopyLine } from "../components/copy-line.js";
 import { ErrorBoundary } from "../components/error-boundary.js";
+import { H1bEvidencePanel } from "../components/h1b-evidence.js";
 import { RoleProvenanceCard } from "../components/role-provenance.js";
 import { isLoopbackHost, serviceWorkerScriptUrl } from "../components/service-worker.js";
 
@@ -171,6 +172,68 @@ describe("role source provenance", () => {
     expect(view.querySelector('code[title="source-payload-hash-123456"]')?.textContent).toBe(
       "source-payload-hash-123456".slice(0, 12),
     );
+  });
+});
+
+describe("role H-1B evidence", () => {
+  it("separates evidence layers and treats exact-quote review as warning-only", async () => {
+    const onSetReviewed = vi.fn();
+    const view = await render(
+      createElement(H1bEvidencePanel, {
+        jobTitle: "Product Engineer",
+        jobContentHash: "role-content-hash-current",
+        match: {
+          id: "match-1",
+          jobContentHash: "role-content-hash-current",
+          result: {
+            ruleVersion: "scoring_rules_v1",
+            blockers: [
+              {
+                code: "no_sponsorship_of_any_kind",
+                sourceText: "No sponsorship of any kind",
+                sourceLocator: "https://example.test/roles/1",
+                observedAt: "2026-08-28T10:00:00.000Z",
+              },
+            ],
+          },
+        },
+        signals: [
+          {
+            id: "history-1",
+            label: "possible",
+            originalLabel: "recent_positive_history",
+            sourceType: "dol_oflc_bulk",
+            sourceLocator: "fy2026q2:row:17",
+            sourcePeriod: "FY2026 Q2",
+            observedAt: "2026-07-15T00:00:00.000Z",
+            confidence: "low",
+            freshness: "current",
+            limitations: "Historical filing context only.",
+          },
+        ],
+        reviews: [],
+        busy: false,
+        onSetReviewed,
+      }),
+    );
+
+    expect(view.textContent).toContain("Current role wording");
+    expect(view.textContent).toContain("Current employer policy");
+    expect(view.textContent).toContain("Historical government evidence");
+    expect(view.textContent).toContain("No sponsorship of any kind");
+    expect(view.textContent).toContain("Historical filing context only.");
+    expect(view.textContent).toContain("does not determine eligibility, change fit, or hide");
+    expect(view.textContent).not.toContain("Sponsors H-1B");
+
+    const acknowledge = [...view.querySelectorAll("button")].find((button) =>
+      button.textContent?.includes("Acknowledge exact quote"),
+    );
+    await act(async () => acknowledge?.click());
+    expect(onSetReviewed).toHaveBeenCalledWith({
+      matchRunId: "match-1",
+      blockerCode: "no_sponsorship_of_any_kind",
+      reviewed: true,
+    });
   });
 });
 

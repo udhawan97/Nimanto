@@ -1,5 +1,6 @@
 "use client";
 
+import { normalizeEmployerName } from "@nimanto/domain";
 import {
   Activity,
   Archive,
@@ -55,6 +56,7 @@ import { Brand } from "./brand.js";
 import { CommandPalette, type PaletteEntry } from "./command-palette.js";
 import { ConnectionBanner, ConnectionIndicator, useConnection } from "./connection.js";
 import { CopyLine } from "./copy-line.js";
+import { H1bEvidencePanel, type RoleWordingReview } from "./h1b-evidence.js";
 import {
   RoleProvenanceCard,
   type RoleProvenanceData,
@@ -218,6 +220,7 @@ type Match = {
   ruleVersion: string;
   inputHash: string;
   artifactHash: string;
+  jobContentHash: string;
   createdAt: string;
   result: {
     ruleVersion: string;
@@ -566,6 +569,7 @@ type Dashboard = {
   jobs: Job[];
   matches: Match[];
   h1bSignals: Signal[];
+  roleWordingReviews: RoleWordingReview[];
   applications: Application[];
   packets: Packet[];
   actionPackets: Packet[];
@@ -4664,7 +4668,7 @@ function Jobs({
           const match = job.match;
           const companySignals = dashboard.h1bSignals.filter(
             (signal) =>
-              signal.company.toLocaleLowerCase("en-US") === job.company.toLocaleLowerCase("en-US"),
+              normalizeEmployerName(signal.company) === normalizeEmployerName(job.company),
           );
           const supportedRequirementCount =
             match?.result.requirements.filter((item) => item.state === "supported").length ?? 0;
@@ -4777,16 +4781,29 @@ function Jobs({
                       </ul>
                     </details>
                   )}
-                  {companySignals.length > 0 && (
-                    <p className="h1b-role-context">
-                      <strong>Historical company signal:</strong>{" "}
-                      {companySignals
-                        .slice(0, 2)
-                        .map((signal) => `${human(signal.label)} (${signal.sourcePeriod})`)
-                        .join(" · ")}
-                      . This is not current-role sponsorship proof.
-                    </p>
-                  )}
+                  <H1bEvidencePanel
+                    jobTitle={job.title}
+                    jobContentHash={job.contentHash}
+                    match={match}
+                    signals={companySignals}
+                    reviews={dashboard.roleWordingReviews.filter(
+                      (review) => review.jobId === job.id,
+                    )}
+                    busy={busy}
+                    onSetReviewed={({ matchRunId, blockerCode, reviewed }) => {
+                      void onAct.run({
+                        request: () =>
+                          api(`/v1/jobs/${job.id}/role-wording-review`, {
+                            method: "PUT",
+                            body: JSON.stringify({ matchRunId, blockerCode, reviewed }),
+                          }),
+                        success: reviewed
+                          ? "Exact role wording acknowledged. Fit and recommendations are unchanged."
+                          : "Role-wording acknowledgement cleared.",
+                        transient: true,
+                      });
+                    }}
+                  />
                 </div>
               </div>
               <div className="job-match">

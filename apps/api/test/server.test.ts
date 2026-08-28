@@ -278,6 +278,82 @@ describe("Nimanto beta API", () => {
     });
   });
 
+  it("records candidate review of only the latest exact role-wording quote", async () => {
+    const { app, cookie } = await setup();
+    const dashboard = (
+      await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } })
+    ).json();
+    const job = dashboard.jobs.find((candidate: { title: string }) =>
+      candidate.title.includes("Product Engineer"),
+    );
+    const published = await app.inject({
+      method: "POST",
+      url: `/v1/jobs/${job.id}/match`,
+      headers: { cookie },
+    });
+    expect(published.statusCode).toBe(200);
+    expect(published.json()).toMatchObject({
+      jobContentHash: job.contentHash,
+      result: {
+        blockers: [
+          expect.objectContaining({
+            code: "no_sponsorship_of_any_kind",
+            consequence: "visible_warning",
+            candidateConfirmed: false,
+          }),
+        ],
+      },
+    });
+
+    const reviewed = await app.inject({
+      method: "PUT",
+      url: `/v1/jobs/${job.id}/role-wording-review`,
+      headers: { cookie },
+      payload: {
+        matchRunId: published.json().id,
+        blockerCode: "no_sponsorship_of_any_kind",
+        reviewed: true,
+      },
+    });
+    expect(reviewed.statusCode).toBe(200);
+    expect(reviewed.json()).toMatchObject({
+      jobId: job.id,
+      matchRunId: published.json().id,
+      blockerCode: "no_sponsorship_of_any_kind",
+      reviewedAt: expect.any(String),
+    });
+    const refreshedDashboard = (
+      await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } })
+    ).json();
+    expect(refreshedDashboard.roleWordingReviews).toEqual([reviewed.json()]);
+
+    const refused = await app.inject({
+      method: "PUT",
+      url: `/v1/jobs/${job.id}/role-wording-review`,
+      headers: { cookie },
+      payload: {
+        matchRunId: published.json().id,
+        blockerCode: "location_conflict",
+        reviewed: true,
+      },
+    });
+    expect(refused.statusCode).toBe(400);
+    expect(refused.json()).toMatchObject({ error: { code: "ROLE_WORDING_NOT_REVIEWABLE" } });
+
+    const cleared = await app.inject({
+      method: "PUT",
+      url: `/v1/jobs/${job.id}/role-wording-review`,
+      headers: { cookie },
+      payload: {
+        matchRunId: published.json().id,
+        blockerCode: "no_sponsorship_of_any_kind",
+        reviewed: false,
+      },
+    });
+    expect(cleared.statusCode).toBe(200);
+    expect(cleared.json()).toBeNull();
+  });
+
   it("adds a private application note without changing funnel outcomes", async () => {
     const { app, cookie } = await setup();
     const dashboard = (
@@ -1481,10 +1557,10 @@ describe("Nimanto beta API", () => {
     });
     expect(exported.statusCode).toBe(200);
     expect(exported.json()).toMatchObject({
-      exportVersion: "nimanto-local-beta-v3",
+      exportVersion: "nimanto-local-beta-v4",
       identity: { displayName: "Priya Shah", email: "priya@example.test" },
       workspace: {
-        schemaVersion: "nimanto_export_v3",
+        schemaVersion: "nimanto_export_v4",
         profileVersions: expect.any(Array),
         matchRuns: expect.any(Array),
         assuranceRuns: expect.any(Array),

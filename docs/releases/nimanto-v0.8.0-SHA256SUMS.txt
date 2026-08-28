@@ -1,2 +1,2 @@
-d3788f817043b4511c038d953e25b7d22746369eb00a1d5c13cbd3537a10e6dc  nimanto-v0.8.0.cdx.json
-9aa5e900b58c9615d6d1cfecac4d834bf5acd06afa68ce76e174f5583b0ec25f  nimanto-v0.8.0.spdx.json
+e8eadcded0084d94185a4fecbbe1bc10bf9a2174aa4cac93d282e9d2ba075229  nimanto-v0.8.0.cdx.json
+b05384b946d981f90f0f4ee26c891a5f7bdf7da9e14f100202dea6959c15f20f  nimanto-v0.8.0.spdx.json

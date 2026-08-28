@@ -114,9 +114,28 @@ CREATE TABLE IF NOT EXISTS match_runs (
   result jsonb NOT NULL,
   input_hash text NOT NULL,
   artifact_hash text NOT NULL,
+  job_content_hash text NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS match_runs_tenant_idx ON match_runs(tenant_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS role_wording_reviews (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  job_id text NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+  match_run_id text NOT NULL REFERENCES match_runs(id) ON DELETE CASCADE,
+  blocker_code text NOT NULL CHECK (
+    blocker_code IN ('no_sponsorship_of_any_kind', 'citizenship_required')
+  ),
+  evidence_hash text NOT NULL,
+  source_text text NOT NULL,
+  source_locator text,
+  observed_at timestamptz,
+  reviewed_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (tenant_id, match_run_id, blocker_code)
+);
+CREATE INDEX IF NOT EXISTS role_wording_reviews_tenant_job_idx
+  ON role_wording_reviews(tenant_id, job_id, reviewed_at DESC);
 
 CREATE TABLE IF NOT EXISTS h1b_signals (
   id text PRIMARY KEY,
@@ -402,7 +421,8 @@ DECLARE
 BEGIN
   FOREACH table_name IN ARRAY ARRAY[
     'memberships', 'sessions', 'evidence_claims', 'profile_versions', 'jobs',
-    'role_dispositions', 'match_runs', 'h1b_signals', 'applications', 'outcomes',
+    'role_dispositions', 'match_runs', 'role_wording_reviews', 'h1b_signals',
+    'applications', 'outcomes',
     'application_notes', 'packets',
     'assurance_runs', 'external_actions', 'receipts', 'source_settings',
     'scheduled_jobs', 'dataset_editions', 'source_runs', 'role_availability',
@@ -693,4 +713,47 @@ BEGIN
   END LOOP;
 END;
 $$;
+`;
+
+export const schemaVersion9Sql = String.raw`
+ALTER TABLE match_runs ADD COLUMN IF NOT EXISTS job_content_hash text;
+UPDATE match_runs AS match_run
+SET job_content_hash = COALESCE(
+  (
+    SELECT receipt.material->>'jobContentHash'
+    FROM receipts AS receipt
+    WHERE receipt.tenant_id = match_run.tenant_id
+      AND receipt.type = 'match.published'
+      AND receipt.material->>'matchRunId' = match_run.id
+    ORDER BY receipt.occurred_at DESC, receipt.id DESC
+    LIMIT 1
+  ),
+  job.content_hash
+)
+FROM jobs AS job
+WHERE job.id = match_run.job_id AND match_run.job_content_hash IS NULL;
+ALTER TABLE match_runs ALTER COLUMN job_content_hash SET NOT NULL;
+
+CREATE TABLE IF NOT EXISTS role_wording_reviews (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  job_id text NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+  match_run_id text NOT NULL REFERENCES match_runs(id) ON DELETE CASCADE,
+  blocker_code text NOT NULL CHECK (
+    blocker_code IN ('no_sponsorship_of_any_kind', 'citizenship_required')
+  ),
+  evidence_hash text NOT NULL,
+  source_text text NOT NULL,
+  source_locator text,
+  observed_at timestamptz,
+  reviewed_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (tenant_id, match_run_id, blocker_code)
+);
+CREATE INDEX IF NOT EXISTS role_wording_reviews_tenant_job_idx
+  ON role_wording_reviews(tenant_id, job_id, reviewed_at DESC);
+
+DROP TRIGGER IF EXISTS nimanto_active_tenant_write ON role_wording_reviews;
+CREATE TRIGGER nimanto_active_tenant_write
+BEFORE INSERT OR UPDATE ON role_wording_reviews
+FOR EACH ROW EXECUTE FUNCTION nimanto_require_active_tenant();
 `;

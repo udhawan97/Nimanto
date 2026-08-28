@@ -216,6 +216,14 @@ precision-first exclusion gate passes.
 Deterministic matching continues to use only confirmed evidence from the linked
 Evidence Profile.
 
+Each Match Publication also stores the exact Role content hash it evaluated.
+Candidate acknowledgement of a sponsorship or citizenship quote is a separate
+tenant-owned `role_wording_reviews` record bound to that Match Publication,
+content hash, blocker code, and evidence hash. A newer Match Publication or
+changed Role content fails the review write closed. The acknowledgement never
+rewrites match history, changes fit, confirms a legal conclusion, or enables
+recommended-view exclusion.
+
 Source completeness is explicit. An observed item becomes active and receives
 a method, authority, and verification time. One absence from a complete source
 list becomes `possibly_closed`; a second complete miss at least six hours later
@@ -240,10 +248,10 @@ Application is still in a preparation state. If the candidate has recorded
 lifecycle performs no Application write. Persistence, not the pure policy
 module, owns timestamp atomicity.
 
-`nimanto_export_v3` adds complete retained discovery-profile, source-run,
+`nimanto_export_v4` adds complete retained discovery-profile, source-run,
 normalized observation, verification-attempt, role-availability,
 profile-version, match-run, assurance-run, and government dataset-edition
-records to the explicit JSON inspection export. It intentionally
+records plus exact role-wording reviews to the explicit JSON inspection export. It intentionally
 omits session and invitation credentials, deletion internals, and generated
 packet files. It is not a restore protocol or execution replay format. It
 includes immutable normalized posting observations but not discarded raw

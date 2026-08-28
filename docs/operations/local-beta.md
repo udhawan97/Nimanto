@@ -169,10 +169,14 @@ The queue stores only provider and board identifiers. Scheduled work cannot prep
   allowlist and terms-review date enable that capability. The candidate supplies
   the URL and normalized fields explicitly; redirects and unsafe destinations
   still fail closed.
-- **H-1B evidence signals → Source and freshness** shows the stored locator,
-  period, observation time, confidence, freshness, any original label that was
-  downgraded, and the signal's stated limits. This is historical context, not
-  legal advice or a current employer policy.
+- **Role discovery → Review H-1B evidence** separates current role wording,
+  current employer-authored policy, and historical government records. An exact
+  quote can be acknowledged or cleared; the review is invalidated by newer role
+  content or a newer Match Publication and never changes fit or hides the role.
+- **H-1B evidence signals → Source and freshness** retains the full stored
+  locator, period, observation time, confidence, freshness, downgraded original
+  label, and stated limits. This is historical context, not legal advice or a
+  current employer promise.
 - **Applications → Recorded timeline** lists application creation, explicit
   candidate-reported outcomes, and literal private notes. Notes affect no status,
   match, review clock, or metric; missing dates and silence create no inferred stage.
@@ -250,10 +254,11 @@ The queue stores only provider and board identifiers. Scheduled work cannot prep
 ## Inspect a workspace export
 
 Open **Data controls**, read the sensitive-data warning, and confirm it before
-downloading JSON. `nimanto-local-beta-v3` wraps `nimanto_export_v3`, including
+downloading JSON. `nimanto-local-beta-v4` wraps `nimanto_export_v4`, including
 retained discovery profiles, source runs, normalized posting observations,
 verification attempts, availability, profile versions, match runs, assurance
-runs, packet manifests, dataset editions, applications, and receipts. It
+runs, exact role-wording reviews, packet manifests, dataset editions,
+applications, and receipts. It
 excludes discarded raw provider bodies, sessions, invitation secrets, deletion
 internals, and generated packet files.
 

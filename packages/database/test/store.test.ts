@@ -398,7 +398,7 @@ describe("beta workflow persistence", () => {
       "SELECT version, applied_at FROM schema_versions ORDER BY version",
     );
     await firstInspection.close();
-    expect(firstLedger.rows.map((row) => row.version)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(firstLedger.rows.map((row) => row.version)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
     expect(firstLedger.rows.at(-1)?.version).toBe(CURRENT_SCHEMA_VERSION);
 
     const reopened = await NimantoStore.open(data);
@@ -439,7 +439,7 @@ describe("beta workflow persistence", () => {
     const schemaVersions = await migrated.query<{ version: number }>(
       "SELECT version FROM schema_versions ORDER BY version",
     );
-    expect(schemaVersions.rows.map((row) => row.version)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(schemaVersions.rows.map((row) => row.version)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
     expect(schemaVersions.rows.at(-1)?.version).toBe(CURRENT_SCHEMA_VERSION);
     const packetSequences = await migrated.query<{ generation_sequence: string | number }>(
       "SELECT generation_sequence FROM packets WHERE id = 'legacy-packet'",
@@ -528,7 +528,7 @@ describe("beta workflow persistence", () => {
         version integer PRIMARY KEY,
         applied_at timestamptz NOT NULL DEFAULT now()
       );
-      INSERT INTO schema_versions(version) VALUES (9);
+      INSERT INTO schema_versions(version) VALUES (10);
     `);
     await future.close();
     await expect(NimantoStore.open(data)).rejects.toThrow("DATABASE_SCHEMA_NEWER_THAN_RUNTIME");
@@ -667,7 +667,7 @@ describe("beta workflow persistence", () => {
     ]);
 
     const exported = await store.exportTenant(alpha.tenantId);
-    expect(exported).toMatchObject({ schemaVersion: "nimanto_export_v3" });
+    expect(exported).toMatchObject({ schemaVersion: "nimanto_export_v4" });
     expect(exported.profileVersions).toHaveLength(2);
     expect(exported.matchRuns).toHaveLength(2);
     expect(exported.assuranceRuns).toHaveLength(2);
@@ -1131,6 +1131,104 @@ describe("beta workflow persistence", () => {
     expect(match.result.requirements[0]?.evidenceIds).toEqual([claim.id]);
     expect(outcome.type).toBe("screen");
     expect((await store.listApplications(identity.tenantId))[0]?.outcomes).toHaveLength(1);
+  });
+
+  it("binds candidate wording review to the latest exact role snapshot", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nimanto-store-role-wording-review-"));
+    const store = await NimantoStore.open(join(root, "data"));
+    stores.push(store);
+    const owner = await store.createLocalTenant("wording@example.test", "Wording Owner");
+    const other = await store.createLocalTenant("other-wording@example.test", "Other Owner");
+    const input = {
+      source: "manual",
+      sourceJobId: "wording-role-1",
+      title: "Product Engineer",
+      company: "Contoso",
+      description: "No sponsorship of any kind is available for this role.",
+      location: "Chicago",
+      workMode: "hybrid",
+      url: "https://example.test/roles/wording-1",
+      requirements: ["TypeScript"],
+      capability: "deep_link",
+      sourceMeta: {},
+      contentHash: "wording-v1",
+    };
+    const job = await store.upsertJob(owner.tenantId, input);
+    const result = matchJob({
+      job: {
+        ...job,
+        descriptionLocator: job.url,
+        observedAt: job.availability.lastSeenAt,
+      },
+      evidence: [],
+    });
+    const firstMatch = await store.saveMatch(owner.tenantId, job.id, null, result);
+    expect(firstMatch.jobContentHash).toBe("wording-v1");
+    await expect(
+      store.setRoleWordingReviewed(
+        other.tenantId,
+        job.id,
+        firstMatch.id,
+        "no_sponsorship_of_any_kind",
+        true,
+      ),
+    ).rejects.toThrow("MATCH_RUN_NOT_FOUND");
+
+    const refreshed = await store.upsertJob(owner.tenantId, {
+      ...input,
+      description: "Updated posting. No sponsorship of any kind is available for this role.",
+      contentHash: "wording-v2",
+    });
+    await expect(
+      store.setRoleWordingReviewed(
+        owner.tenantId,
+        refreshed.id,
+        firstMatch.id,
+        "no_sponsorship_of_any_kind",
+        true,
+      ),
+    ).rejects.toThrow("ROLE_WORDING_REVIEW_STALE");
+
+    const currentResult = matchJob({
+      job: {
+        ...refreshed,
+        descriptionLocator: refreshed.url,
+        observedAt: refreshed.availability.lastSeenAt,
+      },
+      evidence: [],
+    });
+    const currentMatch = await store.saveMatch(owner.tenantId, refreshed.id, null, currentResult);
+    const review = await store.setRoleWordingReviewed(
+      owner.tenantId,
+      refreshed.id,
+      currentMatch.id,
+      "no_sponsorship_of_any_kind",
+      true,
+    );
+    expect(review).toMatchObject({
+      jobId: refreshed.id,
+      matchRunId: currentMatch.id,
+      blockerCode: "no_sponsorship_of_any_kind",
+      sourceText: "No sponsor",
+      evidenceHash: expect.stringMatching(/^[a-f0-9]{64}$/u),
+    });
+    expect((await store.listRoleWordingReviews(owner.tenantId))[0]).toEqual(review);
+    expect(await store.listRoleWordingReviews(other.tenantId)).toEqual([]);
+    expect(await store.exportTenant(owner.tenantId)).toMatchObject({
+      schemaVersion: "nimanto_export_v4",
+      roleWordingReviews: [review],
+    });
+
+    expect(
+      await store.setRoleWordingReviewed(
+        owner.tenantId,
+        refreshed.id,
+        currentMatch.id,
+        "no_sponsorship_of_any_kind",
+        false,
+      ),
+    ).toBeNull();
+    expect(await store.listRoleWordingReviews(owner.tenantId)).toEqual([]);
   });
 
   it("keeps candidate role disposition separate from refreshed source facts", async () => {

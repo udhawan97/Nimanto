@@ -92,7 +92,10 @@ async function expectSurfaceContained(page: Page, surface: Locator, label: strin
     };
   });
   expect(geometry.escaped, label + " child geometry").toEqual([]);
-  expect(geometry.scrollWidth, label + " scroll width").toBeLessThanOrEqual(geometry.clientWidth);
+  expect(
+    geometry.scrollWidth,
+    `${label} scroll width; overflowing ${JSON.stringify(geometry.overflowing)}`,
+  ).toBeLessThanOrEqual(geometry.clientWidth);
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -410,6 +413,21 @@ test("a candidate starts a private workspace and receives deterministic role exp
   await page.getByRole("button", { name: "Role discovery" }).click();
   await expect(page.getByRole("heading", { name: "Platform Engineer" })).toBeVisible();
   await expect(page.getByText("Northwind Systems").first()).toBeVisible();
+
+  const sponsorshipRole = page.locator(".job-row").filter({ hasText: "Product Engineer" });
+  const h1bEvidence = sponsorshipRole.locator("details.h1b-evidence");
+  await h1bEvidence.locator("summary").click();
+  await expect(h1bEvidence).toContainText("Current role wording");
+  await expect(h1bEvidence).toContainText("Current employer policy");
+  await expect(h1bEvidence).toContainText("Historical government evidence");
+  await expect(h1bEvidence).toContainText("No sponsor");
+  await expect(h1bEvidence).toContainText("does not determine eligibility, change fit, or hide");
+  await h1bEvidence.getByRole("button", { name: "Acknowledge exact quote" }).click();
+  await expect(h1bEvidence.getByText("Candidate reviewed", { exact: true })).toBeVisible();
+  await expect(h1bEvidence.getByRole("button", { name: "Clear acknowledgement" })).toBeVisible();
+  await page.setViewportSize({ width: 320, height: 900 });
+  await expectSurfaceContained(page, h1bEvidence, "H-1B evidence ledger at 320px");
+  await page.setViewportSize({ width: 1280, height: 900 });
 
   // Role context may guide the candidate, but it may never overwrite or
   // impersonate their unsaved evidence wording.
@@ -1478,7 +1496,9 @@ test("retained history, record review, cohorts, and sensitive export stay bounde
   await page.getByRole("button", { name: "Role discovery" }).click();
   const role = page.locator(".job-row").first();
   const comparedRoleTitle = (await role.getByRole("heading", { level: 2 }).textContent())!.trim();
-  const comparedRoleCompany = (await role.locator(".job-main p").textContent())!.split(" · ")[0]!;
+  const comparedRoleCompany = (await role.locator(".job-main h2 + p").textContent())!.split(
+    " · ",
+  )[0]!;
   await role.getByRole("button", { name: "Explain fit" }).click();
   await role.getByRole("button", { name: "Track", exact: true }).click();
   // Tracking refreshes the dashboard asynchronously. Prove that the
