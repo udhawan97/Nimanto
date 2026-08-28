@@ -172,6 +172,16 @@ deep-link rights. SmartRecruiters can be recognized for an honest gated label,
 but yields no target while its rights gate is closed. Arbitrary redirect
 following is not implemented.
 
+`ats_verification_v1` is an explicit candidate mutation layered on that route;
+it is not an Action Intent and has no application/send capability. It rechecks
+an exact Greenhouse or Lever detail endpoint, or Ashby's complete current board,
+through the same fixed-host, no-redirect, ten-second, one-megabyte provider
+boundary. A detail `404` is definitive closure evidence. One Ashby complete-list
+miss is only `possibly_closed`; a second complete miss at least six hours later
+may close it. Timeouts, rate limits, unsafe responses, partial boards, and other
+provider failures record a blocked Verification Attempt while preserving the
+last successful verification time and publication state.
+
 Discovery Profile versions store only candidate-approved title, role-family,
 literal seniority/industry/skill terms, physical and remote-eligible areas,
 commute/relocation preferences, work mode, source, compensation floor,

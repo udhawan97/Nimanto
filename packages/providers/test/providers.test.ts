@@ -14,6 +14,7 @@ import {
   localModelInventory,
   reviewLocalPacket,
   routeAtsLink,
+  verifyProviderJob,
 } from "../src/index.js";
 
 describe("job providers", () => {
@@ -108,6 +109,88 @@ describe("job providers", () => {
     expect(routeAtsLink({ source: "manual", sourceJobId: "candidate-copy", url })).toMatchObject({
       state: "unrecognized",
       targetUrl: null,
+    });
+  });
+
+  it("rechecks exact Greenhouse and Lever detail endpoints without redirects", async () => {
+    const requests: string[] = [];
+    const fetcher = async (url: string | URL | Request, init?: RequestInit) => {
+      requests.push(String(url));
+      expect(init?.redirect).toBe("error");
+      if (String(url).includes("greenhouse")) {
+        return new Response(
+          JSON.stringify({
+            id: 17001,
+            title: "Platform Engineer",
+            content: "Build typed services",
+            absolute_url: "https://job-boards.greenhouse.io/northwind/jobs/17001",
+            location: { name: "Chicago" },
+          }),
+          { headers: { "content-type": "application/json" } },
+        );
+      }
+      return new Response(
+        JSON.stringify({
+          id: "lever-7",
+          text: "Product Engineer",
+          descriptionPlain: "Build candidate tools",
+          hostedUrl: "https://jobs.lever.co/northwind/lever-7",
+          categories: { location: "Remote" },
+        }),
+        { headers: { "content-type": "application/json" } },
+      );
+    };
+    const greenhouse = await verifyProviderJob(
+      { provider: "greenhouse", board: "northwind", sourceJobId: "17001" },
+      fetcher as typeof fetch,
+    );
+    const lever = await verifyProviderJob(
+      { provider: "lever", board: "northwind", sourceJobId: "lever-7" },
+      fetcher as typeof fetch,
+    );
+    expect(requests).toEqual([
+      "https://boards-api.greenhouse.io/v1/boards/northwind/jobs/17001",
+      "https://api.lever.co/v0/postings/northwind/lever-7",
+    ]);
+    expect(greenhouse).toMatchObject({ method: "detail_get", result: "present" });
+    expect(lever).toMatchObject({ method: "detail_get", result: "present" });
+  });
+
+  it("treats a detail 404 as definitive and a partial Ashby absence as blocked", async () => {
+    const missing = await verifyProviderJob(
+      { provider: "greenhouse", board: "northwind", sourceJobId: "17001" },
+      (async () =>
+        new Response(JSON.stringify({ error: "missing" }), {
+          status: 404,
+          headers: { "content-type": "application/json" },
+        })) as typeof fetch,
+    );
+    expect(missing).toMatchObject({
+      method: "detail_get",
+      result: "not_found",
+      sourceItemCount: 0,
+    });
+
+    const partial = await verifyProviderJob(
+      { provider: "ashby", board: "northwind", sourceJobId: "missing-role" },
+      (async () =>
+        new Response(
+          JSON.stringify({
+            jobs: Array.from({ length: 501 }, (_, index) => ({
+              id: `ashby-${index}`,
+              title: `Engineer ${index}`,
+              descriptionPlain: "Build systems",
+              jobUrl: `https://jobs.ashbyhq.com/northwind/ashby-${index}`,
+            })),
+          }),
+          { headers: { "content-type": "application/json" } },
+        )) as typeof fetch,
+    );
+    expect(partial).toMatchObject({
+      method: "complete_list",
+      result: "blocked",
+      failureCode: "PROVIDER_PARTIAL_SNAPSHOT",
+      sourceItemCount: 501,
     });
   });
 

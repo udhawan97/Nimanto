@@ -4798,6 +4798,35 @@ function Jobs({
                 )}
               </div>
               <div className="job-actions">
+                {job.atsRoute.state === "ready" && job.atsRoute.verificationState === "ready" && (
+                  <button
+                    className="button mini quiet"
+                    type="button"
+                    disabled={busy}
+                    title={`Candidate-requested ${human(job.atsRoute.verificationMethod ?? "ATS")} · no redirects or applications`}
+                    onClick={() => {
+                      void onAct.run({
+                        request: () =>
+                          api<{ attempt: { result: string } }>(`/v1/jobs/${job.id}/verify-route`, {
+                            method: "POST",
+                          }),
+                        success: ({ attempt }) =>
+                          attempt.result === "present"
+                            ? `Employer ATS recheck confirmed ${job.title} is published.`
+                            : attempt.result === "not_found"
+                              ? `Employer ATS recheck confirmed ${job.title} is no longer published.`
+                              : attempt.result === "absent_from_complete_list"
+                                ? `${job.title} was absent from this complete employer-board check. A second check after six hours is required before closure.`
+                                : `Employer ATS recheck was blocked. The last known publication state was preserved.`,
+                        noticeKind: ({ attempt }) =>
+                          attempt.result === "blocked" ? "error" : "ok",
+                        transient: true,
+                      });
+                    }}
+                  >
+                    <RefreshCw size={15} /> Recheck employer ATS
+                  </button>
+                )}
                 {job.atsRoute.state === "ready" && job.atsRoute.targetUrl && (
                   <a
                     className="button mini quiet"

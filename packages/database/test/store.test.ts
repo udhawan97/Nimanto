@@ -1335,6 +1335,90 @@ describe("beta workflow persistence", () => {
     );
   });
 
+  it("records candidate-requested ATS checks without weakening closure evidence", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nimanto-store-ats-recheck-"));
+    const store = await NimantoStore.open(join(root, "data"));
+    stores.push(store);
+    const owner = await store.createLocalTenant("ats-recheck@example.test", "ATS Recheck Owner");
+    const detailJob = await store.upsertJob(owner.tenantId, {
+      source: "manual",
+      sourceJobId: "candidate-detail",
+      title: "Platform Engineer",
+      company: "Northwind",
+      description: "Build services",
+      location: "Chicago",
+      url: "https://job-boards.greenhouse.io/northwind/jobs/17001",
+      requirements: [],
+      capability: "deep_link",
+      sourceMeta: { manual: true },
+      contentHash: "candidate-detail-v1",
+    });
+    await store.recordRoleVerification(owner.tenantId, detailJob.id, {
+      attemptedAt: "2026-08-26T00:00:00.000Z",
+      method: "detail_get",
+      result: "present",
+      evidence: { provider: "greenhouse", responseFingerprint: "present-1" },
+    });
+    await store.recordRoleVerification(owner.tenantId, detailJob.id, {
+      attemptedAt: "2026-08-26T01:00:00.000Z",
+      method: "detail_get",
+      result: "blocked",
+      evidence: { provider: "greenhouse", errorCode: "PROVIDER_HTTP_503" },
+    });
+    expect((await store.getJob(owner.tenantId, detailJob.id))?.availability).toMatchObject({
+      publicationState: "active",
+      verificationHealth: "blocked",
+      lastVerifiedAt: "2026-08-26T00:00:00.000Z",
+    });
+    await store.recordRoleVerification(owner.tenantId, detailJob.id, {
+      attemptedAt: "2026-08-26T02:00:00.000Z",
+      method: "detail_get",
+      result: "not_found",
+      evidence: { provider: "greenhouse", responseFingerprint: "missing-1" },
+    });
+    expect((await store.getJob(owner.tenantId, detailJob.id))?.availability).toMatchObject({
+      publicationState: "closed",
+      verificationHealth: "verified",
+      closureReason: "detail_not_found",
+    });
+
+    const boardJob = await store.upsertJob(owner.tenantId, {
+      source: "manual",
+      sourceJobId: "candidate-board",
+      title: "Product Engineer",
+      company: "Contoso",
+      description: "Build products",
+      location: "Remote",
+      url: "https://jobs.ashbyhq.com/contoso/ashby-7",
+      requirements: [],
+      capability: "deep_link",
+      sourceMeta: { manual: true },
+      contentHash: "candidate-board-v1",
+    });
+    await store.recordRoleVerification(owner.tenantId, boardJob.id, {
+      attemptedAt: "2026-08-26T00:00:00.000Z",
+      method: "complete_list",
+      result: "absent_from_complete_list",
+      evidence: { provider: "ashby", responseFingerprint: "board-miss-1" },
+    });
+    expect((await store.getJob(owner.tenantId, boardJob.id))?.availability).toMatchObject({
+      publicationState: "possibly_closed",
+      consecutiveCompleteMisses: 1,
+    });
+    await store.recordRoleVerification(owner.tenantId, boardJob.id, {
+      attemptedAt: "2026-08-26T06:01:00.000Z",
+      method: "complete_list",
+      result: "absent_from_complete_list",
+      evidence: { provider: "ashby", responseFingerprint: "board-miss-2" },
+    });
+    expect((await store.getJob(owner.tenantId, boardJob.id))?.availability).toMatchObject({
+      publicationState: "closed",
+      consecutiveCompleteMisses: 2,
+      closureReason: "source_removed_after_two_complete_runs",
+    });
+    expect(await store.listVerificationAttempts(owner.tenantId)).toHaveLength(5);
+  }, 30_000);
+
   it("stores only candidate-approved, idempotent discovery profile versions", async () => {
     const root = await mkdtemp(join(tmpdir(), "nimanto-store-discovery-profile-"));
     const store = await NimantoStore.open(join(root, "data"));

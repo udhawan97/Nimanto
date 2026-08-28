@@ -7,6 +7,7 @@ import {
   type WorkplaceMode,
 } from "@nimanto/domain";
 import { assertSourceExecutionEnabled } from "./source-registry.js";
+import { recognizeAtsTarget } from "./ats-routing.js";
 import { NIMANTO_PROVIDER_VERSION } from "./version.js";
 
 export type JobProvider = "greenhouse" | "lever" | "ashby" | "smartrecruiters";
@@ -55,6 +56,20 @@ export interface ProviderFetchResult {
   run: ProviderFetchRun;
 }
 
+export interface ProviderJobVerificationResult {
+  provider: Exclude<JobProvider, "smartrecruiters">;
+  boardId: string;
+  sourceJobId: string;
+  method: "detail_get" | "complete_list";
+  result: "present" | "not_found" | "absent_from_complete_list" | "blocked";
+  attemptedAt: string;
+  completedAt: string;
+  responseFingerprint: string;
+  sourceItemCount: number;
+  job: ProviderJob | null;
+  failureCode: "PROVIDER_PARTIAL_SNAPSHOT" | null;
+}
+
 type Fetcher = typeof fetch;
 const MAX_PROVIDER_RESPONSE_BYTES = 1024 * 1024;
 const MAX_PROVIDER_JOBS = 500;
@@ -63,6 +78,14 @@ function assertBoard(value: string): string {
   const board = value.trim();
   if (!/^[A-Za-z0-9_-]{1,80}$/.test(board)) throw new Error("INVALID_BOARD_IDENTIFIER");
   return board;
+}
+
+function assertSourceJobId(value: string): string {
+  const sourceJobId = value.trim();
+  if (!/^[A-Za-z0-9_-]{1,120}$/u.test(sourceJobId)) {
+    throw new Error("INVALID_SOURCE_JOB_IDENTIFIER");
+  }
+  return sourceJobId;
 }
 
 function text(value: unknown): string {
@@ -489,4 +512,88 @@ export async function fetchProviderJobs(
   fetcher: Fetcher = fetch,
 ): Promise<ProviderJob[]> {
   return (await fetchProviderJobsResult(request, fetcher)).jobs;
+}
+
+/** Recheck one already-recognized route without following redirects or enabling
+ * a source that is closed in the registry. Greenhouse and Lever expose exact
+ * detail reads; Ashby exposes a complete current-board read, so its absence is
+ * deliberately weaker evidence and remains subject to the two-miss rule. */
+export async function verifyProviderJob(
+  request: {
+    provider: Exclude<JobProvider, "smartrecruiters">;
+    board: string;
+    sourceJobId: string;
+  },
+  fetcher: Fetcher = fetch,
+): Promise<ProviderJobVerificationResult> {
+  assertSourceExecutionEnabled(request.provider);
+  const board = assertBoard(request.board);
+  const sourceJobId = assertSourceJobId(request.sourceJobId);
+  const attemptedAt = new Date().toISOString();
+
+  if (request.provider === "ashby") {
+    const fetched = await fetchProviderJobsResult({ provider: request.provider, board }, fetcher);
+    const job =
+      fetched.jobs.find((candidate) => {
+        const recognized = recognizeAtsTarget(candidate.url);
+        return recognized?.provider === "ashby" && recognized.sourceJobId === sourceJobId;
+      }) ?? null;
+    const result = job ? "present" : fetched.run.complete ? "absent_from_complete_list" : "blocked";
+    return {
+      provider: request.provider,
+      boardId: board,
+      sourceJobId,
+      method: "complete_list",
+      result,
+      attemptedAt,
+      completedAt: fetched.run.completedAt,
+      responseFingerprint: fetched.run.responseFingerprint,
+      sourceItemCount: fetched.run.sourceItemCount,
+      job,
+      failureCode: result === "blocked" ? "PROVIDER_PARTIAL_SNAPSHOT" : null,
+    };
+  }
+
+  const url =
+    request.provider === "greenhouse"
+      ? `https://boards-api.greenhouse.io/v1/boards/${encodeURIComponent(board)}/jobs/${encodeURIComponent(sourceJobId)}`
+      : `https://api.lever.co/v0/postings/${encodeURIComponent(board)}/${encodeURIComponent(sourceJobId)}`;
+  try {
+    const payload = await getJson(url, fetcher);
+    const completedAt = new Date().toISOString();
+    const job =
+      request.provider === "greenhouse"
+        ? (greenhouseJobs({ jobs: [payload] }, board, completedAt)[0] ?? null)
+        : (leverJobs([payload], board, completedAt)[0] ?? null);
+    if (!job || job.sourceJobId !== sourceJobId) throw new Error("PROVIDER_JOB_ID_MISMATCH");
+    return {
+      provider: request.provider,
+      boardId: board,
+      sourceJobId,
+      method: "detail_get",
+      result: "present",
+      attemptedAt,
+      completedAt,
+      responseFingerprint: digest([job.sourceJobId, job.contentHash]),
+      sourceItemCount: 1,
+      job,
+      failureCode: null,
+    };
+  } catch (error) {
+    if (!(error instanceof Error && error.message === "PROVIDER_HTTP_404")) throw error;
+    const completedAt = new Date().toISOString();
+    return {
+      provider: request.provider,
+      boardId: board,
+      sourceJobId,
+      method: "detail_get",
+      result: "not_found",
+      attemptedAt,
+      completedAt,
+      responseFingerprint: digest([request.provider, board, sourceJobId, "not_found"]),
+      sourceItemCount: 0,
+      job: null,
+      failureCode: null,
+    };
+  }
 }

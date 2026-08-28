@@ -4,6 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { canonicalHash } from "@nimanto/domain";
+import type { ProviderJobVerificationResult } from "@nimanto/providers";
 import { buildServer } from "../src/server.js";
 import { NIMANTO_VERSION } from "../src/version.js";
 
@@ -54,6 +55,11 @@ async function setup(options?: {
       sourceMeta: Record<string, unknown>;
     }>
   >;
+  providerJobVerifier?: (request: {
+    provider: "greenhouse" | "lever" | "ashby";
+    board: string;
+    sourceJobId: string;
+  }) => Promise<ProviderJobVerificationResult>;
 }): Promise<{
   app: FastifyInstance;
   cookie: string;
@@ -80,6 +86,7 @@ async function setup(options?: {
       : {}),
     ...(options?.localModel ? { localModel: options.localModel } : {}),
     ...(options?.providerJobsFetcher ? { providerJobsFetcher: options.providerJobsFetcher } : {}),
+    ...(options?.providerJobVerifier ? { providerJobVerifier: options.providerJobVerifier } : {}),
   });
   apps.push(app);
   await app.ready();
@@ -803,6 +810,129 @@ describe("Nimanto beta API", () => {
         sourceItemCount: 1,
       }),
     ]);
+  });
+
+  it("records a candidate-requested approved ATS recheck and keeps gated routes offline", async () => {
+    const requests: Array<{ provider: string; board: string; sourceJobId: string }> = [];
+    const { app, cookie } = await setup({
+      providerJobVerifier: async (request) => {
+        requests.push(request);
+        return {
+          provider: request.provider,
+          boardId: request.board,
+          sourceJobId: request.sourceJobId,
+          method: "detail_get",
+          result: "present",
+          attemptedAt: "2026-08-28T12:00:00.000Z",
+          completedAt: "2026-08-28T12:00:01.000Z",
+          responseFingerprint: "verified-fingerprint",
+          sourceItemCount: 1,
+          job: null,
+          failureCode: null,
+        };
+      },
+    });
+    const approved = await app.inject({
+      method: "POST",
+      url: "/v1/jobs",
+      headers: { cookie },
+      payload: {
+        title: "Platform Engineer",
+        company: "Northwind",
+        description: "Build trustworthy systems.",
+        url: "https://job-boards.greenhouse.io/northwind/jobs/17001?source=candidate",
+        requirements: [],
+      },
+    });
+    const verified = await app.inject({
+      method: "POST",
+      url: `/v1/jobs/${approved.json().id}/verify-route`,
+      headers: { cookie },
+    });
+    expect(verified.statusCode).toBe(200);
+    expect(verified.json()).toMatchObject({
+      job: {
+        availability: {
+          publicationState: "active",
+          verificationHealth: "verified",
+          verificationMethod: "detail_get",
+        },
+      },
+      attempt: {
+        authority: "employer_ats",
+        method: "detail_get",
+        result: "present",
+        evidence: {
+          provider: "greenhouse",
+          boardId: "northwind",
+          sourceJobId: "17001",
+          ruleVersion: "ats_routing_v1",
+        },
+      },
+    });
+    expect(requests).toEqual([
+      { provider: "greenhouse", board: "northwind", sourceJobId: "17001" },
+    ]);
+
+    const gated = await app.inject({
+      method: "POST",
+      url: "/v1/jobs",
+      headers: { cookie },
+      payload: {
+        title: "Data Engineer",
+        company: "Contoso",
+        description: "Build data systems.",
+        url: "https://jobs.smartrecruiters.com/Contoso/sr-7-data-engineer",
+        requirements: [],
+      },
+    });
+    const rejected = await app.inject({
+      method: "POST",
+      url: `/v1/jobs/${gated.json().id}/verify-route`,
+      headers: { cookie },
+    });
+    expect(rejected.statusCode).toBe(409);
+    expect(rejected.json()).toMatchObject({ error: { code: "ATS_ROUTE_GATED" } });
+    expect(requests).toHaveLength(1);
+  });
+
+  it("records a blocked ATS recheck while preserving the last publication state", async () => {
+    const { app, cookie } = await setup({
+      providerJobVerifier: async () => {
+        throw new Error("PROVIDER_HTTP_503");
+      },
+    });
+    const created = await app.inject({
+      method: "POST",
+      url: "/v1/jobs",
+      headers: { cookie },
+      payload: {
+        title: "Product Engineer",
+        company: "Northwind",
+        description: "Build candidate tools.",
+        url: "https://jobs.lever.co/northwind/lever-7",
+        requirements: [],
+      },
+    });
+    const checked = await app.inject({
+      method: "POST",
+      url: `/v1/jobs/${created.json().id}/verify-route`,
+      headers: { cookie },
+    });
+    expect(checked.statusCode).toBe(200);
+    expect(checked.json()).toMatchObject({
+      job: {
+        availability: {
+          publicationState: "active",
+          verificationHealth: "blocked",
+          lastVerifiedAt: null,
+        },
+      },
+      attempt: {
+        result: "blocked",
+        evidence: { errorCode: "PROVIDER_HTTP_503", provider: "lever" },
+      },
+    });
   });
 
   it("exposes the deny-by-default source registry and candidate-approved discovery profile", async () => {

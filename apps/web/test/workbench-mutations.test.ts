@@ -73,6 +73,17 @@ describe("Workbench mutation coordination", () => {
     ]);
   });
 
+  it("can report a committed blocked check as an error notice after reconciliation", async () => {
+    const { mutations, events } = harness();
+    await mutations.run({
+      request: async () => ({ result: "blocked" as const }),
+      success: "The check was recorded but blocked.",
+      noticeKind: (value) => (value.result === "blocked" ? "error" : "ok"),
+    });
+    expect(events).toContain("refresh");
+    expect(events).toContain("notice:error:The check was recorded but blocked.");
+  });
+
   it("leaves focus to the declared successor rather than restoring it", async () => {
     const { mutations, events } = harness();
     await mutations.run({

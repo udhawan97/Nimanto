@@ -29,13 +29,13 @@ This approach maximizes freshness and provenance while keeping the architecture 
 | Work mode | `remote`, `hybrid`, `onsite`, `unknown`, and `conflicting` are canonical domain values with source-field evidence and structured areas. The workbench includes remote, non-remote, individual-mode, role-family, posting-state, and verification filters. |
 | Personalization | Candidate-approved Discovery Profiles are versioned, idempotent, linked to an exact Evidence Profile, and applied to title, role-family, literal seniority/industry/skill terms, source, physical/remote area, work mode, compensation, and observation-age discovery. A visible contract summary, bounded approved-term suggestions, and per-role reason ledger distinguish matched, excluded, and unresolved inputs. No résumé inference is silently persisted. |
 | Aggregation | Exact-field normalized company/title/location clusters group possible cross-source variants while retaining every source record, link, wording, and verification label. Same-source roles are not collapsed by title/location alone. |
-| ATS routing | `ats_routing_v1` exposes adapter-owned HTTPS links and exact recognized Greenhouse, Lever, or Ashby job paths. It removes tracking/query fragments only from candidate-entered recognized paths, never fetches or follows a redirect, and keeps SmartRecruiters plus every unapproved discovery-origin link gated. |
+| ATS routing | `ats_routing_v1` exposes adapter-owned HTTPS links and exact recognized Greenhouse, Lever, or Ashby job paths. A separate candidate-requested `ats_verification_v1` action performs fixed-host detail checks for Greenhouse/Lever or a complete-board Ashby check, persists method-qualified outcomes, and never applies or follows a redirect. SmartRecruiters plus every unapproved discovery-origin link remains gated. |
 | H-1B boundary | Exact current-posting wording is a visible warning with locator/time evidence. Historical company signals are displayed separately and never treated as current sponsorship proof or an automatic rejection. |
 | Data control | `nimanto_export_v3` includes discovery profiles, source runs, observations, verification attempts, and availability; tenant deletion cascades through all new tenant-owned tables. |
 
 Licensed feeds, partner-only sources, and terms-conflicted aggregators are deliberately not executable. Their registry entries make future activation explicit without treating adapter code, a public endpoint, or user demand as data rights.
 
-**Delivery status:** Phases 0–2 are implemented in the current source tree. Phase 3 now has a tested SmartRecruiters adapter, existing schedule/provenance seams, and a fail-closed direct ATS routing foundation. SmartRecruiters execution and redirect traversal from discovery feeds remain gated pending source-specific rights; Phase 3 is therefore not complete. Phase 4 cannot begin honestly without written feed rights and the named 14-day non-production bake-off.
+**Delivery status:** Phases 0–2 are implemented in the current source tree. Phase 3 now has a tested SmartRecruiters adapter, existing schedule/provenance seams, fail-closed direct ATS routing, and candidate-requested liveness verification for the three approved ATS sources. SmartRecruiters execution and redirect traversal from discovery feeds remain gated pending source-specific rights; Phase 3 is therefore not complete. Phase 4 cannot begin honestly without written feed rights and the named 14-day non-production bake-off.
 
 ## Product outcome
 
@@ -154,6 +154,15 @@ type SourceResult = {
 Source requests never include resume text, H-1B status, authorization evidence, or raw private search history. Default discovery uses non-personal catalog pulls; an optional provider query may use separately consented coarse title/location fields only. Persist only a versioned, server-keyed HMAC over the canonical coarse query and consent record, never an unkeyed low-entropy hash or raw candidate query; delete it with the source run under the source's retention limit. Each adapter writes an immutable, rights-policy-bounded raw snapshot and immutable normalized version before updating the mutable `CurrentRole` projection.
 
 The implemented `ats_routing_v1` foundation performs no network request. It exposes adapter-owned HTTPS targets and exact candidate-entered Greenhouse, Lever, or Ashby job paths, maps them to a provider/board/job identity, and reports the applicable detail or complete-list verification seam. SmartRecruiters stays recognized-but-gated. A generic licensed-feed Role cannot yield a target unless its concrete registry entry grants deep-link rights.
+
+The candidate may separately request `ats_verification_v1` for a ready route.
+Greenhouse and Lever use their exact public detail endpoints; Ashby uses its
+complete current employer-board response. The request follows no redirect,
+retains no provider body, records one method-qualified Verification Attempt, and
+does not create an Action Intent. A definitive detail `404` closes the Role. An
+Ashby absence requires two complete checks at least six hours apart. A timeout,
+rate limit, malformed/oversized response, partial board, or other provider
+failure records `blocked` while preserving the last successful state.
 
 The remaining redirect slice is deliberately closed. After one discovery source receives written approval, canonical apply-link resolution may follow a small bounded redirect chain, reject unsafe targets, map recognized ATS hosts/identifiers, and recheck the individual detail endpoint or a complete employer board. The source rights record must allow that contact and deep-link handling; Adzuna records receive no third-party ATS recheck, canonicalization, or deep-link substitution until Adzuna grants it in writing.
 
@@ -377,6 +386,12 @@ Backfill existing roles with unknown verification and `lastVerifiedAt = null`, t
 **Effort:** medium
 
 **Deliverables:** SmartRecruiters adapter, provider-specific pagination and fixtures, source schedules, attribution/provenance cards, and rights-permitted safe routing from a canonical apply link to a recognized ATS detail or complete-board recheck. Workable or Recruitee stays disabled unless an employer/provider authorizes broad use.
+
+**Implemented continuation:** ready Greenhouse, Lever, and Ashby routes expose a
+candidate-controlled recheck. Detail and complete-list results update Role
+Availability under their distinct closure rules; blocked attempts are durable
+evidence and cannot turn into closure. SmartRecruiters execution and any
+discovery-origin redirect/recheck remain closed behind source rights.
 
 Improve the existing adapters at the same time:
 

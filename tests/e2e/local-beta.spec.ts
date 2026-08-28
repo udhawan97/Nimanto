@@ -524,6 +524,11 @@ test("a candidate starts a private workspace and receives deterministic role exp
     "href",
     "https://job-boards.greenhouse.io/nimanto-synthetic/jobs/17001",
   );
+  await expect(savedRole.getByRole("button", { name: "Recheck employer ATS" })).toBeVisible();
+  await expect(savedRole.getByRole("button", { name: "Recheck employer ATS" })).toHaveAttribute(
+    "title",
+    /Candidate-requested Detail get · no redirects or applications/u,
+  );
 
   await page.getByRole("button", { name: "Schedule source" }).click();
   await page.getByLabel("Scheduled provider").selectOption("greenhouse");

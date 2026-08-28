@@ -178,6 +178,21 @@ export interface VerificationAttemptRecord {
   evidence: Record<string, unknown>;
 }
 
+export interface RoleVerificationInput {
+  attemptedAt: string;
+  method: Extract<VerificationMethod, "detail_get" | "complete_list">;
+  result: Extract<
+    VerificationResult,
+    "present" | "not_found" | "absent_from_complete_list" | "blocked"
+  >;
+  evidence: Record<string, unknown>;
+}
+
+export interface RoleVerificationOutcome {
+  job: JobRecord;
+  attempt: VerificationAttemptRecord;
+}
+
 export interface DiscoveryProfileRecord {
   id: string;
   input: DiscoveryProfileInput;
@@ -1821,6 +1836,132 @@ export class NimantoStore {
         possiblyClosed,
         closed,
       };
+    });
+  }
+
+  /** Persist one candidate-requested employer-ATS liveness check. A detail 404
+   * is definitive; absence from a complete board remains subject to two checks
+   * at least six hours apart. Blocked network attempts never change the last
+   * known publication state or successful-verification timestamp. */
+  async recordRoleVerification(
+    tenantId: string,
+    jobId: string,
+    input: RoleVerificationInput,
+  ): Promise<RoleVerificationOutcome> {
+    const attemptedAtMs = new Date(input.attemptedAt).getTime();
+    if (!Number.isFinite(attemptedAtMs)) throw new Error("INVALID_VERIFICATION_TIME");
+    if (input.result === "not_found" && input.method !== "detail_get") {
+      throw new Error("INVALID_VERIFICATION_RESULT");
+    }
+    if (input.result === "absent_from_complete_list" && input.method !== "complete_list") {
+      throw new Error("INVALID_VERIFICATION_RESULT");
+    }
+    return this.transaction(async (database) => {
+      await database.lockTenantActive(tenantId);
+      const current = await database.#db.query<{
+        missing_since: string | Date | null;
+        consecutive_complete_misses: number;
+      }>(
+        `SELECT availability.missing_since, availability.consecutive_complete_misses
+         FROM jobs AS job
+         JOIN role_availability AS availability
+           ON availability.tenant_id = job.tenant_id AND availability.job_id = job.id
+         WHERE job.tenant_id = $1 AND job.id = $2
+         FOR UPDATE`,
+        [tenantId, jobId],
+      );
+      const availability = current.rows[0];
+      if (!availability) throw new Error("JOB_NOT_FOUND");
+
+      if (input.result === "present") {
+        await database.#db.query(
+          `UPDATE role_availability SET
+             last_seen_at = GREATEST(last_seen_at, $3), last_verified_at = $3,
+             next_verify_at = $3::timestamptz + interval '24 hours', missing_since = NULL,
+             publication_state = 'active', verification_health = 'verified',
+             verification_authority = 'employer_ats', verification_method = $4,
+             consecutive_complete_misses = 0, closed_at = NULL, closure_reason = NULL,
+             updated_at = now()
+           WHERE tenant_id = $1 AND job_id = $2`,
+          [tenantId, jobId, input.attemptedAt, input.method],
+        );
+      } else if (input.result === "not_found") {
+        await database.#db.query(
+          `UPDATE role_availability SET
+             last_verified_at = $3, next_verify_at = NULL,
+             missing_since = COALESCE(missing_since, $3), publication_state = 'closed',
+             verification_health = 'verified', verification_authority = 'employer_ats',
+             verification_method = 'detail_get', closed_at = $3,
+             closure_reason = 'detail_not_found', updated_at = now()
+           WHERE tenant_id = $1 AND job_id = $2`,
+          [tenantId, jobId, input.attemptedAt],
+        );
+      } else if (input.result === "absent_from_complete_list") {
+        const missingSinceMs = availability.missing_since
+          ? new Date(availability.missing_since).getTime()
+          : null;
+        const closeNow =
+          availability.consecutive_complete_misses >= 1 &&
+          missingSinceMs !== null &&
+          attemptedAtMs - missingSinceMs >= 6 * 60 * 60 * 1000;
+        await database.#db.query(
+          `UPDATE role_availability SET
+             last_verified_at = $3,
+             next_verify_at = CASE WHEN $4 THEN NULL ELSE $3::timestamptz + interval '6 hours' END,
+             missing_since = COALESCE(missing_since, $3),
+             publication_state = CASE WHEN $4 THEN 'closed' ELSE 'possibly_closed' END,
+             verification_health = 'verified', verification_authority = 'employer_ats',
+             verification_method = 'complete_list',
+             consecutive_complete_misses = CASE
+               WHEN $4 THEN 2 ELSE GREATEST(consecutive_complete_misses, 1)
+             END,
+             closed_at = CASE WHEN $4 THEN $3 ELSE NULL END,
+             closure_reason = CASE
+               WHEN $4 THEN 'source_removed_after_two_complete_runs' ELSE NULL
+             END,
+             updated_at = now()
+           WHERE tenant_id = $1 AND job_id = $2`,
+          [tenantId, jobId, input.attemptedAt, closeNow],
+        );
+      } else {
+        await database.#db.query(
+          `UPDATE role_availability SET
+             next_verify_at = $3::timestamptz + interval '1 hour',
+             verification_health = 'blocked', verification_authority = 'employer_ats',
+             verification_method = $4, updated_at = now()
+           WHERE tenant_id = $1 AND job_id = $2`,
+          [tenantId, jobId, input.attemptedAt, input.method],
+        );
+      }
+
+      const attempt: VerificationAttemptRecord = {
+        id: randomUUID(),
+        jobId,
+        sourceRunId: null,
+        attemptedAt: input.attemptedAt,
+        authority: "employer_ats",
+        method: input.method,
+        result: input.result,
+        evidence: input.evidence,
+      };
+      await database.#db.query(
+        `INSERT INTO verification_attempts(
+           id, tenant_id, job_id, source_run_id, attempted_at, authority, method, result, evidence
+         ) VALUES ($1,$2,$3,NULL,$4,$5,$6,$7,$8::jsonb)`,
+        [
+          attempt.id,
+          tenantId,
+          jobId,
+          attempt.attemptedAt,
+          attempt.authority,
+          attempt.method,
+          attempt.result,
+          JSON.stringify(attempt.evidence),
+        ],
+      );
+      const job = await database.getJob(tenantId, jobId);
+      if (!job) throw new Error("JOB_NOT_FOUND");
+      return { job, attempt };
     });
   }
 

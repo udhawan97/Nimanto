@@ -1,6 +1,7 @@
 export type WorkbenchMutation<T> = Readonly<{
   request: () => Promise<T>;
   success: string | ((value: T) => string);
+  noticeKind?: "ok" | "error" | ((value: T) => "ok" | "error");
   commit?: (value: T) => void;
   focus?: (value: T) => void;
   recover?: (error: unknown) => boolean | void;
@@ -77,7 +78,9 @@ export function createWorkbenchMutations(adapters: MutationAdapters): WorkbenchM
           return { kind: refreshed };
         }
         adapters.publishNotice(
-          "ok",
+          typeof mutation.noticeKind === "function"
+            ? mutation.noticeKind(value)
+            : (mutation.noticeKind ?? "ok"),
           typeof mutation.success === "function" ? mutation.success(value) : mutation.success,
           mutation.transient === true,
         );

@@ -34,6 +34,7 @@ import {
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import type { NimantoApiOptions } from "./config.js";
 import { DashboardRead } from "./dashboard-read.js";
+import { AtsVerification } from "./ats-verification.js";
 import { DeletionCoordinator } from "./deletion-coordinator.js";
 import { DiscoveryCycle } from "./discovery-cycle.js";
 import { EvidenceIntake } from "./evidence-intake.js";
@@ -290,6 +291,18 @@ function messageForError(error: Error): { code: string; status: number; message:
       status: 409,
       message: "That job source is not approved for execution in the source registry.",
     };
+  if (code === "ATS_ROUTE_GATED" || code === "ATS_ROUTE_UNAVAILABLE")
+    return {
+      code,
+      status: 409,
+      message: "That posting does not have an approved employer-ATS verification route.",
+    };
+  if (code === "ATS_ROUTE_CHANGED")
+    return {
+      code,
+      status: 409,
+      message: "The posting route changed during verification. Review the refreshed role first.",
+    };
   if (code === "INVALID_SOURCE_URL" || code === "SOURCE_URL_NOT_ALLOWED")
     return {
       code,
@@ -484,6 +497,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
   const dashboardRead = new DashboardRead(store, () => externalActionLifecycle.runtime());
   await externalActionLifecycle.recoverInterrupted();
   const discoveryCycle = new DiscoveryCycle(store, options.providerJobsFetcher);
+  const atsVerification = new AtsVerification(store, options.providerJobVerifier);
   const localModel = options.localModel ?? {
     status: localModelStatus,
     draftSummary: draftLocalSummary,
@@ -1105,6 +1119,11 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     const person = identity(request);
     const params = request.params as { id: string };
     return publishMatch(store, person.tenantId, params.id, "manual");
+  });
+  app.post("/v1/jobs/:id/verify-route", async (request) => {
+    const person = identity(request);
+    const params = request.params as { id: string };
+    return atsVerification.request(person.tenantId, params.id);
   });
   app.put("/v1/jobs/:id/disposition", async (request) => {
     const person = identity(request);

@@ -3,6 +3,7 @@ import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import type { LocalModelStatus } from "@nimanto/providers";
 import type { ProviderJobsFetcher } from "./discovery-cycle.js";
+import type { ProviderJobVerifier } from "./ats-verification.js";
 
 export type LocalModelAdapter = {
   status: () => Promise<LocalModelStatus>;
@@ -36,6 +37,7 @@ export interface NimantoApiOptions {
     fixtures: Array<{ sourceName: string; expectedId: string | null }>;
   };
   providerJobsFetcher?: ProviderJobsFetcher;
+  providerJobVerifier?: ProviderJobVerifier;
   allowlistedJobPageFetcher?: AllowlistedJobPageFetcher;
   localModel?: LocalModelAdapter;
   removePath?: (target: string, options: { recursive?: boolean; force?: boolean }) => Promise<void>;

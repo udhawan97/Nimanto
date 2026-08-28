@@ -96,8 +96,11 @@ today.
 - **Fail-closed employer links.** Adapter-owned HTTPS targets and exact recognized
   Greenhouse, Lever, or Ashby paths can open from a Role card through
   `ats_routing_v1`. Candidate-entered tracking parameters are excluded from the
-  derived ATS target. SmartRecruiters and discovery-feed redirect routing stay
-  gated until the affected source rights are approved.
+  derived ATS target. A separate candidate-requested recheck uses an exact
+  Greenhouse or Lever detail read, or Ashby's complete employer board, and
+  records blocked/not-found evidence without applying or following redirects.
+  SmartRecruiters and discovery-feed redirect routing stay gated until the
+  affected source rights are approved.
 - **H-1B context stays honest.** Current posting wording is an exact warning with
   source locator and observation time. Historical company signals remain
   separately labeled context, never current-role sponsorship proof.
@@ -414,7 +417,11 @@ artifacts.
 - Read-time ATS routing leaves the retained Role untouched. Provider-owned links
   must be bounded HTTPS targets; candidate-entered links must match an exact
   recognized ATS host/path; licensed-feed origins require a concrete registry
-  identity with approved deep-link rights. No redirect is followed by this slice.
+  identity with approved deep-link rights. The candidate can separately request
+  a bounded liveness check under `ats_verification_v1`: definitive detail `404`
+  closes a Greenhouse or Lever role, Ashby absence requires two complete checks
+  at least six hours apart, and blocked checks preserve the last known state.
+  No redirect is followed by this slice.
 - Source runs, immutable normalized observations, payload hashes, availability,
   and method-qualified verification attempts remain separate from the mutable
   current Role. Raw provider bodies use the current zero-hour retention policy.
