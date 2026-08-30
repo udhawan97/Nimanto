@@ -8,6 +8,7 @@ import {
   classifyRoleFamily,
   applicationTransitions,
   normalizeWorkplaceMode,
+  normalizeEmployerName,
   scheduledFailureEvent,
   scheduledRetryDelayMinutes,
   validateStructuredArea,
@@ -265,6 +266,7 @@ export interface RoleWordingReviewRecord {
 export interface H1bSignalRecord {
   id: string;
   company: string;
+  sourceCompany: string;
   label: H1bSignalLabel;
   sourceType: string;
   sourceLocator: string;
@@ -283,6 +285,26 @@ export interface DatasetEditionRecord {
   evaluation: Record<string, unknown>;
   evaluationProvenance: Record<string, unknown> | null;
   createdAt: string;
+}
+
+export interface EmployerEntityRecord {
+  id: string;
+  canonicalCompany: string;
+  normalizedName: string;
+  createdAt: string;
+}
+
+export interface EmployerAliasRecord {
+  id: string;
+  employerEntityId: string;
+  canonicalCompany: string;
+  normalizedName: string;
+  alias: string;
+  normalizedAlias: string;
+  sourceLocator: string;
+  observedAt: string;
+  evidenceHash: string;
+  reviewedAt: string;
 }
 
 export interface ApplicationRecord {
@@ -2441,6 +2463,173 @@ export class NimantoStore {
     });
   }
 
+  #mapEmployerEntity(row: any): EmployerEntityRecord {
+    return {
+      id: row.id,
+      canonicalCompany: row.canonical_company,
+      normalizedName: row.normalized_name,
+      createdAt: isoRequired(row.created_at),
+    };
+  }
+
+  #mapEmployerAlias(row: any): EmployerAliasRecord {
+    return {
+      id: row.id,
+      employerEntityId: row.employer_entity_id,
+      canonicalCompany: row.canonical_company,
+      normalizedName: row.normalized_name,
+      alias: row.alias,
+      normalizedAlias: row.normalized_alias,
+      sourceLocator: row.source_locator,
+      observedAt: isoRequired(row.observed_at),
+      evidenceHash: row.evidence_hash,
+      reviewedAt: isoRequired(row.reviewed_at),
+    };
+  }
+
+  async setEmployerAliasReviewed(
+    tenantId: string,
+    input: {
+      canonicalCompany: string;
+      alias: string;
+      sourceLocator?: string;
+      observedAt?: string;
+      reviewed: boolean;
+    },
+  ): Promise<EmployerAliasRecord | null> {
+    const canonicalInput = input.canonicalCompany.normalize("NFC").trim();
+    const alias = input.alias.normalize("NFC").trim();
+    const normalizedName = normalizeEmployerName(canonicalInput);
+    const normalizedAlias = normalizeEmployerName(alias);
+    if (!normalizedName || !normalizedAlias) throw new Error("INVALID_EMPLOYER_ALIAS");
+    if (normalizedName === normalizedAlias) throw new Error("EMPLOYER_ALIAS_REDUNDANT");
+
+    return this.transaction(async (database) => {
+      await database.lockTenantActive(tenantId);
+      const entityResult = await database.#db.query<any>(
+        `SELECT * FROM employer_entities
+         WHERE tenant_id = $1 AND normalized_name = $2 LIMIT 1 FOR UPDATE`,
+        [tenantId, normalizedName],
+      );
+      const entity = entityResult.rows[0] as any | undefined;
+      if (!input.reviewed) {
+        if (!entity) return null;
+        await database.#db.query(
+          `DELETE FROM employer_aliases
+           WHERE tenant_id = $1 AND employer_entity_id = $2 AND normalized_alias = $3`,
+          [tenantId, entity.id, normalizedAlias],
+        );
+        await database.#db.query(
+          `DELETE FROM employer_entities AS entity
+           WHERE entity.id = $1 AND entity.tenant_id = $2
+             AND NOT EXISTS (
+               SELECT 1 FROM employer_aliases AS alias
+               WHERE alias.employer_entity_id = entity.id AND alias.tenant_id = entity.tenant_id
+             )`,
+          [entity.id, tenantId],
+        );
+        return null;
+      }
+
+      const jobs = await database.#db.query<{ company: string }>(
+        `SELECT company FROM jobs WHERE tenant_id = $1 ORDER BY company, id FOR UPDATE`,
+        [tenantId],
+      );
+      const canonicalCompanies = [
+        ...new Set(
+          jobs.rows
+            .map((job) => job.company)
+            .filter((company) => normalizeEmployerName(company) === normalizedName),
+        ),
+      ].sort((left, right) => left.localeCompare(right, "en-US"));
+      if (canonicalCompanies.length === 0) throw new Error("EMPLOYER_CANONICAL_NOT_FOUND");
+
+      const sourceLocator = input.sourceLocator?.normalize("NFC").trim() ?? "";
+      const observed = new Date(input.observedAt ?? "");
+      if (!sourceLocator) throw new Error("INVALID_EMPLOYER_ALIAS_SOURCE");
+      if (!Number.isFinite(observed.getTime()))
+        throw new Error("INVALID_EMPLOYER_ALIAS_OBSERVED_AT");
+      const observedAt = observed.toISOString();
+      const canonicalCompany = entity?.canonical_company ?? canonicalCompanies[0]!;
+      const employerEntityId = entity?.id ?? randomUUID();
+      if (!entity) {
+        await database.#db.query(
+          `INSERT INTO employer_entities(
+             id, tenant_id, canonical_company, normalized_name
+           ) VALUES ($1,$2,$3,$4)`,
+          [employerEntityId, tenantId, canonicalCompany, normalizedName],
+        );
+      }
+      const evidenceHash = canonicalHash({
+        version: "employer_alias_review_v1",
+        canonicalCompany,
+        normalizedName,
+        alias,
+        normalizedAlias,
+        sourceLocator,
+        observedAt,
+      });
+      const existing = await database.#db.query<any>(
+        `SELECT alias.*, entity.canonical_company, entity.normalized_name
+         FROM employer_aliases AS alias
+         JOIN employer_entities AS entity ON entity.id = alias.employer_entity_id
+         WHERE alias.tenant_id = $1 AND alias.employer_entity_id = $2
+           AND alias.normalized_alias = $3
+         LIMIT 1 FOR UPDATE OF alias`,
+        [tenantId, employerEntityId, normalizedAlias],
+      );
+      if (existing.rows[0]) {
+        if (existing.rows[0].evidence_hash !== evidenceHash) {
+          throw new Error("EMPLOYER_ALIAS_CONFLICT");
+        }
+        return database.#mapEmployerAlias(existing.rows[0]);
+      }
+      const saved = await database.#db.query<any>(
+        `INSERT INTO employer_aliases(
+           id, tenant_id, employer_entity_id, alias, normalized_alias,
+           source_locator, observed_at, evidence_hash
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+         RETURNING *`,
+        [
+          randomUUID(),
+          tenantId,
+          employerEntityId,
+          alias,
+          normalizedAlias,
+          sourceLocator,
+          observedAt,
+          evidenceHash,
+        ],
+      );
+      return database.#mapEmployerAlias({
+        ...saved.rows[0],
+        canonical_company: canonicalCompany,
+        normalized_name: normalizedName,
+      });
+    });
+  }
+
+  async listEmployerEntities(tenantId: string): Promise<EmployerEntityRecord[]> {
+    const result = await this.#db.query<any>(
+      `SELECT * FROM employer_entities
+       WHERE tenant_id = $1 ORDER BY normalized_name, id`,
+      [tenantId],
+    );
+    return result.rows.map((row) => this.#mapEmployerEntity(row));
+  }
+
+  async listEmployerAliases(tenantId: string): Promise<EmployerAliasRecord[]> {
+    const result = await this.#db.query<any>(
+      `SELECT alias.*, entity.canonical_company, entity.normalized_name
+       FROM employer_aliases AS alias
+       JOIN employer_entities AS entity ON entity.id = alias.employer_entity_id
+       WHERE alias.tenant_id = $1
+       ORDER BY entity.normalized_name, alias.normalized_alias, alias.id`,
+      [tenantId],
+    );
+    return result.rows.map((row) => this.#mapEmployerAlias(row));
+  }
+
   async createH1bSignal(
     tenantId: string,
     input: Omit<H1bSignalRecord, "id">,
@@ -2448,15 +2637,16 @@ export class NimantoStore {
     const id = randomUUID();
     const result = await this.#db.query<any>(
       `INSERT INTO h1b_signals(
-        id, tenant_id, company, label, source_type, source_locator, source_period,
+        id, tenant_id, company, source_company, label, source_type, source_locator, source_period,
         observed_at, confidence, limitations
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-       RETURNING id, company, label, source_type, source_locator, source_period,
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+       RETURNING id, company, source_company, label, source_type, source_locator, source_period,
          observed_at, confidence, limitations`,
       [
         id,
         tenantId,
         input.company,
+        input.sourceCompany,
         input.label,
         input.sourceType,
         input.sourceLocator,
@@ -2496,8 +2686,8 @@ export class NimantoStore {
           throw new Error("DATASET_EDITION_CONFLICT");
         }
         const signals = await database.#db.query<any>(
-          `SELECT id, company, label, source_type, source_locator, source_period,
-             observed_at, confidence, limitations
+          `SELECT id, company, source_company, label, source_type, source_locator,
+             source_period, observed_at, confidence, limitations
            FROM h1b_signals
            WHERE tenant_id = $1 AND dataset_edition_id = $2
            ORDER BY created_at, id`,
@@ -2532,15 +2722,16 @@ export class NimantoStore {
         const id = randomUUID();
         const inserted = await database.#db.query<any>(
           `INSERT INTO h1b_signals(
-             id, tenant_id, company, label, source_type, source_locator,
+             id, tenant_id, company, source_company, label, source_type, source_locator,
              source_period, observed_at, confidence, limitations, dataset_edition_id
-           ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
-           RETURNING id, company, label, source_type, source_locator, source_period,
+           ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+           RETURNING id, company, source_company, label, source_type, source_locator, source_period,
              observed_at, confidence, limitations`,
           [
             id,
             tenantId,
             signal.company,
+            signal.sourceCompany,
             signal.label,
             signal.sourceType,
             signal.sourceLocator,
@@ -2587,6 +2778,7 @@ export class NimantoStore {
     return {
       id: row.id,
       company: row.company,
+      sourceCompany: row.source_company,
       label: row.label,
       sourceType: row.source_type,
       sourceLocator: row.source_locator,
@@ -2599,7 +2791,7 @@ export class NimantoStore {
 
   async listH1bSignals(tenantId: string): Promise<H1bSignalRecord[]> {
     const result = await this.#db.query<any>(
-      `SELECT id, company, label, source_type, source_locator, source_period,
+      `SELECT id, company, source_company, label, source_type, source_locator, source_period,
          observed_at, confidence, limitations
        FROM h1b_signals WHERE tenant_id = $1 ORDER BY observed_at DESC, id`,
       [tenantId],
@@ -3404,6 +3596,8 @@ export class NimantoStore {
       verificationAttempts,
       discoveryProfiles,
       roleWordingReviews,
+      employerEntities,
+      employerAliases,
     ] = await Promise.all([
       this.listEvidence(tenantId),
       this.latestProfileVersion(tenantId),
@@ -3424,6 +3618,8 @@ export class NimantoStore {
       this.listVerificationAttempts(tenantId),
       this.listDiscoveryProfiles(tenantId),
       this.listRoleWordingReviews(tenantId),
+      this.listEmployerEntities(tenantId),
+      this.listEmployerAliases(tenantId),
     ]);
     const profileVersions = [...profileVersionsPage.items];
     let profileCursor = profileVersionsPage.nextCursor;
@@ -3440,7 +3636,7 @@ export class NimantoStore {
       matchCursor = page.nextCursor;
     }
     return {
-      schemaVersion: "nimanto_export_v4",
+      schemaVersion: "nimanto_export_v5",
       exportedAt: new Date().toISOString(),
       evidence,
       profile,
@@ -3461,6 +3657,8 @@ export class NimantoStore {
       verificationAttempts,
       discoveryProfiles,
       roleWordingReviews,
+      employerEntities,
+      employerAliases,
     };
   }
 

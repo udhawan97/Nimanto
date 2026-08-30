@@ -1,4 +1,5 @@
 import type { H1bSignalLabel } from "./types.js";
+import { canonicalHash } from "./receipts.js";
 
 const COMPANY_SUFFIXES = /\b(?:incorporated|inc|llc|ltd|limited|corp|corporation|company|co)\b/giu;
 
@@ -25,6 +26,62 @@ export function resolveEmployer(
   );
   if (matches.length === 1) return { state: "resolved", id: matches[0]!.id };
   return { state: matches.length > 1 ? "ambiguous" : "unmatched" };
+}
+
+export interface EmployerAliasInput {
+  canonicalCompany: string;
+  alias: string;
+}
+
+export interface EmployerCandidate {
+  id: string;
+  name: string;
+  aliases: string[];
+}
+
+/** Build one deterministic candidate per normalized employer name. Reviewed
+ * aliases can add exact names, but they never merge distinct canonical
+ * employers; a shared alias therefore remains ambiguous in resolveEmployer. */
+export function buildEmployerCandidates(
+  companies: string[],
+  reviewedAliases: EmployerAliasInput[] = [],
+): EmployerCandidate[] {
+  const groups = new Map<string, { names: Set<string>; aliases: Set<string> }>();
+  for (const company of companies) {
+    const normalized = normalizeEmployerName(company);
+    if (!normalized) continue;
+    const group = groups.get(normalized) ?? {
+      names: new Set<string>(),
+      aliases: new Set<string>(),
+    };
+    group.names.add(company.normalize("NFC").trim());
+    groups.set(normalized, group);
+  }
+  for (const reviewed of reviewedAliases) {
+    const canonical = normalizeEmployerName(reviewed.canonicalCompany);
+    const alias = reviewed.alias.normalize("NFC").trim();
+    const aliasNormalized = normalizeEmployerName(alias);
+    const group = groups.get(canonical);
+    if (!group || !aliasNormalized || aliasNormalized === canonical) continue;
+    group.aliases.add(alias);
+  }
+  return [...groups.entries()]
+    .sort(([left], [right]) => left.localeCompare(right, "en-US"))
+    .map(([id, group]) => ({
+      id,
+      name: [...group.names].sort((left, right) => left.localeCompare(right, "en-US"))[0]!,
+      aliases: [...group.aliases].sort((left, right) => left.localeCompare(right, "en-US")),
+    }));
+}
+
+export function employerRegistryChecksum(candidates: EmployerCandidate[]): string {
+  return canonicalHash(
+    candidates.map((candidate) => ({
+      id: candidate.id,
+      name: candidate.name,
+      aliases: [...candidate.aliases],
+    })),
+  );
 }
 
 export interface EmployerResolutionEvaluation {

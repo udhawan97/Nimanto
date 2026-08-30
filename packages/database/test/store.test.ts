@@ -3,7 +3,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { PGlite } from "@electric-sql/pglite";
-import { canonicalHash, createReceipt, matchJob } from "@nimanto/domain";
+import {
+  buildEmployerCandidates,
+  canonicalHash,
+  createReceipt,
+  matchJob,
+  resolveEmployer,
+} from "@nimanto/domain";
 import { CURRENT_SCHEMA_VERSION } from "../src/migrations.js";
 import { NimantoStore } from "../src/store.js";
 
@@ -398,7 +404,7 @@ describe("beta workflow persistence", () => {
       "SELECT version, applied_at FROM schema_versions ORDER BY version",
     );
     await firstInspection.close();
-    expect(firstLedger.rows.map((row) => row.version)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    expect(firstLedger.rows.map((row) => row.version)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
     expect(firstLedger.rows.at(-1)?.version).toBe(CURRENT_SCHEMA_VERSION);
 
     const reopened = await NimantoStore.open(data);
@@ -439,7 +445,7 @@ describe("beta workflow persistence", () => {
     const schemaVersions = await migrated.query<{ version: number }>(
       "SELECT version FROM schema_versions ORDER BY version",
     );
-    expect(schemaVersions.rows.map((row) => row.version)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    expect(schemaVersions.rows.map((row) => row.version)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
     expect(schemaVersions.rows.at(-1)?.version).toBe(CURRENT_SCHEMA_VERSION);
     const packetSequences = await migrated.query<{ generation_sequence: string | number }>(
       "SELECT generation_sequence FROM packets WHERE id = 'legacy-packet'",
@@ -528,10 +534,63 @@ describe("beta workflow persistence", () => {
         version integer PRIMARY KEY,
         applied_at timestamptz NOT NULL DEFAULT now()
       );
-      INSERT INTO schema_versions(version) VALUES (10);
+      INSERT INTO schema_versions(version) VALUES (11);
     `);
     await future.close();
     await expect(NimantoStore.open(data)).rejects.toThrow("DATABASE_SCHEMA_NEWER_THAN_RUNTIME");
+  });
+
+  it("backfills the exact source employer when upgrading a schema-9 H-1B signal", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nimanto-store-h1b-source-company-upgrade-"));
+    const data = join(root, "data");
+    const legacy = await PGlite.create(data);
+    await legacy.exec(String.raw`
+      CREATE TABLE schema_versions (
+        version integer PRIMARY KEY,
+        applied_at timestamptz NOT NULL DEFAULT now()
+      );
+      INSERT INTO schema_versions(version) VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9);
+      CREATE TABLE tenants (
+        id text PRIMARY KEY,
+        name text NOT NULL,
+        deletion_state text NOT NULL DEFAULT 'active',
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE TABLE h1b_signals (
+        id text PRIMARY KEY,
+        tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+        company text NOT NULL,
+        label text NOT NULL,
+        source_type text NOT NULL,
+        source_locator text NOT NULL,
+        source_period text NOT NULL,
+        observed_at timestamptz NOT NULL,
+        confidence text NOT NULL,
+        limitations text NOT NULL,
+        dataset_edition_id text,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+      INSERT INTO tenants(id, name) VALUES ('legacy-h1b-tenant', 'Legacy H-1B workspace');
+      INSERT INTO h1b_signals(
+        id, tenant_id, company, label, source_type, source_locator,
+        source_period, observed_at, confidence, limitations
+      ) VALUES (
+        'legacy-h1b-signal', 'legacy-h1b-tenant', 'Northwind Systems',
+        'recent_positive_history', 'dol_oflc_bulk', 'legacy-edition:row:1',
+        'FY2025', '2025-10-01T00:00:00.000Z', 'low', 'Legacy historical context'
+      );
+    `);
+    await legacy.close();
+
+    const upgraded = await NimantoStore.open(data);
+    stores.push(upgraded);
+    expect(await upgraded.listH1bSignals("legacy-h1b-tenant")).toEqual([
+      expect.objectContaining({
+        id: "legacy-h1b-signal",
+        company: "Northwind Systems",
+        sourceCompany: "Northwind Systems",
+      }),
+    ]);
   });
 
   it("pages tenant-owned history without exposing another tenant or a global assurance sequence", async () => {
@@ -667,7 +726,7 @@ describe("beta workflow persistence", () => {
     ]);
 
     const exported = await store.exportTenant(alpha.tenantId);
-    expect(exported).toMatchObject({ schemaVersion: "nimanto_export_v4" });
+    expect(exported).toMatchObject({ schemaVersion: "nimanto_export_v5" });
     expect(exported.profileVersions).toHaveLength(2);
     expect(exported.matchRuns).toHaveLength(2);
     expect(exported.assuranceRuns).toHaveLength(2);
@@ -1215,7 +1274,7 @@ describe("beta workflow persistence", () => {
     expect((await store.listRoleWordingReviews(owner.tenantId))[0]).toEqual(review);
     expect(await store.listRoleWordingReviews(other.tenantId)).toEqual([]);
     expect(await store.exportTenant(owner.tenantId)).toMatchObject({
-      schemaVersion: "nimanto_export_v4",
+      schemaVersion: "nimanto_export_v5",
       roleWordingReviews: [review],
     });
 
@@ -1229,6 +1288,121 @@ describe("beta workflow persistence", () => {
       ),
     ).toBeNull();
     expect(await store.listRoleWordingReviews(owner.tenantId)).toEqual([]);
+  });
+
+  it("persists reviewed employer aliases, preserves collisions, and removes them explicitly", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nimanto-store-employer-aliases-"));
+    const store = await NimantoStore.open(join(root, "data"));
+    stores.push(store);
+    const owner = await store.createLocalTenant("aliases@example.test", "Alias Owner");
+    const other = await store.createLocalTenant("other-aliases@example.test", "Other Owner");
+    const role = {
+      source: "manual",
+      title: "Platform Engineer",
+      description: "Build services",
+      location: "Chicago",
+      workMode: "hybrid" as const,
+      requirements: ["TypeScript"],
+      capability: "deep_link" as const,
+      sourceMeta: {},
+      contentHash: "alias-role-v1",
+    };
+    await store.upsertJob(owner.tenantId, {
+      ...role,
+      sourceJobId: "northwind-alias-role",
+      company: "Northwind Systems",
+      url: "https://candidate.example.test/northwind-alias-role",
+    });
+    await store.upsertJob(owner.tenantId, {
+      ...role,
+      sourceJobId: "contoso-alias-role",
+      company: "Contoso",
+      url: "https://candidate.example.test/contoso-alias-role",
+    });
+
+    const northwind = await store.setEmployerAliasReviewed(owner.tenantId, {
+      canonicalCompany: "Northwind Systems, Inc.",
+      alias: "Shared DBA",
+      sourceLocator: "https://northwind.example.test/legal",
+      observedAt: "2026-08-28T00:00:00.000Z",
+      reviewed: true,
+    });
+    const repeated = await store.setEmployerAliasReviewed(owner.tenantId, {
+      canonicalCompany: "Northwind Systems",
+      alias: "Shared DBA",
+      sourceLocator: "https://northwind.example.test/legal",
+      observedAt: "2026-08-28T00:00:00.000Z",
+      reviewed: true,
+    });
+    expect(repeated).toEqual(northwind);
+    await expect(
+      store.setEmployerAliasReviewed(owner.tenantId, {
+        canonicalCompany: "Northwind Systems",
+        alias: "Shared DBA",
+        sourceLocator: "https://northwind.example.test/changed",
+        observedAt: "2026-08-28T00:00:00.000Z",
+        reviewed: true,
+      }),
+    ).rejects.toThrow("EMPLOYER_ALIAS_CONFLICT");
+    await store.setEmployerAliasReviewed(owner.tenantId, {
+      canonicalCompany: "Contoso",
+      alias: "Shared DBA",
+      sourceLocator: "https://contoso.example.test/legal",
+      observedAt: "2026-08-28T00:00:00.000Z",
+      reviewed: true,
+    });
+
+    const aliases = await store.listEmployerAliases(owner.tenantId);
+    expect(aliases).toHaveLength(2);
+    expect(aliases[0]).toMatchObject({
+      canonicalCompany: "Contoso",
+      normalizedName: "contoso",
+      alias: "Shared DBA",
+      normalizedAlias: "shared dba",
+      evidenceHash: expect.stringMatching(/^[a-f0-9]{64}$/u),
+    });
+    expect(await store.listEmployerAliases(other.tenantId)).toEqual([]);
+    await expect(
+      store.setEmployerAliasReviewed(other.tenantId, {
+        canonicalCompany: "Northwind Systems",
+        alias: "Other tenant must not attach",
+        sourceLocator: "fixture:cross-tenant",
+        observedAt: "2026-08-28T00:00:00.000Z",
+        reviewed: true,
+      }),
+    ).rejects.toThrow("EMPLOYER_CANONICAL_NOT_FOUND");
+    expect(
+      resolveEmployer(
+        "Shared DBA",
+        buildEmployerCandidates(
+          ["Northwind Systems", "Contoso"],
+          aliases.map((review) => ({
+            canonicalCompany: review.canonicalCompany,
+            alias: review.alias,
+          })),
+        ),
+      ),
+    ).toEqual({ state: "ambiguous" });
+    expect(await store.exportTenant(owner.tenantId)).toMatchObject({
+      schemaVersion: "nimanto_export_v5",
+      employerEntities: expect.arrayContaining([
+        expect.objectContaining({ normalizedName: "northwind systems" }),
+        expect.objectContaining({ normalizedName: "contoso" }),
+      ]),
+      employerAliases: aliases,
+    });
+
+    expect(
+      await store.setEmployerAliasReviewed(owner.tenantId, {
+        canonicalCompany: "Northwind Systems",
+        alias: "Shared DBA",
+        reviewed: false,
+      }),
+    ).toBeNull();
+    expect(await store.listEmployerAliases(owner.tenantId)).toHaveLength(1);
+    expect(await store.listEmployerEntities(owner.tenantId)).toEqual([
+      expect.objectContaining({ normalizedName: "contoso" }),
+    ]);
   });
 
   it("keeps candidate role disposition separate from refreshed source facts", async () => {

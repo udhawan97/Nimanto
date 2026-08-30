@@ -890,6 +890,7 @@ describe("Nimanto beta API", () => {
 
   it("records a candidate-requested approved ATS recheck and keeps gated routes offline", async () => {
     const requests: Array<{ provider: string; board: string; sourceJobId: string }> = [];
+    const attemptedAt = new Date().toISOString();
     const { app, cookie } = await setup({
       providerJobVerifier: async (request) => {
         requests.push(request);
@@ -899,8 +900,8 @@ describe("Nimanto beta API", () => {
           sourceJobId: request.sourceJobId,
           method: "detail_get",
           result: "present",
-          attemptedAt: "2026-08-28T12:00:00.000Z",
-          completedAt: "2026-08-28T12:00:01.000Z",
+          attemptedAt,
+          completedAt: new Date(Date.parse(attemptedAt) + 1_000).toISOString(),
           responseFingerprint: "verified-fingerprint",
           sourceItemCount: 1,
           job: null,
@@ -1217,9 +1218,50 @@ describe("Nimanto beta API", () => {
     expect(initial.evidence).toHaveLength(4);
     expect(initial.jobs).toHaveLength(2);
 
+    const reviewedAlias = await app.inject({
+      method: "PUT",
+      url: "/v1/h1b-employer-aliases",
+      headers: { cookie },
+      payload: {
+        canonicalCompany: "Northwind Systems, Inc.",
+        alias: "Northwind Global",
+        sourceLocator: "https://northwind.example.test/legal-entities",
+        observedAt: "2026-08-28T00:00:00.000Z",
+        reviewed: true,
+      },
+    });
+    expect(reviewedAlias.statusCode).toBe(200);
+    expect(reviewedAlias.json()).toMatchObject({
+      canonicalCompany: "Northwind Systems",
+      normalizedName: "northwind systems",
+      alias: "Northwind Global",
+      normalizedAlias: "northwind global",
+      evidenceHash: expect.stringMatching(/^[a-f0-9]{64}$/u),
+    });
+    const aliases = await app.inject({
+      method: "GET",
+      url: "/v1/h1b-employer-aliases",
+      headers: { cookie },
+    });
+    expect(aliases.json()).toEqual([reviewedAlias.json()]);
+    const redundantAlias = await app.inject({
+      method: "PUT",
+      url: "/v1/h1b-employer-aliases",
+      headers: { cookie },
+      payload: {
+        canonicalCompany: "Northwind Systems",
+        alias: "Northwind Systems, Inc.",
+        sourceLocator: "https://northwind.example.test/legal-entities",
+        observedAt: "2026-08-28T00:00:00.000Z",
+        reviewed: true,
+      },
+    });
+    expect(redundantAlias.statusCode).toBe(400);
+    expect(redundantAlias.json().error.code).toBe("EMPLOYER_ALIAS_REDUNDANT");
+
     const governmentRows = [
       {
-        company: "Northwind Systems, Inc.",
+        company: "Northwind Global",
         label: "recent_positive_history",
         sourcePeriod: "FY2026 Q2",
         observedAt: "2026-07-15T00:00:00.000Z",
@@ -1262,6 +1304,7 @@ describe("Nimanto beta API", () => {
       resolutionEvaluation: { enabled: false, precision: 0, sampleSize: 0 },
       resolutionEvaluationProvenance: null,
       signals: [{ label: "possible", confidence: "low" }],
+      employerRegistryChecksum: expect.stringMatching(/^[a-f0-9]{64}$/u),
     });
     const idempotentImport = await app.inject({
       method: "POST",
@@ -1557,10 +1600,10 @@ describe("Nimanto beta API", () => {
     });
     expect(exported.statusCode).toBe(200);
     expect(exported.json()).toMatchObject({
-      exportVersion: "nimanto-local-beta-v4",
+      exportVersion: "nimanto-local-beta-v5",
       identity: { displayName: "Priya Shah", email: "priya@example.test" },
       workspace: {
-        schemaVersion: "nimanto_export_v4",
+        schemaVersion: "nimanto_export_v5",
         profileVersions: expect.any(Array),
         matchRuns: expect.any(Array),
         assuranceRuns: expect.any(Array),

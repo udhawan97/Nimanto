@@ -141,6 +141,7 @@ CREATE TABLE IF NOT EXISTS h1b_signals (
   id text PRIMARY KEY,
   tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   company text NOT NULL,
+  source_company text NOT NULL,
   label text NOT NULL,
   source_type text NOT NULL,
   source_locator text NOT NULL,
@@ -296,6 +297,33 @@ CREATE TABLE IF NOT EXISTS deletion_runs (
   last_error_code text
 );
 
+CREATE TABLE IF NOT EXISTS employer_entities (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  canonical_company text NOT NULL,
+  normalized_name text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (tenant_id, id),
+  UNIQUE (tenant_id, normalized_name)
+);
+
+CREATE TABLE IF NOT EXISTS employer_aliases (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  employer_entity_id text NOT NULL,
+  alias text NOT NULL,
+  normalized_alias text NOT NULL,
+  source_locator text NOT NULL,
+  observed_at timestamptz NOT NULL,
+  evidence_hash text NOT NULL,
+  reviewed_at timestamptz NOT NULL DEFAULT now(),
+  FOREIGN KEY (tenant_id, employer_entity_id)
+    REFERENCES employer_entities(tenant_id, id) ON DELETE CASCADE,
+  UNIQUE (tenant_id, employer_entity_id, normalized_alias)
+);
+CREATE INDEX IF NOT EXISTS employer_aliases_tenant_idx
+  ON employer_aliases(tenant_id, reviewed_at DESC, id DESC);
+
 CREATE TABLE IF NOT EXISTS dataset_editions (
   id text PRIMARY KEY,
   tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
@@ -426,7 +454,8 @@ BEGIN
     'application_notes', 'packets',
     'assurance_runs', 'external_actions', 'receipts', 'source_settings',
     'scheduled_jobs', 'dataset_editions', 'source_runs', 'role_availability',
-    'role_observations', 'verification_attempts', 'discovery_profiles'
+    'role_observations', 'verification_attempts', 'discovery_profiles',
+    'employer_entities', 'employer_aliases'
   ]
   LOOP
     EXECUTE format('DROP TRIGGER IF EXISTS nimanto_active_tenant_write ON %I', table_name);
@@ -756,4 +785,53 @@ DROP TRIGGER IF EXISTS nimanto_active_tenant_write ON role_wording_reviews;
 CREATE TRIGGER nimanto_active_tenant_write
 BEFORE INSERT OR UPDATE ON role_wording_reviews
 FOR EACH ROW EXECUTE FUNCTION nimanto_require_active_tenant();
+`;
+
+export const schemaVersion10Sql = String.raw`
+ALTER TABLE h1b_signals ADD COLUMN IF NOT EXISTS source_company text;
+UPDATE h1b_signals SET source_company = company WHERE source_company IS NULL;
+ALTER TABLE h1b_signals ALTER COLUMN source_company SET NOT NULL;
+
+CREATE TABLE IF NOT EXISTS employer_entities (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  canonical_company text NOT NULL,
+  normalized_name text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (tenant_id, id),
+  UNIQUE (tenant_id, normalized_name)
+);
+
+CREATE TABLE IF NOT EXISTS employer_aliases (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  employer_entity_id text NOT NULL,
+  alias text NOT NULL,
+  normalized_alias text NOT NULL,
+  source_locator text NOT NULL,
+  observed_at timestamptz NOT NULL,
+  evidence_hash text NOT NULL,
+  reviewed_at timestamptz NOT NULL DEFAULT now(),
+  FOREIGN KEY (tenant_id, employer_entity_id)
+    REFERENCES employer_entities(tenant_id, id) ON DELETE CASCADE,
+  UNIQUE (tenant_id, employer_entity_id, normalized_alias)
+);
+CREATE INDEX IF NOT EXISTS employer_aliases_tenant_idx
+  ON employer_aliases(tenant_id, reviewed_at DESC, id DESC);
+
+DO $$
+DECLARE
+  table_name text;
+BEGIN
+  FOREACH table_name IN ARRAY ARRAY['employer_entities', 'employer_aliases']
+  LOOP
+    EXECUTE format('DROP TRIGGER IF EXISTS nimanto_active_tenant_write ON %I', table_name);
+    EXECUTE format(
+      'CREATE TRIGGER nimanto_active_tenant_write BEFORE INSERT OR UPDATE ON %I
+       FOR EACH ROW EXECUTE FUNCTION nimanto_require_active_tenant()',
+      table_name
+    );
+  END LOOP;
+END;
+$$;
 `;

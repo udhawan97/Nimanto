@@ -32,6 +32,7 @@ export interface NimantoApiOptions {
   urlTermsReviewedAt?: string;
   trustedEmployerResolutionEvaluation?: {
     datasetChecksum: string;
+    registryChecksum: string;
     reviewedAt: string;
     reviewer: string;
     fixtures: Array<{ sourceName: string; expectedId: string | null }>;

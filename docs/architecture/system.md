@@ -248,10 +248,11 @@ Application is still in a preparation state. If the candidate has recorded
 lifecycle performs no Application write. Persistence, not the pure policy
 module, owns timestamp atomicity.
 
-`nimanto_export_v4` adds complete retained discovery-profile, source-run,
+`nimanto_export_v5` adds complete retained discovery-profile, source-run,
 normalized observation, verification-attempt, role-availability,
 profile-version, match-run, assurance-run, and government dataset-edition
-records plus exact role-wording reviews to the explicit JSON inspection export. It intentionally
+records plus exact role-wording reviews and the tenant-local reviewed employer
+entity/alias registry to the explicit JSON inspection export. It intentionally
 omits session and invitation credentials, deletion internals, and generated
 packet files. It is not a restore protocol or execution replay format. It
 includes immutable normalized posting observations but not discarded raw
@@ -265,6 +266,13 @@ Government imports are stored as source-type/source-edition records with a
 checksum, transformation version, evaluation result, and trusted evaluation
 provenance. Replaying the same edition and checksum is idempotent; a different
 checksum or transformation for an existing edition fails before signal writes.
+Employer aliases are exact-normalized, source-snapshot-bound tenant records
+anchored to canonical companies already present in Roles. Shared aliases do not
+merge employer entities: resolution abstains. A trusted precision evaluation is
+also bound to the deterministic checksum of canonical employers and active
+aliases; registry drift disables high-confidence linkage before signal writes.
+When a reviewed alias resolves, the signal retains the exact source-dataset
+employer spelling separately from the canonical Role company.
 
 ## Authentication
 

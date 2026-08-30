@@ -51,6 +51,15 @@ controlled content. Keep the ambiguous record as the audit trail.
 
 ## Government dataset editions (advanced API-only input)
 
+`PUT /v1/h1b-employer-aliases` records or removes one tenant-local reviewed
+alias before government ingestion. An approval requires `canonicalCompany`
+(matching an existing Role company after exact normalization), a distinct
+`alias`, exact `sourceLocator`, ISO `observedAt`, and `reviewed: true`.
+`reviewed: false` removes the normalized pair. `GET
+/v1/h1b-employer-aliases` lists the active reviewed records. Conflicting source
+evidence fails closed until the old record is explicitly removed; the same alias
+may remain attached to multiple employers so the resolver abstains on ambiguity.
+
 `POST /v1/h1b-signals/government-import` accepts one candidate-workspace edition
 at a time. The authenticated JSON body must contain:
 
@@ -66,9 +75,13 @@ Validate the upstream download and retain its license/provenance outside
 Nimanto before constructing those bounded rows. The same edition/checksum/
 transformation is idempotent; changing either checksum or transformation for an
 existing edition returns a conflict. Caller-supplied resolution evaluations are
-rejected. Only a server-configured, checksum-verified evaluation can enable a
-measured employer resolution, and historical rows remain historical context—not
-current employer policy or legal advice.
+rejected. Only a server-configured, checksum-verified evaluation bound to the
+exact current employer-registry checksum can enable a measured employer
+resolution. Adding or removing any canonical employer or reviewed alias disables
+that linkage until the evaluation is rerun and reviewed. Historical rows remain
+historical context—not current employer policy or legal advice.
+Imported signals preserve the exact source-dataset employer as `sourceCompany`
+even when an approved alias maps `company` to a canonical Role employer.
 
 ## Optional Ollama companion
 

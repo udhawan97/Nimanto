@@ -1,6 +1,8 @@
 import type { NimantoStore } from "@nimanto/database";
 import {
   canonicalHash,
+  buildEmployerCandidates,
+  employerRegistryChecksum,
   evaluateEmployerResolution,
   resolveEmployer,
   type H1bSignalLabel,
@@ -43,6 +45,7 @@ export class GovernmentDatasetIngestion {
       trustedEvaluation &&
       (!trustedEvaluation.reviewer.trim() ||
         !Number.isFinite(new Date(trustedEvaluation.reviewedAt).getTime()) ||
+        !/^[a-f0-9]{64}$/u.test(trustedEvaluation.registryChecksum) ||
         canonicalHash(trustedEvaluation.fixtures) !== trustedEvaluation.datasetChecksum)
     ) {
       throw new Error("INVALID_TRUSTED_EMPLOYER_EVALUATION");
@@ -70,16 +73,34 @@ export class GovernmentDatasetIngestion {
     const checksum = canonicalHash(rows);
     if (text(body.checksum, "checksum") !== checksum) throw new Error("DATASET_CHECKSUM_MISMATCH");
 
-    const companies = [
-      ...new Set((await this.store.listJobs(tenantId)).map((job) => job.company)),
-    ].map((name) => ({ id: name, name }));
-    const evaluation = evaluateEmployerResolution(
+    const [jobs, reviewedAliases] = await Promise.all([
+      this.store.listJobs(tenantId),
+      this.store.listEmployerAliases(tenantId),
+    ]);
+    const companies = buildEmployerCandidates(
+      jobs.map((job) => job.company),
+      reviewedAliases.map((review) => ({
+        canonicalCompany: review.canonicalCompany,
+        alias: review.alias,
+      })),
+    );
+    const registryChecksum = employerRegistryChecksum(companies);
+    const measuredEvaluation = evaluateEmployerResolution(
       this.trustedEvaluation?.fixtures ?? [],
       companies,
     );
+    const registryMatches = this.trustedEvaluation?.registryChecksum === registryChecksum;
+    const evaluation = {
+      ...measuredEvaluation,
+      enabled: measuredEvaluation.enabled && registryMatches,
+      registryChecksum,
+      trustedRegistryChecksum: this.trustedEvaluation?.registryChecksum ?? null,
+      registryMatches,
+    };
     const evaluationProvenance = this.trustedEvaluation
       ? {
           datasetChecksum: this.trustedEvaluation.datasetChecksum,
+          registryChecksum: this.trustedEvaluation.registryChecksum,
           reviewedAt: this.trustedEvaluation.reviewedAt,
           reviewer: this.trustedEvaluation.reviewer,
         }
@@ -92,6 +113,10 @@ export class GovernmentDatasetIngestion {
       const observedAt = text(row.observedAt, "observed_at");
       if (!Number.isFinite(new Date(observedAt).getTime())) throw new Error("INVALID_OBSERVED_AT");
       const resolution = resolveEmployer(company, companies);
+      const resolvedCompany =
+        resolution.state === "resolved"
+          ? companies.find((candidate) => candidate.id === resolution.id)?.name
+          : undefined;
       const historicallyPositive = [
         "current_role_transfer_support",
         "current_company_policy_support",
@@ -107,7 +132,8 @@ export class GovernmentDatasetIngestion {
             : "possible"
           : requestedLabel;
       return {
-        company,
+        company: evaluation.enabled && resolvedCompany ? resolvedCompany : company,
+        sourceCompany: company,
         label,
         sourceType,
         sourceLocator: `${sourceEdition}:row:${index + 1}`,
@@ -115,7 +141,7 @@ export class GovernmentDatasetIngestion {
         observedAt,
         confidence: (resolution.state === "resolved" && evaluation.enabled ? "high" : "low") as
           "high" | "low",
-        limitations: `Historical ${sourceType} evidence from ${sourceEdition}, checksum ${checksum}, transformation ${transformationVersion}; employer resolution ${resolution.state}; evaluation n=${evaluation.sampleSize}, precision=${evaluation.precision.toFixed(3)}, recall=${evaluation.recall.toFixed(3)}, abstention=${evaluation.abstentionRate.toFixed(3)}, enabled=${evaluation.enabled}. Not legal advice or a current transfer guarantee.`,
+        limitations: `Historical ${sourceType} evidence from ${sourceEdition}, checksum ${checksum}, transformation ${transformationVersion}; source employer ${JSON.stringify(company)}; employer resolution ${resolution.state}; registry checksum ${registryChecksum}, trusted registry match=${registryMatches}; evaluation n=${evaluation.sampleSize}, precision=${evaluation.precision.toFixed(3)}, recall=${evaluation.recall.toFixed(3)}, abstention=${evaluation.abstentionRate.toFixed(3)}, enabled=${evaluation.enabled}. Not legal advice or a current transfer guarantee.`,
       };
     });
     const result = await this.store.importH1bDatasetEdition(tenantId, {
@@ -132,6 +158,7 @@ export class GovernmentDatasetIngestion {
       created: result.created,
       checksum,
       transformationVersion: result.edition.transformationVersion,
+      employerRegistryChecksum: registryChecksum,
       datasetEdition: result.edition,
       resolutionEvaluation: result.edition.evaluation,
       resolutionEvaluationProvenance: result.edition.evaluationProvenance,

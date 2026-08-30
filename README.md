@@ -110,6 +110,9 @@ today.
   posting wording, current employer-authored policy, and historical government
   evidence. Exact-quote acknowledgement is bound to one Role snapshot and stays
   warning-only; historical records never become current-role sponsorship proof.
+  A tenant-local employer registry records exact, candidate-reviewed aliases and
+  their source snapshots. Shared aliases remain ambiguous, and a measured
+  resolver can activate only when its review binds the exact registry checksum.
 
 These changes are merged-source documentation, not a published release claim.
 
@@ -481,6 +484,11 @@ artifacts.
   predicted-positive fixtures at 0.98 measured precision with a 0.95 Wilson lower
   bound; the report also exposes recall, abstention, false positives and
   denominators.
+- Employer aliases use `PUT /v1/h1b-employer-aliases` and must name a company
+  already present in the workspace plus an exact source locator and observation
+  time. Normalization-equivalent aliases are rejected as redundant; conflicting
+  evidence must be removed explicitly before replacement. The alias registry is
+  local, exported, deleted with the tenant, and never bypasses the precision gate.
 - A five-stage application pipeline with candidate-recorded replies, screens,
   interviews, offers, rejections and withdrawals. Every status control — board
   card or row list — offers only the moves the domain allows, asks before a

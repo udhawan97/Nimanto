@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildEmployerCandidates,
+  employerRegistryChecksum,
   evaluateEmployerResolution,
   freshH1bLabel,
   normalizeEmployerName,
@@ -21,6 +23,43 @@ describe("transfer-intelligence foundations", () => {
         { id: "two", name: "Two", aliases: ["Shared DBA"] },
       ]),
     ).toEqual({ state: "ambiguous" });
+  });
+
+  it("builds a deterministic reviewed-alias registry without merging collisions", () => {
+    const candidates = buildEmployerCandidates(
+      ["Northwind Systems, Inc.", "Contoso LLC", "Northwind Systems"],
+      [
+        { canonicalCompany: "Contoso", alias: "Shared DBA" },
+        { canonicalCompany: "Northwind Systems", alias: "Northwind Global" },
+        { canonicalCompany: "Northwind Systems", alias: "Shared DBA" },
+      ],
+    );
+    expect(candidates).toEqual([
+      { id: "contoso", name: "Contoso LLC", aliases: ["Shared DBA"] },
+      {
+        id: "northwind systems",
+        name: "Northwind Systems",
+        aliases: ["Northwind Global", "Shared DBA"],
+      },
+    ]);
+    expect(resolveEmployer("Northwind Global", candidates)).toEqual({
+      state: "resolved",
+      id: "northwind systems",
+    });
+    expect(resolveEmployer("Shared DBA", candidates)).toEqual({ state: "ambiguous" });
+    expect(employerRegistryChecksum(candidates)).toMatch(/^[a-f0-9]{64}$/u);
+    expect(
+      employerRegistryChecksum(
+        buildEmployerCandidates(
+          ["Contoso LLC", "Northwind Systems", "Northwind Systems, Inc."],
+          [
+            { canonicalCompany: "Northwind Systems", alias: "Shared DBA" },
+            { canonicalCompany: "Northwind Systems", alias: "Northwind Global" },
+            { canonicalCompany: "Contoso", alias: "Shared DBA" },
+          ],
+        ),
+      ),
+    ).toBe(employerRegistryChecksum(candidates));
   });
 
   it("deterministically downgrades stale positive evidence to uncertain", () => {

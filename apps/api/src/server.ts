@@ -258,6 +258,25 @@ function messageForError(error: Error): { code: string; status: number; message:
       status: 400,
       message: "Only an exact current sponsorship or citizenship quote can be reviewed here.",
     };
+  if (
+    code === "EMPLOYER_CANONICAL_NOT_FOUND" ||
+    code === "EMPLOYER_ALIAS_REDUNDANT" ||
+    code === "INVALID_EMPLOYER_ALIAS" ||
+    code === "INVALID_EMPLOYER_ALIAS_SOURCE" ||
+    code === "INVALID_EMPLOYER_ALIAS_OBSERVED_AT"
+  )
+    return {
+      code,
+      status: 400,
+      message:
+        "Review a distinct employer alias against a company already present in this workspace, with its exact source and observation time.",
+    };
+  if (code === "EMPLOYER_ALIAS_CONFLICT")
+    return {
+      code,
+      status: 409,
+      message: "That normalized alias already has different reviewed evidence. Remove it first.",
+    };
   if (code === "INVALID_APPLICATION_TRANSITION")
     return {
       code,
@@ -481,6 +500,7 @@ async function seedDemo(store: NimantoStore, person: SessionIdentity): Promise<v
   if ((await store.listH1bSignals(person.tenantId)).length === 0) {
     await store.createH1bSignal(person.tenantId, {
       company: "Northwind Systems",
+      sourceCompany: "Northwind Systems",
       label: "uncertain",
       sourceType: "synthetic_demo",
       sourceLocator: "Synthetic beta workspace",
@@ -1169,6 +1189,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     if (!H1B_LABELS.includes(label)) throw new Error("INVALID_LABEL");
     return store.createH1bSignal(person.tenantId, {
       company: string(body.company, "company"),
+      sourceCompany: string(body.company, "company"),
       label,
       sourceType: string(body.sourceType, "source_type"),
       sourceLocator: string(body.sourceLocator, "source_locator"),
@@ -1178,6 +1199,31 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
         body.confidence === "high" || body.confidence === "medium" ? body.confidence : "low",
       limitations: string(body.limitations, "limitations"),
     });
+  });
+
+  app.get("/v1/h1b-employer-aliases", async (request) => {
+    const person = identity(request);
+    return store.listEmployerAliases(person.tenantId);
+  });
+
+  app.put("/v1/h1b-employer-aliases", async (request) => {
+    const person = identity(request);
+    const body = object(request.body);
+    if (typeof body.reviewed !== "boolean") throw new Error("INVALID_REVIEWED");
+    const canonicalCompany = string(body.canonicalCompany, "canonical_company");
+    const alias = string(body.alias, "alias");
+    const reviewed = await store.setEmployerAliasReviewed(person.tenantId, {
+      canonicalCompany,
+      alias,
+      reviewed: body.reviewed,
+      ...(body.reviewed
+        ? {
+            sourceLocator: string(body.sourceLocator, "source_locator"),
+            observedAt: string(body.observedAt, "observed_at"),
+          }
+        : {}),
+    });
+    return reviewed ?? { canonicalCompany, alias, reviewed: false };
   });
 
   app.post("/v1/h1b-signals/government-import", async (request) => {
@@ -1362,7 +1408,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     const person = identity(request);
     const workspace = await store.exportTenant(person.tenantId);
     return reply.header("content-disposition", 'attachment; filename="nimanto-export.json"').send({
-      exportVersion: "nimanto-local-beta-v4",
+      exportVersion: "nimanto-local-beta-v5",
       exportedAt: new Date().toISOString(),
       identity: {
         displayName: person.displayName,

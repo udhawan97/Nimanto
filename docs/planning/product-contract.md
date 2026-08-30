@@ -97,6 +97,13 @@ Provisional Slice-2 freshness rules require a dedicated incremental specificatio
 
 Employer resolution cannot automatically improve a signal until an independently reviewed hand-labeled set demonstrates at least 0.98 precision and reports recall, abstention, false positives, denominator, and confidence interval. Ambiguous and absent matches remain `possible` or `uncertain`; absence is not negative evidence.
 
+Reviewed employer aliases remain tenant-local evidence records with exact source
+locators and observation times. Normalization never merges two canonical
+employers: an alias collision abstains. A qualifying resolver evaluation binds
+the deterministic checksum of the complete canonical-employer and active-alias
+registry; any registry change disables positive linkage until a newly reviewed
+evaluation covers that exact snapshot.
+
 ## Source and action contract
 
 Every adapter declares `discovery_only`, `deep_link`, `form_assist`, `authorized_api_submit`, or `authorized_email_send`, plus terms-review date, request/rate budget, retry/backoff, caching, raw/transient-body deletion, normalized retention, redistribution/training rights, and kill switch. Greenhouse is the first automated source because its published-job GET endpoints are public without authentication ([Greenhouse Job Board API](https://developers.greenhouse.io/job-board.html)). Lever follows only in its reviewed slice ([Lever Postings API](https://github.com/lever/postings-api)). USAJOBS ingestion is deferred unless OPM gives written approval for Nimanto's normalization, retention, and display plan under its [API terms](https://developer.usajobs.gov/guides/terms-of-use); ordinary linking and user-supplied text remain available. Manual paste/upload always remains available.
