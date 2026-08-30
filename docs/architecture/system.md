@@ -122,9 +122,14 @@ in flight.
 
 The Applications workbench owns its related board/table, search/filter/sort,
 Review, cohort, candidate-outcome, private-note, and follow-up working state in
-one pure reducer. Components retain focus and request sequencing, while the
-reducer owns identity-bounded draft lifecycle and exact-submission clearing. It
-is deliberately tab-local and has no browser-storage seam. Application search
+one pure reducer. The Career Ledger is a sibling deep module: one dashboard
+snapshot and a small set of explicit mutation seams cover typed activities,
+interview rounds, manual contacts, immutable answer revisions, saved review
+watermarks, descriptive durations, and candidate-entered offers. Components
+retain focus and request sequencing, while the reducer owns identity-bounded
+draft lifecycle and exact-submission clearing. Unsaved controls are deliberately
+tab-local and have no browser-storage seam; a named saved view persists only its
+literal filters and explicit review watermark. Application search
 matches only literal stored title, company, private-note, and outcome fields;
 sorting reads explicit stored fields and reconstructs no employer event.
 
@@ -255,12 +260,13 @@ Application is still in a preparation state. If the candidate has recorded
 lifecycle performs no Application write. Persistence, not the pure policy
 module, owns timestamp atomicity.
 
-`nimanto_export_v7` adds complete retained discovery-profile, source-run,
+`nimanto_export_v8` adds complete retained discovery-profile, source-run,
 normalized observation, verification-attempt, role-availability,
 profile-version, match-run, assurance-run, and government dataset-edition
 records, their trusted provenance and qualified-language-review manifests, plus
 exact role-wording reviews and the tenant-local reviewed employer entity/alias
-registry to the explicit JSON inspection export. It intentionally
+registry and the complete candidate Career Ledger—including Answer revision
+history—to the explicit JSON inspection export. It intentionally
 omits session and invitation credentials, deletion internals, and generated
 packet files. It is not a restore protocol or execution replay format. It
 includes immutable normalized posting observations but not discarded raw
@@ -339,7 +345,7 @@ email, or submit.
 
 ## External actions
 
-The database state machine and domain state machine must agree. Action approval binds the immutable target/payload intent hash and the exact approved packet hash. Schema version 4 assigns a monotonic internal generation sequence at packet insertion after acquiring the tenant lock; current-packet selection and history use that sequence rather than timestamp/random-ID tie-breaking. Schema version 5 adds the nullable date-only `applications.follow_up_on` candidate record. One pure domain policy owns its strict literal parsing, legal candidate changes, inactive withdrawn behavior, and candidate-local due-day evaluation; it has no worker, provider, notification, or status-transition authority. Schema version 6 transactionally backfills legacy Packet manifest and Action Intent hashes. Migrations run in ascending order and record each version only after its transaction commits; a database from a newer runtime fails closed. Action creation, approval, and execution share the tenant lock used by packet generation; each boundary transactionally requires that the selected approved packet is still the application's current packet. Execution repeats that check after reacquiring the lock immediately before the provider effect. A historical approved packet therefore cannot create, approve, or execute a handoff after a newer packet exists. Execution also revalidates the intent and packet hashes, requires the in-memory runtime switch, and compare-and-swaps `approved` to `executing`. Provider failure becomes `failed`; a provider success followed by uncertain local persistence becomes `ambiguous`, and an interrupted `executing` record is recovered as ambiguous on restart. Neither state is retried automatically. The switch has no environment override and resets to off with every API restart.
+The database state machine and domain state machine must agree. Action approval binds the immutable target/payload intent hash and the exact approved packet hash. Schema version 4 assigns a monotonic internal generation sequence at packet insertion after acquiring the tenant lock; current-packet selection and history use that sequence rather than timestamp/random-ID tie-breaking. Schema version 5 adds the nullable date-only `applications.follow_up_on` candidate record. One pure domain policy owns its strict literal parsing, legal candidate changes, inactive withdrawn behavior, and candidate-local due-day evaluation; it has no worker, provider, notification, or status-transition authority. Schema version 6 transactionally backfills legacy Packet manifest and Action Intent hashes. Schema version 13 adds tenant-owned status events, activities, contacts/links, interview rounds, answer blocks/revisions, saved review views, and offers. Existing Applications receive one labeled migration snapshot; no earlier status history is invented. Migrations run in ascending order and record each version only after its transaction commits; a database from a newer runtime fails closed. Action creation, approval, and execution share the tenant lock used by packet generation; each boundary transactionally requires that the selected approved packet is still the application's current packet. Execution repeats that check after reacquiring the lock immediately before the provider effect. A historical approved packet therefore cannot create, approve, or execute a handoff after a newer packet exists. Execution also revalidates the intent and packet hashes, requires the in-memory runtime switch, and compare-and-swaps `approved` to `executing`. Provider failure becomes `failed`; a provider success followed by uncertain local persistence becomes `ambiguous`, and an interrupted `executing` record is recovered as ambiguous on restart. Neither state is retried automatically. The switch has no environment override and resets to off with every API restart.
 
 Version 0.9.0 has no connected-account provider. Verification uses only a user-opened deep link and the local test outbox. Gmail, Outlook, form submission, and desktop delivery remain behind the separately approved Slice 4 boundary.
 

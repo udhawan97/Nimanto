@@ -46,11 +46,13 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-v0.9.0 keeps the database at schema
-version 7. Version 6 transactionally backfills canonical hashes for legacy
-Packet manifests and Action Intents. Version 7 adds tenant-scoped role
-dispositions and private application notes without rewriting source roles or
-application outcomes. A
+Current main advances the database to schema version 13. Version 6
+transactionally backfills canonical hashes for legacy Packet manifests and
+Action Intents; version 7 adds tenant-scoped role dispositions and private
+Application notes. Versions 8–12 retain the discovery and government-evidence
+trust records described below. Version 13 adds the candidate Career Ledger and
+one clearly labeled current-status migration marker for each existing
+Application without reconstructing earlier transitions. A
 migration version is recorded only after its work commits, so an interrupted
 upgrade resumes from the last complete step. Startup refuses a database created
 by a newer Nimanto runtime rather than guessing how to open it. On every open,
@@ -177,9 +179,15 @@ The queue stores only provider and board identifiers. Scheduled work cannot prep
   locator, period, observation time, confidence, freshness, downgraded original
   label, and stated limits. This is historical context, not legal advice or a
   current employer promise.
-- **Applications → Recorded timeline** lists application creation, explicit
-  candidate-reported outcomes, and literal private notes. Notes affect no status,
-  match, review clock, or metric; missing dates and silence create no inferred stage.
+- **Applications → Recorded timeline** lists retained status events, completed
+  candidate activities, explicit candidate-reported outcomes, and literal
+  private notes. A migration marker is a current snapshot, not earlier history;
+  missing dates and silence create no inferred stage.
+- **Applications → Career ledger** keeps typed activities, structured interview
+  rounds, manual people/referral links, versioned candidate-authored answers,
+  named review views, sample-sized duration observations, and candidate-entered
+  offer terms in one Application-adjacent folio. It performs no scraping,
+  messaging, autofill, notification, prediction, or provider sync.
 - **Applications** places the board/table work surface before funnel, review,
   and cohort counts. Board and table use the same deliberate outcome editor;
   recording an outcome does not change application status.
@@ -219,7 +227,8 @@ The queue stores only provider and board identifiers. Scheduled work cannot prep
   facts.
 - **Applications → Record-review queue** prefers a stored candidate-set date
   when present. Without one, it derives review due after 336 elapsed hours from
-  the latest literal application creation or candidate-recorded outcome. The
+  the latest literal application creation, candidate status event, completed
+  activity, or candidate-recorded outcome. The
   queue labels which basis it used, excludes withdrawn records, and neither
   infers an employer response nor contacts anyone.
 - **Applications → Application cohort counts** uses an explicit local-time
@@ -254,12 +263,13 @@ The queue stores only provider and board identifiers. Scheduled work cannot prep
 ## Inspect a workspace export
 
 Open **Data controls**, read the sensitive-data warning, and confirm it before
-downloading JSON. `nimanto-local-beta-v7` wraps `nimanto_export_v7`, including
+downloading JSON. `nimanto-local-beta-v8` wraps `nimanto_export_v8`, including
 retained discovery profiles, source runs, normalized posting observations,
 verification attempts, availability, profile versions, match runs, assurance
 runs, exact role-wording reviews, packet manifests, dataset editions and their
 trusted provenance and qualified-language-review manifests, reviewed employer
-entities/aliases, applications, and receipts. It
+entities/aliases, applications, complete Answer revision history, activities,
+interview rounds, contacts, saved views, offers, and receipts. It
 excludes discarded raw provider bodies, sessions, invitation secrets, deletion
 internals, and generated packet files.
 

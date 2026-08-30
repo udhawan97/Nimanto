@@ -61,8 +61,9 @@ half-finished forms. Nimanto gives that work one inspectable path:
    roles differ on the same literal fields.
 6. **Track** the application from a searchable board or table, set a literal
    follow-up date, search private notes and recorded outcomes, sort the working
-   view, export a focused local CSV or calendar file, and keep private notes
-   separate from candidate-reported outcomes.
+   view, export a focused local CSV or calendar file, and use one candidate-owned
+   career ledger for activities, interview rounds, people, reusable answers,
+   saved reviews, descriptive timing observations, and offer terms.
 7. **Draft and generate**: optionally copy an unverified local Ollama draft from
    only the confirmed evidence you select, then generate JSON, plain text, and
    paired modern and ATS-safe DOCX/PDF from confirmed evidence only.
@@ -74,6 +75,30 @@ half-finished forms. Nimanto gives that work one inspectable path:
 Nimanto is a **candidate tool**. It does not screen you for employers, estimate
 your hiring odds, give legal advice, or promise that a company sponsors transfers
 today.
+
+## Unreleased on main
+
+- **One integrated career ledger.** Applications now retain typed candidate
+  activities, structured interview rounds, a manual contact/referral ledger,
+  and versioned candidate-authored answer blocks linked to confirmed evidence.
+  Nothing scrapes a social network, contacts anyone, or inserts an answer into
+  an employer form.
+- **Saved review views with explicit watermarks.** A candidate can name the
+  current Application lens, reopen it, and see which matching Application or
+  current Role records have a newer stored timestamp than the last explicit
+  “Mark reviewed” action. Opening a view never marks it reviewed.
+- **Descriptive process observations.** Immutable Application status events
+  support median elapsed-time observations with their sample sizes. The ledger
+  also shows literal activity, interview, and offer counts; it does not compute
+  conversion rates, benchmarks, causal explanations, or hiring probabilities.
+- **Candidate-entered offer comparison.** Literal base, bonus, equity, benefits,
+  dates, work mode, notes, and decision status stay local, exported, and
+  tenant-deletable. Nimanto does not value equity or provide legal, tax,
+  immigration, negotiation, or financial advice.
+- Schema version 13 adds the tenant-owned career-ledger tables and backfills one
+  clearly labeled current-status migration marker for existing Applications.
+  Inspection export v8 includes the full answer revision history and every new
+  record; workspace deletion cascades through the same tenant boundary.
 
 ## New in v0.9.0
 
@@ -515,15 +540,17 @@ artifacts.
   recorded outcome text; combine status, role-source, and literal follow-up
   filters; and sort by stored order, creation time, follow-up date, or role.
   None of these controls changes a record or funnel count.
-- A literal timeline shows application creation, candidate-recorded outcomes,
-  and private application notes in order. Notes change no status, match, review
-  clock, or funnel count; gaps never reconstruct an unrecorded stage.
+- A literal timeline shows retained status events, completed candidate
+  activities, candidate-recorded outcomes, and private application notes in
+  order. A migration marker is a current snapshot rather than reconstructed
+  history; gaps never manufacture an unrecorded stage.
 - A candidate can store one strict date-only follow-up reminder on any active
   application. Board and table expose the same literal date. When it is due it
   appears in the record-review queue; a future candidate-set date suppresses
   the fallback until that day. Without a stored date, the queue is derived from
-  the newest application creation or candidate-recorded outcome timestamp after
-  336 elapsed hours. A withdrawn application retains an existing date as an
+  the newest application creation, candidate status event, completed activity,
+  or candidate-recorded outcome timestamp after 336 elapsed hours. A withdrawn
+  application retains an existing date as an
   inactive visible record until the candidate clears it or returns the
   application to Tracked. Neither path contacts anyone, changes status, or
   infers an employer response.
@@ -680,7 +707,8 @@ Version `0.9.0` is a **local beta**:
 
 ## Privacy and safety
 
-- No analytics and no application telemetry.
+- No third-party analytics and no application telemetry. Candidate-visible local
+  counts and sample-sized duration observations never leave the workspace.
 - Sessions store only a SHA-256 token hash.
 - Tenant IDs scope every product query; cross-tenant tests exercise the seam.
 - Beginning workspace deletion locks the tenant, captures the outbox cleanup

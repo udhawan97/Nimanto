@@ -405,7 +405,7 @@ describe("beta workflow persistence", () => {
     );
     await firstInspection.close();
     expect(firstLedger.rows.map((row) => row.version)).toEqual([
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
     ]);
     expect(firstLedger.rows.at(-1)?.version).toBe(CURRENT_SCHEMA_VERSION);
 
@@ -448,13 +448,30 @@ describe("beta workflow persistence", () => {
       "SELECT version FROM schema_versions ORDER BY version",
     );
     expect(schemaVersions.rows.map((row) => row.version)).toEqual([
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
     ]);
     expect(schemaVersions.rows.at(-1)?.version).toBe(CURRENT_SCHEMA_VERSION);
     const packetSequences = await migrated.query<{ generation_sequence: string | number }>(
       "SELECT generation_sequence FROM packets WHERE id = 'legacy-packet'",
     );
     expect(Number(packetSequences.rows[0]?.generation_sequence)).toBeGreaterThan(0);
+    const migrationMarkers = await migrated.query<{
+      application_id: string;
+      from_status: string | null;
+      to_status: string;
+      source: string;
+    }>(
+      `SELECT application_id, from_status, to_status, source
+       FROM application_status_events WHERE application_id = 'legacy-application'`,
+    );
+    expect(migrationMarkers.rows).toEqual([
+      {
+        application_id: "legacy-application",
+        from_status: null,
+        to_status: "approved_for_export",
+        source: "migration",
+      },
+    ]);
     await migrated.close();
 
     const reopened = await NimantoStore.open(data);
@@ -469,6 +486,13 @@ describe("beta workflow persistence", () => {
       approvedPacketHash: null,
     });
     expect(await reopened.listDatasetEditions("legacy-tenant")).toEqual([]);
+    expect((await reopened.listApplications("legacy-tenant"))[0]?.statusEvents).toEqual([
+      expect.objectContaining({
+        fromStatus: null,
+        toStatus: "approved_for_export",
+        source: "migration",
+      }),
+    ]);
   });
 
   it("records an integrity migration only after its backfill commits and resumes safely", async () => {
@@ -538,7 +562,7 @@ describe("beta workflow persistence", () => {
         version integer PRIMARY KEY,
         applied_at timestamptz NOT NULL DEFAULT now()
       );
-      INSERT INTO schema_versions(version) VALUES (13);
+      INSERT INTO schema_versions(version) VALUES (14);
     `);
     await future.close();
     await expect(NimantoStore.open(data)).rejects.toThrow("DATABASE_SCHEMA_NEWER_THAN_RUNTIME");
@@ -845,7 +869,7 @@ describe("beta workflow persistence", () => {
     ]);
 
     const exported = await store.exportTenant(alpha.tenantId);
-    expect(exported).toMatchObject({ schemaVersion: "nimanto_export_v7" });
+    expect(exported).toMatchObject({ schemaVersion: "nimanto_export_v8" });
     expect(exported.profileVersions).toHaveLength(2);
     expect(exported.matchRuns).toHaveLength(2);
     expect(exported.assuranceRuns).toHaveLength(2);
@@ -1393,7 +1417,7 @@ describe("beta workflow persistence", () => {
     expect((await store.listRoleWordingReviews(owner.tenantId))[0]).toEqual(review);
     expect(await store.listRoleWordingReviews(other.tenantId)).toEqual([]);
     expect(await store.exportTenant(owner.tenantId)).toMatchObject({
-      schemaVersion: "nimanto_export_v7",
+      schemaVersion: "nimanto_export_v8",
       roleWordingReviews: [review],
     });
 
@@ -1503,7 +1527,7 @@ describe("beta workflow persistence", () => {
       ),
     ).toEqual({ state: "ambiguous" });
     expect(await store.exportTenant(owner.tenantId)).toMatchObject({
-      schemaVersion: "nimanto_export_v7",
+      schemaVersion: "nimanto_export_v8",
       employerEntities: expect.arrayContaining([
         expect.objectContaining({ normalizedName: "northwind systems" }),
         expect.objectContaining({ normalizedName: "contoso" }),
@@ -2219,5 +2243,201 @@ describe("beta workflow persistence", () => {
       approvedIntentHash: action.intentHash,
       approvedPacketHash: packet.artifactHash,
     });
+  });
+
+  it("keeps the candidate career ledger tenant-scoped, versioned, and exportable", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nimanto-store-career-ledger-"));
+    const store = await NimantoStore.open(join(root, "data"));
+    stores.push(store);
+    const owner = await store.createLocalTenant("ledger@example.test", "Ledger Owner");
+    const other = await store.createLocalTenant("other-ledger@example.test", "Other Ledger");
+    const evidence = await store.createEvidence(owner.tenantId, {
+      kind: "accomplishment",
+      value: "Reduced incident response time by 30%",
+      sourceName: "Synthetic resume",
+      locator: "Experience, line 4",
+      confidence: "high",
+      status: "confirmed",
+    });
+    const pendingEvidence = await store.createEvidence(owner.tenantId, {
+      kind: "project",
+      value: "Pending candidate evidence",
+      sourceName: "Synthetic notes",
+      locator: "Draft",
+      confidence: "low",
+      status: "pending",
+    });
+    await expect(
+      store.saveAnswerBlock(owner.tenantId, {
+        topic: "custom",
+        prompt: "Pending evidence must not link.",
+        answerText: "Candidate-authored draft.",
+        evidenceIds: [pendingEvidence.id],
+      }),
+    ).rejects.toThrow("EVIDENCE_SELECTION_CHANGED");
+    await store.rejectEvidence(owner.tenantId, pendingEvidence.id);
+    await expect(
+      store.saveAnswerBlock(owner.tenantId, {
+        topic: "custom",
+        prompt: "Rejected evidence must not link.",
+        answerText: "Candidate-authored draft.",
+        evidenceIds: [pendingEvidence.id],
+      }),
+    ).rejects.toThrow("EVIDENCE_SELECTION_CHANGED");
+    const jobInput = {
+      source: "manual",
+      sourceJobId: "career-ledger-role",
+      title: "Staff Engineer",
+      company: "Northwind",
+      description: "Build reliable systems",
+      location: "Chicago",
+      workMode: "hybrid",
+      url: "https://example.test/career-ledger",
+      requirements: ["Distributed systems"],
+      capability: "deep_link",
+      sourceMeta: {},
+      contentHash: "career-ledger-role-hash",
+    };
+    const job = await store.upsertJob(owner.tenantId, jobInput);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    expect((await store.upsertJob(owner.tenantId, jobInput)).updatedAt).toBe(job.updatedAt);
+    const application = await store.createApplication(owner.tenantId, job.id, null);
+    const contact = await store.createContact(owner.tenantId, {
+      name: "Alex Recruiter",
+      organization: "Northwind",
+      kind: "recruiter",
+      applicationId: application.id,
+    });
+    const secondJob = await store.upsertJob(owner.tenantId, {
+      ...jobInput,
+      sourceJobId: "career-ledger-role-two",
+      title: "Principal Engineer",
+      contentHash: "career-ledger-role-two-hash",
+    });
+    const secondApplication = await store.createApplication(owner.tenantId, secondJob.id, null);
+    expect(
+      await store.linkContactToApplication(
+        owner.tenantId,
+        contact.id,
+        secondApplication.id,
+        "referral",
+      ),
+    ).toBe(true);
+    const activity = await store.createApplicationActivity(owner.tenantId, {
+      applicationId: application.id,
+      contactId: contact.id,
+      kind: "follow_up",
+      title: "Send a concise follow-up",
+      dueAt: "2026-09-01T15:00:00.000Z",
+    });
+    await store.setApplicationActivityState(owner.tenantId, activity.id, "completed");
+    const interview = await store.createInterviewRound(owner.tenantId, {
+      applicationId: application.id,
+      kind: "technical",
+      scheduledAt: "2026-09-03T18:00:00.000Z",
+      participants: ["Taylor", "Taylor", "Morgan"],
+      prepNotes: "Review the stored accomplishment.",
+    });
+    expect(
+      await store.setInterviewRoundState(
+        owner.tenantId,
+        interview.id,
+        "completed",
+        "Candidate-recorded outcome notes.",
+      ),
+    ).toMatchObject({ state: "completed", outcomeNotes: "Candidate-recorded outcome notes." });
+    const answer = await store.saveAnswerBlock(owner.tenantId, {
+      topic: "accomplishment",
+      prompt: "Tell me about a measurable result.",
+      answerText: "I reduced incident response time by 30%.",
+      evidenceIds: [evidence.id],
+    });
+    const revised = await store.saveAnswerBlock(owner.tenantId, {
+      id: answer.id,
+      topic: "accomplishment",
+      prompt: answer.prompt,
+      answerText: "I reduced incident response time by 30% through a reviewed runbook.",
+      evidenceIds: [evidence.id],
+    });
+    const view = await store.saveApplicationView(owner.tenantId, {
+      name: "Northwind review",
+      filters: { status: "tracked", source: "manual" },
+    });
+    await store.markApplicationViewReviewed(owner.tenantId, view.id);
+    const offer = await store.saveOffer(owner.tenantId, {
+      applicationId: application.id,
+      currency: "usd",
+      baseMinor: 17_500_000,
+      bonusMinor: 1_500_000,
+      equity: "Candidate-entered RSU description",
+    });
+    expect(await store.setOfferState(owner.tenantId, offer.id, "accepted")).toMatchObject({
+      state: "accepted",
+    });
+    await expect(
+      store.saveOffer(owner.tenantId, {
+        applicationId: application.id,
+        currency: "USD",
+        baseMinor: 17_500_000,
+        startOn: "2026-02-30",
+      }),
+    ).rejects.toThrow("INVALID_OFFER_START_ON");
+    await store.transitionCandidateApplicationStatus(
+      owner.tenantId,
+      application.id,
+      "prepared",
+      false,
+    );
+
+    expect(revised).toMatchObject({ currentRevision: 2, latest: { revision: 2 } });
+    expect((await store.listAnswerBlocks(owner.tenantId, true))[0]?.revisions).toHaveLength(2);
+    expect(await store.readCareerOperations(owner.tenantId)).toMatchObject({
+      activities: [expect.objectContaining({ state: "completed", contactId: contact.id })],
+      contacts: [
+        expect.objectContaining({
+          applicationLinks: expect.arrayContaining([
+            expect.objectContaining({ applicationId: application.id }),
+            expect.objectContaining({ applicationId: secondApplication.id, role: "referral" }),
+          ]),
+        }),
+      ],
+      interviews: [
+        expect.objectContaining({
+          participants: ["Taylor", "Morgan"],
+          state: "completed",
+          outcomeNotes: "Candidate-recorded outcome notes.",
+        }),
+      ],
+      savedViews: [expect.objectContaining({ lastReviewedAt: expect.any(String) })],
+      offers: [
+        expect.objectContaining({ currency: "USD", baseMinor: 17_500_000, state: "accepted" }),
+      ],
+    });
+    expect(await store.readCareerOperations(other.tenantId)).toEqual({
+      activities: [],
+      contacts: [],
+      interviews: [],
+      answerBlocks: [],
+      savedViews: [],
+      offers: [],
+    });
+    expect((await store.listApplications(owner.tenantId))[0]?.statusEvents).toHaveLength(2);
+    expect(await store.exportTenant(owner.tenantId)).toMatchObject({
+      schemaVersion: "nimanto_export_v8",
+      careerOperations: {
+        answerBlocks: [expect.objectContaining({ revisions: expect.any(Array) })],
+      },
+    });
+    const deletion = await store.beginTenantDeletion(owner.tenantId);
+    await store.purgeTenantForDeletion(deletion.id, owner.tenantId);
+    expect(await store.readCareerOperations(owner.tenantId)).toEqual({
+      activities: [],
+      contacts: [],
+      interviews: [],
+      answerBlocks: [],
+      savedViews: [],
+      offers: [],
+    });
+    expect(await store.listApplications(owner.tenantId)).toEqual([]);
   });
 });

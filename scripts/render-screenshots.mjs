@@ -93,6 +93,29 @@ async function shoot(
       if (!followUp.ok()) {
         throw new Error(`Screenshot follow-up date failed: ${followUp.status()}`);
       }
+      const activity = await context.request.post(`${api}/v1/application-activities`, {
+        data: {
+          applicationId: applicationBody.id,
+          kind: "follow_up",
+          title: "Send a concise thank-you note",
+          dueAt: "2026-09-01T15:00:00.000Z",
+          note: "Confirm the next interview window.",
+        },
+      });
+      if (!activity.ok()) throw new Error(`Screenshot activity failed: ${activity.status()}`);
+      const interview = await context.request.post(`${api}/v1/interview-rounds`, {
+        data: {
+          applicationId: applicationBody.id,
+          kind: "technical",
+          scheduledAt: "2026-09-03T18:00:00.000Z",
+          format: "Video",
+          participants: ["Taylor", "Morgan"],
+          prepNotes: "Review the evidence-linked system design example.",
+        },
+      });
+      if (!interview.ok()) {
+        throw new Error(`Screenshot interview round failed: ${interview.status()}`);
+      }
     }
   }
   const page = await context.newPage();
@@ -129,6 +152,7 @@ async function shoot(
     await page.getByRole("heading", { name: "Track the real process." }).waitFor();
     await page.locator(".board-card").first().waitFor();
     await page.getByRole("button", { name: "Record outcome" }).first().waitFor();
+    await page.getByRole("heading", { name: "Career ledger" }).scrollIntoViewIfNeeded();
   }
   await page.evaluate(() => document.fonts.ready);
   // The emblem assembles over ~5s; shoot it at rest, not mid-assembly.

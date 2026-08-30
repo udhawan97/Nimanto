@@ -33,6 +33,21 @@ type JobLike = {
 type MatchLike = { job: { id: string }; result: { blockers: unknown[] } };
 type OutcomeLike = { id?: string; type?: string; note?: string; occurredAt: string };
 type ApplicationNoteLike = { id?: string; text: string; recordedAt: string };
+type ApplicationStatusEventLike = {
+  id: string;
+  fromStatus: ApplicationStatus | null;
+  toStatus: ApplicationStatus;
+  source: "candidate" | "packet" | "migration";
+  occurredAt: string;
+};
+type ApplicationActivityLike = {
+  id: string;
+  kind: string;
+  state: "planned" | "completed" | "cancelled";
+  title: string;
+  note: string;
+  occurredAt: string | null;
+};
 type ApplicationLike = {
   id: string;
   jobId?: string;
@@ -41,6 +56,8 @@ type ApplicationLike = {
   followUpOn?: string | null;
   outcomes?: OutcomeLike[];
   notes?: ApplicationNoteLike[];
+  statusEvents?: ApplicationStatusEventLike[];
+  activities?: ApplicationActivityLike[];
   job?: { title: string; company: string };
 };
 type PacketLike = { status: string; applicationId?: string };
@@ -311,13 +328,18 @@ export function nextSteps(
 
 export const FOLLOW_UP_DAYS = 14;
 
-/** Baseline is the newest thing the candidate actually recorded. `updated_at` is
- *  bumped by a status write but NOT by addOutcome, so it is not an activity
- *  timestamp and is deliberately not used here. */
+/** Baseline is the newest literal candidate record. `updated_at` is not used:
+ * it can move for bookkeeping that says nothing about candidate activity. */
 export function lastRecordedAt(application: ApplicationLike): string | null {
   const stamps = [
     application.createdAt,
     ...(application.outcomes ?? []).map((outcome) => outcome.occurredAt),
+    ...(application.statusEvents ?? [])
+      .filter((event) => event.source !== "migration")
+      .map((event) => event.occurredAt),
+    ...(application.activities ?? [])
+      .filter((activity) => activity.state === "completed")
+      .map((activity) => activity.occurredAt),
   ].filter((value): value is string => typeof value === "string" && value.length > 0);
   if (stamps.length === 0) return null;
   return stamps.reduce((latest, value) =>
@@ -622,21 +644,45 @@ export type RecordedTimelineEntry = {
   type: string;
   note: string;
   occurredAt: string;
-  kind: "application" | "outcome" | "note";
+  kind: "application" | "status" | "activity" | "outcome" | "note";
 };
 
-/* A chronology of records, not a reconstructed hiring process. In particular,
- * status transitions are absent because the current application status does not
- * tell us when a real-world event occurred. */
+/* A chronology of stored records, not a reconstructed hiring process. Status
+ * entries appear only when the database retained a literal transition event;
+ * the migration marker explicitly declines to invent earlier history. */
 export function recordedApplicationTimeline(application: ApplicationLike): RecordedTimelineEntry[] {
   const entries: RecordedTimelineEntry[] = [];
-  if (application.createdAt) {
+  if (application.createdAt && !application.statusEvents?.length) {
     entries.push({
       id: `${application.id}-created`,
       type: "tracked",
       note: "Application record created",
       occurredAt: application.createdAt,
       kind: "application",
+    });
+  }
+  for (const event of application.statusEvents ?? []) {
+    entries.push({
+      id: event.id,
+      type: `status · ${event.toStatus}`,
+      note:
+        event.source === "migration"
+          ? "Current status retained during migration; earlier transitions are unavailable"
+          : event.source === "packet"
+            ? "Recorded by the packet lifecycle"
+            : "Candidate-recorded application status",
+      occurredAt: event.occurredAt,
+      kind: "status",
+    });
+  }
+  for (const activity of application.activities ?? []) {
+    if (activity.state !== "completed" || !activity.occurredAt) continue;
+    entries.push({
+      id: activity.id,
+      type: `activity · ${activity.kind}`,
+      note: activity.note || activity.title,
+      occurredAt: activity.occurredAt,
+      kind: "activity",
     });
   }
   for (const outcome of application.outcomes ?? []) {

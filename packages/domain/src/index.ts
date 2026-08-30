@@ -1,5 +1,6 @@
 export * from "./applications.js";
 export * from "./application-follow-up.js";
+export * from "./career-operations.js";
 export * from "./assurance.js";
 export * from "./external-actions.js";
 export * from "./matching.js";

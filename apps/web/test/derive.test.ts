@@ -616,6 +616,22 @@ describe("recorded outcome timeline", () => {
         id: "app-1",
         status: "submitted_externally",
         createdAt: "2026-07-01T12:00:00.000Z",
+        statusEvents: [
+          {
+            id: "status-tracked",
+            fromStatus: null,
+            toStatus: "tracked",
+            source: "candidate",
+            occurredAt: "2026-07-01T12:00:00.000Z",
+          },
+          {
+            id: "status-submitted",
+            fromStatus: "approved_for_export",
+            toStatus: "submitted_externally",
+            source: "candidate",
+            occurredAt: "2026-07-06T12:00:00.000Z",
+          },
+        ],
         outcomes: [
           {
             id: "outcome-2",
@@ -639,12 +655,16 @@ describe("recorded outcome timeline", () => {
         ],
       }),
     ).toEqual([
-      expect.objectContaining({ type: "tracked", note: "Application record created" }),
+      expect.objectContaining({
+        type: "status · tracked",
+        note: "Candidate-recorded application status",
+      }),
       expect.objectContaining({ type: "reply", note: "Recruiter asked for times" }),
       expect.objectContaining({
         type: "private note",
         note: "Need to verify the travel expectation",
       }),
+      expect.objectContaining({ type: "status · submitted_externally" }),
       expect.objectContaining({ type: "interview", note: "Panel with the platform team" }),
     ]);
   });

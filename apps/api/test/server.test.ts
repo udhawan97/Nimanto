@@ -405,6 +405,226 @@ describe("Nimanto beta API", () => {
     });
   });
 
+  it("serves the complete candidate career ledger through scoped write seams", async () => {
+    const { app, cookie } = await setup();
+    const initial = (
+      await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } })
+    ).json();
+    const application = await app.inject({
+      method: "POST",
+      url: "/v1/applications",
+      headers: { cookie },
+      payload: { jobId: initial.jobs[0].id },
+    });
+    const applicationId = application.json().id as string;
+    const secondApplication = await app.inject({
+      method: "POST",
+      url: "/v1/applications",
+      headers: { cookie },
+      payload: { jobId: initial.jobs[1].id },
+    });
+    const secondApplicationId = secondApplication.json().id as string;
+    const contact = await app.inject({
+      method: "POST",
+      url: "/v1/contacts",
+      headers: { cookie },
+      payload: {
+        name: "Alex Recruiter",
+        organization: "Northwind",
+        kind: "recruiter",
+        applicationId,
+      },
+    });
+    expect(contact.statusCode).toBe(200);
+    expect(
+      (
+        await app.inject({
+          method: "POST",
+          url: `/v1/contacts/${contact.json().id}/applications`,
+          headers: { cookie },
+          payload: { applicationId: secondApplicationId, role: "referral" },
+        })
+      ).statusCode,
+    ).toBe(200);
+    expect(
+      (
+        await app.inject({
+          method: "POST",
+          url: `/v1/contacts/${contact.json().id}/applications`,
+          headers: { cookie },
+          payload: { applicationId: secondApplicationId, role: "referral" },
+        })
+      ).statusCode,
+    ).toBe(200);
+    const activity = await app.inject({
+      method: "POST",
+      url: "/v1/application-activities",
+      headers: { cookie },
+      payload: {
+        applicationId,
+        contactId: contact.json().id,
+        kind: "follow_up",
+        title: "Send thank-you note",
+        dueAt: "2026-09-01T15:00:00.000Z",
+      },
+    });
+    expect(activity.statusCode).toBe(200);
+    expect(
+      (
+        await app.inject({
+          method: "PUT",
+          url: `/v1/application-activities/${activity.json().id}/state`,
+          headers: { cookie },
+          payload: { state: "completed" },
+        })
+      ).statusCode,
+    ).toBe(200);
+    const interview = await app.inject({
+      method: "POST",
+      url: "/v1/interview-rounds",
+      headers: { cookie },
+      payload: {
+        applicationId,
+        kind: "technical",
+        scheduledAt: "2026-09-03T18:00:00.000Z",
+        participants: ["Taylor"],
+      },
+    });
+    expect(interview.statusCode).toBe(200);
+    expect(
+      (
+        await app.inject({
+          method: "PUT",
+          url: `/v1/interview-rounds/${interview.json().id}/state`,
+          headers: { cookie },
+          payload: { state: "completed", outcomeNotes: "Candidate-recorded round outcome." },
+        })
+      ).statusCode,
+    ).toBe(200);
+    const confirmedEvidence = initial.evidence.find(
+      (claim: { status: string }) => claim.status === "confirmed",
+    );
+    const answer = await app.inject({
+      method: "POST",
+      url: "/v1/answer-blocks",
+      headers: { cookie },
+      payload: {
+        topic: "accomplishment",
+        prompt: "Tell me about a result.",
+        answerText: "I improved a documented process.",
+        evidenceIds: [confirmedEvidence.id],
+      },
+    });
+    expect(answer.statusCode).toBe(200);
+    const revision = await app.inject({
+      method: "PUT",
+      url: `/v1/answer-blocks/${answer.json().id}`,
+      headers: { cookie },
+      payload: {
+        topic: "accomplishment",
+        prompt: "Tell me about a result.",
+        answerText: "I improved a documented process and retained the revision.",
+        evidenceIds: [confirmedEvidence.id],
+      },
+    });
+    expect(revision.statusCode).toBe(200);
+    expect(revision.json().currentRevision).toBe(2);
+    const pendingEvidence = await app.inject({
+      method: "POST",
+      url: "/v1/evidence",
+      headers: { cookie },
+      payload: { kind: "project", value: "Pending answer evidence" },
+    });
+    const rejectedAnswer = await app.inject({
+      method: "POST",
+      url: "/v1/answer-blocks",
+      headers: { cookie },
+      payload: {
+        topic: "custom",
+        prompt: "This should be rejected.",
+        answerText: "Pending evidence is not linkable.",
+        evidenceIds: [pendingEvidence.json().id],
+      },
+    });
+    expect(rejectedAnswer.statusCode).toBe(409);
+    expect(rejectedAnswer.json().error.code).toBe("EVIDENCE_SELECTION_CHANGED");
+    const view = await app.inject({
+      method: "POST",
+      url: "/v1/application-views",
+      headers: { cookie },
+      payload: {
+        name: "Tracked manual roles",
+        filters: { status: "tracked", source: "manual", sort: "stored" },
+      },
+    });
+    expect(view.statusCode).toBe(200);
+    expect(
+      (
+        await app.inject({
+          method: "POST",
+          url: `/v1/application-views/${view.json().id}/review`,
+          headers: { cookie },
+        })
+      ).statusCode,
+    ).toBe(200);
+    const offer = await app.inject({
+      method: "PUT",
+      url: `/v1/applications/${applicationId}/offer`,
+      headers: { cookie },
+      payload: { currency: "USD", baseMinor: 15_000_000, bonusMinor: 1_000_000 },
+    });
+    expect(offer.statusCode).toBe(200);
+    expect(
+      (
+        await app.inject({
+          method: "PUT",
+          url: `/v1/offers/${offer.json().id}/state`,
+          headers: { cookie },
+          payload: { state: "accepted" },
+        })
+      ).statusCode,
+    ).toBe(200);
+    expect(
+      (
+        await app.inject({
+          method: "PUT",
+          url: `/v1/applications/${applicationId}/offer`,
+          headers: { cookie },
+          payload: { currency: "USD", baseMinor: 15_000_000, startOn: "2026-02-30" },
+        })
+      ).statusCode,
+    ).toBe(400);
+
+    const dashboard = (
+      await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } })
+    ).json();
+    expect(dashboard.careerOperations).toMatchObject({
+      activities: [expect.objectContaining({ state: "completed", title: "Send thank-you note" })],
+      contacts: [
+        expect.objectContaining({
+          name: "Alex Recruiter",
+          applicationLinks: expect.arrayContaining([
+            expect.objectContaining({ applicationId }),
+            expect.objectContaining({ applicationId: secondApplicationId, role: "referral" }),
+          ]),
+        }),
+      ],
+      interviews: [
+        expect.objectContaining({
+          kind: "technical",
+          state: "completed",
+          outcomeNotes: "Candidate-recorded round outcome.",
+        }),
+      ],
+      answerBlocks: [expect.objectContaining({ currentRevision: 2 })],
+      savedViews: [expect.objectContaining({ lastReviewedAt: expect.any(String) })],
+      offers: [expect.objectContaining({ baseMinor: 15_000_000, state: "accepted" })],
+    });
+    expect(dashboard.applications[0].statusEvents).toEqual([
+      expect.objectContaining({ fromStatus: null, toStatus: "tracked", source: "candidate" }),
+    ]);
+  });
+
   it("drafts locally from only the candidate-selected confirmed evidence", async () => {
     let received: { model: string; role: string; company: string; evidence: string[] } | null =
       null;
@@ -1733,10 +1953,10 @@ describe("Nimanto beta API", () => {
     });
     expect(exported.statusCode).toBe(200);
     expect(exported.json()).toMatchObject({
-      exportVersion: "nimanto-local-beta-v7",
+      exportVersion: "nimanto-local-beta-v8",
       identity: { displayName: "Priya Shah", email: "priya@example.test" },
       workspace: {
-        schemaVersion: "nimanto_export_v7",
+        schemaVersion: "nimanto_export_v8",
         profileVersions: expect.any(Array),
         matchRuns: expect.any(Array),
         assuranceRuns: expect.any(Array),

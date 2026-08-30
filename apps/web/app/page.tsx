@@ -29,7 +29,7 @@ const METHOD = [
   {
     step: "03",
     title: "Remember",
-    body: "Set one literal follow-up date or use the 336-hour activity fallback, count explicit creation-time cohorts, and inspect retained profile, match, packet and assurance history. The workbench shows stored values without inventing a cause or employer outcome—and a date never contacts anyone.",
+    body: "Set one literal follow-up date or use the 336-hour activity fallback, then keep typed work, interview rounds, people, reusable answers, saved reviews, sample-sized timing observations, and candidate-entered offer terms in one Career Ledger. The workbench shows stored values without inventing a cause or employer outcome—and a date never contacts anyone.",
   },
   {
     step: "04",
@@ -153,10 +153,10 @@ export default function Home() {
               <p className="placard">02 — Workbench</p>
               <h2 id="workbench-title">The next action comes before the analytics.</h2>
               <p className="band-lede">
-                Applications opens on the record you can work. Draft actions, outcomes, follow-up
-                dates, filters, and review inputs stay in the signed-in tab while you move between
-                sections; slow saves preserve newer typing, and an identity change clears the old
-                workspace first.
+                Applications opens on the record you can work. Its candidate-owned Career Ledger
+                keeps activities, interview rounds, people, reusable answers, saved reviews,
+                descriptive timing observations, and offer terms beside the pipeline. Unsaved fields
+                stay in the signed-in tab; an identity change clears the old workspace first.
               </p>
               <p className="quiet">
                 The screen is synthetic current-runtime evidence. Outcomes are records entered by
@@ -169,9 +169,11 @@ export default function Home() {
                 width="1440"
                 height="900"
                 loading="lazy"
-                alt="Synthetic Nimanto Applications workbench with the action-first pipeline, candidate follow-up dates, and Record outcome controls"
+                alt="Synthetic Nimanto Applications workbench with an action-first pipeline and candidate-owned Career Ledger"
               />
-              <figcaption>v0.9.0 · local decision tools · synthetic local workspace</figcaption>
+              <figcaption>
+                Current main · local decision tools · synthetic local workspace
+              </figcaption>
             </figure>
           </div>
         </section>

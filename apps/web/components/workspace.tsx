@@ -1,6 +1,6 @@
 "use client";
 
-import { normalizeEmployerName } from "@nimanto/domain";
+import { normalizeEmployerName, type OutcomeType } from "@nimanto/domain";
 import {
   Activity,
   Archive,
@@ -56,6 +56,7 @@ import { Brand } from "./brand.js";
 import { CommandPalette, type PaletteEntry } from "./command-palette.js";
 import { ConnectionBanner, ConnectionIndicator, useConnection } from "./connection.js";
 import { CopyLine } from "./copy-line.js";
+import { CareerLedger, type CareerOperationsSnapshot } from "./career-ledger.js";
 import { H1bEvidencePanel, type RoleWordingReview } from "./h1b-evidence.js";
 import {
   RoleProvenanceCard,
@@ -124,6 +125,7 @@ import {
 } from "../lib/applications-workbench.js";
 import { buildFollowUpCalendar } from "../lib/calendar-export.js";
 import { buildApplicationCsv } from "../lib/application-csv-export.js";
+import { ApiError, api, fenceApiWritesToSession } from "../lib/api-client.js";
 
 const API = process.env.NEXT_PUBLIC_NIMANTO_API_ORIGIN ?? "http://127.0.0.1:4310";
 const API_HOST_LABEL = new URL(API).host;
@@ -251,7 +253,7 @@ type Match = {
   job: Job;
 };
 type ComparableRole = Job & { match: Match | null; tracked: boolean };
-type Outcome = { id: string; type: string; note: string; occurredAt: string };
+type Outcome = { id: string; type: OutcomeType; note: string; occurredAt: string };
 type ApplicationNote = { id: string; text: string; recordedAt: string };
 type Application = {
   id: string;
@@ -268,6 +270,22 @@ type Application = {
   job?: { title: string; company: string };
   outcomes?: Outcome[];
   notes?: ApplicationNote[];
+  statusEvents?: Array<{
+    id: string;
+    applicationId: string;
+    fromStatus: ApplicationStatus | null;
+    toStatus: ApplicationStatus;
+    source: "candidate" | "packet" | "migration";
+    occurredAt: string;
+  }>;
+  activities?: Array<{
+    id: string;
+    kind: string;
+    state: "planned" | "completed" | "cancelled";
+    title: string;
+    note: string;
+    occurredAt: string | null;
+  }>;
 };
 type Packet = {
   id: string;
@@ -534,6 +552,7 @@ type Dashboard = {
   matches: Match[];
   h1bSignals: Signal[];
   roleWordingReviews: RoleWordingReview[];
+  careerOperations: CareerOperationsSnapshot;
   applications: Application[];
   packets: Packet[];
   actionPackets: Packet[];
@@ -578,48 +597,6 @@ type EvidenceImportPreview = {
   } | null;
   previewHash: string;
 };
-
-class ApiError extends Error {
-  constructor(
-    readonly code: string,
-    message: string,
-  ) {
-    super(message);
-  }
-}
-
-/* The HttpOnly cookie is shared by sibling tabs, while this session generation
- * is not. Authenticated writes carry the generation that rendered this tab. */
-let expectedSessionId: string | null = null;
-
-async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const method = (init?.method ?? "GET").toUpperCase();
-  const headers = new Headers(init?.headers);
-  if (init?.body) headers.set("content-type", "application/json");
-  if (
-    expectedSessionId &&
-    !["GET", "HEAD", "OPTIONS"].includes(method) &&
-    !path.startsWith("/v1/auth/") &&
-    path !== "/v1/deletion/resume"
-  ) {
-    headers.set("x-nimanto-expected-session-id", expectedSessionId);
-  }
-  const response = await fetch(`${API}${path}`, {
-    ...init,
-    credentials: "include",
-    headers,
-  });
-  if (!response.ok) {
-    const payload = (await response.json().catch(() => ({}))) as {
-      error?: { code?: string; message?: string };
-    };
-    throw new ApiError(
-      payload.error?.code ?? `HTTP_${response.status}`,
-      payload.error?.message ?? "Nimanto could not complete that request.",
-    );
-  }
-  return response.json() as Promise<T>;
-}
 
 function human(value: string): string {
   return value.replaceAll("_", " ").replace(/^\w/, (letter) => letter.toUpperCase());
@@ -1098,7 +1075,7 @@ export function Workspace() {
     if (plan.closeMobileNavigation) setMobileNav(false);
     if (plan.clearDashboard) {
       dashboardIdentity.current = null;
-      expectedSessionId = null;
+      fenceApiWritesToSession(null);
       setDashboard(null);
     }
     if (plan.requireAuthentication) setAuthRequired(true);
@@ -1237,7 +1214,7 @@ export function Workspace() {
         applyIdentityTransition("identity_changed");
       }
       dashboardIdentity.current = incomingIdentity;
-      expectedSessionId = incomingIdentity;
+      fenceApiWritesToSession(incomingIdentity);
       setDashboard(value);
       setRuntimeMeta(meta);
       setAuthRequired(false);
@@ -6383,6 +6360,16 @@ function Applications({
           filtersActive={applicationFiltersActive}
         />
       )}
+      <CareerLedger
+        applications={dashboard.applications}
+        jobs={dashboard.jobs}
+        evidence={dashboard.evidence}
+        operations={dashboard.careerOperations}
+        busy={busy}
+        onAct={onAct}
+        currentView={workingView}
+        onApplyView={(savedView) => dispatch({ type: "view_changed", view: savedView })}
+      />
       <Funnel funnel={dashboard.personalFunnel} />
 
       <section className="record-review-strip" aria-labelledby="record-review-title">
@@ -6875,8 +6862,8 @@ function RecordedTimeline({ application }: { application: Application }) {
         ))}
       </ol>
       <p className="boundary-note">
-        Only stored application creation, candidate-recorded outcomes, and private notes appear
-        here. Gaps infer nothing; notes change no status or metric.
+        Only stored status events, candidate-recorded outcomes, and private notes appear here. A
+        migration marker is a current snapshot, not reconstructed history. Gaps infer nothing.
       </p>
     </details>
   );

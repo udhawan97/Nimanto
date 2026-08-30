@@ -1311,9 +1311,9 @@ test("evidence-rich review features stay literal, local, and inspectable", async
   await page.getByRole("button", { name: "Applications" }).click();
   const timeline = page.locator(".board-card .recorded-timeline").first();
   await timeline.getByText("Recorded timeline").click();
-  await expect(timeline.getByText("Application record created")).toBeVisible();
+  await expect(timeline.getByText("Candidate-recorded application status")).toBeVisible();
   await expect(
-    timeline.getByText(/Gaps infer nothing; notes change no status or metric/),
+    timeline.getByText(/migration marker is a current snapshot.*Gaps infer nothing/i),
   ).toBeVisible();
 
   await page.getByRole("button", { name: "Review packets" }).click();
@@ -2548,4 +2548,100 @@ test("gated and empty-state controls say what they are waiting for", async ({ pa
   await expect(packet.locator(".packet-actions .button.primary")).toHaveCount(0);
   await expect(approve).not.toHaveAttribute("aria-describedby");
   await expect(page.locator(`#${gate}`)).toHaveCount(0);
+});
+
+test("the candidate career ledger carries the P1 and P2 application workflow", async ({ page }) => {
+  await installClipboardRecorder(page);
+  await page.goto(`/workspace/#bootstrap=${bootstrapSecret}`);
+  await page.getByLabel("Your name").fill("Career Ledger Check");
+  await page.getByLabel("Your email").fill("career-ledger@example.test");
+  await page.getByRole("button", { name: "Start private workspace" }).click();
+  await page.getByRole("button", { name: "Run starter matches" }).click();
+  await page.getByRole("button", { name: "Role discovery" }).click();
+  await page.getByRole("button", { name: "Track", exact: true }).first().click();
+  await page.getByRole("button", { name: "Applications" }).click();
+
+  const ledger = page.locator(".career-ledger");
+  await expect(ledger.getByRole("heading", { name: "Career ledger" })).toBeVisible();
+  const now = ledger.getByRole("tabpanel");
+  await now.getByLabel("Action").fill("Send a concise thank-you note");
+  await now.getByRole("button", { name: "Add activity" }).click();
+  const activity = now.locator("li").filter({ hasText: "Send a concise thank-you note" });
+  await expect(activity).toBeVisible();
+  await activity.getByRole("button", { name: "Complete" }).click();
+  await expect(activity).toContainText("Follow up · Completed");
+  await now.getByLabel("Scheduled at").fill("2026-09-03T13:00");
+  await now.getByLabel("Location or link note").fill("Video link stored in private notes");
+  await now.getByLabel("Participants, comma-separated").fill("Taylor, Morgan");
+  await now.getByRole("button", { name: "Add round" }).click();
+  const interview = now.locator("li").filter({ hasText: "Taylor · Morgan" });
+  await expect(interview).toContainText("Video link stored in private notes");
+  await interview
+    .getByLabel("Outcome notes for Recruiter screen")
+    .fill("Candidate-recorded round outcome.");
+  await interview.getByRole("button", { name: "Complete" }).click();
+  await expect(interview).toContainText("Candidate-recorded round outcome.");
+
+  await ledger.getByRole("tab", { name: "People" }).click();
+  const people = ledger.getByRole("tabpanel");
+  await people.getByLabel("Name").fill("Alex Recruiter");
+  await people.getByLabel("Organization").fill("Northwind");
+  await people.getByRole("button", { name: "Add person" }).click();
+  await expect(people.getByText("Alex Recruiter")).toBeVisible();
+  await expect(people).toContainText("No scraping");
+
+  await ledger.getByRole("tab", { name: "Answers" }).click();
+  const answers = ledger.getByRole("tabpanel");
+  await answers.getByLabel("Prompt").fill("Why this role?");
+  await answers
+    .getByLabel("Your answer")
+    .fill("I chose this role because the recorded scope matches my evidence.");
+  await answers.getByRole("button", { name: "Save answer" }).click();
+  const answer = answers.locator("li").filter({ hasText: "Why this role?" });
+  await expect(answer).toBeVisible();
+  await answer.getByRole("button", { name: "Revise" }).click();
+  await answers
+    .getByLabel("Your answer")
+    .fill("I chose this role because the revised recorded scope matches my evidence.");
+  await answers.getByRole("button", { name: "Save revision" }).click();
+  await expect(answer).toContainText("revision 2");
+  await expect(answer.getByText("2 retained revisions")).toBeVisible();
+  await answer.getByRole("button", { name: "Copy" }).click();
+  await expect(answers.getByText("Copied answer for Why this role?.")).toBeVisible();
+  await expect
+    .poll(() => page.evaluate(() => sessionStorage.getItem("nimanto-test-copied")))
+    .toContain("revised recorded scope");
+
+  await ledger.getByRole("tab", { name: "Reviews" }).click();
+  const reviews = ledger.getByRole("tabpanel");
+  await reviews.getByLabel("View name").fill("Roles to review");
+  await reviews.getByRole("button", { name: "Save current view" }).click();
+  await expect(reviews.getByText("Roles to review")).toBeVisible();
+  await expect(
+    reviews
+      .getByRole("list", { name: "Changed applications for Roles to review" })
+      .getByRole("listitem"),
+  ).toHaveCount(1);
+  await reviews.getByRole("button", { name: "Mark reviewed" }).click();
+  await expect(reviews.getByText(/^Reviewed /)).toBeVisible();
+
+  await ledger.getByRole("tab", { name: "Insights" }).click();
+  await expect(
+    ledger.getByText(/not conversion rates, benchmarks, causal evidence/i),
+  ).toBeVisible();
+
+  await ledger.getByRole("tab", { name: "Offers" }).click();
+  const offers = ledger.getByRole("tabpanel");
+  await offers.getByLabel("Annual base").fill("145000");
+  await offers.getByLabel("Annual bonus").fill("15000");
+  await offers.getByLabel("Equity terms").fill("Candidate-entered RSU description");
+  await offers.getByRole("button", { name: "Save offer" }).click();
+  await expect(offers.getByRole("cell", { name: "$145,000" })).toBeVisible();
+  await offers.getByLabel(/Offer status for/).selectOption("accepted");
+  await expect(offers.getByLabel(/Offer status for/)).toHaveValue("accepted");
+  await expect(offers).toContainText("does not value equity");
+
+  await ledger.getByRole("tab", { name: "Now" }).click();
+  await page.setViewportSize({ width: 375, height: 812 });
+  await expectSurfaceContained(page, ledger, "career ledger at 375px");
 });

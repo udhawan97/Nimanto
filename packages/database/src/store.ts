@@ -4,25 +4,40 @@ import path from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import {
   applicationFollowUpPolicy,
+  ACTIVITY_KINDS,
+  ACTIVITY_STATES,
+  ANSWER_TOPICS,
   canonicalHash,
   classifyRoleFamily,
+  CONTACT_KINDS,
   applicationTransitions,
+  INTERVIEW_ROUND_KINDS,
+  INTERVIEW_ROUND_STATES,
   normalizeWorkplaceMode,
   normalizeEmployerName,
+  OFFER_STATES,
   scheduledFailureEvent,
   scheduledRetryDelayMinutes,
   validateStructuredArea,
   verifyReceipt,
   type ApplicationStatus,
+  type ActivityKind,
+  type ActivityState,
+  type AnswerTopic,
+  type ApplicationStatusEvent,
+  type ContactKind,
   type DiscoveryProfileInput,
   type EvidenceClaim,
   type ExecutionReceipt,
   type ExternalActionProvider,
   type ExternalActionState,
   type H1bSignalLabel,
+  type InterviewRoundKind,
+  type InterviewRoundState,
   type MatchBlocker,
   type MatchResult,
   type OutcomeType,
+  type OfferState,
   type PublicationState,
   type RoleFamily,
   type ScheduledJobState,
@@ -323,6 +338,7 @@ export interface ApplicationRecord {
   job?: Pick<JobRecord, "title" | "company">;
   outcomes?: OutcomeRecord[];
   notes?: ApplicationNoteRecord[];
+  statusEvents?: ApplicationStatusEvent[];
 }
 
 export interface OutcomeRecord {
@@ -338,6 +354,103 @@ export interface ApplicationNoteRecord {
   applicationId: string;
   text: string;
   recordedAt: string;
+}
+
+export interface ApplicationActivityRecord {
+  id: string;
+  applicationId: string;
+  contactId: string | null;
+  kind: ActivityKind;
+  state: ActivityState;
+  title: string;
+  note: string;
+  dueAt: string | null;
+  occurredAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ContactRecord {
+  id: string;
+  name: string;
+  organization: string;
+  title: string;
+  email: string;
+  phone: string;
+  kind: ContactKind;
+  notes: string;
+  applicationLinks: Array<{ applicationId: string; role: ContactKind }>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InterviewRoundRecord {
+  id: string;
+  applicationId: string;
+  kind: InterviewRoundKind;
+  state: InterviewRoundState;
+  scheduledAt: string;
+  format: string;
+  location: string;
+  participants: string[];
+  prepNotes: string;
+  outcomeNotes: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AnswerRevisionRecord {
+  id: string;
+  revision: number;
+  answerText: string;
+  evidenceIds: string[];
+  createdAt: string;
+}
+
+export interface AnswerBlockRecord {
+  id: string;
+  topic: AnswerTopic;
+  prompt: string;
+  currentRevision: number;
+  latest: AnswerRevisionRecord;
+  revisions?: AnswerRevisionRecord[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SavedApplicationViewRecord {
+  id: string;
+  name: string;
+  filters: Record<string, unknown>;
+  lastReviewedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OfferRecord {
+  id: string;
+  applicationId: string;
+  state: OfferState;
+  currency: string;
+  baseMinor: number;
+  bonusMinor: number | null;
+  equity: string;
+  benefits: string;
+  startOn: string | null;
+  expiresOn: string | null;
+  workMode: string;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CareerOperationsSnapshot {
+  activities: ApplicationActivityRecord[];
+  contacts: ContactRecord[];
+  interviews: InterviewRoundRecord[];
+  answerBlocks: AnswerBlockRecord[];
+  savedViews: SavedApplicationViewRecord[];
+  offers: OfferRecord[];
 }
 
 export interface PacketRecord {
@@ -525,6 +638,31 @@ function historyLimit(value?: number): number {
   if (value === undefined) return 20;
   if (!Number.isInteger(value) || value < 1) throw new Error("INVALID_LIMIT");
   return Math.min(value, 50);
+}
+
+function recordText(value: string, field: string, maximum: number, required = false): string {
+  const normalized = value.normalize("NFC").trim();
+  if ((required && !normalized) || normalized.length > maximum) {
+    throw new Error(`INVALID_${field.toLocaleUpperCase("en-US")}`);
+  }
+  return normalized;
+}
+
+function recordInstant(value: string | null, field: string): string | null {
+  if (value === null) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) throw new Error(`INVALID_${field}`);
+  return parsed.toISOString();
+}
+
+function recordDateOnly(value: string | null | undefined, field: string): string | null {
+  if (!value) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/u.test(value)) throw new Error(`INVALID_${field}`);
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value) {
+    throw new Error(`INVALID_${field}`);
+  }
+  return value;
 }
 
 async function tightenPosixPermissions(directory: string): Promise<void> {
@@ -1405,7 +1543,20 @@ export class NimantoStore {
          work_mode = EXCLUDED.work_mode, role_family = EXCLUDED.role_family, url = EXCLUDED.url,
          requirements = EXCLUDED.requirements, status = EXCLUDED.status,
          capability = EXCLUDED.capability, source_meta = EXCLUDED.source_meta,
-         content_hash = EXCLUDED.content_hash, updated_at = now()
+         content_hash = EXCLUDED.content_hash,
+         updated_at = CASE WHEN
+           jobs.title IS DISTINCT FROM EXCLUDED.title OR
+           jobs.company IS DISTINCT FROM EXCLUDED.company OR
+           jobs.description IS DISTINCT FROM EXCLUDED.description OR
+           jobs.location IS DISTINCT FROM EXCLUDED.location OR
+           jobs.work_mode IS DISTINCT FROM EXCLUDED.work_mode OR
+           jobs.role_family IS DISTINCT FROM EXCLUDED.role_family OR
+           jobs.url IS DISTINCT FROM EXCLUDED.url OR
+           jobs.requirements IS DISTINCT FROM EXCLUDED.requirements OR
+           jobs.status IS DISTINCT FROM EXCLUDED.status OR
+           jobs.capability IS DISTINCT FROM EXCLUDED.capability OR
+           jobs.content_hash IS DISTINCT FROM EXCLUDED.content_hash
+         THEN now() ELSE jobs.updated_at END
        RETURNING id, source, source_job_id, title, company, description, location,
          work_mode, role_family, url, requirements, status, capability, source_meta, content_hash, updated_at`,
       [
@@ -2845,17 +2996,26 @@ export class NimantoStore {
     jobId: string,
     profileVersionId: string | null,
   ): Promise<ApplicationRecord> {
-    const id = randomUUID();
-    const result = await this.#db.query<any>(
-      `INSERT INTO applications(id, tenant_id, job_id, profile_version_id, status)
-       SELECT $1,$2,$3,$4,'tracked'
-       WHERE EXISTS (SELECT 1 FROM jobs WHERE id = $3 AND tenant_id = $2)
-       RETURNING id, job_id, profile_version_id, status, submitted_at, follow_up_on,
-         created_at, updated_at`,
-      [id, tenantId, jobId, profileVersionId],
-    );
-    if (!result.rows[0]) throw new Error("JOB_NOT_FOUND");
-    return this.#mapApplication(result.rows[0]);
+    return this.transaction(async (database) => {
+      await database.lockTenantActive(tenantId);
+      const id = randomUUID();
+      const result = await database.#db.query<any>(
+        `INSERT INTO applications(id, tenant_id, job_id, profile_version_id, status)
+         SELECT $1,$2,$3,$4,'tracked'
+         WHERE EXISTS (SELECT 1 FROM jobs WHERE id = $3 AND tenant_id = $2)
+         RETURNING id, job_id, profile_version_id, status, submitted_at, follow_up_on,
+           created_at, updated_at`,
+        [id, tenantId, jobId, profileVersionId],
+      );
+      if (!result.rows[0]) throw new Error("JOB_NOT_FOUND");
+      await database.#db.query(
+        `INSERT INTO application_status_events(
+           id, tenant_id, application_id, from_status, to_status, source, occurred_at
+         ) VALUES ($1,$2,$3,NULL,'tracked','candidate',$4)`,
+        [randomUUID(), tenantId, id, iso(result.rows[0].created_at)],
+      );
+      return database.#mapApplication(result.rows[0]);
+    });
   }
 
   #mapApplication(row: any): ApplicationRecord {
@@ -2875,24 +3035,43 @@ export class NimantoStore {
     tenantId: string,
     id: string,
     status: ApplicationStatus,
+    source: ApplicationStatusEvent["source"] = "packet",
   ): Promise<ApplicationRecord | null> {
     /* Packet lifecycle and candidate intent are distinct actors, but both use
      * this persistence primitive. The old SELECT followed by UPDATE could race
      * and derive submitted_at from stale state. PostgreSQL evaluates this CASE
      * against the row being updated, so stamping and clearing stay atomic. */
-    const result = await this.#db.query<any>(
-      `UPDATE applications SET status = $3,
-         submitted_at = CASE
-           WHEN status = 'submitted_externally' AND $3 <> 'submitted_externally' THEN NULL
-           WHEN $3 = 'submitted_externally' THEN COALESCE(submitted_at, now())
-           ELSE submitted_at END,
-         updated_at = now()
-       WHERE tenant_id = $1 AND id = $2
-       RETURNING id, job_id, profile_version_id, status, submitted_at, follow_up_on,
-         created_at, updated_at`,
-      [tenantId, id, status],
-    );
-    return result.rows[0] ? this.#mapApplication(result.rows[0]) : null;
+    return this.transaction(async (database) => {
+      await database.lockTenantActive(tenantId);
+      const current = await database.#db.query<{ status: ApplicationStatus }>(
+        `SELECT status FROM applications WHERE tenant_id = $1 AND id = $2 FOR UPDATE`,
+        [tenantId, id],
+      );
+      const from = current.rows[0]?.status;
+      if (!from) return null;
+      const result = await database.#db.query<any>(
+        `UPDATE applications SET status = $3,
+           submitted_at = CASE
+             WHEN status = 'submitted_externally' AND $3 <> 'submitted_externally' THEN NULL
+             WHEN $3 = 'submitted_externally' THEN COALESCE(submitted_at, now())
+             ELSE submitted_at END,
+           updated_at = now()
+         WHERE tenant_id = $1 AND id = $2
+         RETURNING id, job_id, profile_version_id, status, submitted_at, follow_up_on,
+           created_at, updated_at`,
+        [tenantId, id, status],
+      );
+      const record = result.rows[0] ? database.#mapApplication(result.rows[0]) : null;
+      if (record && from !== status) {
+        await database.#db.query(
+          `INSERT INTO application_status_events(
+             id, tenant_id, application_id, from_status, to_status, source, occurred_at
+           ) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+          [randomUUID(), tenantId, id, from, status, source, record.updatedAt],
+        );
+      }
+      return record;
+    });
   }
 
   async setApplicationFollowUp(
@@ -2958,7 +3137,7 @@ export class NimantoStore {
         );
         return unchanged.rows[0] ? database.#mapApplication(unchanged.rows[0]) : null;
       }
-      return database.setApplicationStatus(tenantId, id, decision.transition.to);
+      return database.setApplicationStatus(tenantId, id, decision.transition.to, "candidate");
     });
   }
 
@@ -3020,7 +3199,7 @@ export class NimantoStore {
   }
 
   async listApplications(tenantId: string): Promise<ApplicationRecord[]> {
-    const [applications, outcomes, notes, jobs] = await Promise.all([
+    const [applications, outcomes, notes, statusEvents, jobs] = await Promise.all([
       this.#db.query<any>(
         `SELECT id, job_id, profile_version_id, status, submitted_at, follow_up_on,
            created_at, updated_at
@@ -3035,6 +3214,12 @@ export class NimantoStore {
       this.#db.query<any>(
         `SELECT id, application_id, text, recorded_at
          FROM application_notes WHERE tenant_id = $1 ORDER BY recorded_at DESC, id`,
+        [tenantId],
+      ),
+      this.#db.query<any>(
+        `SELECT id, application_id, from_status, to_status, source, occurred_at
+         FROM application_status_events
+         WHERE tenant_id = $1 ORDER BY occurred_at, id`,
         [tenantId],
       ),
       this.listJobs(tenantId),
@@ -3063,8 +3248,601 @@ export class NimantoStore {
             text: note.text,
             recordedAt: iso(note.recorded_at)!,
           })),
+        statusEvents: statusEvents.rows
+          .filter((event) => event.application_id === record.id)
+          .map((event) => ({
+            id: event.id,
+            applicationId: event.application_id,
+            fromStatus: event.from_status,
+            toStatus: event.to_status,
+            source: event.source,
+            occurredAt: iso(event.occurred_at)!,
+          })),
       };
     });
+  }
+
+  async createApplicationActivity(
+    tenantId: string,
+    input: {
+      applicationId: string;
+      contactId?: string | null;
+      kind: ActivityKind;
+      title: string;
+      note?: string;
+      dueAt?: string | null;
+    },
+  ): Promise<ApplicationActivityRecord> {
+    if (!ACTIVITY_KINDS.includes(input.kind)) throw new Error("INVALID_ACTIVITY_KIND");
+    const id = randomUUID();
+    const result = await this.#db.query<any>(
+      `INSERT INTO application_activities(
+         id, tenant_id, application_id, contact_id, kind, state, title, note, due_at
+       )
+       SELECT $1,$2,$3,$4,$5,'planned',$6,$7,$8
+       WHERE EXISTS (
+         SELECT 1 FROM applications WHERE id = $3 AND tenant_id = $2
+       ) AND ($4::text IS NULL OR EXISTS (
+         SELECT 1 FROM contacts WHERE id = $4 AND tenant_id = $2
+       ))
+       RETURNING *`,
+      [
+        id,
+        tenantId,
+        input.applicationId,
+        input.contactId ?? null,
+        input.kind,
+        recordText(input.title, "activity_title", 180, true),
+        recordText(input.note ?? "", "activity_note", 2_000),
+        recordInstant(input.dueAt ?? null, "ACTIVITY_DUE_AT"),
+      ],
+    );
+    if (!result.rows[0]) throw new Error("APPLICATION_OR_CONTACT_NOT_FOUND");
+    return this.#mapApplicationActivity(result.rows[0]);
+  }
+
+  #mapApplicationActivity(row: any): ApplicationActivityRecord {
+    return {
+      id: row.id,
+      applicationId: row.application_id,
+      contactId: row.contact_id,
+      kind: row.kind,
+      state: row.state,
+      title: row.title,
+      note: row.note,
+      dueAt: iso(row.due_at),
+      occurredAt: iso(row.occurred_at),
+      createdAt: iso(row.created_at)!,
+      updatedAt: iso(row.updated_at)!,
+    };
+  }
+
+  async setApplicationActivityState(
+    tenantId: string,
+    id: string,
+    state: ActivityState,
+  ): Promise<ApplicationActivityRecord | null> {
+    if (!ACTIVITY_STATES.includes(state)) throw new Error("INVALID_ACTIVITY_STATE");
+    const result = await this.#db.query<any>(
+      `UPDATE application_activities
+       SET state = $3,
+         occurred_at = CASE
+           WHEN $3 = 'completed' THEN COALESCE(occurred_at, now())
+           WHEN $3 = 'planned' THEN NULL
+           ELSE occurred_at END,
+         updated_at = now()
+       WHERE tenant_id = $1 AND id = $2
+       RETURNING *`,
+      [tenantId, id, state],
+    );
+    return result.rows[0] ? this.#mapApplicationActivity(result.rows[0]) : null;
+  }
+
+  async listApplicationActivities(tenantId: string): Promise<ApplicationActivityRecord[]> {
+    const result = await this.#db.query<any>(
+      `SELECT * FROM application_activities
+       WHERE tenant_id = $1
+       ORDER BY CASE WHEN state = 'planned' THEN 0 ELSE 1 END,
+         due_at NULLS LAST, updated_at DESC, id`,
+      [tenantId],
+    );
+    return result.rows.map((row) => this.#mapApplicationActivity(row));
+  }
+
+  async createContact(
+    tenantId: string,
+    input: {
+      name: string;
+      organization?: string;
+      title?: string;
+      email?: string;
+      phone?: string;
+      kind: ContactKind;
+      notes?: string;
+      applicationId?: string | null;
+      applicationRole?: ContactKind;
+    },
+  ): Promise<ContactRecord> {
+    if (!CONTACT_KINDS.includes(input.kind)) throw new Error("INVALID_CONTACT_KIND");
+    const id = randomUUID();
+    await this.transaction(async (database) => {
+      await database.lockTenantActive(tenantId);
+      const created = await database.#db.query<{ id: string }>(
+        `INSERT INTO contacts(
+           id, tenant_id, name, organization, title, email, phone, kind, notes
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+         RETURNING id`,
+        [
+          id,
+          tenantId,
+          recordText(input.name, "contact_name", 180, true),
+          recordText(input.organization ?? "", "contact_organization", 180),
+          recordText(input.title ?? "", "contact_title", 180),
+          recordText(input.email ?? "", "contact_email", 320),
+          recordText(input.phone ?? "", "contact_phone", 80),
+          input.kind,
+          recordText(input.notes ?? "", "contact_notes", 2_000),
+        ],
+      );
+      if (!created.rows[0]) throw new Error("CONTACT_NOT_CREATED");
+      if (input.applicationId) {
+        const linked = await database.#db.query<{ contact_id: string }>(
+          `INSERT INTO application_contacts(tenant_id, application_id, contact_id, role)
+           SELECT $1,$2,$3,$4
+           WHERE EXISTS (
+             SELECT 1 FROM applications WHERE tenant_id = $1 AND id = $2
+           ) RETURNING contact_id`,
+          [tenantId, input.applicationId, id, input.applicationRole ?? input.kind],
+        );
+        if (!linked.rows[0]) throw new Error("APPLICATION_NOT_FOUND");
+      }
+    });
+    return (await this.listContacts(tenantId)).find((contact) => contact.id === id)!;
+  }
+
+  async linkContactToApplication(
+    tenantId: string,
+    contactId: string,
+    applicationId: string,
+    role: ContactKind,
+  ): Promise<boolean> {
+    if (!CONTACT_KINDS.includes(role)) throw new Error("INVALID_CONTACT_KIND");
+    const result = await this.#db.query<{ contact_id: string }>(
+      `INSERT INTO application_contacts(tenant_id, application_id, contact_id, role)
+       SELECT $1,$2,$3,$4
+       WHERE EXISTS (SELECT 1 FROM applications WHERE tenant_id = $1 AND id = $2)
+         AND EXISTS (SELECT 1 FROM contacts WHERE tenant_id = $1 AND id = $3)
+       ON CONFLICT DO NOTHING
+       RETURNING contact_id`,
+      [tenantId, applicationId, contactId, role],
+    );
+    if (result.rows[0]) return true;
+    const existing = await this.#db.query<{ contact_id: string }>(
+      `SELECT contact_id FROM application_contacts
+       WHERE tenant_id = $1 AND application_id = $2 AND contact_id = $3 AND role = $4`,
+      [tenantId, applicationId, contactId, role],
+    );
+    return Boolean(existing.rows[0]);
+  }
+
+  async listContacts(tenantId: string): Promise<ContactRecord[]> {
+    const [contacts, links] = await Promise.all([
+      this.#db.query<any>(
+        `SELECT * FROM contacts WHERE tenant_id = $1 ORDER BY updated_at DESC, id`,
+        [tenantId],
+      ),
+      this.#db.query<any>(
+        `SELECT application_id, contact_id, role FROM application_contacts
+         WHERE tenant_id = $1 ORDER BY created_at, application_id`,
+        [tenantId],
+      ),
+    ]);
+    return contacts.rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      organization: row.organization,
+      title: row.title,
+      email: row.email,
+      phone: row.phone,
+      kind: row.kind,
+      notes: row.notes,
+      applicationLinks: links.rows
+        .filter((link) => link.contact_id === row.id)
+        .map((link) => ({ applicationId: link.application_id, role: link.role })),
+      createdAt: iso(row.created_at)!,
+      updatedAt: iso(row.updated_at)!,
+    }));
+  }
+
+  async createInterviewRound(
+    tenantId: string,
+    input: {
+      applicationId: string;
+      kind: InterviewRoundKind;
+      scheduledAt: string;
+      format?: string;
+      location?: string;
+      participants?: string[];
+      prepNotes?: string;
+    },
+  ): Promise<InterviewRoundRecord> {
+    if (!INTERVIEW_ROUND_KINDS.includes(input.kind)) throw new Error("INVALID_INTERVIEW_KIND");
+    const participants = [
+      ...new Set(
+        (input.participants ?? [])
+          .map((value) => recordText(value, "interview_participant", 180))
+          .filter(Boolean),
+      ),
+    ];
+    if (participants.length > 20) throw new Error("INVALID_INTERVIEW_PARTICIPANTS");
+    const id = randomUUID();
+    const result = await this.#db.query<any>(
+      `INSERT INTO interview_rounds(
+         id, tenant_id, application_id, kind, state, scheduled_at,
+         format, location, participants, prep_notes
+       )
+       SELECT $1,$2,$3,$4,'scheduled',$5,$6,$7,$8::jsonb,$9
+       WHERE EXISTS (SELECT 1 FROM applications WHERE tenant_id = $2 AND id = $3)
+       RETURNING *`,
+      [
+        id,
+        tenantId,
+        input.applicationId,
+        input.kind,
+        recordInstant(input.scheduledAt, "INTERVIEW_SCHEDULED_AT"),
+        recordText(input.format ?? "", "interview_format", 120),
+        recordText(input.location ?? "", "interview_location", 320),
+        JSON.stringify(participants),
+        recordText(input.prepNotes ?? "", "interview_prep_notes", 4_000),
+      ],
+    );
+    if (!result.rows[0]) throw new Error("APPLICATION_NOT_FOUND");
+    return this.#mapInterviewRound(result.rows[0]);
+  }
+
+  #mapInterviewRound(row: any): InterviewRoundRecord {
+    return {
+      id: row.id,
+      applicationId: row.application_id,
+      kind: row.kind,
+      state: row.state,
+      scheduledAt: iso(row.scheduled_at)!,
+      format: row.format,
+      location: row.location,
+      participants: row.participants,
+      prepNotes: row.prep_notes,
+      outcomeNotes: row.outcome_notes,
+      createdAt: iso(row.created_at)!,
+      updatedAt: iso(row.updated_at)!,
+    };
+  }
+
+  async setInterviewRoundState(
+    tenantId: string,
+    id: string,
+    state: InterviewRoundState,
+    outcomeNotes = "",
+  ): Promise<InterviewRoundRecord | null> {
+    if (!INTERVIEW_ROUND_STATES.includes(state)) throw new Error("INVALID_INTERVIEW_STATE");
+    const result = await this.#db.query<any>(
+      `UPDATE interview_rounds SET state = $3, outcome_notes = $4, updated_at = now()
+       WHERE tenant_id = $1 AND id = $2 RETURNING *`,
+      [tenantId, id, state, recordText(outcomeNotes, "interview_outcome_notes", 4_000)],
+    );
+    return result.rows[0] ? this.#mapInterviewRound(result.rows[0]) : null;
+  }
+
+  async listInterviewRounds(tenantId: string): Promise<InterviewRoundRecord[]> {
+    const result = await this.#db.query<any>(
+      `SELECT * FROM interview_rounds
+       WHERE tenant_id = $1 ORDER BY scheduled_at, id`,
+      [tenantId],
+    );
+    return result.rows.map((row) => this.#mapInterviewRound(row));
+  }
+
+  async saveAnswerBlock(
+    tenantId: string,
+    input: {
+      id?: string;
+      topic: AnswerTopic;
+      prompt: string;
+      answerText: string;
+      evidenceIds?: string[];
+    },
+  ): Promise<AnswerBlockRecord> {
+    if (!ANSWER_TOPICS.includes(input.topic)) throw new Error("INVALID_ANSWER_TOPIC");
+    const evidenceIds = [...new Set(input.evidenceIds ?? [])];
+    if (evidenceIds.length > 40) throw new Error("INVALID_ANSWER_EVIDENCE");
+    const id = input.id ?? randomUUID();
+    await this.transaction(async (database) => {
+      await database.lockTenantActive(tenantId);
+      if (evidenceIds.length) {
+        const evidence = await database.#db.query<{ id: string }>(
+          `SELECT id FROM evidence_claims
+           WHERE tenant_id = $1 AND status = 'confirmed' AND id = ANY($2::text[])`,
+          [tenantId, evidenceIds],
+        );
+        if (evidence.rows.length !== evidenceIds.length) {
+          throw new Error("EVIDENCE_SELECTION_CHANGED");
+        }
+      }
+      const current = await database.#db.query<{ current_revision: number }>(
+        `SELECT current_revision FROM answer_blocks
+         WHERE tenant_id = $1 AND id = $2 FOR UPDATE`,
+        [tenantId, id],
+      );
+      if (input.id && !current.rows[0]) throw new Error("ANSWER_BLOCK_NOT_FOUND");
+      const revision = Number(current.rows[0]?.current_revision ?? 0) + 1;
+      if (current.rows[0]) {
+        await database.#db.query(
+          `UPDATE answer_blocks
+           SET topic = $3, prompt = $4, current_revision = $5, updated_at = now()
+           WHERE tenant_id = $1 AND id = $2`,
+          [
+            tenantId,
+            id,
+            input.topic,
+            recordText(input.prompt, "answer_prompt", 500, true),
+            revision,
+          ],
+        );
+      } else {
+        await database.#db.query(
+          `INSERT INTO answer_blocks(
+             id, tenant_id, topic, prompt, current_revision
+           ) VALUES ($1,$2,$3,$4,$5)`,
+          [
+            id,
+            tenantId,
+            input.topic,
+            recordText(input.prompt, "answer_prompt", 500, true),
+            revision,
+          ],
+        );
+      }
+      await database.#db.query(
+        `INSERT INTO answer_revisions(
+           id, tenant_id, answer_block_id, revision, answer_text, evidence_ids
+         ) VALUES ($1,$2,$3,$4,$5,$6::jsonb)`,
+        [
+          randomUUID(),
+          tenantId,
+          id,
+          revision,
+          recordText(input.answerText, "answer_text", 8_000, true),
+          JSON.stringify(evidenceIds),
+        ],
+      );
+    });
+    return (await this.listAnswerBlocks(tenantId, true)).find((answer) => answer.id === id)!;
+  }
+
+  async listAnswerBlocks(tenantId: string, includeHistory = false): Promise<AnswerBlockRecord[]> {
+    const blocks = await this.#db.query<any>(
+      `SELECT block.*,
+         COALESCE(
+           jsonb_agg(
+             jsonb_build_object(
+               'id', revision.id,
+               'revision', revision.revision,
+               'answerText', revision.answer_text,
+               'evidenceIds', revision.evidence_ids,
+               'createdAt', revision.created_at
+             ) ORDER BY revision.revision DESC
+           ) FILTER (WHERE revision.id IS NOT NULL),
+           '[]'::jsonb
+         ) AS revisions
+       FROM answer_blocks block
+       LEFT JOIN answer_revisions revision
+         ON revision.tenant_id = block.tenant_id AND revision.answer_block_id = block.id
+       WHERE block.tenant_id = $1
+       GROUP BY block.id
+       ORDER BY block.updated_at DESC, block.id`,
+      [tenantId],
+    );
+    return blocks.rows.map((row) => {
+      const history: AnswerRevisionRecord[] = (
+        row.revisions as Array<{
+          id: string;
+          revision: string | number;
+          answerText: string;
+          evidenceIds: string[];
+          createdAt: string | Date;
+        }>
+      ).map((revision) => ({
+        id: revision.id,
+        revision: Number(revision.revision),
+        answerText: revision.answerText,
+        evidenceIds: revision.evidenceIds,
+        createdAt: iso(revision.createdAt)!,
+      }));
+      return {
+        id: row.id,
+        topic: row.topic,
+        prompt: row.prompt,
+        currentRevision: Number(row.current_revision),
+        latest: history[0]!,
+        ...(includeHistory ? { revisions: history } : {}),
+        createdAt: iso(row.created_at)!,
+        updatedAt: iso(row.updated_at)!,
+      };
+    });
+  }
+
+  async saveApplicationView(
+    tenantId: string,
+    input: { id?: string; name: string; filters: Record<string, unknown> },
+  ): Promise<SavedApplicationViewRecord> {
+    const id = input.id ?? randomUUID();
+    const result = await this.#db.query<any>(
+      `INSERT INTO saved_application_views(id, tenant_id, name, filters)
+       VALUES ($1,$2,$3,$4::jsonb)
+       ON CONFLICT (id) DO UPDATE SET
+         name = EXCLUDED.name,
+         filters = EXCLUDED.filters,
+         updated_at = now()
+       WHERE saved_application_views.tenant_id = EXCLUDED.tenant_id
+       RETURNING *`,
+      [id, tenantId, recordText(input.name, "view_name", 120, true), JSON.stringify(input.filters)],
+    );
+    if (!result.rows[0]) throw new Error("SAVED_VIEW_NOT_FOUND");
+    return this.#mapSavedView(result.rows[0]);
+  }
+
+  #mapSavedView(row: any): SavedApplicationViewRecord {
+    return {
+      id: row.id,
+      name: row.name,
+      filters: row.filters,
+      lastReviewedAt: iso(row.last_reviewed_at),
+      createdAt: iso(row.created_at)!,
+      updatedAt: iso(row.updated_at)!,
+    };
+  }
+
+  async markApplicationViewReviewed(
+    tenantId: string,
+    id: string,
+  ): Promise<SavedApplicationViewRecord | null> {
+    const result = await this.#db.query<any>(
+      `UPDATE saved_application_views
+       SET last_reviewed_at = now(), updated_at = now()
+       WHERE tenant_id = $1 AND id = $2 RETURNING *`,
+      [tenantId, id],
+    );
+    return result.rows[0] ? this.#mapSavedView(result.rows[0]) : null;
+  }
+
+  async listApplicationViews(tenantId: string): Promise<SavedApplicationViewRecord[]> {
+    const result = await this.#db.query<any>(
+      `SELECT * FROM saved_application_views
+       WHERE tenant_id = $1 ORDER BY updated_at DESC, id`,
+      [tenantId],
+    );
+    return result.rows.map((row) => this.#mapSavedView(row));
+  }
+
+  async saveOffer(
+    tenantId: string,
+    input: {
+      applicationId: string;
+      currency: string;
+      baseMinor: number;
+      bonusMinor?: number | null;
+      equity?: string;
+      benefits?: string;
+      startOn?: string | null;
+      expiresOn?: string | null;
+      workMode?: string;
+      notes?: string;
+    },
+  ): Promise<OfferRecord> {
+    const currency = input.currency.trim().toLocaleUpperCase("en-US");
+    const validMoney = (value: number | null | undefined) =>
+      value === null ||
+      value === undefined ||
+      (Number.isSafeInteger(value) && value >= 0 && value <= 900_000_000_000_000);
+    if (
+      !/^[A-Z]{3}$/u.test(currency) ||
+      !validMoney(input.baseMinor) ||
+      !validMoney(input.bonusMinor)
+    ) {
+      throw new Error("INVALID_OFFER_COMPENSATION");
+    }
+    const id = randomUUID();
+    const result = await this.#db.query<any>(
+      `INSERT INTO offers(
+         id, tenant_id, application_id, state, currency, base_minor, bonus_minor,
+         equity, benefits, start_on, expires_on, work_mode, notes
+       )
+       SELECT $1,$2,$3,'reviewing',$4,$5,$6,$7,$8,$9::date,$10::date,$11,$12
+       WHERE EXISTS (SELECT 1 FROM applications WHERE tenant_id = $2 AND id = $3)
+       ON CONFLICT (tenant_id, application_id) DO UPDATE SET
+         currency = EXCLUDED.currency,
+         base_minor = EXCLUDED.base_minor,
+         bonus_minor = EXCLUDED.bonus_minor,
+         equity = EXCLUDED.equity,
+         benefits = EXCLUDED.benefits,
+         start_on = EXCLUDED.start_on,
+         expires_on = EXCLUDED.expires_on,
+         work_mode = EXCLUDED.work_mode,
+         notes = EXCLUDED.notes,
+         updated_at = now()
+       RETURNING *`,
+      [
+        id,
+        tenantId,
+        input.applicationId,
+        currency,
+        input.baseMinor,
+        input.bonusMinor ?? null,
+        recordText(input.equity ?? "", "offer_equity", 1_000),
+        recordText(input.benefits ?? "", "offer_benefits", 4_000),
+        recordDateOnly(input.startOn, "OFFER_START_ON"),
+        recordDateOnly(input.expiresOn, "OFFER_EXPIRES_ON"),
+        recordText(input.workMode ?? "", "offer_work_mode", 80),
+        recordText(input.notes ?? "", "offer_notes", 4_000),
+      ],
+    );
+    if (!result.rows[0]) throw new Error("APPLICATION_NOT_FOUND");
+    return this.#mapOffer(result.rows[0]);
+  }
+
+  #mapOffer(row: any): OfferRecord {
+    return {
+      id: row.id,
+      applicationId: row.application_id,
+      state: row.state,
+      currency: row.currency,
+      baseMinor: Number(row.base_minor),
+      bonusMinor: row.bonus_minor === null ? null : Number(row.bonus_minor),
+      equity: row.equity,
+      benefits: row.benefits,
+      startOn: iso(row.start_on)?.slice(0, 10) ?? null,
+      expiresOn: iso(row.expires_on)?.slice(0, 10) ?? null,
+      workMode: row.work_mode,
+      notes: row.notes,
+      createdAt: iso(row.created_at)!,
+      updatedAt: iso(row.updated_at)!,
+    };
+  }
+
+  async setOfferState(
+    tenantId: string,
+    id: string,
+    state: OfferState,
+  ): Promise<OfferRecord | null> {
+    if (!OFFER_STATES.includes(state)) throw new Error("INVALID_OFFER_STATE");
+    const result = await this.#db.query<any>(
+      `UPDATE offers SET state = $3, updated_at = now()
+       WHERE tenant_id = $1 AND id = $2 RETURNING *`,
+      [tenantId, id, state],
+    );
+    return result.rows[0] ? this.#mapOffer(result.rows[0]) : null;
+  }
+
+  async listOffers(tenantId: string): Promise<OfferRecord[]> {
+    const result = await this.#db.query<any>(
+      `SELECT * FROM offers WHERE tenant_id = $1 ORDER BY updated_at DESC, id`,
+      [tenantId],
+    );
+    return result.rows.map((row) => this.#mapOffer(row));
+  }
+
+  async readCareerOperations(
+    tenantId: string,
+    includeAnswerHistory = true,
+  ): Promise<CareerOperationsSnapshot> {
+    const [activities, contacts, interviews, answerBlocks, savedViews, offers] = await Promise.all([
+      this.listApplicationActivities(tenantId),
+      this.listContacts(tenantId),
+      this.listInterviewRounds(tenantId),
+      this.listAnswerBlocks(tenantId, includeAnswerHistory),
+      this.listApplicationViews(tenantId),
+      this.listOffers(tenantId),
+    ]);
+    return { activities, contacts, interviews, answerBlocks, savedViews, offers };
   }
 
   async createPacket(
@@ -3639,6 +4417,7 @@ export class NimantoStore {
       roleWordingReviews,
       employerEntities,
       employerAliases,
+      careerOperations,
     ] = await Promise.all([
       this.listEvidence(tenantId),
       this.latestProfileVersion(tenantId),
@@ -3661,6 +4440,7 @@ export class NimantoStore {
       this.listRoleWordingReviews(tenantId),
       this.listEmployerEntities(tenantId),
       this.listEmployerAliases(tenantId),
+      this.readCareerOperations(tenantId),
     ]);
     const profileVersions = [...profileVersionsPage.items];
     let profileCursor = profileVersionsPage.nextCursor;
@@ -3677,7 +4457,7 @@ export class NimantoStore {
       matchCursor = page.nextCursor;
     }
     return {
-      schemaVersion: "nimanto_export_v7",
+      schemaVersion: "nimanto_export_v8",
       exportedAt: new Date().toISOString(),
       evidence,
       profile,
@@ -3700,6 +4480,7 @@ export class NimantoStore {
       roleWordingReviews,
       employerEntities,
       employerAliases,
+      careerOperations,
     };
   }
 

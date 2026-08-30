@@ -9,15 +9,29 @@ import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
 import { NimantoStore, type SessionIdentity } from "@nimanto/database";
 import {
+  ACTIVITY_KINDS,
+  ACTIVITY_STATES,
+  ANSWER_TOPICS,
   applicationFollowUpPolicy,
   applicationTransitions,
   canonicalHash,
+  CONTACT_KINDS,
+  INTERVIEW_ROUND_KINDS,
+  INTERVIEW_ROUND_STATES,
   normalizeRoleObservation,
+  OFFER_STATES,
+  type ActivityKind,
+  type ActivityState,
   type ApplicationStatus,
+  type AnswerTopic,
+  type ContactKind,
   type EvidenceClaim,
   type ExternalActionProvider,
   type H1bSignalLabel,
+  type InterviewRoundKind,
+  type InterviewRoundState,
   type OutcomeType,
+  type OfferState,
   type DiscoveryProfileInput,
   type RoleFamily,
   type StructuredArea,
@@ -94,6 +108,13 @@ function strings(value: unknown, field: string): string[] {
 
 function optionalString(value: unknown, field: string): string | null {
   return value === undefined || value === null || value === "" ? null : string(value, field);
+}
+
+function safeInteger(value: unknown, field: string): number {
+  if (!Number.isSafeInteger(value) || Number(value) < 0) {
+    throw new Error(`INVALID_${field.toUpperCase()}`);
+  }
+  return Number(value);
 }
 
 function structuredAreas(value: unknown, field: string): StructuredArea[] {
@@ -1309,6 +1330,192 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     });
   });
 
+  app.post("/v1/application-activities", async (request) => {
+    const person = identity(request);
+    const body = object(request.body);
+    const kind = string(body.kind, "activity_kind") as ActivityKind;
+    if (!ACTIVITY_KINDS.includes(kind)) throw new Error("INVALID_ACTIVITY_KIND");
+    return store.createApplicationActivity(person.tenantId, {
+      applicationId: string(body.applicationId, "application_id"),
+      contactId: optionalString(body.contactId, "contact_id"),
+      kind,
+      title: string(body.title, "activity_title"),
+      note: typeof body.note === "string" ? body.note : "",
+      dueAt: optionalString(body.dueAt, "activity_due_at"),
+    });
+  });
+
+  app.put("/v1/application-activities/:id/state", async (request) => {
+    const person = identity(request);
+    const body = object(request.body);
+    const state = string(body.state, "activity_state") as ActivityState;
+    if (!ACTIVITY_STATES.includes(state)) throw new Error("INVALID_ACTIVITY_STATE");
+    const record = await store.setApplicationActivityState(
+      person.tenantId,
+      (request.params as { id: string }).id,
+      state,
+    );
+    if (!record) throw new Error("APPLICATION_ACTIVITY_NOT_FOUND");
+    return record;
+  });
+
+  app.post("/v1/contacts", async (request) => {
+    const person = identity(request);
+    const body = object(request.body);
+    const kind = string(body.kind, "contact_kind") as ContactKind;
+    if (!CONTACT_KINDS.includes(kind)) throw new Error("INVALID_CONTACT_KIND");
+    const applicationRole =
+      body.applicationRole === undefined
+        ? kind
+        : (string(body.applicationRole, "application_role") as ContactKind);
+    if (!CONTACT_KINDS.includes(applicationRole)) throw new Error("INVALID_CONTACT_KIND");
+    return store.createContact(person.tenantId, {
+      name: string(body.name, "contact_name"),
+      organization: typeof body.organization === "string" ? body.organization : "",
+      title: typeof body.title === "string" ? body.title : "",
+      email: typeof body.email === "string" ? body.email : "",
+      phone: typeof body.phone === "string" ? body.phone : "",
+      kind,
+      notes: typeof body.notes === "string" ? body.notes : "",
+      applicationId: optionalString(body.applicationId, "application_id"),
+      applicationRole,
+    });
+  });
+
+  app.post("/v1/contacts/:id/applications", async (request) => {
+    const person = identity(request);
+    const body = object(request.body);
+    const role = string(body.role, "contact_role") as ContactKind;
+    if (!CONTACT_KINDS.includes(role)) throw new Error("INVALID_CONTACT_KIND");
+    const linked = await store.linkContactToApplication(
+      person.tenantId,
+      (request.params as { id: string }).id,
+      string(body.applicationId, "application_id"),
+      role,
+    );
+    if (!linked) throw new Error("APPLICATION_OR_CONTACT_NOT_FOUND");
+    return { linked: true };
+  });
+
+  app.post("/v1/interview-rounds", async (request) => {
+    const person = identity(request);
+    const body = object(request.body);
+    const kind = string(body.kind, "interview_kind") as InterviewRoundKind;
+    if (!INTERVIEW_ROUND_KINDS.includes(kind)) throw new Error("INVALID_INTERVIEW_KIND");
+    return store.createInterviewRound(person.tenantId, {
+      applicationId: string(body.applicationId, "application_id"),
+      kind,
+      scheduledAt: string(body.scheduledAt, "interview_scheduled_at"),
+      format: typeof body.format === "string" ? body.format : "",
+      location: typeof body.location === "string" ? body.location : "",
+      participants: strings(body.participants ?? [], "interview_participants"),
+      prepNotes: typeof body.prepNotes === "string" ? body.prepNotes : "",
+    });
+  });
+
+  app.put("/v1/interview-rounds/:id/state", async (request) => {
+    const person = identity(request);
+    const body = object(request.body);
+    const state = string(body.state, "interview_state") as InterviewRoundState;
+    if (!INTERVIEW_ROUND_STATES.includes(state)) throw new Error("INVALID_INTERVIEW_STATE");
+    const record = await store.setInterviewRoundState(
+      person.tenantId,
+      (request.params as { id: string }).id,
+      state,
+      typeof body.outcomeNotes === "string" ? body.outcomeNotes : "",
+    );
+    if (!record) throw new Error("INTERVIEW_ROUND_NOT_FOUND");
+    return record;
+  });
+
+  app.post("/v1/answer-blocks", async (request) => {
+    const person = identity(request);
+    const body = object(request.body);
+    const topic = string(body.topic, "answer_topic") as AnswerTopic;
+    if (!ANSWER_TOPICS.includes(topic)) throw new Error("INVALID_ANSWER_TOPIC");
+    return store.saveAnswerBlock(person.tenantId, {
+      topic,
+      prompt: string(body.prompt, "answer_prompt"),
+      answerText: string(body.answerText, "answer_text"),
+      evidenceIds: strings(body.evidenceIds ?? [], "answer_evidence_ids"),
+    });
+  });
+
+  app.put("/v1/answer-blocks/:id", async (request) => {
+    const person = identity(request);
+    const body = object(request.body);
+    const topic = string(body.topic, "answer_topic") as AnswerTopic;
+    if (!ANSWER_TOPICS.includes(topic)) throw new Error("INVALID_ANSWER_TOPIC");
+    return store.saveAnswerBlock(person.tenantId, {
+      id: (request.params as { id: string }).id,
+      topic,
+      prompt: string(body.prompt, "answer_prompt"),
+      answerText: string(body.answerText, "answer_text"),
+      evidenceIds: strings(body.evidenceIds ?? [], "answer_evidence_ids"),
+    });
+  });
+
+  app.post("/v1/application-views", async (request) => {
+    const person = identity(request);
+    const body = object(request.body);
+    const filters = object(body.filters);
+    return store.saveApplicationView(person.tenantId, {
+      name: string(body.name, "view_name"),
+      filters: {
+        reviewOnly: filters.reviewOnly === true,
+        query: typeof filters.query === "string" ? filters.query : "",
+        status: typeof filters.status === "string" ? filters.status : "all",
+        source: typeof filters.source === "string" ? filters.source : "all",
+        followUp: typeof filters.followUp === "string" ? filters.followUp : "all",
+        sort: typeof filters.sort === "string" ? filters.sort : "stored",
+      },
+    });
+  });
+
+  app.post("/v1/application-views/:id/review", async (request) => {
+    const person = identity(request);
+    const record = await store.markApplicationViewReviewed(
+      person.tenantId,
+      (request.params as { id: string }).id,
+    );
+    if (!record) throw new Error("SAVED_VIEW_NOT_FOUND");
+    return record;
+  });
+
+  app.put("/v1/applications/:id/offer", async (request) => {
+    const person = identity(request);
+    const body = object(request.body);
+    return store.saveOffer(person.tenantId, {
+      applicationId: (request.params as { id: string }).id,
+      currency: string(body.currency, "offer_currency"),
+      baseMinor: safeInteger(body.baseMinor, "offer_base"),
+      bonusMinor:
+        body.bonusMinor === undefined || body.bonusMinor === null
+          ? null
+          : safeInteger(body.bonusMinor, "offer_bonus"),
+      equity: typeof body.equity === "string" ? body.equity : "",
+      benefits: typeof body.benefits === "string" ? body.benefits : "",
+      startOn: optionalString(body.startOn, "offer_start_on"),
+      expiresOn: optionalString(body.expiresOn, "offer_expires_on"),
+      workMode: typeof body.workMode === "string" ? body.workMode : "",
+      notes: typeof body.notes === "string" ? body.notes : "",
+    });
+  });
+
+  app.put("/v1/offers/:id/state", async (request) => {
+    const person = identity(request);
+    const body = object(request.body);
+    const state = string(body.state, "offer_state") as OfferState;
+    if (!OFFER_STATES.includes(state)) throw new Error("INVALID_OFFER_STATE");
+    const record = await store.setOfferState(
+      person.tenantId,
+      (request.params as { id: string }).id,
+      state,
+    );
+    if (!record) throw new Error("OFFER_NOT_FOUND");
+    return record;
+  });
+
   app.post("/v1/packets", async (request) => {
     const person = identity(request);
     const body = object(request.body);
@@ -1420,7 +1627,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     const person = identity(request);
     const workspace = await store.exportTenant(person.tenantId);
     return reply.header("content-disposition", 'attachment; filename="nimanto-export.json"').send({
-      exportVersion: "nimanto-local-beta-v7",
+      exportVersion: "nimanto-local-beta-v8",
       exportedAt: new Date().toISOString(),
       identity: {
         displayName: person.displayName,
@@ -1428,7 +1635,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
       },
       workspace,
       artifactNote:
-        "This inspection export includes stored profile, match, exact role-wording review, packet, assurance, application, and receipt records. Generated packet files remain individually downloadable. It is not a restore archive, immutable job history, or replay proof.",
+        "This inspection export includes stored profile, match, exact role-wording review, packet, assurance, application, candidate career-ledger, offer, and receipt records. Generated packet files remain individually downloadable. It is not a restore archive, immutable job history, or replay proof.",
     });
   });
   app.delete("/v1/data", async (request, reply) => {

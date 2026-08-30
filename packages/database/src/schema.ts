@@ -187,6 +187,134 @@ CREATE TABLE IF NOT EXISTS application_notes (
 CREATE INDEX IF NOT EXISTS application_notes_tenant_application_idx
   ON application_notes(tenant_id, application_id, recorded_at DESC);
 
+CREATE TABLE IF NOT EXISTS application_status_events (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  application_id text NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+  from_status text,
+  to_status text NOT NULL,
+  source text NOT NULL,
+  occurred_at timestamptz NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS application_status_events_tenant_application_idx
+  ON application_status_events(tenant_id, application_id, occurred_at, id);
+
+CREATE TABLE IF NOT EXISTS contacts (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  organization text NOT NULL DEFAULT '',
+  title text NOT NULL DEFAULT '',
+  email text NOT NULL DEFAULT '',
+  phone text NOT NULL DEFAULT '',
+  kind text NOT NULL,
+  notes text NOT NULL DEFAULT '',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS contacts_tenant_updated_idx
+  ON contacts(tenant_id, updated_at DESC, id);
+
+CREATE TABLE IF NOT EXISTS application_contacts (
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  application_id text NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+  contact_id text NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
+  role text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (tenant_id, application_id, contact_id, role)
+);
+
+CREATE TABLE IF NOT EXISTS application_activities (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  application_id text NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+  contact_id text REFERENCES contacts(id) ON DELETE SET NULL,
+  kind text NOT NULL,
+  state text NOT NULL,
+  title text NOT NULL,
+  note text NOT NULL DEFAULT '',
+  due_at timestamptz,
+  occurred_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS application_activities_tenant_due_idx
+  ON application_activities(tenant_id, state, due_at, updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS interview_rounds (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  application_id text NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+  kind text NOT NULL,
+  state text NOT NULL,
+  scheduled_at timestamptz NOT NULL,
+  format text NOT NULL DEFAULT '',
+  location text NOT NULL DEFAULT '',
+  participants jsonb NOT NULL DEFAULT '[]'::jsonb,
+  prep_notes text NOT NULL DEFAULT '',
+  outcome_notes text NOT NULL DEFAULT '',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS interview_rounds_tenant_scheduled_idx
+  ON interview_rounds(tenant_id, state, scheduled_at, id);
+
+CREATE TABLE IF NOT EXISTS answer_blocks (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  topic text NOT NULL,
+  prompt text NOT NULL,
+  current_revision integer NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS answer_blocks_tenant_updated_idx
+  ON answer_blocks(tenant_id, updated_at DESC, id);
+
+CREATE TABLE IF NOT EXISTS answer_revisions (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  answer_block_id text NOT NULL REFERENCES answer_blocks(id) ON DELETE CASCADE,
+  revision integer NOT NULL,
+  answer_text text NOT NULL,
+  evidence_ids jsonb NOT NULL DEFAULT '[]'::jsonb,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (answer_block_id, revision)
+);
+
+CREATE TABLE IF NOT EXISTS saved_application_views (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  filters jsonb NOT NULL,
+  last_reviewed_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS saved_application_views_tenant_updated_idx
+  ON saved_application_views(tenant_id, updated_at DESC, id);
+
+CREATE TABLE IF NOT EXISTS offers (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  application_id text NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+  state text NOT NULL,
+  currency text NOT NULL,
+  base_minor bigint NOT NULL,
+  bonus_minor bigint,
+  equity text NOT NULL DEFAULT '',
+  benefits text NOT NULL DEFAULT '',
+  start_on date,
+  expires_on date,
+  work_mode text NOT NULL DEFAULT '',
+  notes text NOT NULL DEFAULT '',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (tenant_id, application_id)
+);
+CREATE INDEX IF NOT EXISTS offers_tenant_updated_idx ON offers(tenant_id, updated_at DESC, id);
+
 CREATE SEQUENCE IF NOT EXISTS packets_generation_sequence_seq;
 
 CREATE TABLE IF NOT EXISTS packets (
@@ -454,8 +582,9 @@ BEGIN
   FOREACH table_name IN ARRAY ARRAY[
     'memberships', 'sessions', 'evidence_claims', 'profile_versions', 'jobs',
     'role_dispositions', 'match_runs', 'role_wording_reviews', 'h1b_signals',
-    'applications', 'outcomes',
-    'application_notes', 'packets',
+    'applications', 'outcomes', 'application_notes', 'application_status_events',
+    'contacts', 'application_contacts', 'application_activities', 'interview_rounds',
+    'answer_blocks', 'answer_revisions', 'saved_application_views', 'offers', 'packets',
     'assurance_runs', 'external_actions', 'receipts', 'source_settings',
     'scheduled_jobs', 'dataset_editions', 'source_runs', 'role_availability',
     'role_observations', 'verification_attempts', 'discovery_profiles',
@@ -848,4 +977,165 @@ ALTER TABLE dataset_editions ADD COLUMN IF NOT EXISTS provenance_checksum text;
 export const schemaVersion12Sql = String.raw`
 ALTER TABLE dataset_editions ADD COLUMN IF NOT EXISTS language_review jsonb;
 ALTER TABLE dataset_editions ADD COLUMN IF NOT EXISTS language_review_checksum text;
+`;
+
+export const schemaVersion13Sql = String.raw`
+CREATE TABLE IF NOT EXISTS application_status_events (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  application_id text NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+  from_status text,
+  to_status text NOT NULL,
+  source text NOT NULL,
+  occurred_at timestamptz NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS application_status_events_tenant_application_idx
+  ON application_status_events(tenant_id, application_id, occurred_at, id);
+
+CREATE TABLE IF NOT EXISTS contacts (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  organization text NOT NULL DEFAULT '',
+  title text NOT NULL DEFAULT '',
+  email text NOT NULL DEFAULT '',
+  phone text NOT NULL DEFAULT '',
+  kind text NOT NULL,
+  notes text NOT NULL DEFAULT '',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS contacts_tenant_updated_idx
+  ON contacts(tenant_id, updated_at DESC, id);
+
+CREATE TABLE IF NOT EXISTS application_contacts (
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  application_id text NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+  contact_id text NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
+  role text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (tenant_id, application_id, contact_id, role)
+);
+
+CREATE TABLE IF NOT EXISTS application_activities (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  application_id text NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+  contact_id text REFERENCES contacts(id) ON DELETE SET NULL,
+  kind text NOT NULL,
+  state text NOT NULL,
+  title text NOT NULL,
+  note text NOT NULL DEFAULT '',
+  due_at timestamptz,
+  occurred_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS application_activities_tenant_due_idx
+  ON application_activities(tenant_id, state, due_at, updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS interview_rounds (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  application_id text NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+  kind text NOT NULL,
+  state text NOT NULL,
+  scheduled_at timestamptz NOT NULL,
+  format text NOT NULL DEFAULT '',
+  location text NOT NULL DEFAULT '',
+  participants jsonb NOT NULL DEFAULT '[]'::jsonb,
+  prep_notes text NOT NULL DEFAULT '',
+  outcome_notes text NOT NULL DEFAULT '',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS interview_rounds_tenant_scheduled_idx
+  ON interview_rounds(tenant_id, state, scheduled_at, id);
+
+CREATE TABLE IF NOT EXISTS answer_blocks (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  topic text NOT NULL,
+  prompt text NOT NULL,
+  current_revision integer NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS answer_blocks_tenant_updated_idx
+  ON answer_blocks(tenant_id, updated_at DESC, id);
+
+CREATE TABLE IF NOT EXISTS answer_revisions (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  answer_block_id text NOT NULL REFERENCES answer_blocks(id) ON DELETE CASCADE,
+  revision integer NOT NULL,
+  answer_text text NOT NULL,
+  evidence_ids jsonb NOT NULL DEFAULT '[]'::jsonb,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (answer_block_id, revision)
+);
+
+CREATE TABLE IF NOT EXISTS saved_application_views (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  filters jsonb NOT NULL,
+  last_reviewed_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS saved_application_views_tenant_updated_idx
+  ON saved_application_views(tenant_id, updated_at DESC, id);
+
+CREATE TABLE IF NOT EXISTS offers (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  application_id text NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+  state text NOT NULL,
+  currency text NOT NULL,
+  base_minor bigint NOT NULL,
+  bonus_minor bigint,
+  equity text NOT NULL DEFAULT '',
+  benefits text NOT NULL DEFAULT '',
+  start_on date,
+  expires_on date,
+  work_mode text NOT NULL DEFAULT '',
+  notes text NOT NULL DEFAULT '',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (tenant_id, application_id)
+);
+CREATE INDEX IF NOT EXISTS offers_tenant_updated_idx ON offers(tenant_id, updated_at DESC, id);
+
+INSERT INTO application_status_events(
+  id, tenant_id, application_id, from_status, to_status, source, occurred_at
+)
+SELECT 'initial:' || application.id, application.tenant_id, application.id,
+  NULL, application.status, 'migration', application.created_at
+FROM applications AS application
+WHERE NOT EXISTS (
+  SELECT 1 FROM application_status_events AS event
+  WHERE event.application_id = application.id
+);
+
+DO $$
+DECLARE
+  table_name text;
+BEGIN
+  FOREACH table_name IN ARRAY ARRAY[
+    'application_status_events', 'contacts', 'application_contacts',
+    'application_activities', 'interview_rounds', 'answer_blocks',
+    'answer_revisions', 'saved_application_views', 'offers'
+  ]
+  LOOP
+    EXECUTE format('DROP TRIGGER IF EXISTS nimanto_active_tenant_write ON %I', table_name);
+    EXECUTE format(
+      'CREATE TRIGGER nimanto_active_tenant_write BEFORE INSERT OR UPDATE ON %I
+       FOR EACH ROW EXECUTE FUNCTION nimanto_require_active_tenant()',
+      table_name
+    );
+  END LOOP;
+END;
+$$;
 `;
