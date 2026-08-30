@@ -39,6 +39,38 @@ export interface EmployerCandidate {
   aliases: string[];
 }
 
+export const GOVERNMENT_DATASET_SOURCE_TYPES = [
+  "dol_oflc_bulk",
+  "uscis_h1b_employer_data",
+] as const;
+
+export type GovernmentDatasetSourceType = (typeof GOVERNMENT_DATASET_SOURCE_TYPES)[number];
+
+export interface GovernmentDatasetProvenance {
+  version: "government_dataset_provenance_v1";
+  sourceType: GovernmentDatasetSourceType;
+  sourceEdition: string;
+  sourcePageUrl: string;
+  archiveUrl: string;
+  archiveSha256: string;
+  layoutUrl: string;
+  layoutSha256: string;
+  layoutVersion: string;
+  retrievedAt: string;
+  dataAsOf: string;
+  rowSetChecksum: string;
+  transformationVersion: string;
+  reuseNotice: string;
+  reviewer: string;
+  reviewedAt: string;
+}
+
+export function governmentDatasetProvenanceChecksum(
+  provenance: GovernmentDatasetProvenance,
+): string {
+  return canonicalHash(provenance);
+}
+
 /** Build one deterministic candidate per normalized employer name. Reviewed
  * aliases can add exact names, but they never merge distinct canonical
  * employers; a shared alias therefore remains ambiguous in resolveEmployer. */

@@ -61,25 +61,33 @@ evidence fails closed until the old record is explicitly removed; the same alias
 may remain attached to multiple employers so the resolver abstains on ambiguity.
 
 `POST /v1/h1b-signals/government-import` accepts one candidate-workspace edition
-at a time. The authenticated JSON body must contain:
+at a time, but only when `buildServer` receives an exact matching entry in
+`trustedGovernmentDatasetProvenance`. Each server-owned manifest binds
+`sourceType`, `sourceEdition`, HTTPS source-page/archive/layout URLs, SHA-256
+archive/layout hashes, `layoutVersion`, retrieval time, `dataAsOf`, exact row-set
+checksum, transformation version, reuse notice, reviewer, and review time. No
+official edition is configured by default. The authenticated JSON body must
+contain:
 
 - `sourceType`: exactly `dol_oflc_bulk` or `uscis_h1b_employer_data`;
 - `sourceEdition`: the upstream release/period identifier;
-- `rows`: 1–500 objects with `company`, `label`, `sourcePeriod`, and ISO
-  `observedAt`;
+- `rows`: 1–500 objects with `company`, `label`, exact `sourceLocator`,
+  `sourcePeriod`, and ISO `observedAt`;
 - `checksum`: `canonicalHash(rows)` from `@nimanto/domain` over the exact JSON
-  rows; and
+  rows;
+- `provenanceChecksum`: `governmentDatasetProvenanceChecksum(manifest)` for the
+  exact server-trusted manifest; and
 - optional `transformationVersion` (default `government_ingest_v1`).
 
-Validate the upstream download and retain its license/provenance outside
-Nimanto before constructing those bounded rows. The same edition/checksum/
-transformation is idempotent; changing either checksum or transformation for an
-existing edition returns a conflict. Caller-supplied resolution evaluations are
-rejected. Only a server-configured, checksum-verified evaluation bound to the
-exact current employer-registry checksum can enable a measured employer
-resolution. Adding or removing any canonical employer or reviewed alias disables
-that linkage until the evaluation is rerun and reviewed. Historical rows remain
-historical context—not current employer policy or legal advice.
+Validate the upstream download and review its reuse conditions before configuring
+the manifest. Caller-supplied provenance and resolution evaluations are rejected.
+Archive, layout, row-set, transformation, or manifest drift fails before signal
+writes. The same edition/checksum/transformation/provenance tuple is idempotent.
+Only a server-configured, checksum-verified evaluation bound to the exact current
+employer-registry checksum can enable measured employer resolution. Adding or
+removing any canonical employer or reviewed alias disables that linkage until the
+evaluation is rerun and reviewed. Historical rows remain historical context—not
+current employer policy or legal advice.
 Imported signals preserve the exact source-dataset employer as `sourceCompany`
 even when an approved alias maps `company` to a canonical Role employer.
 

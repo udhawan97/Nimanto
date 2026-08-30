@@ -392,7 +392,8 @@ function messageForError(error: Error): { code: string; status: number; message:
     code === "TEXT_LIMIT_EXCEEDED" ||
     code === "PROHIBITED_DOCUMENT_CONTENT" ||
     code === "UNSUPPORTED_FILE_TYPE" ||
-    code === "UNTRUSTED_RESOLUTION_EVALUATION"
+    code === "UNTRUSTED_RESOLUTION_EVALUATION" ||
+    code === "UNTRUSTED_DATASET_PROVENANCE"
   ) {
     return {
       code,
@@ -423,6 +424,10 @@ function messageForError(error: Error): { code: string; status: number; message:
     };
   if (
     code === "DATASET_EDITION_CONFLICT" ||
+    code === "DATASET_PROVENANCE_CHECKSUM_MISMATCH" ||
+    code === "DATASET_PROVENANCE_INTEGRITY_FAILED" ||
+    code === "GOVERNMENT_DATASET_NOT_APPROVED" ||
+    code === "GOVERNMENT_DATASET_PROVENANCE_MISMATCH" ||
     code === "PACKET_APPROVAL_STALE" ||
     code === "PACKET_CHANGED" ||
     code === "PACKET_INPUT_CHANGED" ||
@@ -540,6 +545,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     governmentDataset = new GovernmentDatasetIngestion(
       store,
       options.trustedEmployerResolutionEvaluation,
+      options.trustedGovernmentDatasetProvenance,
     );
   } catch (error) {
     await store.close();
@@ -1408,7 +1414,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     const person = identity(request);
     const workspace = await store.exportTenant(person.tenantId);
     return reply.header("content-disposition", 'attachment; filename="nimanto-export.json"').send({
-      exportVersion: "nimanto-local-beta-v5",
+      exportVersion: "nimanto-local-beta-v6",
       exportedAt: new Date().toISOString(),
       identity: {
         displayName: person.displayName,

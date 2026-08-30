@@ -91,6 +91,14 @@ Nimanto preserves source semantics and uses these non-predictive labels:
 
 Every signal carries the exact source wording or record locator, dataset/edition, filing or decision type, fiscal period, observation date, transformation version, role/location scope, confidence, freshness, limitations, and “not legal advice.” DOL LCAs and USCIS petition statistics remain separate evidence families.
 
+Every government edition is disabled until a server-trusted provenance manifest
+binds its HTTPS source page, exact archive and layout URLs/checksums, layout
+version, retrieval and data-as-of dates, normalized row-set checksum,
+transformation version, reuse review, and reviewer. The manifest has one
+canonical checksum; caller-supplied provenance or any drift fails before signal
+writes. Legacy editions remain visibly unverified rather than receiving
+backfilled claims.
+
 The enum names are internal evidence categories required by this contract, not legal conclusions. User-facing copy always attributes the statement—“this posting states…,” “this employer policy states…,” or “historical filings were observed…”—and shows the quotation/record locator. It never says “you can transfer,” “you are eligible,” or otherwise applies the source to the candidate's legal situation.
 
 Provisional Slice-2 freshness rules require a dedicated incremental specification before implementation: posting-specific wording expires when the posting closes or after 45 days without reconfirmation; employer policy becomes `uncertain` after 90 days; quarterly/annual government evidence remains historical and is labeled by exact period. At the end of the eighth completed quarter after its supporting period, `recent_positive_history` deterministically transitions to `uncertain`; a source-specific rule can be stricter. No stale item retains a `current_*` label. Cap-subject/cap-exempt employer context is displayed as sourced context only. Worksite-change or amendment implications always carry a legal-review flag and are never resolved by Nimanto.

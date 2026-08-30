@@ -105,3 +105,8 @@ If reuse is proposed later, record the exact upstream commit, license and notice
 ## Post-approval Slice-1 gates
 
 After the exact implementation approval—not before—Slice 1 must run the dependency compatibility/security/license lockfile review; generate SBOM/notices; create the specified synthetic/adversarial fixtures; and enforce provider-term or government-layout drift as a kill-switch event. These are implementation gates, not additional authorization phrases.
+
+The local beta now implements that government-layout kill switch as a
+server-trusted, checksum-addressed provenance manifest. This code gate does not
+approve any real DOL or USCIS archive, layout, or reuse review; those exact
+records still require source-specific human verification before configuration.

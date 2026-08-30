@@ -282,6 +282,8 @@ export interface DatasetEditionRecord {
   sourceEdition: string;
   checksum: string;
   transformationVersion: string;
+  provenance: Record<string, unknown> | null;
+  provenanceChecksum: string | null;
   evaluation: Record<string, unknown>;
   evaluationProvenance: Record<string, unknown> | null;
   createdAt: string;
@@ -2666,11 +2668,16 @@ export class NimantoStore {
       sourceEdition: string;
       checksum: string;
       transformationVersion: string;
+      provenance: object;
+      provenanceChecksum: string;
       evaluation: Record<string, unknown>;
       evaluationProvenance: Record<string, unknown> | null;
       signals: Array<Omit<H1bSignalRecord, "id">>;
     },
   ): Promise<{ created: boolean; edition: DatasetEditionRecord; signals: H1bSignalRecord[] }> {
+    if (canonicalHash(input.provenance) !== input.provenanceChecksum) {
+      throw new Error("DATASET_PROVENANCE_CHECKSUM_MISMATCH");
+    }
     return this.transaction(async (database) => {
       await database.lockTenantActive(tenantId);
       const existing = await database.#db.query<any>(
@@ -2681,7 +2688,8 @@ export class NimantoStore {
       if (existing.rows[0]) {
         if (
           existing.rows[0].checksum !== input.checksum ||
-          existing.rows[0].transformation_version !== input.transformationVersion
+          existing.rows[0].transformation_version !== input.transformationVersion ||
+          existing.rows[0].provenance_checksum !== input.provenanceChecksum
         ) {
           throw new Error("DATASET_EDITION_CONFLICT");
         }
@@ -2703,8 +2711,9 @@ export class NimantoStore {
       const editionResult = await database.#db.query<any>(
         `INSERT INTO dataset_editions(
            id, tenant_id, source_type, source_edition, checksum,
-           transformation_version, evaluation, evaluation_provenance
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb)
+           transformation_version, provenance, provenance_checksum,
+           evaluation, evaluation_provenance
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9::jsonb,$10::jsonb)
          RETURNING *`,
         [
           editionId,
@@ -2713,6 +2722,8 @@ export class NimantoStore {
           input.sourceEdition,
           input.checksum,
           input.transformationVersion,
+          JSON.stringify(input.provenance),
+          input.provenanceChecksum,
           JSON.stringify(input.evaluation),
           input.evaluationProvenance ? JSON.stringify(input.evaluationProvenance) : null,
         ],
@@ -2753,12 +2764,22 @@ export class NimantoStore {
   }
 
   #mapDatasetEdition(row: any): DatasetEditionRecord {
+    const provenance = row.provenance ?? null;
+    const provenanceChecksum = row.provenance_checksum ?? null;
+    if (
+      (provenance === null) !== (provenanceChecksum === null) ||
+      (provenance !== null && canonicalHash(provenance) !== provenanceChecksum)
+    ) {
+      throw new Error("DATASET_PROVENANCE_INTEGRITY_FAILED");
+    }
     return {
       id: row.id,
       sourceType: row.source_type,
       sourceEdition: row.source_edition,
       checksum: row.checksum,
       transformationVersion: row.transformation_version,
+      provenance,
+      provenanceChecksum,
       evaluation: row.evaluation,
       evaluationProvenance: row.evaluation_provenance,
       createdAt: iso(row.created_at)!,
@@ -3636,7 +3657,7 @@ export class NimantoStore {
       matchCursor = page.nextCursor;
     }
     return {
-      schemaVersion: "nimanto_export_v5",
+      schemaVersion: "nimanto_export_v6",
       exportedAt: new Date().toISOString(),
       evidence,
       profile,

@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.6",
-  "serialNumber": "urn:uuid:f857914d-bb39-400c-aec4-5caba8f7a645",
+  "serialNumber": "urn:uuid:e6bd4230-d184-49f3-b113-81be82fcf283",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-08-30T02:11:29Z",
+    "timestamp": "2026-08-30T02:57:34Z",
     "tools": {
       "components": [
         {
@@ -20817,7 +20817,7 @@
           },
           {
             "location": "packages/database/src/store.ts",
-            "line": 563
+            "line": 565
           }
         ]
       },
@@ -73748,7 +73748,7 @@
           },
           {
             "location": "apps/api/dist/server.js",
-            "line": 463
+            "line": 468
           },
           {
             "location": "apps/api/src/server.ts",
@@ -73756,7 +73756,7 @@
           },
           {
             "location": "apps/api/src/server.ts",
-            "line": 554
+            "line": 560
           }
         ]
       },
@@ -125907,7 +125907,7 @@
           ]
         }
       },
-      "timestamp": "2026-08-30T02:11:29Z",
+      "timestamp": "2026-08-30T02:57:35Z",
       "text": "This Software Bill-of-Materials (SBOM) document was created on Sunday, August 30, 2026 with cdxgen. The data was captured during the pre-build lifecycle phase without building the application. The document describes an application named 'nimanto' with version '0.8.0'. The application also has 8 child modules/components. Trusted publishing metadata is present for 287 npm component(s) and 0 PyPI component(s). The package type in this SBOM is npm with 34 purl namespaces described under components. The components were identified from the source files: pnpm-lock.yaml."
     }
   ]

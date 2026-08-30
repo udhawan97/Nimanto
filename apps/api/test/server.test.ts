@@ -3,7 +3,11 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
-import { canonicalHash } from "@nimanto/domain";
+import {
+  canonicalHash,
+  governmentDatasetProvenanceChecksum,
+  type GovernmentDatasetProvenance,
+} from "@nimanto/domain";
 import type { ProviderJobVerificationResult } from "@nimanto/providers";
 import { buildServer } from "../src/server.js";
 import { NIMANTO_VERSION } from "../src/version.js";
@@ -24,6 +28,7 @@ async function setup(options?: {
   assuranceModel?: string;
   urlAllowlist?: string[];
   urlTermsReviewedAt?: string;
+  trustedGovernmentDatasetProvenance?: GovernmentDatasetProvenance[];
   allowlistedJobPageFetcher?: (input: {
     url: string;
     allowedHosts: string[];
@@ -81,6 +86,9 @@ async function setup(options?: {
     ...(options?.removePath ? { removePath: options.removePath } : {}),
     ...(options?.assuranceModel ? { assuranceModel: options.assuranceModel } : {}),
     ...(options?.urlTermsReviewedAt ? { urlTermsReviewedAt: options.urlTermsReviewedAt } : {}),
+    ...(options?.trustedGovernmentDatasetProvenance
+      ? { trustedGovernmentDatasetProvenance: options.trustedGovernmentDatasetProvenance }
+      : {}),
     ...(options?.allowlistedJobPageFetcher
       ? { allowlistedJobPageFetcher: options.allowlistedJobPageFetcher }
       : {}),
@@ -1205,8 +1213,65 @@ describe("Nimanto beta API", () => {
     });
   });
 
-  it("runs evidence through match, packet assurance, approval, and the test outbox", async () => {
+  it("keeps government imports disabled without an exact trusted provenance manifest", async () => {
     const { app, cookie } = await setup();
+    const rows = [
+      {
+        company: "Northwind Systems",
+        label: "recent_positive_history",
+        sourceLocator: "unapproved-fixture:row:1",
+        sourcePeriod: "FY2026 Q2",
+        observedAt: "2026-07-15T00:00:00.000Z",
+      },
+    ];
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/h1b-signals/government-import",
+      headers: { cookie },
+      payload: {
+        sourceType: "dol_oflc_bulk",
+        sourceEdition: "unapproved-fixture",
+        checksum: canonicalHash(rows),
+        provenanceChecksum: "a".repeat(64),
+        rows,
+      },
+    });
+    expect(response.statusCode).toBe(409);
+    expect(response.json().error.code).toBe("GOVERNMENT_DATASET_NOT_APPROVED");
+  });
+
+  it("runs evidence through match, packet assurance, approval, and the test outbox", async () => {
+    const governmentRows = [
+      {
+        company: "Northwind Global",
+        label: "recent_positive_history",
+        sourceLocator: "synthetic-fixture-fy2026q2:H-1B:row:17",
+        sourcePeriod: "FY2026 Q2",
+        observedAt: "2026-07-15T00:00:00.000Z",
+      },
+    ];
+    const governmentProvenance: GovernmentDatasetProvenance = {
+      version: "government_dataset_provenance_v1",
+      sourceType: "dol_oflc_bulk",
+      sourceEdition: "synthetic-fixture-fy2026q2",
+      sourcePageUrl: "https://dol.example.test/performance",
+      archiveUrl: "https://dol.example.test/archive/synthetic-fixture-fy2026q2.zip",
+      archiveSha256: "a".repeat(64),
+      layoutUrl: "https://dol.example.test/layout/synthetic-fixture-fy2026q2.xlsx",
+      layoutSha256: "b".repeat(64),
+      layoutVersion: "synthetic-fixture-layout-v1",
+      retrievedAt: "2026-08-28T00:00:00.000Z",
+      dataAsOf: "2026-06-30",
+      rowSetChecksum: canonicalHash(governmentRows),
+      transformationVersion: "government_ingest_v1",
+      reuseNotice: "Synthetic fixture only; no production source approval is claimed.",
+      reviewer: "Synthetic source provenance reviewer",
+      reviewedAt: "2026-08-28T00:00:00.000Z",
+    };
+    const provenanceChecksum = governmentDatasetProvenanceChecksum(governmentProvenance);
+    const { app, cookie } = await setup({
+      trustedGovernmentDatasetProvenance: [governmentProvenance],
+    });
     const dashboard = await app.inject({
       method: "GET",
       url: "/v1/dashboard",
@@ -1259,14 +1324,6 @@ describe("Nimanto beta API", () => {
     expect(redundantAlias.statusCode).toBe(400);
     expect(redundantAlias.json().error.code).toBe("EMPLOYER_ALIAS_REDUNDANT");
 
-    const governmentRows = [
-      {
-        company: "Northwind Global",
-        label: "recent_positive_history",
-        sourcePeriod: "FY2026 Q2",
-        observedAt: "2026-07-15T00:00:00.000Z",
-      },
-    ];
     const untrustedEvaluation = await app.inject({
       method: "POST",
       url: "/v1/h1b-signals/government-import",
@@ -1275,6 +1332,7 @@ describe("Nimanto beta API", () => {
         sourceType: "dol_oflc_bulk",
         sourceEdition: "synthetic-fixture-fy2026q2",
         checksum: canonicalHash(governmentRows),
+        provenanceChecksum,
         rows: governmentRows,
         resolutionEvaluation: Array.from({ length: 100 }, () => ({
           sourceName: "Northwind Systems, Inc.",
@@ -1293,6 +1351,7 @@ describe("Nimanto beta API", () => {
         sourceType: "dol_oflc_bulk",
         sourceEdition: "synthetic-fixture-fy2026q2",
         checksum: canonicalHash(governmentRows),
+        provenanceChecksum,
         rows: governmentRows,
       },
     });
@@ -1301,9 +1360,17 @@ describe("Nimanto beta API", () => {
       imported: 1,
       created: true,
       transformationVersion: "government_ingest_v1",
+      provenanceChecksum,
+      provenance: { layoutVersion: "synthetic-fixture-layout-v1" },
       resolutionEvaluation: { enabled: false, precision: 0, sampleSize: 0 },
       resolutionEvaluationProvenance: null,
-      signals: [{ label: "possible", confidence: "low" }],
+      signals: [
+        {
+          label: "possible",
+          confidence: "low",
+          sourceLocator: "synthetic-fixture-fy2026q2:H-1B:row:17",
+        },
+      ],
       employerRegistryChecksum: expect.stringMatching(/^[a-f0-9]{64}$/u),
     });
     const idempotentImport = await app.inject({
@@ -1314,6 +1381,7 @@ describe("Nimanto beta API", () => {
         sourceType: "dol_oflc_bulk",
         sourceEdition: "synthetic-fixture-fy2026q2",
         checksum: canonicalHash(governmentRows),
+        provenanceChecksum,
         rows: governmentRows,
       },
     });
@@ -1328,11 +1396,12 @@ describe("Nimanto beta API", () => {
         sourceEdition: "synthetic-fixture-fy2026q2",
         checksum: canonicalHash(governmentRows),
         transformationVersion: "government_ingest_v2",
+        provenanceChecksum,
         rows: governmentRows,
       },
     });
     expect(transformationConflict.statusCode).toBe(409);
-    expect(transformationConflict.json().error.code).toBe("DATASET_EDITION_CONFLICT");
+    expect(transformationConflict.json().error.code).toBe("GOVERNMENT_DATASET_PROVENANCE_MISMATCH");
     const conflictingRows = [{ ...governmentRows[0], sourcePeriod: "FY2026 Q3" }];
     const conflictingImport = await app.inject({
       method: "POST",
@@ -1342,11 +1411,12 @@ describe("Nimanto beta API", () => {
         sourceType: "dol_oflc_bulk",
         sourceEdition: "synthetic-fixture-fy2026q2",
         checksum: canonicalHash(conflictingRows),
+        provenanceChecksum,
         rows: conflictingRows,
       },
     });
     expect(conflictingImport.statusCode).toBe(409);
-    expect(conflictingImport.json().error.code).toBe("DATASET_EDITION_CONFLICT");
+    expect(conflictingImport.json().error.code).toBe("GOVERNMENT_DATASET_PROVENANCE_MISMATCH");
 
     const evidencePayload = {
       filename: "resume.txt",
@@ -1600,10 +1670,10 @@ describe("Nimanto beta API", () => {
     });
     expect(exported.statusCode).toBe(200);
     expect(exported.json()).toMatchObject({
-      exportVersion: "nimanto-local-beta-v5",
+      exportVersion: "nimanto-local-beta-v6",
       identity: { displayName: "Priya Shah", email: "priya@example.test" },
       workspace: {
-        schemaVersion: "nimanto_export_v5",
+        schemaVersion: "nimanto_export_v6",
         profileVersions: expect.any(Array),
         matchRuns: expect.any(Array),
         assuranceRuns: expect.any(Array),

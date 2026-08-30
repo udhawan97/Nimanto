@@ -4,6 +4,7 @@ import {
   employerRegistryChecksum,
   evaluateEmployerResolution,
   freshH1bLabel,
+  governmentDatasetProvenanceChecksum,
   normalizeEmployerName,
   resolveEmployer,
 } from "../src/index.js";
@@ -60,6 +61,35 @@ describe("transfer-intelligence foundations", () => {
         ),
       ),
     ).toBe(employerRegistryChecksum(candidates));
+  });
+
+  it("binds every reviewed government provenance field into one checksum", () => {
+    const provenance = {
+      version: "government_dataset_provenance_v1" as const,
+      sourceType: "dol_oflc_bulk" as const,
+      sourceEdition: "synthetic-fy2026q2",
+      sourcePageUrl: "https://dol.example.test/performance",
+      archiveUrl: "https://dol.example.test/archive.zip",
+      archiveSha256: "a".repeat(64),
+      layoutUrl: "https://dol.example.test/layout.xlsx",
+      layoutSha256: "b".repeat(64),
+      layoutVersion: "synthetic-layout-v1",
+      retrievedAt: "2026-08-28T00:00:00.000Z",
+      dataAsOf: "2026-06-30",
+      rowSetChecksum: "c".repeat(64),
+      transformationVersion: "government_ingest_v1",
+      reuseNotice: "Synthetic fixture only.",
+      reviewer: "Synthetic provenance reviewer",
+      reviewedAt: "2026-08-28T00:00:00.000Z",
+    };
+    const checksum = governmentDatasetProvenanceChecksum(provenance);
+    expect(checksum).toMatch(/^[a-f0-9]{64}$/u);
+    expect(
+      governmentDatasetProvenanceChecksum({
+        ...provenance,
+        layoutSha256: "d".repeat(64),
+      }),
+    ).not.toBe(checksum);
   });
 
   it("deterministically downgrades stale positive evidence to uncertain", () => {
