@@ -8,8 +8,8 @@
 
 <p align="center">
   A private, local-first job-search workbench for H-1B professionals.<br>
-  Build one confirmed career record, see exactly why a role fits, work the<br>
-  application record, and approve every handoff yourself.
+  Build one confirmed career record, discover source-preserving roles from your<br>
+  own profile, see exactly why each one is shown, and approve every handoff.
 </p>
 
 <p align="center">
@@ -31,7 +31,7 @@
   ·
   <a href="#what-it-actually-does"><strong>What it does</strong></a>
   ·
-  <a href="docs/releases/v0.8.0.md"><strong>v0.8.0 notes</strong></a>
+  <a href="docs/releases/v0.9.0.md"><strong>v0.9.0 notes</strong></a>
   ·
   <a href="docs/planning/product-contract.md"><strong>Product contract</strong></a>
 </p>
@@ -50,28 +50,32 @@ half-finished forms. Nimanto gives that work one inspectable path:
 1. **Import** career evidence. Every extracted claim starts **pending**.
 2. **Confirm** the claims you can actually support, and save your exact
    work-authorization wording.
-3. **Add a role** by hand—with an in-tab draft that survives section changes—or
-   refresh an allowlisted Greenhouse, Lever or Ashby board.
-4. **Match** deterministically, and read the requirement-by-requirement result:
+3. **Approve discovery inputs** for titles, skills, locations, work modes,
+   compensation, freshness, and sources. Résumé evidence is never silently
+   converted into a search preference.
+4. **Discover or add a role** by hand—with an in-tab draft that survives section
+   changes—or refresh an allowlisted Greenhouse, Lever or Ashby board. Every
+   recommendation can replay the exact matched, excluded, and unresolved inputs.
+5. **Match** deterministically, and read the requirement-by-requirement result:
    what is supported, what is missing, what blocks you, and how two current
    roles differ on the same literal fields.
-5. **Track** the application from a searchable board or table, set a literal
+6. **Track** the application from a searchable board or table, set a literal
    follow-up date, search private notes and recorded outcomes, sort the working
    view, export a focused local CSV or calendar file, and keep private notes
    separate from candidate-reported outcomes.
-6. **Draft and generate**: optionally copy an unverified local Ollama draft from
+7. **Draft and generate**: optionally copy an unverified local Ollama draft from
    only the confirmed evidence you select, then generate JSON, plain text, and
    paired modern and ATS-safe DOCX/PDF from confirmed evidence only.
-7. **Inspect** retained profile, match, packet, and assurance records when you
+8. **Inspect** retained profile, match, packet, and assurance records when you
    need them; compare literal stored values without inventing causality.
-8. **Approve** — assurance, then the packet, then the exact action, then a runtime
+9. **Approve** — assurance, then the packet, then the exact action, then a runtime
    switch that resets itself off.
 
 Nimanto is a **candidate tool**. It does not screen you for employers, estimate
 your hiring odds, give legal advice, or promise that a company sponsors transfers
 today.
 
-## On `main` after v0.8.0 — unreleased
+## New in v0.9.0
 
 - **One candidate-approved discovery contract.** Choose role families, titles,
   literal seniority/industry/skill terms, physical and remote-eligible areas,
@@ -114,9 +118,14 @@ today.
   their source snapshots. Shared aliases remain ambiguous, and a measured
   resolver can activate only when its review binds the exact registry checksum.
 
-These changes are merged-source documentation, not a published release claim.
+- **Role discovery has one coherent projection.** A dedicated pure module owns
+  the snapshot joins, profile replay, recommendation membership, filters,
+  explanation-preserving grouping, representative ordering, comparisons, suggestions,
+  and counts. The workbench receives render-ready groups while retaining focus,
+  browser state, and candidate actions; no API, persistence, provider, ranking,
+  or external-action authority was added.
 
-## New in v0.8.0
+## Previously in v0.8.0
 
 - **Find the evidence you mean.** Evidence vault search covers literal claim,
   source-name, and locator text, and combines with type, decision, and source
@@ -319,7 +328,7 @@ something that opens because you opened it.
 
 ## Run it
 
-Nimanto v0.8.0 is source-distributed. It does **not** ship a signed installer or
+Nimanto v0.9.0 is source-distributed. It does **not** ship a signed installer or
 desktop binary.
 
 | Runtime path       | Best for                          | Start here                                                      |
@@ -329,7 +338,7 @@ desktop binary.
 | Docker on loopback | Invite-only local/self-hosted QA  | `docker compose up --build`; keep ports bound to `127.0.0.1`    |
 
 Acquire the exact source from the pinned
-[v0.8.0 release](https://github.com/udhawan97/Nimanto/releases/tag/v0.8.0); GitHub
+[v0.9.0 release](https://github.com/udhawan97/Nimanto/releases/tag/v0.9.0); GitHub
 generates its ZIP and tar archive from that tag.
 
 ### One double-click on macOS
@@ -344,7 +353,7 @@ Requirements: Node.js 24–26, pnpm 11, and macOS, Linux or Windows.
 ```bash
 git clone https://github.com/udhawan97/Nimanto.git
 cd Nimanto
-git checkout v0.8.0
+git checkout v0.9.0
 corepack enable
 pnpm install --frozen-lockfile
 pnpm dev
@@ -365,11 +374,11 @@ issue a hashed, expiring, single-use invitation.
 ### Verify a source release
 
 Every release publishes the two dependency inventories beside one checksum
-manifest. After downloading the three `v0.8.0` assets into an empty directory,
+manifest. After downloading the three `v0.9.0` assets into an empty directory,
 verify both inventories before inspecting or building the source archive:
 
 ```bash
-shasum -a 256 --check nimanto-v0.8.0-SHA256SUMS.txt
+shasum -a 256 --check nimanto-v0.9.0-SHA256SUMS.txt
 ```
 
 The manifest covers the CycloneDX and SPDX files. GitHub generates the source
@@ -652,7 +661,7 @@ journeys, and one capability-gated intake journey.
 
 ## Beta boundaries
 
-Version `0.8.0` is a **local beta**:
+Version `0.9.0` is a **local beta**:
 
 - The local candidate workflow is implemented and tested.
 - Public website hosting carries product information and the static workbench
@@ -710,5 +719,5 @@ of scope.
 Apache License 2.0. See [LICENSE](LICENSE), [NOTICE](NOTICE),
 [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md),
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), and the release
-[CycloneDX](docs/releases/nimanto-v0.8.0.cdx.json) /
-[SPDX](docs/releases/nimanto-v0.8.0.spdx.json) inventories.
+[CycloneDX](docs/releases/nimanto-v0.9.0.cdx.json) /
+[SPDX](docs/releases/nimanto-v0.9.0.spdx.json) inventories.

@@ -6,10 +6,10 @@ We are especially grateful to the communities behind Node.js, TypeScript, Next.j
 
 The interface follows Colour & Material 002, a palette and emblem sampled from the project's own fold-lotus mark. The mark, the palette and the type system are original project work, not copied third-party assets.
 
-The exact machine-readable dependency inventories for v0.8.0 are published as:
+The exact machine-readable dependency inventories for v0.9.0 are published as:
 
-- [`docs/releases/nimanto-v0.8.0.cdx.json`](docs/releases/nimanto-v0.8.0.cdx.json) — CycloneDX 1.6 JSON;
-- [`docs/releases/nimanto-v0.8.0.spdx.json`](docs/releases/nimanto-v0.8.0.spdx.json) — SPDX JSON.
-- [`docs/releases/nimanto-v0.8.0-SHA256SUMS.txt`](docs/releases/nimanto-v0.8.0-SHA256SUMS.txt) — release-asset SHA-256 checksums.
+- [`docs/releases/nimanto-v0.9.0.cdx.json`](docs/releases/nimanto-v0.9.0.cdx.json) — CycloneDX 1.6 JSON;
+- [`docs/releases/nimanto-v0.9.0.spdx.json`](docs/releases/nimanto-v0.9.0.spdx.json) — SPDX JSON.
+- [`docs/releases/nimanto-v0.9.0-SHA256SUMS.txt`](docs/releases/nimanto-v0.9.0-SHA256SUMS.txt) — release-asset SHA-256 checksums.
 
 See [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) for license boundaries and [`docs/planning/sources-and-licenses.md`](docs/planning/sources-and-licenses.md) for the reviewed source and data-rights ledger.

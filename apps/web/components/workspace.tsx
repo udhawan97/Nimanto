@@ -66,19 +66,15 @@ import {
   BOARD_COLUMNS,
   APPLICATION_MATCH_BUCKETS,
   applicationCohortCounts,
-  assessDiscoveryProfile,
   boardColumns,
   canMove,
   countedNoun,
   confirmationPrompt,
-  discoveryProfileSuggestions,
   failureMessage,
   filterEvidence,
   filterApplications,
-  filterRoles,
   followUpNote,
   funnelStages,
-  groupRolesByDiscoveryAssessment,
   legalTargets,
   needsConfirmation,
   nextSteps,
@@ -92,9 +88,14 @@ import {
   sortApplications,
   type EvidenceFilters,
   type ApplicationStatus,
-  type DiscoveryProfileReason,
   type Section,
 } from "../lib/derive.js";
+import {
+  emptyRoleDiscoveryFilters,
+  projectRoleDiscovery,
+  type DiscoveryProfileReason,
+  type RoleDiscoveryFilters,
+} from "../lib/role-discovery.js";
 import {
   workspaceIdentityTransitions,
   type DeletionReceipt,
@@ -334,18 +335,6 @@ type EvidenceDraft = {
   value: string;
   authorization: string;
 };
-type RoleFilters = {
-  query: string;
-  source: string;
-  fit: string;
-  tracking: "all" | "tracked" | "untracked";
-  visibility: "active" | "archived" | "all";
-  workMode: string;
-  roleFamily: string;
-  publication: "current" | "possibly_closed" | "closed" | "all";
-  verification: "all" | "verified" | "needs_review";
-  discovery: "recommended" | "excluded" | "all";
-};
 type StructuredArea = {
   displayLabel: string;
   countryCode: string | null;
@@ -401,31 +390,6 @@ const sameActionDraft = (left: ActionDraft, right: ActionDraft) =>
   left.to === right.to &&
   left.subject === right.subject &&
   left.body === right.body;
-const emptyRoleFilters = (): RoleFilters => ({
-  query: "",
-  source: "all",
-  fit: "all",
-  tracking: "all",
-  visibility: "active",
-  workMode: "all",
-  roleFamily: "all",
-  publication: "current",
-  verification: "all",
-  discovery: "recommended",
-});
-const roleFiltersAreActive = (filters: RoleFilters) =>
-  Boolean(
-    filters.query ||
-    filters.source !== "all" ||
-    filters.fit !== "all" ||
-    filters.tracking !== "all" ||
-    filters.visibility !== "active" ||
-    filters.workMode !== "all" ||
-    filters.roleFamily !== "all" ||
-    filters.publication !== "current" ||
-    filters.verification !== "all" ||
-    filters.discovery !== "recommended",
-  );
 const emptyEvidenceFilters = (): EvidenceFilters => ({
   query: "",
   kind: "all",
@@ -991,7 +955,7 @@ export function Workspace() {
    * nothing is written to browser storage. */
   const [evidenceDraft, setEvidenceDraft] = useState<EvidenceDraft | null>(null);
   const [evidenceFilters, setEvidenceFilters] = useState<EvidenceFilters>(emptyEvidenceFilters);
-  const [roleFilters, setRoleFilters] = useState<RoleFilters>(emptyRoleFilters);
+  const [roleFilters, setRoleFilters] = useState<RoleDiscoveryFilters>(emptyRoleDiscoveryFilters);
   const [comparisonRoleIds, setComparisonRoleIds] = useState<string[]>([]);
   const [actionDraft, setActionDraft] = useState<ActionDraft | null>(null);
   const [applicationsWorkbenchState, dispatchApplicationsWorkbench] = useReducer(
@@ -1123,7 +1087,7 @@ export function Workspace() {
       setEvidenceContext(null);
       setEvidenceDraft(null);
       setEvidenceFilters(emptyEvidenceFilters());
-      setRoleFilters(emptyRoleFilters());
+      setRoleFilters(emptyRoleDiscoveryFilters());
       setComparisonRoleIds([]);
       setActionDraft(null);
       dispatchApplicationsWorkbench({ type: "reset" });
@@ -2398,7 +2362,7 @@ function RoleComparison({
   onRemove,
   onClear,
 }: {
-  roles: ComparableRole[];
+  roles: readonly ComparableRole[];
   onRemove: (id: string) => void;
   onClear: () => void;
 }) {
@@ -3118,8 +3082,8 @@ function Jobs({
   onDraftChange: (draft: ManualRoleDraft) => void;
   onDraftClose: () => void;
   onDraftCommitted: (submitted: ManualRoleDraft) => void;
-  filters: RoleFilters;
-  onFiltersChange: (filters: RoleFilters) => void;
+  filters: RoleDiscoveryFilters;
+  onFiltersChange: (filters: RoleDiscoveryFilters) => void;
   comparisonRoleIds: string[];
   onComparisonRoleIdsChange: (ids: string[]) => void;
   reviewedUrlEnabled: boolean;
@@ -3135,7 +3099,6 @@ function Jobs({
   const [sourceOpen, setSourceOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [discoveryOpen, setDiscoveryOpen] = useState(false);
-  const [roleFiltersOpen, setRoleFiltersOpen] = useState(() => roleFiltersAreActive(filters));
   const [discoveryDraft, setDiscoveryDraft] = useState<DiscoveryDraft>(() => ({
     roleFamilies: dashboard.discoveryProfile?.input.roleFamilies ?? ["ai_ml", "software_technical"],
     includeTitles: dashboard.discoveryProfile?.input.includeTitles.join("\n") ?? "",
@@ -3178,97 +3141,42 @@ function Jobs({
   const compensationMaximumField = useRef<HTMLInputElement>(null);
   const roleFilterSummary = useRef<HTMLElement>(null);
   const deferredQuery = useDeferredValue(filters.query);
-  const latest = useMemo(
-    () => new Map(dashboard.matches.map((match) => [match.jobId, match])),
-    [dashboard.matches],
+  const discoveryEvaluatedAt = useMemo(
+    () => new Date(),
+    [dashboard.applications, dashboard.discoveryProfile, dashboard.jobs, dashboard.matches],
   );
-  const roleInputs = useMemo(
+  const roleDiscovery = useMemo(
     () =>
-      dashboard.jobs.map((job) => ({
-        ...job,
-        match: latest.get(job.id) ?? null,
-        tracked: dashboard.applications.some((application) => application.jobId === job.id),
-      })),
-    [dashboard.applications, dashboard.jobs, latest],
-  );
-  const sourceOptions = useMemo(
-    () => [...new Set(dashboard.jobs.map((job) => job.source))].toSorted(),
-    [dashboard.jobs],
-  );
-  const discoveryEvaluation = useMemo(() => {
-    const assessments = new Map<string, ReturnType<typeof assessDiscoveryProfile>>();
-    const evaluatedAt = new Date();
-    for (const role of roleInputs) {
-      const assessment = assessDiscoveryProfile(
-        role,
-        dashboard.discoveryProfile?.input ?? null,
-        evaluatedAt,
-      );
-      assessments.set(role.id, assessment);
-    }
-    return assessments;
-  }, [dashboard.discoveryProfile, roleInputs]);
-  const discoveredRoleInputs = useMemo(
-    () =>
-      roleInputs.filter((role) => {
-        const included = discoveryEvaluation.get(role.id)?.included ?? true;
-        if (filters.discovery === "all") return true;
-        return filters.discovery === "recommended" ? included : !included;
-      }),
-    [discoveryEvaluation, filters.discovery, roleInputs],
-  );
-  const suggestedQueries = useMemo(
-    () => discoveryProfileSuggestions(dashboard.discoveryProfile?.input ?? null),
-    [dashboard.discoveryProfile],
-  );
-  const visibleRoles = useMemo(
-    () =>
-      filterRoles(discoveredRoleInputs, {
-        query: deferredQuery,
-        source: filters.source,
-        fit: filters.fit,
-        tracking: filters.tracking,
-        visibility: filters.visibility,
-        workMode: filters.workMode,
-        roleFamily: filters.roleFamily,
-        publication: filters.publication,
-        verification: filters.verification,
+      projectRoleDiscovery({
+        roles: dashboard.jobs,
+        matches: dashboard.matches,
+        applications: dashboard.applications,
+        profile: dashboard.discoveryProfile?.input ?? null,
+        filters,
+        effectiveQuery: deferredQuery,
+        comparisonRoleIds,
+        evaluatedAt: discoveryEvaluatedAt,
       }),
     [
+      comparisonRoleIds,
+      dashboard.applications,
+      dashboard.discoveryProfile,
+      dashboard.jobs,
+      dashboard.matches,
       deferredQuery,
-      filters.fit,
-      filters.publication,
-      filters.roleFamily,
-      filters.source,
-      filters.tracking,
-      filters.verification,
-      filters.visibility,
-      filters.workMode,
-      discoveredRoleInputs,
+      discoveryEvaluatedAt,
+      filters,
     ],
   );
-  const displayedRoleGroups = useMemo(
-    () =>
-      groupRolesByDiscoveryAssessment(visibleRoles, discoveryEvaluation).map((members) =>
-        members.toSorted((left, right) => {
-          const leftVerified = left.availability.verificationHealth === "verified" ? 1 : 0;
-          const rightVerified = right.availability.verificationHealth === "verified" ? 1 : 0;
-          return (
-            rightVerified - leftVerified ||
-            right.availability.lastSeenAt.localeCompare(left.availability.lastSeenAt)
-          );
-        }),
-      ),
-    [discoveryEvaluation, visibleRoles],
-  );
-  const comparisonRoles = useMemo(
-    () =>
-      comparisonRoleIds.flatMap((id) => {
-        const role = roleInputs.find((candidate) => candidate.id === id);
-        return role ? [role] : [];
-      }),
-    [comparisonRoleIds, roleInputs],
-  );
+  const {
+    groups: displayedRoleGroups,
+    comparisonRoles,
+    suggestedQueries,
+    sourceOptions,
+    counts: roleDiscoveryCounts,
+    filtersActive,
+  } = roleDiscovery;
+  const [roleFiltersOpen, setRoleFiltersOpen] = useState(() => filtersActive);
   const toggleComparisonRole = (id: string) => {
     if (comparisonRoleIds.includes(id)) {
       onComparisonRoleIdsChange(comparisonRoleIds.filter((selected) => selected !== id));
@@ -3276,7 +3184,6 @@ function Jobs({
     }
     if (comparisonRoleIds.length < 2) onComparisonRoleIdsChange([...comparisonRoleIds, id]);
   };
-  const filtersActive = roleFiltersAreActive(filters);
   const numberOrNull = (value: string) => {
     const text = value.trim();
     return text ? Number(text) : null;
@@ -3554,11 +3461,12 @@ function Jobs({
           <h2 id="current-roles-title">Current roles</h2>
         </div>
         <p aria-live="polite">
-          <strong>{visibleRoles.length}</strong>
+          <strong>{roleDiscoveryCounts.visibleRoles}</strong>
           <span>
-            of {dashboard.jobs.length} role{dashboard.jobs.length === 1 ? "" : "s"} ·{" "}
-            {displayedRoleGroups.length} explanation group
-            {displayedRoleGroups.length === 1 ? "" : "s"}
+            of {roleDiscoveryCounts.totalRoles} role
+            {roleDiscoveryCounts.totalRoles === 1 ? "" : "s"} ·{" "}
+            {roleDiscoveryCounts.explanationGroups} explanation group
+            {roleDiscoveryCounts.explanationGroups === 1 ? "" : "s"}
           </span>
         </p>
       </section>
@@ -4469,8 +4377,8 @@ function Jobs({
             <SlidersHorizontal size={16} aria-hidden="true" /> Filter roles
           </span>
           <small>
-            {visibleRoles.length} of {dashboard.jobs.length} current role
-            {dashboard.jobs.length === 1 ? "" : "s"} shown
+            {roleDiscoveryCounts.visibleRoles} of {roleDiscoveryCounts.totalRoles} current role
+            {roleDiscoveryCounts.totalRoles === 1 ? "" : "s"} shown
           </small>
         </summary>
         <section className="role-filter" aria-labelledby="role-filter-title">
@@ -4496,7 +4404,7 @@ function Jobs({
               onChange={(event) =>
                 onFiltersChange({
                   ...filters,
-                  discovery: event.target.value as RoleFilters["discovery"],
+                  discovery: event.target.value as RoleDiscoveryFilters["discovery"],
                 })
               }
             >
@@ -4558,7 +4466,7 @@ function Jobs({
               onChange={(event) =>
                 onFiltersChange({
                   ...filters,
-                  publication: event.target.value as RoleFilters["publication"],
+                  publication: event.target.value as RoleDiscoveryFilters["publication"],
                 })
               }
             >
@@ -4575,7 +4483,7 @@ function Jobs({
               onChange={(event) =>
                 onFiltersChange({
                   ...filters,
-                  verification: event.target.value as RoleFilters["verification"],
+                  verification: event.target.value as RoleDiscoveryFilters["verification"],
                 })
               }
             >
@@ -4606,7 +4514,7 @@ function Jobs({
               onChange={(event) =>
                 onFiltersChange({
                   ...filters,
-                  tracking: event.target.value as RoleFilters["tracking"],
+                  tracking: event.target.value as RoleDiscoveryFilters["tracking"],
                 })
               }
             >
@@ -4622,7 +4530,7 @@ function Jobs({
               onChange={(event) =>
                 onFiltersChange({
                   ...filters,
-                  visibility: event.target.value as RoleFilters["visibility"],
+                  visibility: event.target.value as RoleDiscoveryFilters["visibility"],
                 })
               }
             >
@@ -4633,11 +4541,11 @@ function Jobs({
           </label>
           <div className="role-filter-result" aria-live="polite">
             <strong>
-              {visibleRoles.length} of {dashboard.jobs.length}
+              {roleDiscoveryCounts.visibleRoles} of {roleDiscoveryCounts.totalRoles}
             </strong>
             <span>
-              {displayedRoleGroups.length} explanation group
-              {displayedRoleGroups.length === 1 ? "" : "s"} shown
+              {roleDiscoveryCounts.explanationGroups} explanation group
+              {roleDiscoveryCounts.explanationGroups === 1 ? "" : "s"} shown
             </span>
             {filtersActive && (
               <button
@@ -4645,7 +4553,7 @@ function Jobs({
                 type="button"
                 onClick={() => {
                   setRoleFiltersOpen(false);
-                  onFiltersChange(emptyRoleFilters());
+                  onFiltersChange(emptyRoleDiscoveryFilters());
                   window.requestAnimationFrame(() => roleFilterSummary.current?.focus());
                 }}
               >
@@ -4663,8 +4571,7 @@ function Jobs({
         />
       )}
       <div className="job-list">
-        {displayedRoleGroups.map((clusterMembers) => {
-          const job = clusterMembers[0]!;
+        {displayedRoleGroups.map(({ members: clusterMembers, representative: job, assessment }) => {
           const match = job.match;
           const companySignals = dashboard.h1bSignals.filter(
             (signal) =>
@@ -4672,7 +4579,6 @@ function Jobs({
           );
           const supportedRequirementCount =
             match?.result.requirements.filter((item) => item.state === "supported").length ?? 0;
-          const discoveryAssessment = discoveryEvaluation.get(job.id);
           const sourcePolicy =
             dashboard.sourceRegistry.find((source) => source.id === job.source) ?? null;
           return (
@@ -4724,10 +4630,10 @@ function Jobs({
                     provenance={job.provenance}
                     sourcePolicy={sourcePolicy}
                   />
-                  {dashboard.discoveryProfile && discoveryAssessment && (
+                  {dashboard.discoveryProfile && (
                     <details className="discovery-rationale">
                       <summary>
-                        {discoveryAssessment.included
+                        {assessment.included
                           ? "Why this role is shown"
                           : "Why this role is outside recommendations"}
                       </summary>
@@ -4742,7 +4648,7 @@ function Jobs({
                         <span>. Unresolved facts never become inferred matches.</span>
                       </p>
                       <ul>
-                        {discoveryAssessment.reasons.map((reason, index) => (
+                        {assessment.reasons.map((reason, index) => (
                           <li key={`${reason.code}-${index}`}>
                             <span className={`status-dot ${reason.state}`} aria-hidden="true" />
                             <span>
@@ -5089,7 +4995,7 @@ function Jobs({
           );
         })}
       </div>
-      {dashboard.jobs.length > 0 && visibleRoles.length === 0 && (
+      {roleDiscoveryCounts.totalRoles > 0 && roleDiscoveryCounts.visibleRoles === 0 && (
         <Empty
           icon={FolderSearch2}
           title="No roles match this view"

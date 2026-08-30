@@ -130,11 +130,18 @@ sorting reads explicit stored fields and reconstructs no employer event.
 
 Evidence filters and the two-Role comparison selection live at the same
 workspace identity boundary. Pure derivation filters only visible claim and
-provenance fields. The comparison reads current normalized Role records and the
-latest Match Publication already present in the dashboard; it neither persists
-a preference nor creates a ranking. The focused Application CSV builder is also
-pure: it exports the selected working view with spreadsheet-formula protection,
-counts private notes and outcomes, and excludes their bodies. It adds no API,
+provenance fields. Role discovery has one deeper pure projection over a frozen
+dashboard snapshot and injected evaluation time: it owns Match Publication and
+Application joins, approved-profile assessment, recommendation membership,
+tab-local filters, assessment-preserving source grouping, representative
+ordering, comparison selection, suggestions, and coherent counts. It returns
+render-ready groups with their exact assessment; the Workspace remains the
+adapter for rendering, focus, browser state, and candidate actions. The
+comparison reads current normalized Role records and the latest Match
+Publication already present in the dashboard; it neither persists a preference
+nor creates a ranking. The focused Application CSV builder is also pure: it
+exports the selected working view with spreadsheet-formula protection, counts
+private notes and outcomes, and excludes their bodies. These seams add no API,
 schema, background job, provider, or restore surface.
 
 Manual, allowlisted URL, Greenhouse, Lever, Ashby, and the gated
@@ -328,7 +335,7 @@ email, or submit.
 
 The database state machine and domain state machine must agree. Action approval binds the immutable target/payload intent hash and the exact approved packet hash. Schema version 4 assigns a monotonic internal generation sequence at packet insertion after acquiring the tenant lock; current-packet selection and history use that sequence rather than timestamp/random-ID tie-breaking. Schema version 5 adds the nullable date-only `applications.follow_up_on` candidate record. One pure domain policy owns its strict literal parsing, legal candidate changes, inactive withdrawn behavior, and candidate-local due-day evaluation; it has no worker, provider, notification, or status-transition authority. Schema version 6 transactionally backfills legacy Packet manifest and Action Intent hashes. Migrations run in ascending order and record each version only after its transaction commits; a database from a newer runtime fails closed. Action creation, approval, and execution share the tenant lock used by packet generation; each boundary transactionally requires that the selected approved packet is still the application's current packet. Execution repeats that check after reacquiring the lock immediately before the provider effect. A historical approved packet therefore cannot create, approve, or execute a handoff after a newer packet exists. Execution also revalidates the intent and packet hashes, requires the in-memory runtime switch, and compare-and-swaps `approved` to `executing`. Provider failure becomes `failed`; a provider success followed by uncertain local persistence becomes `ambiguous`, and an interrupted `executing` record is recovered as ambiguous on restart. Neither state is retried automatically. The switch has no environment override and resets to off with every API restart.
 
-Version 0.8.0 has no connected-account provider. Verification uses only a user-opened deep link and the local test outbox. Gmail, Outlook, form submission, and desktop delivery remain behind the separately approved Slice 4 boundary.
+Version 0.9.0 has no connected-account provider. Verification uses only a user-opened deep link and the local test outbox. Gmail, Outlook, form submission, and desktop delivery remain behind the separately approved Slice 4 boundary.
 
 ## Scaling path
 

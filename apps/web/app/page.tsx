@@ -23,8 +23,8 @@ const METHOD = [
   },
   {
     step: "02",
-    title: "Compare",
-    body: "Bring manual, allowlisted URL, Greenhouse, Lever, and Ashby roles into one normalized current-record shape, then publish deterministic matching against one exact profile version and job-content snapshot. Four documented dimensions keep coverage limits and blockers visible.",
+    title: "Discover",
+    body: "Approve one discovery profile, then search manual, allowlisted URL, Greenhouse, Lever, and Ashby roles without erasing source identity. Every recommendation replays the exact matched, excluded, and unresolved inputs; two current roles can still share one neutral comparison.",
   },
   {
     step: "03",
@@ -60,6 +60,10 @@ const BOUNDARY = [
     title: "No invented history.",
     body: "Application timelines and retained comparisons contain only stored records. A gap or difference is not a rejection, a cause, or a prediction.",
   },
+  {
+    title: "No sponsorship promise.",
+    body: "Current posting words, employer policy, and historical government records stay separate. Historical evidence never proves that a role sponsors today.",
+  },
 ];
 
 export default function Home() {
@@ -88,12 +92,12 @@ export default function Home() {
         {/* 00 — the invitation opens toward the literal product job. */}
         <section className="hero" aria-labelledby="hero-title">
           <div className="hero-copy">
-            <p className="placard">Source-distributed local beta · v0.8.0</p>
+            <p className="placard">Source-distributed local beta · v0.9.0</p>
             <h1 id="hero-title">Nimanto</h1>
             <h2>Build the evidence. Work the application. Keep the truth yours.</h2>
             <p className="hero-line">
-              A local-first workbench for H-1B professionals: compare roles to confirmed career
-              evidence, track candidate-reported outcomes, and approve every handoff yourself.
+              Approve the search, inspect each recommendation, and control every handoff in one
+              local-first workbench for H-1B professionals.
             </p>
             <ul className="hero-boundaries" aria-label="Product boundaries">
               <li>Local-first</li>
@@ -167,7 +171,7 @@ export default function Home() {
                 loading="lazy"
                 alt="Synthetic Nimanto Applications workbench with the action-first pipeline, candidate follow-up dates, and Record outcome controls"
               />
-              <figcaption>v0.8.0 · local decision tools · synthetic local workspace</figcaption>
+              <figcaption>v0.9.0 · local decision tools · synthetic local workspace</figcaption>
             </figure>
           </div>
         </section>
@@ -323,7 +327,7 @@ export default function Home() {
               <div className="run-block flow">
                 <p className="placard">Terminal start</p>
                 <CopyLine command="git clone https://github.com/udhawan97/Nimanto.git" />
-                <CopyLine command="cd Nimanto && git checkout v0.8.0" />
+                <CopyLine command="cd Nimanto && git checkout v0.9.0" />
                 <CopyLine command="corepack enable && pnpm install --frozen-lockfile && pnpm dev" />
                 <p className="run-note">
                   Open the private workspace URL printed by the API. Its launch key stays in the URL
@@ -332,7 +336,7 @@ export default function Home() {
               </div>
               <aside className="release-proof flow" aria-labelledby="release-proof-title">
                 <ShieldCheck aria-hidden="true" />
-                <p className="placard">Source release · v0.8.0</p>
+                <p className="placard">Source release · v0.9.0</p>
                 <h3 id="release-proof-title">Verify the published inventories.</h3>
                 <p>
                   Nimanto publishes CycloneDX and SPDX inventories with a SHA-256 manifest covering
@@ -341,19 +345,19 @@ export default function Home() {
                 </p>
                 <a
                   className="text-link"
-                  href="https://github.com/udhawan97/Nimanto/releases/tag/v0.8.0"
+                  href="https://github.com/udhawan97/Nimanto/releases/tag/v0.9.0"
                 >
-                  Open the v0.8.0 source release <ArrowRight size={15} />
+                  Open the v0.9.0 source release <ArrowRight size={15} />
                 </a>
                 <a
                   className="text-link"
-                  href="https://github.com/udhawan97/Nimanto/blob/v0.8.0/docs/releases/v0.8.0.md"
+                  href="https://github.com/udhawan97/Nimanto/blob/v0.9.0/docs/releases/v0.9.0.md"
                 >
-                  Read the v0.8.0 notes <ArrowRight size={15} />
+                  Read the v0.9.0 notes <ArrowRight size={15} />
                 </a>
                 <a
                   className="text-link"
-                  href="https://github.com/udhawan97/Nimanto/blob/v0.8.0/README.md#verify-a-source-release"
+                  href="https://github.com/udhawan97/Nimanto/blob/v0.9.0/README.md#verify-a-source-release"
                 >
                   Check hashes and inventories <ArrowRight size={15} />
                 </a>
@@ -414,8 +418,8 @@ export default function Home() {
             <a href="https://github.com/udhawan97/Nimanto/blob/main/docs/operations/local-beta.md">
               Operations
             </a>
-            <a href="https://github.com/udhawan97/Nimanto/blob/v0.8.0/docs/releases/v0.8.0.md">
-              v0.8.0 notes
+            <a href="https://github.com/udhawan97/Nimanto/blob/v0.9.0/docs/releases/v0.9.0.md">
+              v0.9.0 notes
             </a>
             <a href="https://github.com/udhawan97/Nimanto/blob/main/LICENSE">Apache-2.0</a>
           </nav>
