@@ -46,6 +46,91 @@ export const GOVERNMENT_DATASET_SOURCE_TYPES = [
 
 export type GovernmentDatasetSourceType = (typeof GOVERNMENT_DATASET_SOURCE_TYPES)[number];
 
+export const GOVERNMENT_EVIDENCE_LANGUAGE_CONTRACT = Object.freeze({
+  version: "government_evidence_language_v1",
+  sourceRecordNames: Object.freeze({
+    dol_oflc_bulk: "DOL LCA filing",
+    uscis_h1b_employer_data: "USCIS H-1B petition-decision",
+  }),
+  limitationTemplate:
+    "Historical {sourceRecordName} records were observed for source employer {sourceCompany} in {sourcePeriod}. Dataset {sourceType}/{sourceEdition}, data as of {dataAsOf}, layout {layoutVersion}, provenance {provenanceChecksum}, row set {rowSetChecksum}, transformation {transformationVersion}; employer resolution {resolutionState}; registry checksum {registryChecksum}, trusted registry match={registryMatches}; evaluation n={sampleSize}, precision={precision}, recall={recall}, abstention={abstentionRate}, enabled={evaluationEnabled}. This historical evidence does not establish current-role transfer support or personal eligibility; absence is not negative evidence; it does not change fit rank; and it is not legal advice.",
+  panelBoundary:
+    "Historical records never prove current-role support, absence is never negative evidence, and no H-1B evidence changes fit rank. Nimanto organizes sourced context; it does not give legal advice.",
+  prohibitedConclusions: Object.freeze([
+    "current_role_support",
+    "personal_eligibility",
+    "petition_success",
+    "negative_evidence_from_absence",
+    "fit_rank_change",
+  ]),
+});
+
+export interface GovernmentEvidenceLanguageReview {
+  version: "government_evidence_language_review_v1";
+  sourceType: GovernmentDatasetSourceType;
+  transformationVersion: string;
+  languageContractVersion: typeof GOVERNMENT_EVIDENCE_LANGUAGE_CONTRACT.version;
+  languageContractChecksum: string;
+  reviewer: string;
+  qualification: string;
+  reviewedAt: string;
+}
+
+export function governmentEvidenceLanguageContractChecksum(): string {
+  return canonicalHash(GOVERNMENT_EVIDENCE_LANGUAGE_CONTRACT);
+}
+
+export function governmentEvidenceLanguageReviewChecksum(
+  review: GovernmentEvidenceLanguageReview,
+): string {
+  return canonicalHash(review);
+}
+
+export function renderGovernmentEvidenceLimitations(input: {
+  sourceType: GovernmentDatasetSourceType;
+  sourceEdition: string;
+  sourceCompany: string;
+  sourcePeriod: string;
+  dataAsOf: string;
+  layoutVersion: string;
+  provenanceChecksum: string;
+  rowSetChecksum: string;
+  transformationVersion: string;
+  resolutionState: "resolved" | "ambiguous" | "unmatched";
+  registryChecksum: string;
+  registryMatches: boolean;
+  sampleSize: number;
+  precision: number;
+  recall: number;
+  abstentionRate: number;
+  evaluationEnabled: boolean;
+}): string {
+  const values = {
+    sourceRecordName: GOVERNMENT_EVIDENCE_LANGUAGE_CONTRACT.sourceRecordNames[input.sourceType],
+    sourceCompany: JSON.stringify(input.sourceCompany),
+    sourcePeriod: input.sourcePeriod,
+    sourceType: input.sourceType,
+    sourceEdition: input.sourceEdition,
+    dataAsOf: input.dataAsOf,
+    layoutVersion: input.layoutVersion,
+    provenanceChecksum: input.provenanceChecksum,
+    rowSetChecksum: input.rowSetChecksum,
+    transformationVersion: input.transformationVersion,
+    resolutionState: input.resolutionState,
+    registryChecksum: input.registryChecksum,
+    registryMatches: String(input.registryMatches),
+    sampleSize: String(input.sampleSize),
+    precision: input.precision.toFixed(3),
+    recall: input.recall.toFixed(3),
+    abstentionRate: input.abstentionRate.toFixed(3),
+    evaluationEnabled: String(input.evaluationEnabled),
+  };
+  return GOVERNMENT_EVIDENCE_LANGUAGE_CONTRACT.limitationTemplate.replace(
+    /\{([A-Za-z][A-Za-z0-9]*)\}/gu,
+    (placeholder, key: string) => values[key as keyof typeof values] ?? placeholder,
+  );
+}
+
 export interface GovernmentDatasetProvenance {
   version: "government_dataset_provenance_v1";
   sourceType: GovernmentDatasetSourceType;

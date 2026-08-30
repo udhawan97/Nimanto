@@ -66,7 +66,19 @@ at a time, but only when `buildServer` receives an exact matching entry in
 `sourceType`, `sourceEdition`, HTTPS source-page/archive/layout URLs, SHA-256
 archive/layout hashes, `layoutVersion`, retrieval time, `dataAsOf`, exact row-set
 checksum, transformation version, reuse notice, reviewer, and review time. No
-official edition is configured by default. The authenticated JSON body must
+official edition is configured by default.
+
+`buildServer` must also receive an exact source/transformation entry in
+`trustedGovernmentEvidenceLanguageReviews`. The server-owned review binds the
+source type and transformation version to
+`governmentEvidenceLanguageContractChecksum()` and records the qualified
+reviewer's name, qualification, and ISO review time. The contract freezes the
+source-specific record name, limitation template, role-panel boundary, and
+prohibited conclusions. A contract-copy change invalidates the old review.
+Nimanto ships no production review; synthetic test fixtures do not represent
+qualified approval.
+
+The authenticated JSON body must
 contain:
 
 - `sourceType`: exactly `dol_oflc_bulk` or `uscis_h1b_employer_data`;
@@ -80,9 +92,12 @@ contain:
 - optional `transformationVersion` (default `government_ingest_v1`).
 
 Validate the upstream download and review its reuse conditions before configuring
-the manifest. Caller-supplied provenance and resolution evaluations are rejected.
+the provenance manifest. Obtain qualified immigration-language review of the
+exact language contract before configuring its separate review manifest.
+Caller-supplied provenance, language review, and resolution evaluations are rejected.
 Archive, layout, row-set, transformation, or manifest drift fails before signal
-writes. The same edition/checksum/transformation/provenance tuple is idempotent.
+writes. Missing or stale language review also fails before signal writes. The
+same edition/checksum/transformation/provenance/language-review tuple is idempotent.
 Only a server-configured, checksum-verified evaluation bound to the exact current
 employer-registry checksum can enable measured employer resolution. Adding or
 removing any canonical employer or reviewed alias disables that linkage until the

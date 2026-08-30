@@ -5,8 +5,11 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import {
   canonicalHash,
+  governmentEvidenceLanguageContractChecksum,
+  governmentEvidenceLanguageReviewChecksum,
   governmentDatasetProvenanceChecksum,
   type GovernmentDatasetProvenance,
+  type GovernmentEvidenceLanguageReview,
 } from "@nimanto/domain";
 import type { ProviderJobVerificationResult } from "@nimanto/providers";
 import { buildServer } from "../src/server.js";
@@ -29,6 +32,7 @@ async function setup(options?: {
   urlAllowlist?: string[];
   urlTermsReviewedAt?: string;
   trustedGovernmentDatasetProvenance?: GovernmentDatasetProvenance[];
+  trustedGovernmentEvidenceLanguageReviews?: GovernmentEvidenceLanguageReview[];
   allowlistedJobPageFetcher?: (input: {
     url: string;
     allowedHosts: string[];
@@ -88,6 +92,12 @@ async function setup(options?: {
     ...(options?.urlTermsReviewedAt ? { urlTermsReviewedAt: options.urlTermsReviewedAt } : {}),
     ...(options?.trustedGovernmentDatasetProvenance
       ? { trustedGovernmentDatasetProvenance: options.trustedGovernmentDatasetProvenance }
+      : {}),
+    ...(options?.trustedGovernmentEvidenceLanguageReviews
+      ? {
+          trustedGovernmentEvidenceLanguageReviews:
+            options.trustedGovernmentEvidenceLanguageReviews,
+        }
       : {}),
     ...(options?.allowlistedJobPageFetcher
       ? { allowlistedJobPageFetcher: options.allowlistedJobPageFetcher }
@@ -1213,7 +1223,7 @@ describe("Nimanto beta API", () => {
     });
   });
 
-  it("keeps government imports disabled without an exact trusted provenance manifest", async () => {
+  it("keeps government imports disabled without exact provenance and language review", async () => {
     const { app, cookie } = await setup();
     const rows = [
       {
@@ -1238,6 +1248,43 @@ describe("Nimanto beta API", () => {
     });
     expect(response.statusCode).toBe(409);
     expect(response.json().error.code).toBe("GOVERNMENT_DATASET_NOT_APPROVED");
+
+    const trustedProvenance: GovernmentDatasetProvenance = {
+      version: "government_dataset_provenance_v1",
+      sourceType: "dol_oflc_bulk",
+      sourceEdition: "unapproved-fixture",
+      sourcePageUrl: "https://dol.example.test/performance",
+      archiveUrl: "https://dol.example.test/archive/unapproved-fixture.zip",
+      archiveSha256: "a".repeat(64),
+      layoutUrl: "https://dol.example.test/layout/unapproved-fixture.xlsx",
+      layoutSha256: "b".repeat(64),
+      layoutVersion: "unapproved-fixture-layout-v1",
+      retrievedAt: "2026-08-29T00:00:00.000Z",
+      dataAsOf: "2026-06-30",
+      rowSetChecksum: canonicalHash(rows),
+      transformationVersion: "government_ingest_v1",
+      reuseNotice: "Synthetic fixture only; no production source approval is claimed.",
+      reviewer: "Synthetic source provenance reviewer",
+      reviewedAt: "2026-08-29T00:00:00.000Z",
+    };
+    const provenanceOnly = await setup({
+      trustedGovernmentDatasetProvenance: [trustedProvenance],
+    });
+    const languageBlocked = await provenanceOnly.app.inject({
+      method: "POST",
+      url: "/v1/h1b-signals/government-import",
+      headers: { cookie: provenanceOnly.cookie },
+      payload: {
+        sourceType: "dol_oflc_bulk",
+        sourceEdition: "unapproved-fixture",
+        checksum: canonicalHash(rows),
+        provenanceChecksum: governmentDatasetProvenanceChecksum(trustedProvenance),
+        rows,
+      },
+    });
+    expect(languageBlocked.statusCode).toBe(409);
+    expect(languageBlocked.json().error.code).toBe("GOVERNMENT_EVIDENCE_LANGUAGE_NOT_REVIEWED");
+    expect(languageBlocked.json().error.message).toContain("qualified language review");
   });
 
   it("runs evidence through match, packet assurance, approval, and the test outbox", async () => {
@@ -1269,8 +1316,21 @@ describe("Nimanto beta API", () => {
       reviewedAt: "2026-08-28T00:00:00.000Z",
     };
     const provenanceChecksum = governmentDatasetProvenanceChecksum(governmentProvenance);
+    const governmentLanguageReview: GovernmentEvidenceLanguageReview = {
+      version: "government_evidence_language_review_v1",
+      sourceType: "dol_oflc_bulk",
+      transformationVersion: "government_ingest_v1",
+      languageContractVersion: "government_evidence_language_v1",
+      languageContractChecksum: governmentEvidenceLanguageContractChecksum(),
+      reviewer: "Synthetic immigration-language reviewer",
+      qualification: "Synthetic test fixture; no production qualification is claimed.",
+      reviewedAt: "2026-08-29T00:00:00.000Z",
+    };
+    const languageReviewChecksum =
+      governmentEvidenceLanguageReviewChecksum(governmentLanguageReview);
     const { app, cookie } = await setup({
       trustedGovernmentDatasetProvenance: [governmentProvenance],
+      trustedGovernmentEvidenceLanguageReviews: [governmentLanguageReview],
     });
     const dashboard = await app.inject({
       method: "GET",
@@ -1362,6 +1422,11 @@ describe("Nimanto beta API", () => {
       transformationVersion: "government_ingest_v1",
       provenanceChecksum,
       provenance: { layoutVersion: "synthetic-fixture-layout-v1" },
+      languageReviewChecksum,
+      languageReview: {
+        reviewer: "Synthetic immigration-language reviewer",
+        qualification: "Synthetic test fixture; no production qualification is claimed.",
+      },
       resolutionEvaluation: { enabled: false, precision: 0, sampleSize: 0 },
       resolutionEvaluationProvenance: null,
       signals: [
@@ -1670,10 +1735,10 @@ describe("Nimanto beta API", () => {
     });
     expect(exported.statusCode).toBe(200);
     expect(exported.json()).toMatchObject({
-      exportVersion: "nimanto-local-beta-v6",
+      exportVersion: "nimanto-local-beta-v7",
       identity: { displayName: "Priya Shah", email: "priya@example.test" },
       workspace: {
-        schemaVersion: "nimanto_export_v6",
+        schemaVersion: "nimanto_export_v7",
         profileVersions: expect.any(Array),
         matchRuns: expect.any(Array),
         assuranceRuns: expect.any(Array),

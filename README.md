@@ -472,7 +472,9 @@ artifacts.
 - Checksum-addressed, idempotent government dataset editions with exact row
   locators, transformation version, and server-trusted archive/layout/reuse
   provenance. Imports remain disabled unless the request matches the complete
-  approved manifest; provenance or row-set drift fails before any signal write.
+  approved manifest and a server-trusted qualified-review manifest matches the
+  exact source/transformation language contract; provenance, language, or
+  row-set drift fails before any signal write. No production review is bundled.
 - Historical H-1B evidence with source type, locator, period, observation time,
   confidence, explicit freshness, any downgraded original label, and stated
   limitations. Current role wording remains controlling.

@@ -284,6 +284,8 @@ export interface DatasetEditionRecord {
   transformationVersion: string;
   provenance: Record<string, unknown> | null;
   provenanceChecksum: string | null;
+  languageReview: Record<string, unknown> | null;
+  languageReviewChecksum: string | null;
   evaluation: Record<string, unknown>;
   evaluationProvenance: Record<string, unknown> | null;
   createdAt: string;
@@ -2670,6 +2672,8 @@ export class NimantoStore {
       transformationVersion: string;
       provenance: object;
       provenanceChecksum: string;
+      languageReview: object;
+      languageReviewChecksum: string;
       evaluation: Record<string, unknown>;
       evaluationProvenance: Record<string, unknown> | null;
       signals: Array<Omit<H1bSignalRecord, "id">>;
@@ -2677,6 +2681,9 @@ export class NimantoStore {
   ): Promise<{ created: boolean; edition: DatasetEditionRecord; signals: H1bSignalRecord[] }> {
     if (canonicalHash(input.provenance) !== input.provenanceChecksum) {
       throw new Error("DATASET_PROVENANCE_CHECKSUM_MISMATCH");
+    }
+    if (canonicalHash(input.languageReview) !== input.languageReviewChecksum) {
+      throw new Error("GOVERNMENT_LANGUAGE_REVIEW_CHECKSUM_MISMATCH");
     }
     return this.transaction(async (database) => {
       await database.lockTenantActive(tenantId);
@@ -2689,7 +2696,8 @@ export class NimantoStore {
         if (
           existing.rows[0].checksum !== input.checksum ||
           existing.rows[0].transformation_version !== input.transformationVersion ||
-          existing.rows[0].provenance_checksum !== input.provenanceChecksum
+          existing.rows[0].provenance_checksum !== input.provenanceChecksum ||
+          existing.rows[0].language_review_checksum !== input.languageReviewChecksum
         ) {
           throw new Error("DATASET_EDITION_CONFLICT");
         }
@@ -2712,8 +2720,8 @@ export class NimantoStore {
         `INSERT INTO dataset_editions(
            id, tenant_id, source_type, source_edition, checksum,
            transformation_version, provenance, provenance_checksum,
-           evaluation, evaluation_provenance
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9::jsonb,$10::jsonb)
+           language_review, language_review_checksum, evaluation, evaluation_provenance
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9::jsonb,$10,$11::jsonb,$12::jsonb)
          RETURNING *`,
         [
           editionId,
@@ -2724,6 +2732,8 @@ export class NimantoStore {
           input.transformationVersion,
           JSON.stringify(input.provenance),
           input.provenanceChecksum,
+          JSON.stringify(input.languageReview),
+          input.languageReviewChecksum,
           JSON.stringify(input.evaluation),
           input.evaluationProvenance ? JSON.stringify(input.evaluationProvenance) : null,
         ],
@@ -2766,11 +2776,19 @@ export class NimantoStore {
   #mapDatasetEdition(row: any): DatasetEditionRecord {
     const provenance = row.provenance ?? null;
     const provenanceChecksum = row.provenance_checksum ?? null;
+    const languageReview = row.language_review ?? null;
+    const languageReviewChecksum = row.language_review_checksum ?? null;
     if (
       (provenance === null) !== (provenanceChecksum === null) ||
       (provenance !== null && canonicalHash(provenance) !== provenanceChecksum)
     ) {
       throw new Error("DATASET_PROVENANCE_INTEGRITY_FAILED");
+    }
+    if (
+      (languageReview === null) !== (languageReviewChecksum === null) ||
+      (languageReview !== null && canonicalHash(languageReview) !== languageReviewChecksum)
+    ) {
+      throw new Error("GOVERNMENT_LANGUAGE_REVIEW_INTEGRITY_FAILED");
     }
     return {
       id: row.id,
@@ -2780,6 +2798,8 @@ export class NimantoStore {
       transformationVersion: row.transformation_version,
       provenance,
       provenanceChecksum,
+      languageReview,
+      languageReviewChecksum,
       evaluation: row.evaluation,
       evaluationProvenance: row.evaluation_provenance,
       createdAt: iso(row.created_at)!,
@@ -3657,7 +3677,7 @@ export class NimantoStore {
       matchCursor = page.nextCursor;
     }
     return {
-      schemaVersion: "nimanto_export_v6",
+      schemaVersion: "nimanto_export_v7",
       exportedAt: new Date().toISOString(),
       evidence,
       profile,

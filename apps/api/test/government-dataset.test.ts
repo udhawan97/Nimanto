@@ -4,8 +4,11 @@ import {
   buildEmployerCandidates,
   canonicalHash,
   employerRegistryChecksum,
+  governmentEvidenceLanguageContractChecksum,
+  governmentEvidenceLanguageReviewChecksum,
   governmentDatasetProvenanceChecksum,
   type GovernmentDatasetProvenance,
+  type GovernmentEvidenceLanguageReview,
 } from "@nimanto/domain";
 import { GovernmentDatasetIngestion } from "../src/government-dataset.js";
 
@@ -30,6 +33,21 @@ function provenance(
     reuseNotice: "Synthetic government provenance fixture; not an approved production edition.",
     reviewer: "Synthetic source provenance reviewer",
     reviewedAt: "2026-08-28T00:00:00.000Z",
+  };
+}
+
+function languageReview(
+  sourceType: GovernmentEvidenceLanguageReview["sourceType"] = "dol_oflc_bulk",
+): GovernmentEvidenceLanguageReview {
+  return {
+    version: "government_evidence_language_review_v1",
+    sourceType,
+    transformationVersion: "government_ingest_v1",
+    languageContractVersion: "government_evidence_language_v1",
+    languageContractChecksum: governmentEvidenceLanguageContractChecksum(),
+    reviewer: "Synthetic immigration-language reviewer",
+    qualification: "Synthetic test fixture; no production qualification is claimed.",
+    reviewedAt: "2026-08-29T00:00:00.000Z",
   };
 }
 
@@ -75,6 +93,8 @@ describe("GovernmentDatasetIngestion employer registry binding", () => {
         transformationVersion: input.transformationVersion,
         provenance: input.provenance,
         provenanceChecksum: input.provenanceChecksum,
+        languageReview: input.languageReview,
+        languageReviewChecksum: input.languageReviewChecksum,
         evaluation: input.evaluation,
         evaluationProvenance: input.evaluationProvenance,
         createdAt: "2026-08-29T00:00:00.000Z",
@@ -110,6 +130,7 @@ describe("GovernmentDatasetIngestion employer registry binding", () => {
         fixtures,
       },
       trustedProvenance,
+      [languageReview()],
     );
     await expect(
       new GovernmentDatasetIngestion(store, undefined).import("tenant-1", {
@@ -150,6 +171,11 @@ describe("GovernmentDatasetIngestion employer registry binding", () => {
           confidence: "high",
         },
       ],
+      languageReviewChecksum: governmentEvidenceLanguageReviewChecksum(languageReview()),
+      languageReview: {
+        reviewer: "Synthetic immigration-language reviewer",
+        qualification: "Synthetic test fixture; no production qualification is claimed.",
+      },
     });
 
     aliasRows.push({
@@ -193,5 +219,68 @@ describe("GovernmentDatasetIngestion employer registry binding", () => {
     expect(() => new GovernmentDatasetIngestion(store, undefined, [trusted, trusted])).toThrow(
       "DUPLICATE_TRUSTED_DATASET_PROVENANCE",
     );
+  });
+
+  it("requires a server-trusted qualified review of the exact language contract", async () => {
+    const rows = [
+      {
+        company: "Northwind Systems",
+        label: "recent_positive_history",
+        sourceLocator: "synthetic-fy2026q2:H-1B:row:1",
+        sourcePeriod: "FY2026 Q2",
+        observedAt: "2026-07-15T00:00:00.000Z",
+      },
+    ];
+    const trustedProvenance = provenance("synthetic-fy2026q2", rows);
+    const store = {
+      listJobs: vi.fn(async () => [{ company: "Northwind Systems" }]),
+      listEmployerAliases: vi.fn(async () => []),
+      importH1bDatasetEdition: vi.fn(),
+    } as unknown as NimantoStore;
+    const ingestion = new GovernmentDatasetIngestion(store, undefined, [trustedProvenance]);
+    const payload = {
+      sourceType: "dol_oflc_bulk",
+      sourceEdition: "synthetic-fy2026q2",
+      checksum: canonicalHash(rows),
+      provenanceChecksum: governmentDatasetProvenanceChecksum(trustedProvenance),
+      rows,
+    };
+    await expect(ingestion.import("tenant-1", payload)).rejects.toThrow(
+      "GOVERNMENT_EVIDENCE_LANGUAGE_NOT_REVIEWED",
+    );
+    expect(
+      () =>
+        new GovernmentDatasetIngestion(
+          store,
+          undefined,
+          [trustedProvenance],
+          [
+            {
+              ...languageReview(),
+              languageContractChecksum: "f".repeat(64),
+            },
+          ],
+        ),
+    ).toThrow("INVALID_TRUSTED_GOVERNMENT_LANGUAGE_REVIEW");
+    expect(
+      () =>
+        new GovernmentDatasetIngestion(
+          store,
+          undefined,
+          [trustedProvenance],
+          [languageReview(), languageReview()],
+        ),
+    ).toThrow("DUPLICATE_TRUSTED_GOVERNMENT_LANGUAGE_REVIEW");
+
+    const trusted = new GovernmentDatasetIngestion(
+      store,
+      undefined,
+      [trustedProvenance],
+      [languageReview()],
+    );
+    await expect(
+      trusted.import("tenant-1", { ...payload, languageReview: languageReview() }),
+    ).rejects.toThrow("UNTRUSTED_GOVERNMENT_LANGUAGE_REVIEW");
+    expect(store.importH1bDatasetEdition).not.toHaveBeenCalled();
   });
 });

@@ -99,6 +99,13 @@ canonical checksum; caller-supplied provenance or any drift fails before signal
 writes. Legacy editions remain visibly unverified rather than receiving
 backfilled claims.
 
+Government evidence language is a separate approval boundary. A server-trusted
+review manifest must bind the exact source type and transformation to the
+checksum of the immutable display/limitation contract, with the qualified
+reviewer's name, qualification, and review time. The caller cannot provide this
+review. Missing review or later contract drift blocks the edition before any
+signal write; legacy records never receive a backfilled approval.
+
 The enum names are internal evidence categories required by this contract, not legal conclusions. User-facing copy always attributes the statement—“this posting states…,” “this employer policy states…,” or “historical filings were observed…”—and shows the quotation/record locator. It never says “you can transfer,” “you are eligible,” or otherwise applies the source to the candidate's legal situation.
 
 Provisional Slice-2 freshness rules require a dedicated incremental specification before implementation: posting-specific wording expires when the posting closes or after 45 days without reconfirmation; employer policy becomes `uncertain` after 90 days; quarterly/annual government evidence remains historical and is labeled by exact period. At the end of the eighth completed quarter after its supporting period, `recent_positive_history` deterministically transitions to `uncertain`; a source-specific rule can be stricter. No stale item retains a `current_*` label. Cap-subject/cap-exempt employer context is displayed as sourced context only. Worksite-change or amendment implications always carry a legal-review flag and are never resolved by Nimanto.

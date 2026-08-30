@@ -1,4 +1,5 @@
 import { Check, CircleAlert, RotateCcw } from "lucide-react";
+import { GOVERNMENT_EVIDENCE_LANGUAGE_CONTRACT } from "@nimanto/domain";
 
 export type RoleWordingBlocker = {
   code: string;
@@ -221,9 +222,7 @@ export function H1bEvidencePanel({
         </section>
       </div>
       <p className="boundary-note h1b-evidence-boundary">
-        Historical records never prove current-role support, absence is never negative evidence, and
-        no H-1B evidence changes fit rank. Nimanto organizes sourced context; it does not give legal
-        advice.
+        {GOVERNMENT_EVIDENCE_LANGUAGE_CONTRACT.panelBoundary}
       </p>
     </details>
   );

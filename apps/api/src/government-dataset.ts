@@ -5,9 +5,15 @@ import {
   employerRegistryChecksum,
   evaluateEmployerResolution,
   GOVERNMENT_DATASET_SOURCE_TYPES,
+  GOVERNMENT_EVIDENCE_LANGUAGE_CONTRACT,
+  governmentEvidenceLanguageContractChecksum,
+  governmentEvidenceLanguageReviewChecksum,
   governmentDatasetProvenanceChecksum,
+  renderGovernmentEvidenceLimitations,
   resolveEmployer,
   type GovernmentDatasetProvenance,
+  type GovernmentDatasetSourceType,
+  type GovernmentEvidenceLanguageReview,
   type H1bSignalLabel,
 } from "@nimanto/domain";
 import type { NimantoApiOptions } from "./config.js";
@@ -15,6 +21,9 @@ import type { NimantoApiOptions } from "./config.js";
 type TrustedEvaluation = NimantoApiOptions["trustedEmployerResolutionEvaluation"];
 type TrustedProvenance = NonNullable<
   NimantoApiOptions["trustedGovernmentDatasetProvenance"]
+>[number];
+type TrustedLanguageReview = NonNullable<
+  NimantoApiOptions["trustedGovernmentEvidenceLanguageReviews"]
 >[number];
 const LABELS: H1bSignalLabel[] = [
   "current_role_transfer_support",
@@ -98,13 +107,31 @@ function validTrustedProvenance(value: unknown): value is GovernmentDatasetProve
   );
 }
 
+function validTrustedLanguageReview(value: unknown): value is GovernmentEvidenceLanguageReview {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const review = value as Partial<GovernmentEvidenceLanguageReview>;
+  return (
+    review.version === "government_evidence_language_review_v1" &&
+    (GOVERNMENT_DATASET_SOURCE_TYPES as readonly unknown[]).includes(review.sourceType) &&
+    review.languageContractVersion === GOVERNMENT_EVIDENCE_LANGUAGE_CONTRACT.version &&
+    review.languageContractChecksum === governmentEvidenceLanguageContractChecksum() &&
+    validSha256(review.languageContractChecksum) &&
+    exactText(review.transformationVersion) &&
+    exactText(review.reviewer) &&
+    exactText(review.qualification) &&
+    validDateTime(review.reviewedAt)
+  );
+}
+
 export class GovernmentDatasetIngestion {
   readonly #trustedProvenance = new Map<string, GovernmentDatasetProvenance>();
+  readonly #trustedLanguageReviews = new Map<string, GovernmentEvidenceLanguageReview>();
 
   constructor(
     private readonly store: NimantoStore,
     private readonly trustedEvaluation: TrustedEvaluation,
     trustedProvenance: TrustedProvenance[] = [],
+    trustedLanguageReviews: TrustedLanguageReview[] = [],
   ) {
     if (
       trustedEvaluation &&
@@ -126,11 +153,22 @@ export class GovernmentDatasetIngestion {
       }
       this.#trustedProvenance.set(key, snapshot);
     }
+    for (const review of trustedLanguageReviews) {
+      if (!validTrustedLanguageReview(review)) {
+        throw new Error("INVALID_TRUSTED_GOVERNMENT_LANGUAGE_REVIEW");
+      }
+      const snapshot = Object.freeze({ ...review });
+      const key = `${snapshot.sourceType}\u0000${snapshot.transformationVersion}`;
+      if (this.#trustedLanguageReviews.has(key)) {
+        throw new Error("DUPLICATE_TRUSTED_GOVERNMENT_LANGUAGE_REVIEW");
+      }
+      this.#trustedLanguageReviews.set(key, snapshot);
+    }
   }
 
   async import(tenantId: string, value: unknown) {
     const body = record(value);
-    const sourceType = text(body.sourceType, "source_type");
+    const sourceType = text(body.sourceType, "source_type") as GovernmentDatasetSourceType;
     if (!(GOVERNMENT_DATASET_SOURCE_TYPES as readonly string[]).includes(sourceType)) {
       throw new Error("INVALID_SOURCE_TYPE");
     }
@@ -139,6 +177,9 @@ export class GovernmentDatasetIngestion {
     }
     if (body.provenance !== undefined) {
       throw new Error("UNTRUSTED_DATASET_PROVENANCE");
+    }
+    if (body.languageReview !== undefined || body.languageReviewChecksum !== undefined) {
+      throw new Error("UNTRUSTED_GOVERNMENT_LANGUAGE_REVIEW");
     }
     const sourceEdition = text(body.sourceEdition, "source_edition");
     const provenance = this.#trustedProvenance.get(`${sourceType}\u0000${sourceEdition}`);
@@ -154,6 +195,11 @@ export class GovernmentDatasetIngestion {
     if (transformationVersion !== provenance.transformationVersion) {
       throw new Error("GOVERNMENT_DATASET_PROVENANCE_MISMATCH");
     }
+    const languageReview = this.#trustedLanguageReviews.get(
+      `${sourceType}\u0000${transformationVersion}`,
+    );
+    if (!languageReview) throw new Error("GOVERNMENT_EVIDENCE_LANGUAGE_NOT_REVIEWED");
+    const languageReviewChecksum = governmentEvidenceLanguageReviewChecksum(languageReview);
     if (!Array.isArray(body.rows) || body.rows.length < 1 || body.rows.length > 500) {
       throw new Error("INVALID_DATASET_ROWS");
     }
@@ -233,7 +279,25 @@ export class GovernmentDatasetIngestion {
         observedAt,
         confidence: (resolution.state === "resolved" && evaluation.enabled ? "high" : "low") as
           "high" | "low",
-        limitations: `Historical ${sourceType} evidence from ${sourceEdition}, data as of ${provenance.dataAsOf}, layout ${provenance.layoutVersion}, provenance ${provenanceChecksum}, row set ${checksum}, transformation ${transformationVersion}; source employer ${JSON.stringify(company)}; employer resolution ${resolution.state}; registry checksum ${registryChecksum}, trusted registry match=${registryMatches}; evaluation n=${evaluation.sampleSize}, precision=${evaluation.precision.toFixed(3)}, recall=${evaluation.recall.toFixed(3)}, abstention=${evaluation.abstentionRate.toFixed(3)}, enabled=${evaluation.enabled}. Not legal advice or a current transfer guarantee.`,
+        limitations: renderGovernmentEvidenceLimitations({
+          sourceType,
+          sourceEdition,
+          sourceCompany: company,
+          sourcePeriod,
+          dataAsOf: provenance.dataAsOf,
+          layoutVersion: provenance.layoutVersion,
+          provenanceChecksum,
+          rowSetChecksum: checksum,
+          transformationVersion,
+          resolutionState: resolution.state,
+          registryChecksum,
+          registryMatches,
+          sampleSize: evaluation.sampleSize,
+          precision: evaluation.precision,
+          recall: evaluation.recall,
+          abstentionRate: evaluation.abstentionRate,
+          evaluationEnabled: evaluation.enabled,
+        }),
       };
     });
     const result = await this.store.importH1bDatasetEdition(tenantId, {
@@ -243,6 +307,8 @@ export class GovernmentDatasetIngestion {
       transformationVersion,
       provenance,
       provenanceChecksum,
+      languageReview,
+      languageReviewChecksum,
       evaluation: evaluation as unknown as Record<string, unknown>,
       evaluationProvenance,
       signals,
@@ -254,6 +320,8 @@ export class GovernmentDatasetIngestion {
       transformationVersion: result.edition.transformationVersion,
       provenanceChecksum,
       provenance: result.edition.provenance,
+      languageReviewChecksum,
+      languageReview: result.edition.languageReview,
       employerRegistryChecksum: registryChecksum,
       datasetEdition: result.edition,
       resolutionEvaluation: result.edition.evaluation,

@@ -1,7 +1,10 @@
 import { randomBytes } from "node:crypto";
 import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import type { GovernmentDatasetProvenance } from "@nimanto/domain";
+import type {
+  GovernmentDatasetProvenance,
+  GovernmentEvidenceLanguageReview,
+} from "@nimanto/domain";
 import type { LocalModelStatus } from "@nimanto/providers";
 import type { ProviderJobsFetcher } from "./discovery-cycle.js";
 import type { ProviderJobVerifier } from "./ats-verification.js";
@@ -39,6 +42,7 @@ export interface NimantoApiOptions {
     fixtures: Array<{ sourceName: string; expectedId: string | null }>;
   };
   trustedGovernmentDatasetProvenance?: GovernmentDatasetProvenance[];
+  trustedGovernmentEvidenceLanguageReviews?: GovernmentEvidenceLanguageReview[];
   providerJobsFetcher?: ProviderJobsFetcher;
   providerJobVerifier?: ProviderJobVerifier;
   allowlistedJobPageFetcher?: AllowlistedJobPageFetcher;

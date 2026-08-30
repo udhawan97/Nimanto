@@ -404,7 +404,9 @@ describe("beta workflow persistence", () => {
       "SELECT version, applied_at FROM schema_versions ORDER BY version",
     );
     await firstInspection.close();
-    expect(firstLedger.rows.map((row) => row.version)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+    expect(firstLedger.rows.map((row) => row.version)).toEqual([
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+    ]);
     expect(firstLedger.rows.at(-1)?.version).toBe(CURRENT_SCHEMA_VERSION);
 
     const reopened = await NimantoStore.open(data);
@@ -446,7 +448,7 @@ describe("beta workflow persistence", () => {
       "SELECT version FROM schema_versions ORDER BY version",
     );
     expect(schemaVersions.rows.map((row) => row.version)).toEqual([
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
     ]);
     expect(schemaVersions.rows.at(-1)?.version).toBe(CURRENT_SCHEMA_VERSION);
     const packetSequences = await migrated.query<{ generation_sequence: string | number }>(
@@ -536,7 +538,7 @@ describe("beta workflow persistence", () => {
         version integer PRIMARY KEY,
         applied_at timestamptz NOT NULL DEFAULT now()
       );
-      INSERT INTO schema_versions(version) VALUES (12);
+      INSERT INTO schema_versions(version) VALUES (13);
     `);
     await future.close();
     await expect(NimantoStore.open(data)).rejects.toThrow("DATABASE_SCHEMA_NEWER_THAN_RUNTIME");
@@ -641,6 +643,8 @@ describe("beta workflow persistence", () => {
         id: "legacy-dataset-edition",
         provenance: null,
         provenanceChecksum: null,
+        languageReview: null,
+        languageReviewChecksum: null,
       }),
     ]);
   });
@@ -655,6 +659,11 @@ describe("beta workflow persistence", () => {
       sourceEdition: "synthetic-fy2026q2",
       layoutVersion: "synthetic-layout-v1",
     };
+    const languageReview = {
+      version: "government_evidence_language_review_v1",
+      reviewer: "Synthetic immigration-language reviewer",
+      qualification: "Synthetic fixture only.",
+    };
     const input = {
       sourceType: "dol_oflc_bulk",
       sourceEdition: "synthetic-fy2026q2",
@@ -662,6 +671,8 @@ describe("beta workflow persistence", () => {
       transformationVersion: "government_ingest_v1",
       provenance,
       provenanceChecksum: canonicalHash(provenance),
+      languageReview,
+      languageReviewChecksum: canonicalHash(languageReview),
       evaluation: {},
       evaluationProvenance: null,
       signals: [
@@ -684,11 +695,19 @@ describe("beta workflow persistence", () => {
         provenanceChecksum: "d".repeat(64),
       }),
     ).rejects.toThrow("DATASET_PROVENANCE_CHECKSUM_MISMATCH");
+    await expect(
+      store.importH1bDatasetEdition(owner.tenantId, {
+        ...input,
+        languageReviewChecksum: "d".repeat(64),
+      }),
+    ).rejects.toThrow("GOVERNMENT_LANGUAGE_REVIEW_CHECKSUM_MISMATCH");
 
     const created = await store.importH1bDatasetEdition(owner.tenantId, input);
     expect(created.edition).toMatchObject({
       provenance,
       provenanceChecksum: canonicalHash(provenance),
+      languageReview,
+      languageReviewChecksum: canonicalHash(languageReview),
     });
     expect(await store.listDatasetEditions(owner.tenantId)).toEqual([created.edition]);
   });
@@ -826,7 +845,7 @@ describe("beta workflow persistence", () => {
     ]);
 
     const exported = await store.exportTenant(alpha.tenantId);
-    expect(exported).toMatchObject({ schemaVersion: "nimanto_export_v6" });
+    expect(exported).toMatchObject({ schemaVersion: "nimanto_export_v7" });
     expect(exported.profileVersions).toHaveLength(2);
     expect(exported.matchRuns).toHaveLength(2);
     expect(exported.assuranceRuns).toHaveLength(2);
@@ -1374,7 +1393,7 @@ describe("beta workflow persistence", () => {
     expect((await store.listRoleWordingReviews(owner.tenantId))[0]).toEqual(review);
     expect(await store.listRoleWordingReviews(other.tenantId)).toEqual([]);
     expect(await store.exportTenant(owner.tenantId)).toMatchObject({
-      schemaVersion: "nimanto_export_v6",
+      schemaVersion: "nimanto_export_v7",
       roleWordingReviews: [review],
     });
 
@@ -1484,7 +1503,7 @@ describe("beta workflow persistence", () => {
       ),
     ).toEqual({ state: "ambiguous" });
     expect(await store.exportTenant(owner.tenantId)).toMatchObject({
-      schemaVersion: "nimanto_export_v6",
+      schemaVersion: "nimanto_export_v7",
       employerEntities: expect.arrayContaining([
         expect.objectContaining({ normalizedName: "northwind systems" }),
         expect.objectContaining({ normalizedName: "contoso" }),

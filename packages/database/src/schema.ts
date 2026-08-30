@@ -333,6 +333,8 @@ CREATE TABLE IF NOT EXISTS dataset_editions (
   transformation_version text NOT NULL,
   provenance jsonb,
   provenance_checksum text,
+  language_review jsonb,
+  language_review_checksum text,
   evaluation jsonb NOT NULL,
   evaluation_provenance jsonb,
   created_at timestamptz NOT NULL DEFAULT now(),
@@ -841,4 +843,9 @@ $$;
 export const schemaVersion11Sql = String.raw`
 ALTER TABLE dataset_editions ADD COLUMN IF NOT EXISTS provenance jsonb;
 ALTER TABLE dataset_editions ADD COLUMN IF NOT EXISTS provenance_checksum text;
+`;
+
+export const schemaVersion12Sql = String.raw`
+ALTER TABLE dataset_editions ADD COLUMN IF NOT EXISTS language_review jsonb;
+ALTER TABLE dataset_editions ADD COLUMN IF NOT EXISTS language_review_checksum text;
 `;

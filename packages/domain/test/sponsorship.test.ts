@@ -4,8 +4,11 @@ import {
   employerRegistryChecksum,
   evaluateEmployerResolution,
   freshH1bLabel,
+  governmentEvidenceLanguageContractChecksum,
+  governmentEvidenceLanguageReviewChecksum,
   governmentDatasetProvenanceChecksum,
   normalizeEmployerName,
+  renderGovernmentEvidenceLimitations,
   resolveEmployer,
 } from "../src/index.js";
 
@@ -90,6 +93,52 @@ describe("transfer-intelligence foundations", () => {
         layoutSha256: "d".repeat(64),
       }),
     ).not.toBe(checksum);
+  });
+
+  it("binds qualified review to the exact government evidence language contract", () => {
+    const contractChecksum = governmentEvidenceLanguageContractChecksum();
+    const review = {
+      version: "government_evidence_language_review_v1" as const,
+      sourceType: "dol_oflc_bulk" as const,
+      transformationVersion: "government_ingest_v1",
+      languageContractVersion: "government_evidence_language_v1" as const,
+      languageContractChecksum: contractChecksum,
+      reviewer: "Synthetic immigration-language reviewer",
+      qualification: "Synthetic test fixture; no production qualification is claimed.",
+      reviewedAt: "2026-08-29T00:00:00.000Z",
+    };
+    expect(contractChecksum).toMatch(/^[a-f0-9]{64}$/u);
+    expect(governmentEvidenceLanguageReviewChecksum(review)).toMatch(/^[a-f0-9]{64}$/u);
+    expect(
+      governmentEvidenceLanguageReviewChecksum({
+        ...review,
+        reviewedAt: "2026-08-30T00:00:00.000Z",
+      }),
+    ).not.toBe(governmentEvidenceLanguageReviewChecksum(review));
+
+    const limitations = renderGovernmentEvidenceLimitations({
+      sourceType: "dol_oflc_bulk",
+      sourceEdition: "synthetic-fy2026q2",
+      sourceCompany: "Northwind Global {sourceEdition}",
+      sourcePeriod: "FY2026 Q2",
+      dataAsOf: "2026-06-30",
+      layoutVersion: "synthetic-layout-v1",
+      provenanceChecksum: "a".repeat(64),
+      rowSetChecksum: "b".repeat(64),
+      transformationVersion: "government_ingest_v1",
+      resolutionState: "resolved",
+      registryChecksum: "c".repeat(64),
+      registryMatches: true,
+      sampleSize: 300,
+      precision: 1,
+      recall: 0.99,
+      abstentionRate: 0.01,
+      evaluationEnabled: true,
+    });
+    expect(limitations).toContain(
+      'Historical DOL LCA filing records were observed for source employer "Northwind Global {sourceEdition}" in FY2026 Q2.',
+    );
+    expect(limitations).toContain("does not establish current-role transfer support");
   });
 
   it("deterministically downgrades stale positive evidence to uncertain", () => {

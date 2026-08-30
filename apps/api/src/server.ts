@@ -393,7 +393,8 @@ function messageForError(error: Error): { code: string; status: number; message:
     code === "PROHIBITED_DOCUMENT_CONTENT" ||
     code === "UNSUPPORTED_FILE_TYPE" ||
     code === "UNTRUSTED_RESOLUTION_EVALUATION" ||
-    code === "UNTRUSTED_DATASET_PROVENANCE"
+    code === "UNTRUSTED_DATASET_PROVENANCE" ||
+    code === "UNTRUSTED_GOVERNMENT_LANGUAGE_REVIEW"
   ) {
     return {
       code,
@@ -422,10 +423,19 @@ function messageForError(error: Error): { code: string; status: number; message:
       status: 409,
       message: "A packet artifact no longer matches its recorded SHA-256 hash.",
     };
+  if (code === "GOVERNMENT_EVIDENCE_LANGUAGE_NOT_REVIEWED")
+    return {
+      code,
+      status: 409,
+      message:
+        "This government source and transformation have no exact server-trusted qualified language review.",
+    };
   if (
     code === "DATASET_EDITION_CONFLICT" ||
     code === "DATASET_PROVENANCE_CHECKSUM_MISMATCH" ||
     code === "DATASET_PROVENANCE_INTEGRITY_FAILED" ||
+    code === "GOVERNMENT_LANGUAGE_REVIEW_CHECKSUM_MISMATCH" ||
+    code === "GOVERNMENT_LANGUAGE_REVIEW_INTEGRITY_FAILED" ||
     code === "GOVERNMENT_DATASET_NOT_APPROVED" ||
     code === "GOVERNMENT_DATASET_PROVENANCE_MISMATCH" ||
     code === "PACKET_APPROVAL_STALE" ||
@@ -546,6 +556,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
       store,
       options.trustedEmployerResolutionEvaluation,
       options.trustedGovernmentDatasetProvenance,
+      options.trustedGovernmentEvidenceLanguageReviews,
     );
   } catch (error) {
     await store.close();
@@ -1414,7 +1425,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     const person = identity(request);
     const workspace = await store.exportTenant(person.tenantId);
     return reply.header("content-disposition", 'attachment; filename="nimanto-export.json"').send({
-      exportVersion: "nimanto-local-beta-v6",
+      exportVersion: "nimanto-local-beta-v7",
       exportedAt: new Date().toISOString(),
       identity: {
         displayName: person.displayName,
