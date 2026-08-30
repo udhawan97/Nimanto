@@ -27,6 +27,25 @@ function stableRegistryMetadata(value) {
   return value;
 }
 
+function stableOccurrenceMetadata(value) {
+  if (Array.isArray(value)) return value.map(stableOccurrenceMetadata);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([key]) => key !== "occurrences")
+        .map(([key, entry]) => [key, stableOccurrenceMetadata(entry)]),
+    );
+  }
+  if (typeof value === "string" && value.startsWith("{") && value.includes('"occurrences"')) {
+    try {
+      return JSON.stringify(stableOccurrenceMetadata(JSON.parse(value)));
+    } catch {
+      return value;
+    }
+  }
+  return value;
+}
+
 function sortedPurls(values) {
   return [
     ...new Set(values.filter((value) => typeof value === "string" && value.startsWith("pkg:"))),
@@ -61,7 +80,7 @@ export function stableCycloneDx(document) {
   delete normalized.serialNumber;
   if (normalized.metadata) delete normalized.metadata.timestamp;
   for (const annotation of normalized.annotations ?? []) delete annotation.timestamp;
-  return stableRegistryMetadata(normalized);
+  return stableOccurrenceMetadata(stableRegistryMetadata(normalized));
 }
 
 export function stableSpdx(document) {
@@ -81,7 +100,7 @@ export function stableSpdx(document) {
     }
     return value;
   };
-  return stableRegistryMetadata(normalize(document));
+  return stableOccurrenceMetadata(stableRegistryMetadata(normalize(document)));
 }
 
 function compareDocuments(label, expected, actual) {

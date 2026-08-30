@@ -278,6 +278,12 @@ manifest binds the HTTPS source page, archive and layout URLs/checksums, layout
 version, retrieval and data-as-of dates, row-set checksum, reuse review, and
 transformation. A separate server-trusted qualified-language review binds the
 source and transformation to the immutable user-facing language contract.
+The API supplies those coordinated inputs as one Dataset Edition trust bundle.
+The intake module validates and snapshots that bundle once, then owns admission,
+checksum binding, row normalization, employer-resolution measurement, and the
+single persistence call. Untrusted fields, malformed rows, stale checksums, and
+missing reviews all fail before any tenant storage read or write. Persistence
+still owns tenant locking, idempotent replay, and conflicting-edition rejection.
 Imports are disabled without both exact manifests; caller-supplied review or
 provenance and any drift fail before signal writes. Pre-v11 editions remain
 explicitly `null` for provenance, and pre-v12 editions remain `null` for

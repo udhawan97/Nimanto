@@ -12,6 +12,7 @@ import {
   type GovernmentEvidenceLanguageReview,
 } from "@nimanto/domain";
 import type { ProviderJobVerificationResult } from "@nimanto/providers";
+import type { GovernmentDatasetTrust } from "../src/config.js";
 import { buildServer } from "../src/server.js";
 import { NIMANTO_VERSION } from "../src/version.js";
 
@@ -31,8 +32,7 @@ async function setup(options?: {
   assuranceModel?: string;
   urlAllowlist?: string[];
   urlTermsReviewedAt?: string;
-  trustedGovernmentDatasetProvenance?: GovernmentDatasetProvenance[];
-  trustedGovernmentEvidenceLanguageReviews?: GovernmentEvidenceLanguageReview[];
+  governmentDatasetTrust?: GovernmentDatasetTrust;
   allowlistedJobPageFetcher?: (input: {
     url: string;
     allowedHosts: string[];
@@ -90,13 +90,9 @@ async function setup(options?: {
     ...(options?.removePath ? { removePath: options.removePath } : {}),
     ...(options?.assuranceModel ? { assuranceModel: options.assuranceModel } : {}),
     ...(options?.urlTermsReviewedAt ? { urlTermsReviewedAt: options.urlTermsReviewedAt } : {}),
-    ...(options?.trustedGovernmentDatasetProvenance
-      ? { trustedGovernmentDatasetProvenance: options.trustedGovernmentDatasetProvenance }
-      : {}),
-    ...(options?.trustedGovernmentEvidenceLanguageReviews
+    ...(options?.governmentDatasetTrust
       ? {
-          trustedGovernmentEvidenceLanguageReviews:
-            options.trustedGovernmentEvidenceLanguageReviews,
+          governmentDatasetTrust: options.governmentDatasetTrust,
         }
       : {}),
     ...(options?.allowlistedJobPageFetcher
@@ -1268,7 +1264,7 @@ describe("Nimanto beta API", () => {
       reviewedAt: "2026-08-29T00:00:00.000Z",
     };
     const provenanceOnly = await setup({
-      trustedGovernmentDatasetProvenance: [trustedProvenance],
+      governmentDatasetTrust: { provenance: [trustedProvenance] },
     });
     const languageBlocked = await provenanceOnly.app.inject({
       method: "POST",
@@ -1329,8 +1325,10 @@ describe("Nimanto beta API", () => {
     const languageReviewChecksum =
       governmentEvidenceLanguageReviewChecksum(governmentLanguageReview);
     const { app, cookie } = await setup({
-      trustedGovernmentDatasetProvenance: [governmentProvenance],
-      trustedGovernmentEvidenceLanguageReviews: [governmentLanguageReview],
+      governmentDatasetTrust: {
+        provenance: [governmentProvenance],
+        languageReviews: [governmentLanguageReview],
+      },
     });
     const dashboard = await app.inject({
       method: "GET",

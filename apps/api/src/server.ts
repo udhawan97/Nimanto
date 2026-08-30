@@ -552,12 +552,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
   const allowlistedJobPageFetcher = options.allowlistedJobPageFetcher ?? fetchAllowlistedJobPage;
   let governmentDataset: GovernmentDatasetIngestion;
   try {
-    governmentDataset = new GovernmentDatasetIngestion(
-      store,
-      options.trustedEmployerResolutionEvaluation,
-      options.trustedGovernmentDatasetProvenance,
-      options.trustedGovernmentEvidenceLanguageReviews,
-    );
+    governmentDataset = new GovernmentDatasetIngestion(store, options.governmentDatasetTrust);
   } catch (error) {
     await store.close();
     throw error;

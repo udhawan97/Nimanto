@@ -24,6 +24,20 @@ export type AllowlistedJobPageFetcher = (input: {
   allowedHosts: string[];
 }) => Promise<{ canonicalUrl: string; text: string; observedAt: string }>;
 
+export interface TrustedEmployerResolutionEvaluation {
+  datasetChecksum: string;
+  registryChecksum: string;
+  reviewedAt: string;
+  reviewer: string;
+  fixtures: ReadonlyArray<{ sourceName: string; expectedId: string | null }>;
+}
+
+export interface GovernmentDatasetTrust {
+  employerResolutionEvaluation?: TrustedEmployerResolutionEvaluation;
+  provenance?: ReadonlyArray<GovernmentDatasetProvenance>;
+  languageReviews?: ReadonlyArray<GovernmentEvidenceLanguageReview>;
+}
+
 export interface NimantoApiOptions {
   dataDirectory: string;
   artifactDirectory: string;
@@ -34,15 +48,7 @@ export interface NimantoApiOptions {
   assuranceModel?: string;
   urlAllowlist: string[];
   urlTermsReviewedAt?: string;
-  trustedEmployerResolutionEvaluation?: {
-    datasetChecksum: string;
-    registryChecksum: string;
-    reviewedAt: string;
-    reviewer: string;
-    fixtures: Array<{ sourceName: string; expectedId: string | null }>;
-  };
-  trustedGovernmentDatasetProvenance?: GovernmentDatasetProvenance[];
-  trustedGovernmentEvidenceLanguageReviews?: GovernmentEvidenceLanguageReview[];
+  governmentDatasetTrust?: GovernmentDatasetTrust;
   providerJobsFetcher?: ProviderJobsFetcher;
   providerJobVerifier?: ProviderJobVerifier;
   allowlistedJobPageFetcher?: AllowlistedJobPageFetcher;

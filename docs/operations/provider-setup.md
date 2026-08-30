@@ -62,14 +62,14 @@ may remain attached to multiple employers so the resolver abstains on ambiguity.
 
 `POST /v1/h1b-signals/government-import` accepts one candidate-workspace edition
 at a time, but only when `buildServer` receives an exact matching entry in
-`trustedGovernmentDatasetProvenance`. Each server-owned manifest binds
+`governmentDatasetTrust.provenance`. Each server-owned manifest binds
 `sourceType`, `sourceEdition`, HTTPS source-page/archive/layout URLs, SHA-256
 archive/layout hashes, `layoutVersion`, retrieval time, `dataAsOf`, exact row-set
 checksum, transformation version, reuse notice, reviewer, and review time. No
 official edition is configured by default.
 
 `buildServer` must also receive an exact source/transformation entry in
-`trustedGovernmentEvidenceLanguageReviews`. The server-owned review binds the
+`governmentDatasetTrust.languageReviews`. The server-owned review binds the
 source type and transformation version to
 `governmentEvidenceLanguageContractChecksum()` and records the qualified
 reviewer's name, qualification, and ISO review time. The contract freezes the
@@ -98,11 +98,14 @@ Caller-supplied provenance, language review, and resolution evaluations are reje
 Archive, layout, row-set, transformation, or manifest drift fails before signal
 writes. Missing or stale language review also fails before signal writes. The
 same edition/checksum/transformation/provenance/language-review tuple is idempotent.
-Only a server-configured, checksum-verified evaluation bound to the exact current
-employer-registry checksum can enable measured employer resolution. Adding or
-removing any canonical employer or reviewed alias disables that linkage until the
-evaluation is rerun and reviewed. Historical rows remain historical context—not
-current employer policy or legal advice.
+Only a server-configured, checksum-verified
+`governmentDatasetTrust.employerResolutionEvaluation` bound to the exact current
+employer-registry checksum can enable measured employer resolution. The intake
+module snapshots the complete trust bundle at startup; later caller mutation
+cannot alter an admitted edition. Adding or removing any canonical employer or
+reviewed alias disables that linkage until the evaluation is rerun and reviewed.
+Historical rows remain historical context—not current employer policy or legal
+advice.
 Imported signals preserve the exact source-dataset employer as `sourceCompany`
 even when an approved alias maps `company` to a canonical Role employer.
 

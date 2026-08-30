@@ -85,3 +85,41 @@ test("volatile inventory identity is ignored without hiding release metadata dri
   secondSpdx["@graph"][0].extension[2].extension_cdxPropValue = "sha512-b";
   assert.notDeepEqual(stableSpdx(firstSpdx), stableSpdx(secondSpdx));
 });
+
+test("source occurrence churn does not make an immutable release inventory stale", () => {
+  const firstCycloneDx = {
+    components: [
+      {
+        purl: "pkg:npm/example@1.0.0",
+        evidence: { occurrences: [{ location: "src/server.ts", line: 42 }] },
+      },
+    ],
+  };
+  const secondCycloneDx = structuredClone(firstCycloneDx);
+  secondCycloneDx.components[0].evidence.occurrences = [
+    { location: "src/renamed-server.ts", line: 84 },
+  ];
+  assert.deepEqual(stableCycloneDx(firstCycloneDx), stableCycloneDx(secondCycloneDx));
+
+  const firstSpdx = {
+    "@graph": [
+      {
+        software_packageUrl: "pkg:npm/example@1.0.0",
+        extension: [
+          {
+            extension_cdxPropValue: JSON.stringify({
+              identity: [{ field: "purl", confidence: 1 }],
+              occurrences: [{ location: "src/server.ts", line: 42 }],
+            }),
+          },
+        ],
+      },
+    ],
+  };
+  const secondSpdx = structuredClone(firstSpdx);
+  secondSpdx["@graph"][0].extension[0].extension_cdxPropValue = JSON.stringify({
+    identity: [{ field: "purl", confidence: 1 }],
+    occurrences: [{ location: "src/renamed-server.ts", line: 84 }],
+  });
+  assert.deepEqual(stableSpdx(firstSpdx), stableSpdx(secondSpdx));
+});

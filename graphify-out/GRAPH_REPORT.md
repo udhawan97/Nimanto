@@ -1,16 +1,16 @@
 # Graph Report - worktree  (2026-08-30)
 
 ## Corpus Check
-- 232 files · ~7,472,653 words
+- 232 files · ~7,473,070 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1955 nodes · 3303 edges · 138 communities (108 shown, 30 thin omitted)
+- 1962 nodes · 3321 edges · 147 communities (114 shown, 33 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 43 edges (avg confidence: 0.77)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `c9a0a6e2`
+- Built from commit: `f834ff3d`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -18,20 +18,20 @@
 - derive.ts
 - workspace.tsx
 - scripts
-- packet-lifecycle.ts
+- documents/src/index.ts
 - NimantoEmblem
-- h1b-evidence.tsx
+- role-provenance.tsx
 - store.ts
 - buildServer
 - parsers/src/index.ts
 - Run and operate the local beta
 - Nimanto v0.5.1 — Say What You Need, Ask Before You Burn It
 - dependencies
-- government-dataset.ts
+- sponsorship.ts
 - human
 - matching.ts
 - NimantoEmblem
-- .runWorkerCycle
+- packet-lifecycle.ts
 - calendar-export.ts
 - NimantoStore
 - migrations.ts
@@ -41,15 +41,16 @@
 - compilerOptions
 - role-discovery.ts
 - .transaction
-- domain/src/index.ts
-- discovery-cycle.ts
+- ExternalActionLifecycle
+- government-dataset.test.ts
+- config.ts
 - applications-workbench.ts
 - What changed
-- external-action-lifecycle.ts
+- domain/src/index.ts
 - devDependencies
 - Nimanto Sources Licenses and Provider Gate
 - Job-source expansion research
-- database/src/index.ts
+- app/page.tsx
 - Nimanto v0.4.0 — Inspectable History
 - Nimanto v0.4.1 — Action Before Analysis
 - EvidenceClaim
@@ -66,7 +67,7 @@
 - Fastify API
 - compilerOptions
 - version-sync.test.mjs
-- DeletionCoordinator
+- deletion-coordinator.ts
 - Workspace
 - worker/package.json
 - keywords
@@ -77,8 +78,8 @@
 - database/tsconfig.json
 - database/tsconfig.build.json
 - domain/package.json
-- roles.ts
-- validTrustedProvenance
+- jobs.ts
+- government-dataset.ts
 - workbench-mutations.ts
 - Nimanto v0.9.0 — Choose the Search, Keep the Evidence
 - documents/package.json
@@ -114,7 +115,7 @@
 - .open
 - schedules.ts
 - tokens.test.ts
-- jobs.ts
+- ats-routing.ts
 - First release
 - Nimanto v0.5.3 — Proof Means Enforced
 - Nimanto v0.5.4 — Work Stays Yours
@@ -123,12 +124,21 @@
 - v0.9.0 public-surface ledger
 - render-screenshots.mjs
 - compilerOptions
+- applications.ts
 - Nimanto Domain Language
 - Durable discovery schedules
 - Nimanto v0.5.5 — Same Boundaries, Fresh Runtime
+- h1b-evidence.tsx
+- external-actions.ts
 - render-social-card.mjs
 - validate-sbom.mjs
+- ErrorBoundary
+- browser-components.test.tsx
 - PacketHistoryPanel
+- EvidenceVault
+- layout.tsx
+- CommandPalette
+- CopyLine
 - sanitize-sbom.mjs
 - 4. The mark
 - 6. Workbench
@@ -185,7 +195,7 @@
 - **Tenant Isolation Defense in Depth** — docs_planning_architecture_postgresql_rls_defense, docs_planning_architecture_single_candidate_tenancy, docs_planning_trust_and_security_tenant_authorization, docs_planning_backend_plan_slice_1_evidence_to_match [INFERRED 0.85]
 - **Review Before External Action** — docs_planning_architecture_no_external_effects_through_slice_3, docs_planning_product_contract_source_action_contract, docs_planning_product_contract_frozen_artifact_approval, docs_planning_backend_plan_slice_3_grounded_packet [INFERRED 0.95]
 
-## Communities (138 total, 30 thin omitted)
+## Communities (147 total, 33 thin omitted)
 
 ### Community 0 - "derive.ts"
 Cohesion: 0.07
@@ -193,31 +203,31 @@ Nodes (47): Applications(), downloadTextFile(), localDayInstant(), ActionLike, A
 
 ### Community 1 - "workspace.tsx"
 Cohesion: 0.04
-Nodes (49): CommandPalette(), PaletteEntry, siteCommands, Connection, ConnectionBanner(), ConnectionIndicator(), useConnection(), Action (+41 more)
+Nodes (46): Connection, ConnectionBanner(), ConnectionIndicator(), useConnection(), Action, ActionDraft, ActionRunner, ApiError (+38 more)
 
 ### Community 2 - "scripts"
 Cohesion: 0.09
 Nodes (23): scripts, build, check, clean, dev, dev:all, dev:core, format (+15 more)
 
-### Community 3 - "packet-lifecycle.ts"
-Cohesion: 0.08
-Nodes (31): ArtifactManifest, PacketArtifactInspector, PacketArtifactRenderer, stores, PacketRecord, CanonicalPacket, createDocx(), createPdf() (+23 more)
+### Community 3 - "documents/src/index.ts"
+Cohesion: 0.21
+Nodes (16): CanonicalPacket, createDocx(), createPdf(), decodeXml(), docxText(), inspectPacketArtifacts(), normalizedContent(), PacketArtifact (+8 more)
 
 ### Community 4 - "NimantoEmblem"
 Cohesion: 0.10
 Nodes (13): annulusJaali(), barShape(), bracketShape(), diamond(), getTHREE(), glowTexture(), NimantoEmblem, notchPoly() (+5 more)
 
-### Community 5 - "h1b-evidence.tsx"
-Cohesion: 0.07
-Nodes (26): metadata, viewport, metadata, ErrorBoundary, dateTime(), GOVERNMENT_SOURCE_TYPES, H1bEvidencePanel(), human() (+18 more)
+### Community 5 - "role-provenance.tsx"
+Cohesion: 0.29
+Nodes (9): dateOrUnknown(), human(), localDateTime(), reviewedDate(), RoleAvailability, RoleProvenanceCard(), RoleProvenanceData, RoleSourcePolicy (+1 more)
 
 ### Community 6 - "store.ts"
-Cohesion: 0.08
+Cohesion: 0.07
 Nodes (31): ApplicationNoteRecord, AssuranceHistoryRecord, AssuranceRecord, ClaimedSourceSchedule, DatasetEditionRecord, DiscoveryProfileRecord, DiscoveryProfileSaveResult, EmployerAliasRecord (+23 more)
 
 ### Community 7 - "buildServer"
-Cohesion: 0.13
-Nodes (21): ExternalActionLifecycle, verifiedArtifactBytes(), buildServer(), discoveryProfileInput(), fastify, H1B_LABELS, historyOptions(), identity() (+13 more)
+Cohesion: 0.15
+Nodes (17): buildServer(), discoveryProfileInput(), fastify, H1B_LABELS, historyOptions(), identity(), JsonObject, messageForError() (+9 more)
 
 ### Community 8 - "parsers/src/index.ts"
 Cohesion: 0.15
@@ -235,25 +245,25 @@ Nodes (27): A UI-only Workbench mutation coordinator, Consistent current-Role no
 Cohesion: 0.04
 Nodes (46): dependencies, @fontsource/ibm-plex-mono, @fontsource/instrument-serif, @fontsource-variable/archivo, lucide-react, next, @nimanto/domain, react (+38 more)
 
-### Community 12 - "government-dataset.ts"
-Cohesion: 0.17
-Nodes (23): GovernmentDatasetIngestion, LABELS, record(), text(), TrustedEvaluation, TrustedLanguageReview, TrustedProvenance, languageReview() (+15 more)
+### Community 12 - "sponsorship.ts"
+Cohesion: 0.21
+Nodes (13): record(), buildEmployerCandidates(), EmployerAliasInput, EmployerCandidate, employerRegistryChecksum(), EmployerResolutionEvaluation, evaluateEmployerResolution(), GOVERNMENT_DATASET_SOURCE_TYPES (+5 more)
 
 ### Community 13 - "human"
-Cohesion: 0.10
-Nodes (30): Actions(), ActivityLedger(), api(), ApplicationFilterDisclosure(), ApplicationNoteEditor(), atsRouteGateLabel(), cadenceLabel(), DataControls() (+22 more)
+Cohesion: 0.14
+Nodes (23): Actions(), ActivityLedger(), api(), ApplicationFilterDisclosure(), ApplicationNoteEditor(), atsRouteGateLabel(), cadenceLabel(), dateInputValue() (+15 more)
 
 ### Community 14 - "matching.ts"
-Cohesion: 0.13
-Nodes (24): MatchRunRecord, bandFromValue(), blockerText(), evidenceMatches(), evidenceStrength(), IDENTITY_PATTERNS, locationBlockers(), matchJob() (+16 more)
+Cohesion: 0.14
+Nodes (24): RoleWordingReviewRecord, bandFromValue(), blockerText(), evidenceMatches(), evidenceStrength(), IDENTITY_PATTERNS, locationBlockers(), matchJob() (+16 more)
 
 ### Community 15 - "NimantoEmblem"
-Cohesion: 0.08
-Nodes (19): BOUNDARY, METHOD, Brand(), HUB, Mark(), PETALS, CopyLine(), CopyState (+11 more)
+Cohesion: 0.16
+Nodes (9): clamp(), EmblemOptions, glowTexture(), inOutQuint(), lerp(), NimantoEmblem, outQuint(), petalShape() (+1 more)
 
-### Community 16 - ".runWorkerCycle"
-Cohesion: 0.27
-Nodes (5): DiscoveryCycle, normalizeFetchResult(), normalizeProviderRole(), CurrentRole, ProviderFetchRun
+### Community 16 - "packet-lifecycle.ts"
+Cohesion: 0.09
+Nodes (15): ArtifactManifest, PacketArtifactInspector, PacketArtifactRenderer, PacketLifecycle, verifiedArtifactBytes(), verifyPacketArtifacts(), stores, PacketRecord (+7 more)
 
 ### Community 17 - "calendar-export.ts"
 Cohesion: 0.13
@@ -280,16 +290,16 @@ Cohesion: 0.10
 Nodes (32): areaValue(), assessDiscoveryProfile(), compareCanonicalAreas(), confirmedArea(), countryLevelArea(), DiscoveryMatchPublication, DiscoveryProfileAssessment, DiscoveryProfileLike (+24 more)
 
 ### Community 25 - ".transaction"
-Cohesion: 0.15
-Nodes (4): PacketLifecycle, verifyPacketArtifacts(), ApplicationRecord, ApplicationStatus
-
-### Community 27 - "domain/src/index.ts"
-Cohesion: 0.24
-Nodes (7): AssuranceFinding, AssuranceFindingCode, assurePacket(), PacketAssuranceResult, ExternalActionEvent, transitionExternalAction(), transitions
-
-### Community 28 - "discovery-cycle.ts"
 Cohesion: 0.13
-Nodes (16): ProviderJobVerifier, AllowlistedJobPageFetcher, loadOptions(), localBootstrapSecret(), LocalModelAdapter, NimantoApiOptions, EnabledProvider, EnabledProviderRequest (+8 more)
+Nodes (4): annotateClusters(), ApplicationRecord, clusterKey(), ApplicationStatus
+
+### Community 27 - "government-dataset.test.ts"
+Cohesion: 0.20
+Nodes (12): GovernmentDatasetTrust, GovernmentDatasetIngestion, languageReview(), provenance(), stores, apps, GovernmentDatasetProvenance, governmentDatasetProvenanceChecksum() (+4 more)
+
+### Community 28 - "config.ts"
+Cohesion: 0.25
+Nodes (8): ProviderJobVerifier, AllowlistedJobPageFetcher, loadOptions(), localBootstrapSecret(), LocalModelAdapter, NimantoApiOptions, ProviderJobsFetcher, options
 
 ### Community 29 - "applications-workbench.ts"
 Cohesion: 0.15
@@ -299,9 +309,9 @@ Nodes (17): ApplicationNoteDraft, ApplicationsWorkbench, ApplicationsWorkbenchAc
 Cohesion: 0.12
 Nodes (15): Candidate-approved evidence intake, Durable discovery and dataset editions, Exact-approved external actions, Exact-snapshot match publication, Flow and responsive polish, Nimanto v0.4.2 — Exact Review, Exact Commit, One application transition policy, Resumable deletion write fence (+7 more)
 
-### Community 31 - "external-action-lifecycle.ts"
-Cohesion: 0.27
-Nodes (8): ProviderActionExecutor, stores, ExternalActionProvider, ActionPayload, ActionResult, buildDeepLink(), executeProviderAction(), validateActionPayload()
+### Community 31 - "domain/src/index.ts"
+Cohesion: 0.26
+Nodes (6): DashboardRead, FastifyRequest, stores, LocalIdentity, SessionIdentity, freshH1bLabel()
 
 ### Community 32 - "devDependencies"
 Cohesion: 0.11
@@ -315,9 +325,9 @@ Nodes (16): Observability Allowlist, H-1B Evidence Taxonomy, Source and Action C
 Cohesion: 0.11
 Nodes (18): “Best available source” governance, Candidate privacy and hostile-source boundary, Canonical work-mode and geography model, Current Nimanto baseline and gaps, Deterministic resume and preference matching, Duplicate lineage, Executive recommendation, Explicit no-scrape / approval-only list (+10 more)
 
-### Community 35 - "database/src/index.ts"
-Cohesion: 0.22
-Nodes (8): DashboardRead, DeletionRun, RemovePath, FastifyRequest, stores, LocalIdentity, SessionIdentity, freshH1bLabel()
+### Community 35 - "app/page.tsx"
+Cohesion: 0.18
+Nodes (8): BOUNDARY, METHOD, Brand(), HUB, Mark(), PETALS, Emblem(), Stage
 
 ### Community 36 - "Nimanto v0.4.0 — Inspectable History"
 Cohesion: 0.13
@@ -328,7 +338,7 @@ Cohesion: 0.13
 Nodes (13): 1. Manual role drafts survive section changes, 2. Applications opens on the work, 3. Section focus clears the sticky header, 4. No-op profile saves no longer create history, 5. Completion copy comes from returned data, Nimanto v0.4.1 — Action Before Analysis, Public surface, Surface inventory (+5 more)
 
 ### Community 38 - "EvidenceClaim"
-Cohesion: 0.25
+Cohesion: 0.22
 Nodes (4): seedDemo(), EvidenceRow, mapEvidence(), EvidenceClaim
 
 ### Community 39 - "Nimanto Initial Backend Plan"
@@ -352,12 +362,12 @@ Cohesion: 0.17
 Nodes (13): Identity-Invariant Scoring, Accessibility and Trust Controls, Identity-Invariant Fairness Safeguards, Isolated Upload and Parsing Pipeline, Legal and Expert Review Flags, Nimanto Trust Privacy and Security Plan, Operator Access Reality, OWASP File Upload Cheat Sheet (+5 more)
 
 ### Community 45 - "verify-sbom-freshness.mjs"
-Cohesion: 0.36
-Nodes (11): compareDocuments(), comparePurlSets(), cyclonedxPurls(), registryPropertyName(), sortedPurls(), spdxPurls(), stableCycloneDx(), stableRegistryMetadata() (+3 more)
+Cohesion: 0.34
+Nodes (12): compareDocuments(), comparePurlSets(), cyclonedxPurls(), registryPropertyName(), sortedPurls(), spdxPurls(), stableCycloneDx(), stableOccurrenceMetadata() (+4 more)
 
 ### Community 46 - "iso"
-Cohesion: 0.09
-Nodes (4): historyLimit(), iso(), isoRequired(), ExecutionReceipt
+Cohesion: 0.22
+Nodes (4): historyLimit(), iso(), OutcomeRecord, OutcomeType
 
 ### Community 47 - "package.json"
 Cohesion: 0.14
@@ -374,6 +384,10 @@ Nodes (12): compilerOptions, declaration, emitDeclarationOnly, noEmit, outDir, r
 ### Community 51 - "version-sync.test.mjs"
 Cohesion: 0.29
 Nodes (10): countOccurrences(), markdownSection(), releaseAssetPaths(), validateVersionSync(), versionTextChecks(), workspacePackages, checks, fixtureFiles (+2 more)
+
+### Community 52 - "deletion-coordinator.ts"
+Cohesion: 0.18
+Nodes (3): DeletionCoordinator, DeletionRun, RemovePath
 
 ### Community 53 - "Workspace"
 Cohesion: 0.18
@@ -400,8 +414,8 @@ Cohesion: 0.09
 Nodes (22): dependencies, @electric-sql/pglite, @nimanto/domain, devDependencies, @types/node, typescript, vitest, exports (+14 more)
 
 ### Community 59 - "marketplace.ts"
-Cohesion: 0.15
-Nodes (17): annotateClusters(), clusterKey(), RoleAvailabilityRecord, RoleVerificationInput, VerificationAttemptRecord, classifyRoleFamily(), isValidatedRoleFamily(), PublicationState (+9 more)
+Cohesion: 0.21
+Nodes (15): RoleAvailabilityRecord, RoleVerificationInput, VerificationAttemptRecord, classifyRoleFamily(), isValidatedRoleFamily(), PublicationState, StructuredArea, VALIDATED_ROLE_FAMILIES (+7 more)
 
 ### Community 60 - "database/tsconfig.json"
 Cohesion: 0.17
@@ -415,13 +429,13 @@ Nodes (11): compilerOptions, declaration, noEmit, outDir, rootDir, exclude, exte
 Cohesion: 0.11
 Nodes (17): devDependencies, @types/node, typescript, vitest, exports, @types/node, typescript, vitest (+9 more)
 
-### Community 63 - "roles.ts"
-Cohesion: 0.29
-Nodes (11): JobRecord, JobUpsertInput, RoleFamily, WorkplaceEvidence, WorkplaceMode, normalized(), normalizeRoleObservation(), required() (+3 more)
+### Community 63 - "jobs.ts"
+Cohesion: 0.10
+Nodes (43): DiscoveryCycle, EnabledProvider, EnabledProviderRequest, normalizeFetchResult(), normalizeProviderRole(), ProviderJobLike, JobRecord, JobUpsertInput (+35 more)
 
-### Community 64 - "validTrustedProvenance"
-Cohesion: 0.31
-Nodes (8): exactText(), validDate(), validDateTime(), validHttpsUrl(), validSha256(), validTrustedLanguageReview(), validTrustedProvenance(), provenance()
+### Community 64 - "government-dataset.ts"
+Cohesion: 0.27
+Nodes (13): TrustedEmployerResolutionEvaluation, exactText(), GovernmentDatasetAdmission, GovernmentDatasetRow, LABELS, text(), TrustedGovernmentDatasetCatalog, validDate() (+5 more)
 
 ### Community 65 - "workbench-mutations.ts"
 Cohesion: 0.24
@@ -531,9 +545,9 @@ Nodes (5): scheduledFailureEvent(), ScheduledJobEvent, scheduledRetryDelayMinute
 Cohesion: 0.47
 Nodes (5): channel(), css, luminance(), ratio(), token()
 
-### Community 100 - "jobs.ts"
-Cohesion: 0.07
-Nodes (57): AtsVerification, EnabledAtsProvider, enabledProvider(), providerErrorCode(), routeFor(), VerificationRequest, normalizeWorkplaceMode(), ATS_PROVIDERS (+49 more)
+### Community 100 - "ats-routing.ts"
+Cohesion: 0.06
+Nodes (39): AtsVerification, EnabledAtsProvider, enabledProvider(), providerErrorCode(), routeFor(), VerificationRequest, ProviderActionExecutor, stores (+31 more)
 
 ### Community 101 - "First release"
 Cohesion: 0.29
@@ -563,6 +577,10 @@ Nodes (5): assets, publicAssets, root, siteOnly, workbenchOnly
 Cohesion: 0.18
 Nodes (10): compilerOptions, declaration, emitDeclarationOnly, noEmit, outDir, rootDir, extends, include (+2 more)
 
+### Community 109 - "applications.ts"
+Cohesion: 0.21
+Nodes (9): APPLICATION_STATUSES, applicationTransitions, CandidateApplicationDecision, CandidateApplicationOption, consequentialTargets, isStatus(), legalCandidateTargets, PacketApplicationDecision (+1 more)
+
 ### Community 110 - "Nimanto Domain Language"
 Cohesion: 0.33
 Nodes (5): Evidence and explanation, Nimanto Domain Language, Operations, Preparation and action, Role intake
@@ -575,6 +593,14 @@ Nodes (5): Acceptance, Durable discovery schedules, Outcome, Public seams, State
 Cohesion: 0.33
 Nodes (5): Boundaries, Improved, Nimanto v0.5.5 — Same Boundaries, Fresh Runtime, Upgrade, Verify
 
+### Community 113 - "h1b-evidence.tsx"
+Cohesion: 0.29
+Nodes (9): dateTime(), GOVERNMENT_SOURCE_TYPES, H1bEvidencePanel(), human(), REVIEWABLE_CODES, RoleH1bSignal, RoleMatchSnapshot, RoleWordingBlocker (+1 more)
+
+### Community 114 - "external-actions.ts"
+Cohesion: 0.24
+Nodes (7): AssuranceFinding, AssuranceFindingCode, assurePacket(), PacketAssuranceResult, ExternalActionEvent, transitionExternalAction(), transitions
+
 ### Community 115 - "render-social-card.mjs"
 Cohesion: 0.33
 Nodes (4): assets, faces, modules, root
@@ -583,9 +609,21 @@ Nodes (4): assets, faces, modules, root
 Cohesion: 0.33
 Nodes (4): paths, releaseManifest, releaseWorkspaces, requiredPackages
 
+### Community 118 - "browser-components.test.tsx"
+Cohesion: 0.43
+Nodes (3): isLoopbackHost(), ServiceWorker(), serviceWorkerScriptUrl()
+
 ### Community 119 - "PacketHistoryPanel"
 Cohesion: 0.29
 Nodes (6): packetCanonicalDelta(), PacketHistoryPanel(), packetManifestDelta(), createScopedRequestGate(), ScopedRequestGate, ScopedRequestToken
+
+### Community 120 - "EvidenceVault"
+Cohesion: 0.29
+Nodes (7): DataControls(), emptyEvidenceFilters(), EvidenceVault(), fileBase64(), countedNoun(), filterEvidence(), packetInventoryNotice()
+
+### Community 122 - "CommandPalette"
+Cohesion: 0.50
+Nodes (3): CommandPalette(), PaletteEntry, siteCommands
 
 ### Community 125 - "sanitize-sbom.mjs"
 Cohesion: 0.50
@@ -604,24 +642,24 @@ Cohesion: 0.67
 Nodes (3): Hosted trust layer, Local beta boundary, Monorepo architecture
 
 ## Knowledge Gaps
-- **780 isolated node(s):** `name`, `version`, `private`, `type`, `build` (+775 more)
+- **779 isolated node(s):** `name`, `version`, `private`, `type`, `build` (+774 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **30 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **33 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `NimantoStore` connect `NimantoStore` to `packet-lifecycle.ts`, `store.ts`, `buildServer`, `parsers/src/index.ts`, `government-dataset.ts`, `matching.ts`, `.runWorkerCycle`, `.transaction`, `.approveExternalActionExact`, `discovery-cycle.ts`, `external-action-lifecycle.ts`, `database/src/index.ts`, `EvidenceClaim`, `canonicalHash`, `iso`, `DeletionCoordinator`, `marketplace.ts`, `validTrustedProvenance`, `.open`, `schedules.ts`, `jobs.ts`?**
-  _High betweenness centrality (0.046) - this node is a cross-community bridge._
-- **Why does `ApplicationStatus` connect `.transaction` to `derive.ts`, `workspace.tsx`, `packet-lifecycle.ts`, `store.ts`, `buildServer`, `matching.ts`, `calendar-export.ts`?**
-  _High betweenness centrality (0.019) - this node is a cross-community bridge._
-- **Why does `buildServer()` connect `buildServer` to `.open`, `database/src/index.ts`, `jobs.ts`, `EvidenceClaim`, `parsers/src/index.ts`, `canonicalHash`, `worker.ts`, `iso`, `.runWorkerCycle`, `NimantoStore`, `DeletionCoordinator`, `.transaction`, `.approveExternalActionExact`, `marketplace.ts`, `discovery-cycle.ts`, `roles.ts`, `external-action-lifecycle.ts`?**
-  _High betweenness centrality (0.012) - this node is a cross-community bridge._
+- **Why does `NimantoStore` connect `NimantoStore` to `government-dataset.ts`, `.open`, `schedules.ts`, `ats-routing.ts`, `store.ts`, `buildServer`, `parsers/src/index.ts`, `EvidenceClaim`, `canonicalHash`, `marketplace.ts`, `iso`, `packet-lifecycle.ts`, `deletion-coordinator.ts`, `.transaction`, `ExternalActionLifecycle`, `government-dataset.test.ts`, `domain/src/index.ts`, `jobs.ts`?**
+  _High betweenness centrality (0.038) - this node is a cross-community bridge._
+- **Why does `ApplicationStatus` connect `.transaction` to `derive.ts`, `workspace.tsx`, `store.ts`, `buildServer`, `applications.ts`, `matching.ts`, `packet-lifecycle.ts`, `calendar-export.ts`?**
+  _High betweenness centrality (0.020) - this node is a cross-community bridge._
+- **Why does `buildServer()` connect `buildServer` to `.open`, `ats-routing.ts`, `EvidenceClaim`, `parsers/src/index.ts`, `canonicalHash`, `domain/src/index.ts`, `iso`, `worker.ts`, `packet-lifecycle.ts`, `NimantoStore`, `deletion-coordinator.ts`, `.transaction`, `ExternalActionLifecycle`, `government-dataset.test.ts`, `config.ts`, `jobs.ts`?**
+  _High betweenness centrality (0.014) - this node is a cross-community bridge._
 - **What connects `name`, `version`, `private` to the rest of the system?**
-  _780 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _779 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `derive.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.07265306122448979 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.07346938775510205 - nodes in this community are weakly interconnected._
 - **Should `workspace.tsx` be split into smaller, more focused modules?**
-  _Cohesion score 0.035959809624537285 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.038112522686025406 - nodes in this community are weakly interconnected._
 - **Should `scripts` be split into smaller, more focused modules?**
   _Cohesion score 0.08695652173913043 - nodes in this community are weakly interconnected._

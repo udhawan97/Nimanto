@@ -16,15 +16,8 @@ import {
   type GovernmentEvidenceLanguageReview,
   type H1bSignalLabel,
 } from "@nimanto/domain";
-import type { NimantoApiOptions } from "./config.js";
+import type { GovernmentDatasetTrust, TrustedEmployerResolutionEvaluation } from "./config.js";
 
-type TrustedEvaluation = NimantoApiOptions["trustedEmployerResolutionEvaluation"];
-type TrustedProvenance = NonNullable<
-  NimantoApiOptions["trustedGovernmentDatasetProvenance"]
->[number];
-type TrustedLanguageReview = NonNullable<
-  NimantoApiOptions["trustedGovernmentEvidenceLanguageReviews"]
->[number];
 const LABELS: H1bSignalLabel[] = [
   "current_role_transfer_support",
   "current_company_policy_support",
@@ -123,47 +116,146 @@ function validTrustedLanguageReview(value: unknown): value is GovernmentEvidence
   );
 }
 
-export class GovernmentDatasetIngestion {
-  readonly #trustedProvenance = new Map<string, GovernmentDatasetProvenance>();
-  readonly #trustedLanguageReviews = new Map<string, GovernmentEvidenceLanguageReview>();
+type GovernmentDatasetRow = {
+  company: string;
+  label: H1bSignalLabel;
+  sourceLocator: string;
+  sourcePeriod: string;
+  observedAt: string;
+};
 
-  constructor(
-    private readonly store: NimantoStore,
-    private readonly trustedEvaluation: TrustedEvaluation,
-    trustedProvenance: TrustedProvenance[] = [],
-    trustedLanguageReviews: TrustedLanguageReview[] = [],
-  ) {
+type GovernmentDatasetAdmission = {
+  provenance: GovernmentDatasetProvenance;
+  provenanceChecksum: string;
+  transformationVersion: string;
+  languageReview: GovernmentEvidenceLanguageReview;
+  languageReviewChecksum: string;
+};
+
+function governmentDatasetRow(value: Record<string, unknown>): GovernmentDatasetRow {
+  const company = text(value.company, "company");
+  const label = text(value.label, "label") as H1bSignalLabel;
+  if (!LABELS.includes(label)) throw new Error("INVALID_LABEL");
+  const sourceLocator = text(value.sourceLocator, "source_locator");
+  const sourcePeriod = text(value.sourcePeriod, "source_period");
+  const observedAt = text(value.observedAt, "observed_at");
+  if (!Number.isFinite(new Date(observedAt).getTime())) throw new Error("INVALID_OBSERVED_AT");
+  return { company, label, sourceLocator, sourcePeriod, observedAt };
+}
+
+class TrustedGovernmentDatasetCatalog {
+  readonly #evaluation: Readonly<TrustedEmployerResolutionEvaluation> | undefined;
+  readonly #provenance = new Map<string, GovernmentDatasetProvenance>();
+  readonly #languageReviews = new Map<string, GovernmentEvidenceLanguageReview>();
+
+  constructor(trust: GovernmentDatasetTrust = {}) {
+    const evaluation = trust.employerResolutionEvaluation;
     if (
-      trustedEvaluation &&
-      (!trustedEvaluation.reviewer.trim() ||
-        !Number.isFinite(new Date(trustedEvaluation.reviewedAt).getTime()) ||
-        !/^[a-f0-9]{64}$/u.test(trustedEvaluation.registryChecksum) ||
-        canonicalHash(trustedEvaluation.fixtures) !== trustedEvaluation.datasetChecksum)
+      evaluation &&
+      (typeof evaluation.reviewer !== "string" ||
+        !evaluation.reviewer.trim() ||
+        typeof evaluation.reviewedAt !== "string" ||
+        !Number.isFinite(new Date(evaluation.reviewedAt).getTime()) ||
+        !validSha256(evaluation.registryChecksum) ||
+        canonicalHash(evaluation.fixtures) !== evaluation.datasetChecksum)
     ) {
       throw new Error("INVALID_TRUSTED_EMPLOYER_EVALUATION");
     }
-    for (const provenance of trustedProvenance) {
+    if (evaluation) {
+      const fixtures = Object.freeze(
+        evaluation.fixtures.map((fixture) => Object.freeze({ ...fixture })),
+      );
+      this.#evaluation = Object.freeze({ ...evaluation, fixtures });
+    }
+
+    for (const provenance of trust.provenance ?? []) {
       if (!validTrustedProvenance(provenance)) {
         throw new Error("INVALID_TRUSTED_DATASET_PROVENANCE");
       }
       const snapshot = Object.freeze({ ...provenance });
       const key = `${snapshot.sourceType}\u0000${snapshot.sourceEdition}`;
-      if (this.#trustedProvenance.has(key)) {
+      if (this.#provenance.has(key)) {
         throw new Error("DUPLICATE_TRUSTED_DATASET_PROVENANCE");
       }
-      this.#trustedProvenance.set(key, snapshot);
+      this.#provenance.set(key, snapshot);
     }
-    for (const review of trustedLanguageReviews) {
+
+    for (const review of trust.languageReviews ?? []) {
       if (!validTrustedLanguageReview(review)) {
         throw new Error("INVALID_TRUSTED_GOVERNMENT_LANGUAGE_REVIEW");
       }
       const snapshot = Object.freeze({ ...review });
       const key = `${snapshot.sourceType}\u0000${snapshot.transformationVersion}`;
-      if (this.#trustedLanguageReviews.has(key)) {
+      if (this.#languageReviews.has(key)) {
         throw new Error("DUPLICATE_TRUSTED_GOVERNMENT_LANGUAGE_REVIEW");
       }
-      this.#trustedLanguageReviews.set(key, snapshot);
+      this.#languageReviews.set(key, snapshot);
     }
+  }
+
+  admit(input: {
+    sourceType: GovernmentDatasetSourceType;
+    sourceEdition: string;
+    transformationVersion: string;
+    provenanceChecksum: string;
+    rowSetChecksum: string;
+  }): GovernmentDatasetAdmission {
+    const provenance = this.#provenance.get(`${input.sourceType}\u0000${input.sourceEdition}`);
+    if (!provenance) throw new Error("GOVERNMENT_DATASET_NOT_APPROVED");
+    const provenanceChecksum = governmentDatasetProvenanceChecksum(provenance);
+    if (
+      input.provenanceChecksum !== provenanceChecksum ||
+      input.transformationVersion !== provenance.transformationVersion ||
+      input.rowSetChecksum !== provenance.rowSetChecksum
+    ) {
+      throw new Error("GOVERNMENT_DATASET_PROVENANCE_MISMATCH");
+    }
+    const languageReview = this.#languageReviews.get(
+      `${input.sourceType}\u0000${input.transformationVersion}`,
+    );
+    if (!languageReview) throw new Error("GOVERNMENT_EVIDENCE_LANGUAGE_NOT_REVIEWED");
+    return {
+      provenance,
+      provenanceChecksum,
+      transformationVersion: input.transformationVersion,
+      languageReview,
+      languageReviewChecksum: governmentEvidenceLanguageReviewChecksum(languageReview),
+    };
+  }
+
+  evaluateEmployerResolution(companies: ReturnType<typeof buildEmployerCandidates>) {
+    const registryChecksum = employerRegistryChecksum(companies);
+    const measured = evaluateEmployerResolution([...(this.#evaluation?.fixtures ?? [])], companies);
+    const registryMatches = this.#evaluation?.registryChecksum === registryChecksum;
+    return {
+      registryChecksum,
+      evaluation: {
+        ...measured,
+        enabled: measured.enabled && registryMatches,
+        registryChecksum,
+        trustedRegistryChecksum: this.#evaluation?.registryChecksum ?? null,
+        registryMatches,
+      },
+      evaluationProvenance: this.#evaluation
+        ? {
+            datasetChecksum: this.#evaluation.datasetChecksum,
+            registryChecksum: this.#evaluation.registryChecksum,
+            reviewedAt: this.#evaluation.reviewedAt,
+            reviewer: this.#evaluation.reviewer,
+          }
+        : null,
+    };
+  }
+}
+
+export class GovernmentDatasetIngestion {
+  readonly #catalog: TrustedGovernmentDatasetCatalog;
+
+  constructor(
+    private readonly store: NimantoStore,
+    trust: GovernmentDatasetTrust = {},
+  ) {
+    this.#catalog = new TrustedGovernmentDatasetCatalog(trust);
   }
 
   async import(tenantId: string, value: unknown) {
@@ -182,33 +274,24 @@ export class GovernmentDatasetIngestion {
       throw new Error("UNTRUSTED_GOVERNMENT_LANGUAGE_REVIEW");
     }
     const sourceEdition = text(body.sourceEdition, "source_edition");
-    const provenance = this.#trustedProvenance.get(`${sourceType}\u0000${sourceEdition}`);
-    if (!provenance) throw new Error("GOVERNMENT_DATASET_NOT_APPROVED");
-    const provenanceChecksum = governmentDatasetProvenanceChecksum(provenance);
-    if (text(body.provenanceChecksum, "provenance_checksum") !== provenanceChecksum) {
-      throw new Error("GOVERNMENT_DATASET_PROVENANCE_MISMATCH");
-    }
     const transformationVersion =
       body.transformationVersion === undefined
         ? "government_ingest_v1"
         : text(body.transformationVersion, "transformation_version");
-    if (transformationVersion !== provenance.transformationVersion) {
-      throw new Error("GOVERNMENT_DATASET_PROVENANCE_MISMATCH");
-    }
-    const languageReview = this.#trustedLanguageReviews.get(
-      `${sourceType}\u0000${transformationVersion}`,
-    );
-    if (!languageReview) throw new Error("GOVERNMENT_EVIDENCE_LANGUAGE_NOT_REVIEWED");
-    const languageReviewChecksum = governmentEvidenceLanguageReviewChecksum(languageReview);
     if (!Array.isArray(body.rows) || body.rows.length < 1 || body.rows.length > 500) {
       throw new Error("INVALID_DATASET_ROWS");
     }
-    const rows = body.rows.map(record);
-    const checksum = canonicalHash(rows);
+    const rawRows = body.rows.map(record);
+    const checksum = canonicalHash(rawRows);
     if (text(body.checksum, "checksum") !== checksum) throw new Error("DATASET_CHECKSUM_MISMATCH");
-    if (checksum !== provenance.rowSetChecksum) {
-      throw new Error("GOVERNMENT_DATASET_PROVENANCE_MISMATCH");
-    }
+    const rows = rawRows.map(governmentDatasetRow);
+    const admission = this.#catalog.admit({
+      sourceType,
+      sourceEdition,
+      transformationVersion,
+      provenanceChecksum: text(body.provenanceChecksum, "provenance_checksum"),
+      rowSetChecksum: checksum,
+    });
 
     const [jobs, reviewedAliases] = await Promise.all([
       this.store.listJobs(tenantId),
@@ -221,35 +304,11 @@ export class GovernmentDatasetIngestion {
         alias: review.alias,
       })),
     );
-    const registryChecksum = employerRegistryChecksum(companies);
-    const measuredEvaluation = evaluateEmployerResolution(
-      this.trustedEvaluation?.fixtures ?? [],
-      companies,
-    );
-    const registryMatches = this.trustedEvaluation?.registryChecksum === registryChecksum;
-    const evaluation = {
-      ...measuredEvaluation,
-      enabled: measuredEvaluation.enabled && registryMatches,
-      registryChecksum,
-      trustedRegistryChecksum: this.trustedEvaluation?.registryChecksum ?? null,
-      registryMatches,
-    };
-    const evaluationProvenance = this.trustedEvaluation
-      ? {
-          datasetChecksum: this.trustedEvaluation.datasetChecksum,
-          registryChecksum: this.trustedEvaluation.registryChecksum,
-          reviewedAt: this.trustedEvaluation.reviewedAt,
-          reviewer: this.trustedEvaluation.reviewer,
-        }
-      : null;
+    const { evaluation, evaluationProvenance, registryChecksum } =
+      this.#catalog.evaluateEmployerResolution(companies);
     const signals = rows.map((row) => {
-      const company = text(row.company, "company");
-      const requestedLabel = text(row.label, "label") as H1bSignalLabel;
-      if (!LABELS.includes(requestedLabel)) throw new Error("INVALID_LABEL");
-      const sourcePeriod = text(row.sourcePeriod, "source_period");
-      const sourceLocator = text(row.sourceLocator, "source_locator");
-      const observedAt = text(row.observedAt, "observed_at");
-      if (!Number.isFinite(new Date(observedAt).getTime())) throw new Error("INVALID_OBSERVED_AT");
+      const company = row.company;
+      const requestedLabel = row.label;
       const resolution = resolveEmployer(company, companies);
       const resolvedCompany =
         resolution.state === "resolved"
@@ -274,24 +333,24 @@ export class GovernmentDatasetIngestion {
         sourceCompany: company,
         label,
         sourceType,
-        sourceLocator,
-        sourcePeriod,
-        observedAt,
+        sourceLocator: row.sourceLocator,
+        sourcePeriod: row.sourcePeriod,
+        observedAt: row.observedAt,
         confidence: (resolution.state === "resolved" && evaluation.enabled ? "high" : "low") as
           "high" | "low",
         limitations: renderGovernmentEvidenceLimitations({
           sourceType,
           sourceEdition,
           sourceCompany: company,
-          sourcePeriod,
-          dataAsOf: provenance.dataAsOf,
-          layoutVersion: provenance.layoutVersion,
-          provenanceChecksum,
+          sourcePeriod: row.sourcePeriod,
+          dataAsOf: admission.provenance.dataAsOf,
+          layoutVersion: admission.provenance.layoutVersion,
+          provenanceChecksum: admission.provenanceChecksum,
           rowSetChecksum: checksum,
           transformationVersion,
           resolutionState: resolution.state,
           registryChecksum,
-          registryMatches,
+          registryMatches: evaluation.registryMatches,
           sampleSize: evaluation.sampleSize,
           precision: evaluation.precision,
           recall: evaluation.recall,
@@ -305,10 +364,10 @@ export class GovernmentDatasetIngestion {
       sourceEdition,
       checksum,
       transformationVersion,
-      provenance,
-      provenanceChecksum,
-      languageReview,
-      languageReviewChecksum,
+      provenance: admission.provenance,
+      provenanceChecksum: admission.provenanceChecksum,
+      languageReview: admission.languageReview,
+      languageReviewChecksum: admission.languageReviewChecksum,
       evaluation: evaluation as unknown as Record<string, unknown>,
       evaluationProvenance,
       signals,
@@ -318,9 +377,9 @@ export class GovernmentDatasetIngestion {
       created: result.created,
       checksum,
       transformationVersion: result.edition.transformationVersion,
-      provenanceChecksum,
+      provenanceChecksum: admission.provenanceChecksum,
       provenance: result.edition.provenance,
-      languageReviewChecksum,
+      languageReviewChecksum: admission.languageReviewChecksum,
       languageReview: result.edition.languageReview,
       employerRegistryChecksum: registryChecksum,
       datasetEdition: result.edition,

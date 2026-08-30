@@ -40,8 +40,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/config.ts": {
-    "mtime": 1788064580.5261831,
-    "ast_hash": "65fd74e46c9f963f286c159059791eec",
+    "mtime": 1788075893.7942398,
+    "ast_hash": "4cabccec9c1658acbe893e848c688d27",
     "semantic_hash": ""
   },
   "apps/api/src/main.ts": {
@@ -50,13 +50,13 @@
     "semantic_hash": "58bdabc6a79f9b66211a42fb764b858a"
   },
   "apps/api/src/server.ts": {
-    "mtime": 1788064580.5332108,
-    "ast_hash": "bdc64192734494a9961407e3981885e8",
+    "mtime": 1788076025.4945962,
+    "ast_hash": "feae436ca2c33296092b212a949d4bf5",
     "semantic_hash": ""
   },
   "apps/api/test/server.test.ts": {
-    "mtime": 1788064580.5371797,
-    "ast_hash": "6301553309ce3a04f6982661bb473835",
+    "mtime": 1788076016.0505695,
+    "ast_hash": "fd4e7289c1f7ab51a50fb9c41f9d6f17",
     "semantic_hash": ""
   },
   "apps/api/tsconfig.build.json": {
@@ -411,7 +411,7 @@
   },
   "README.md": {
     "mtime": 1788069226.711528,
-    "ast_hash": "d1c89ebc8eadcbbfc920f3cbf6662dd1",
+    "ast_hash": "6d0a43adf20b32d4b216434b784b54f1",
     "semantic_hash": ""
   },
   "SECURITY.md": {
@@ -435,8 +435,8 @@
     "semantic_hash": "5c27369b226fcf2be8a6cfe52224e767"
   },
   "docs/architecture/system.md": {
-    "mtime": 1788069274.9299188,
-    "ast_hash": "f8b7439e42787d236aa536e01abc2deb",
+    "mtime": 1788076223.9829338,
+    "ast_hash": "3111f1394dabc17411782da8e799c6cb",
     "semantic_hash": ""
   },
   "docs/operations/local-beta.md": {
@@ -445,8 +445,8 @@
     "semantic_hash": ""
   },
   "docs/operations/provider-setup.md": {
-    "mtime": 1788069275.0285785,
-    "ast_hash": "7ef6dc7f43106921c8cc22742dd6972c",
+    "mtime": 1788076223.9820933,
+    "ast_hash": "4617b96329aa088667fe27e82099bc6d",
     "semantic_hash": ""
   },
   "docs/releases/v0.1.0.md": {
@@ -470,12 +470,12 @@
     "semantic_hash": ""
   },
   "docs/assets/nimanto-landing.png": {
-    "mtime": 1788070088.6729982,
+    "mtime": 1788076700.9690127,
     "ast_hash": "9a60f38be6a5038eabd683288d0125ba",
     "semantic_hash": ""
   },
   "docs/assets/nimanto-workbench.png": {
-    "mtime": 1788070088.6735077,
+    "mtime": 1788076700.9694886,
     "ast_hash": "a496ac9b0f0768931e1a97fe12cffb5a",
     "semantic_hash": "a496ac9b0f0768931e1a97fe12cffb5a"
   },
@@ -725,7 +725,7 @@
     "semantic_hash": "e5f2ac0cf10c8d49148fa9aa49c37897"
   },
   "apps/web/public/assets/nimanto-workbench.png": {
-    "mtime": 1788070088.6738403,
+    "mtime": 1788076700.9697275,
     "ast_hash": "a496ac9b0f0768931e1a97fe12cffb5a",
     "semantic_hash": "a496ac9b0f0768931e1a97fe12cffb5a"
   },
@@ -750,8 +750,8 @@
     "semantic_hash": "800560c798654423cfa80894061d2300"
   },
   "apps/api/src/government-dataset.ts": {
-    "mtime": 1788064580.5292242,
-    "ast_hash": "73deca4a43b80beac2a01adb82bda8e8",
+    "mtime": 1788076032.0728357,
+    "ast_hash": "ec106d3bcc9583474d61e463cb70b87c",
     "semantic_hash": ""
   },
   "apps/api/src/match-publication.ts": {
@@ -985,18 +985,18 @@
     "semantic_hash": "dc4fa01f6953d7fb1aaeb743b50f1f32"
   },
   "scripts/sbom-freshness.test.mjs": {
-    "mtime": 1788064580.9433622,
-    "ast_hash": "e8504e82628ff2ea795ded93abbb316d",
-    "semantic_hash": "e8504e82628ff2ea795ded93abbb316d"
+    "mtime": 1788077140.4490724,
+    "ast_hash": "ebc5ada9fc0a715462d2207c44d365eb",
+    "semantic_hash": ""
   },
   "scripts/verify-sbom-freshness.mjs": {
-    "mtime": 1788064580.9455247,
-    "ast_hash": "8b042a63a723bf53886ca4bd7e47cb78",
-    "semantic_hash": "8b042a63a723bf53886ca4bd7e47cb78"
+    "mtime": 1788077140.4481144,
+    "ast_hash": "96edd0410b78633af53148c156c608ed",
+    "semantic_hash": ""
   },
   "docs/assets/nimanto-screenshots.json": {
-    "mtime": 1788070088.7160428,
-    "ast_hash": "34f950e6086de01c11068a2892fac9ab",
+    "mtime": 1788076700.9867826,
+    "ast_hash": "ed00e43b578a540fceaf9c5d537ff782",
     "semantic_hash": ""
   },
   "scripts/screenshot-evidence.mjs": {
@@ -1260,8 +1260,8 @@
     "semantic_hash": ""
   },
   "apps/api/test/government-dataset.test.ts": {
-    "mtime": 1788064580.535425,
-    "ast_hash": "6ac4c6531a4b3b9cbe19043c5aba7081",
+    "mtime": 1788077149.5876257,
+    "ast_hash": "3954856231e732361f71c21a203b8848",
     "semantic_hash": ""
   },
   "apps/web/lib/role-discovery.ts": {
@@ -1275,17 +1275,17 @@
     "semantic_hash": ""
   },
   "docs/releases/nimanto-v0.9.0.cdx.json": {
-    "mtime": 1788069527.5755932,
+    "mtime": 1788077107.9899025,
     "ast_hash": "d0a0d4f4fc6ec6848412976d2b8b8d25",
     "semantic_hash": ""
   },
   "docs/releases/nimanto-v0.9.0.spdx.json": {
-    "mtime": 1788069530.8888934,
+    "mtime": 1788077107.9952805,
     "ast_hash": "f1a41af934e0a947b3c2d1a6b293cdc1",
     "semantic_hash": ""
   },
   "docs/releases/nimanto-v0.9.0-SHA256SUMS.txt": {
-    "mtime": 1788069531.3289666,
+    "mtime": 1788077107.9867265,
     "ast_hash": "df24c581757f8fa910abf0c346d90e0e",
     "semantic_hash": ""
   },
