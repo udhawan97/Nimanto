@@ -70,6 +70,7 @@ export async function publishMatch(
         claimIds: profile.claimIds.toSorted(),
       },
       ruleVersion: result.ruleVersion,
+      evidenceStrengthRuleVersion: result.evidenceStrengthBasis.ruleVersion,
     });
     const saved = await database.saveMatch(tenantId, job.id, profile.id, result, inputHash);
     const receipt = createReceipt({

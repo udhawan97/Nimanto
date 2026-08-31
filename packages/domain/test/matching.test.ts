@@ -236,6 +236,14 @@ describe("evidence strength distinguishes attestation from source", () => {
     });
     expect(result.requirements[0]?.state).toBe("supported");
     expect(result.evidenceStrength).toBe("source_limited");
+    expect(result.evidenceStrengthBasis).toEqual({
+      ruleVersion: "evidence_strength_unweighted_v1",
+      calculation: "unweighted_supported_requirements",
+      supportedRequirementCount: 1,
+      sourceLinkedRequirementCount: 0,
+      candidateAttestedOnlyRequirementCount: 1,
+      thresholdPerThousand: { sourceStrong: 800, sourceMixed: 500 },
+    });
   });
 
   it("still reports source_strong when the support is sourced", () => {
@@ -256,5 +264,21 @@ describe("evidence strength distinguishes attestation from source", () => {
     });
     expect(result.requirements.every((item) => item.state === "supported")).toBe(true);
     expect(result.evidenceStrength).toBe("source_mixed");
+    expect(result.evidenceStrengthBasis).toMatchObject({
+      supportedRequirementCount: 2,
+      sourceLinkedRequirementCount: 1,
+      candidateAttestedOnlyRequirementCount: 1,
+    });
+  });
+
+  it("records an explicit empty basis when no requirements are supported", () => {
+    const result = matchJob({ evidence: [], job: job(["TypeScript"]) });
+
+    expect(result.evidenceStrength).toBe("source_limited");
+    expect(result.evidenceStrengthBasis).toMatchObject({
+      supportedRequirementCount: 0,
+      sourceLinkedRequirementCount: 0,
+      candidateAttestedOnlyRequirementCount: 0,
+    });
   });
 });

@@ -4673,7 +4673,7 @@ export class NimantoStore {
       matchCursor = page.nextCursor;
     }
     return {
-      schemaVersion: "nimanto_export_v9",
+      schemaVersion: "nimanto_export_v10",
       exportedAt: new Date().toISOString(),
       evidence,
       profile,

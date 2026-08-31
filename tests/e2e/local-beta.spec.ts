@@ -1314,7 +1314,10 @@ test("evidence-rich review features stay literal, local, and inspectable", async
   ).toBeVisible();
   await expect(role.getByText(/At least 0\.60 is required for a scored band/)).toBeVisible();
   await expect(role.getByText(/explicit blockers remain separate/)).toBeVisible();
-  await expect(role.getByText(/Evidence Strength is intentionally excluded/)).toBeVisible();
+  await expect(role.getByText(/Evidence source mix remains a separate/)).toBeVisible();
+  await expect(role.getByRole("region", { name: "Match evidence lens" })).toContainText(
+    "It is not a hiring or immigration prediction.",
+  );
   const signal = page.locator(".signal-list article").first();
   await signal.getByText("Source and freshness").click();
   await expect(signal.getByText("Current role wording remains controlling.")).toBeVisible();
@@ -1512,6 +1515,12 @@ test("retained history, record review, cohorts, and sensitive export stay bounde
     " · ",
   )[0]!;
   await role.getByRole("button", { name: "Explain fit" }).click();
+  await role.getByText("View match anatomy").click();
+  const evidenceLens = role.getByRole("region", { name: "Match evidence lens" });
+  await expect(evidenceLens.getByText("How this explanation is grounded")).toBeVisible();
+  await expect(evidenceLens).toContainText("Evidence source mix");
+  await expect(evidenceLens).toContainText("evidence_strength_unweighted_v1");
+  await expect(evidenceLens).toContainText("unweighted count");
   await role.getByRole("button", { name: "Track", exact: true }).click();
   // Tracking refreshes the dashboard asynchronously. Prove that the
   // application has landed before leaving this view; every history/cohort
@@ -2584,6 +2593,9 @@ test("an Application Dossier records the candidate's exact external submission",
   const dossier = page.locator("#application-dossier");
   await expect(dossier).toBeFocused();
   await expect(dossier.getByText("Candidate case file")).toBeVisible();
+  await expect(dossier.getByRole("region", { name: "Match evidence lens" })).toContainText(
+    "evidence_strength_unweighted_v1",
+  );
   await expect(dossier.getByText("No external submission has been recorded.")).toBeVisible();
   await dossier.getByRole("button", { name: "Close dossier" }).click();
 

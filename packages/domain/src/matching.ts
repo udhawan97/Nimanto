@@ -1,6 +1,7 @@
 import type {
   EvidenceClaim,
   EvidenceStrength,
+  EvidenceStrengthBasis,
   JobForMatching,
   MatchBand,
   MatchBlocker,
@@ -165,19 +166,28 @@ function bandFromValue(value: number): MatchBand {
 function evidenceStrength(
   explanations: RequirementExplanation[],
   evidence: EvidenceClaim[],
-): EvidenceStrength {
+): { value: EvidenceStrength; basis: EvidenceStrengthBasis } {
   const supported = explanations.filter((item) => item.state === "supported");
-  if (supported.length === 0) return "source_limited";
   const attested = new Set(
     evidence.filter((claim) => claim.userAttested === true).map((claim) => claim.id),
   );
   const sourced = supported.filter((item) =>
     item.evidenceIds.some((id) => !attested.has(id)),
   ).length;
-  const linked = sourced / supported.length;
-  if (linked >= 0.8) return "source_strong";
-  if (linked >= 0.5) return "source_mixed";
-  return "source_limited";
+  const linked = supported.length > 0 ? sourced / supported.length : 0;
+  const value: EvidenceStrength =
+    linked >= 0.8 ? "source_strong" : linked >= 0.5 ? "source_mixed" : "source_limited";
+  return {
+    value,
+    basis: {
+      ruleVersion: "evidence_strength_unweighted_v1",
+      calculation: "unweighted_supported_requirements",
+      supportedRequirementCount: supported.length,
+      sourceLinkedRequirementCount: sourced,
+      candidateAttestedOnlyRequirementCount: supported.length - sourced,
+      thresholdPerThousand: { sourceStrong: 800, sourceMixed: 500 },
+    },
+  };
 }
 
 export function matchJob(input: { evidence: EvidenceClaim[]; job: JobForMatching }): MatchResult {
@@ -256,12 +266,14 @@ export function matchJob(input: { evidence: EvidenceClaim[]; job: JobForMatching
       evidenceIds: skillEvidence.map((claim) => claim.id),
     },
   ];
+  const strength = evidenceStrength(requirements, evidence);
 
   return {
     ruleVersion: "scoring_rules_v1",
     band: coverageValue < 0.6 || !roleFamilyValidated ? "not_scored" : bandFromValue(score),
     coverage: coverageValue < 0.6 || !roleFamilyValidated ? "coverage_low" : "coverage_sufficient",
-    evidenceStrength: evidenceStrength(requirements, evidence),
+    evidenceStrength: strength.value,
+    evidenceStrengthBasis: strength.basis,
     requirements,
     dimensions,
     blockers: [...blockerText(input.job), ...locationBlockers(input.job, evidence)],

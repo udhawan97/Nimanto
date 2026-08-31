@@ -869,7 +869,7 @@ describe("beta workflow persistence", () => {
     ]);
 
     const exported = await store.exportTenant(alpha.tenantId);
-    expect(exported).toMatchObject({ schemaVersion: "nimanto_export_v9" });
+    expect(exported).toMatchObject({ schemaVersion: "nimanto_export_v10" });
     expect(exported.profileVersions).toHaveLength(2);
     expect(exported.matchRuns).toHaveLength(2);
     expect(exported.assuranceRuns).toHaveLength(2);
@@ -1417,7 +1417,7 @@ describe("beta workflow persistence", () => {
     expect((await store.listRoleWordingReviews(owner.tenantId))[0]).toEqual(review);
     expect(await store.listRoleWordingReviews(other.tenantId)).toEqual([]);
     expect(await store.exportTenant(owner.tenantId)).toMatchObject({
-      schemaVersion: "nimanto_export_v9",
+      schemaVersion: "nimanto_export_v10",
       roleWordingReviews: [review],
     });
 
@@ -1527,7 +1527,7 @@ describe("beta workflow persistence", () => {
       ),
     ).toEqual({ state: "ambiguous" });
     expect(await store.exportTenant(owner.tenantId)).toMatchObject({
-      schemaVersion: "nimanto_export_v9",
+      schemaVersion: "nimanto_export_v10",
       employerEntities: expect.arrayContaining([
         expect.objectContaining({ normalizedName: "northwind systems" }),
         expect.objectContaining({ normalizedName: "contoso" }),
@@ -2290,7 +2290,7 @@ describe("beta workflow persistence", () => {
     );
     expect(await store.listApplicationSubmissions(owner.tenantId, application.id)).toHaveLength(2);
     expect(await store.exportTenant(owner.tenantId)).toMatchObject({
-      schemaVersion: "nimanto_export_v9",
+      schemaVersion: "nimanto_export_v10",
       applicationSubmissions: [
         expect.objectContaining({ materialsCaptured: false }),
         expect.objectContaining({ packetId: packet.id, packetArtifactHash: packet.artifactHash }),
@@ -2607,7 +2607,7 @@ describe("beta workflow persistence", () => {
     });
     expect((await store.listApplications(owner.tenantId))[0]?.statusEvents).toHaveLength(2);
     expect(await store.exportTenant(owner.tenantId)).toMatchObject({
-      schemaVersion: "nimanto_export_v9",
+      schemaVersion: "nimanto_export_v10",
       careerOperations: {
         answerBlocks: [expect.objectContaining({ revisions: expect.any(Array) })],
       },

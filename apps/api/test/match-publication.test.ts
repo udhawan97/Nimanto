@@ -62,6 +62,11 @@ describe("match publication", () => {
 
     const published = await publishMatch(store, tenantId, jobId, "manual");
     expect(published.result.requirements[0]?.evidenceIds).toEqual([originalClaimId]);
+    expect(published.result.evidenceStrengthBasis).toMatchObject({
+      ruleVersion: "evidence_strength_unweighted_v1",
+      supportedRequirementCount: 1,
+      sourceLinkedRequirementCount: 1,
+    });
     const receipt = (await store.listReceipts(tenantId)).at(-1);
     expect(receipt?.material).toMatchObject({
       jobId,

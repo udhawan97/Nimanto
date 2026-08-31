@@ -1993,10 +1993,10 @@ describe("Nimanto beta API", () => {
     });
     expect(exported.statusCode).toBe(200);
     expect(exported.json()).toMatchObject({
-      exportVersion: "nimanto-local-beta-v9",
+      exportVersion: "nimanto-local-beta-v10",
       identity: { displayName: "Priya Shah", email: "priya@example.test" },
       workspace: {
-        schemaVersion: "nimanto_export_v9",
+        schemaVersion: "nimanto_export_v10",
         profileVersions: expect.any(Array),
         matchRuns: expect.any(Array),
         assuranceRuns: expect.any(Array),

@@ -1677,7 +1677,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     const person = identity(request);
     const workspace = await store.exportTenant(person.tenantId);
     return reply.header("content-disposition", 'attachment; filename="nimanto-export.json"').send({
-      exportVersion: "nimanto-local-beta-v9",
+      exportVersion: "nimanto-local-beta-v10",
       exportedAt: new Date().toISOString(),
       identity: {
         displayName: person.displayName,

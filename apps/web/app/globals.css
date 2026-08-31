@@ -2411,6 +2411,77 @@ svg {
   color: var(--text-muted);
   font-size: var(--text-sm);
 }
+.match-evidence-lens {
+  display: grid;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  overflow: hidden;
+  border: 1px solid var(--brass-200);
+  border-inline-start: 3px solid var(--live-core);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  min-width: 0;
+}
+.match-evidence-lens > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+.match-evidence-lens > header > div {
+  display: grid;
+  gap: var(--space-3xs);
+}
+.match-evidence-lens > header > div > span,
+.match-evidence-grid article > span {
+  color: var(--idle-text);
+  font-family: var(--font-mono);
+  font-size: var(--text-placard);
+  letter-spacing: var(--tracking-placard);
+  text-transform: uppercase;
+}
+.match-evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-block: 1px solid var(--brass-100);
+}
+.match-evidence-grid article {
+  display: grid;
+  align-content: start;
+  gap: var(--space-3xs);
+  min-width: 0;
+  padding: var(--space-md);
+  border-inline-end: 1px solid var(--brass-100);
+}
+.match-evidence-grid article:last-child {
+  border-inline-end: 0;
+}
+.match-evidence-grid strong,
+.match-evidence-grid small {
+  overflow-wrap: anywhere;
+}
+.match-evidence-grid strong {
+  color: var(--text);
+  font-weight: 500;
+}
+.match-evidence-grid small,
+.match-evidence-lens > p {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.match-evidence-lens > p {
+  max-width: 72ch;
+}
+.match-evidence-lens.is-compact {
+  padding: var(--space-md);
+}
+.match-evidence-lens.is-compact .match-evidence-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.match-evidence-lens.is-compact .match-evidence-grid article:last-child {
+  grid-column: 1 / -1;
+  border-block-start: 1px solid var(--brass-100);
+}
 .dimension-grid,
 .packet-review-grid {
   display: grid;
@@ -4435,8 +4506,19 @@ textarea {
     flex-direction: column;
   }
   .role-filter,
-  .dimension-grid {
+  .dimension-grid,
+  .match-evidence-grid,
+  .match-evidence-lens.is-compact .match-evidence-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .match-evidence-grid article,
+  .match-evidence-lens.is-compact .match-evidence-grid article:last-child {
+    grid-column: 1;
+    border-inline-end: 0;
+    border-block-start: 1px solid var(--brass-100);
+  }
+  .match-evidence-grid article:first-child {
+    border-block-start: 0;
   }
   .signal-provenance dl > div,
   .packet-review dl > div,

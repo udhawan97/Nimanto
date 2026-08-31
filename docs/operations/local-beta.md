@@ -166,6 +166,13 @@ The queue stores only provider and board identifiers. Scheduled work cannot prep
   The folio shows literal coverage, requirements needing evidence, blockers,
   compensation, and benefits. It does not rank roles or infer an employer
   outcome.
+- **Role discovery → View match anatomy → Evidence lens** shows fit coverage,
+  the separate Evidence Strength ordinal, the exact supported/source-linked/
+  candidate-attested-only counts stored by new Match Publications, and both
+  rule versions. The current source-linkage calculation is explicitly
+  unweighted and cannot change the fit band. Historical matches show their
+  stored ordinal without inventing missing counts; explain the role again to
+  create a current inspectable basis.
 - **Role discovery → Archive** stores a candidate disposition beside the source
   Role. A provider refresh cannot erase it; restoring reverses it, and neither
   action changes a tracked Application.
@@ -239,8 +246,9 @@ The queue stores only provider and board identifiers. Scheduled work cannot prep
   client does not recognize. Results are raw counts, never rates or predictions.
 - **Applications → Open dossier** shows one Application-owned read-only case
   file: current role and Match, packet and assurance history, candidate ledger,
-  external-action history, and Submission Records. It does not infer an
-  employer timeline or treat a candidate record as an employer acknowledgment.
+  Match Evidence Lens, external-action history, and Submission Records. It does
+  not infer an employer timeline or treat a candidate record as an employer
+  acknowledgment.
 - **Applications → Submitted externally** requires a candidate-authored
   Submission Record. Record the actual channel, destination, and time, then
   either select the exact current approved composed Packet and formats used or
@@ -279,7 +287,7 @@ The queue stores only provider and board identifiers. Scheduled work cannot prep
 ## Inspect a workspace export
 
 Open **Data controls**, read the sensitive-data warning, and confirm it before
-downloading JSON. `nimanto-local-beta-v9` wraps `nimanto_export_v9`, including
+downloading JSON. `nimanto-local-beta-v10` wraps `nimanto_export_v10`, including
 retained discovery profiles, source runs, normalized posting observations,
 verification attempts, availability, profile versions, match runs, assurance
 runs, exact role-wording reviews, packet manifests, dataset editions and their

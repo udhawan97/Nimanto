@@ -57,8 +57,9 @@ half-finished forms. Nimanto gives that work one inspectable path:
    changes—or refresh an allowlisted Greenhouse, Lever or Ashby board. Every
    recommendation can replay the exact matched, excluded, and unresolved inputs.
 5. **Match** deterministically, and read the requirement-by-requirement result:
-   what is supported, what is missing, what blocks you, and how two current
-   roles differ on the same literal fields.
+   what is supported, what is missing, what blocks you, the exact stored basis
+   for the separate evidence-source ordinal, and how two current roles differ
+   on the same literal fields.
 6. **Track** the application from a searchable board or table, set a literal
    follow-up date, search private notes and recorded outcomes, sort the working
    view, export a focused local CSV or calendar file, and use one candidate-owned
@@ -83,6 +84,13 @@ today.
 
 ## Unreleased on main
 
+- **Match Evidence Lens.** New Match Publications store the exact supported,
+  source-linked, and candidate-attested-only requirement counts behind their
+  Evidence Strength ordinal plus `evidence_strength_unweighted_v1`. Role
+  discovery and Application Dossiers show that basis beside coverage and the
+  fit rule. Historical runs retain their stored ordinal without inventing a
+  missing basis. The source mix remains explicitly unweighted, cannot change
+  the fit band, and is never presented as a hiring or immigration probability.
 - **Application Dossiers.** Each tracked Application opens one read-only case
   file joining only its current role and Match, exact Packet composition
   bindings and assurance history, candidate-authored ledger records, external
@@ -120,7 +128,8 @@ today.
 - Schema version 13 adds the tenant-owned career-ledger tables and backfills one
   clearly labeled current-status migration marker for existing Applications.
   Schema version 14 adds tenant-owned immutable Submission Records. Inspection
-  export v9 includes the full answer revision history and every new record;
+  export v10 includes the full answer revision history, every new record, and
+  the inspectable Evidence Strength basis for new Match Publications;
   workspace deletion cascades through the same tenant boundary.
 
 ## New in v0.9.0
@@ -600,8 +609,9 @@ artifacts.
   comparison shows stored run, profile, rule, input-hash, result-hash, band, and
   blocker values beside a clearly labeled current mutable job snapshot.
 - The stored match input hash covers the exact normalized job snapshot, profile
-  input hash, claim IDs, and rule version. Comparisons still do not claim
-  causality, replay guarantees, or immutable job history beyond that run.
+  input hash, claim IDs, fit-rule version, and Evidence Strength rule version.
+  Comparisons still do not claim causality, replay guarantees, or immutable job
+  history beyond that run.
 
 ### Grounded packets
 

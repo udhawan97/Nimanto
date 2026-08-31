@@ -9,6 +9,18 @@ export type MatchBand =
 export type EvidenceStrength = "source_strong" | "source_mixed" | "source_limited";
 export type CoverageState = "coverage_sufficient" | "coverage_low";
 
+export interface EvidenceStrengthBasis {
+  ruleVersion: "evidence_strength_unweighted_v1";
+  calculation: "unweighted_supported_requirements";
+  supportedRequirementCount: number;
+  sourceLinkedRequirementCount: number;
+  candidateAttestedOnlyRequirementCount: number;
+  thresholdPerThousand: {
+    sourceStrong: 800;
+    sourceMixed: 500;
+  };
+}
+
 export interface EvidenceClaim {
   id: string;
   kind:
@@ -77,6 +89,7 @@ export interface MatchResult {
   band: MatchBand;
   coverage: CoverageState;
   evidenceStrength: EvidenceStrength;
+  evidenceStrengthBasis: EvidenceStrengthBasis;
   requirements: RequirementExplanation[];
   dimensions: MatchDimension[];
   blockers: MatchBlocker[];

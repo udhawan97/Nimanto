@@ -16,6 +16,10 @@ _Avoid_: Current profile, résumé state
 An immutable deterministic explanation produced from one exact Profile Version, one exact role snapshot, and one rule version.
 _Avoid_: Score, prediction, recommendation
 
+**Evidence Strength Basis**:
+The exact stored counts and calculation version behind a Match Publication's separate source-linkage ordinal. The current rule is an unweighted count of supported requirements; it never changes the fit band.
+_Avoid_: Evidence quality score, candidate credibility, hiring probability
+
 **Dataset Edition**:
 One checksum-addressed historical government evidence source with its period, transformation identity, and review provenance.
 _Avoid_: Sponsorship truth, current employer policy

@@ -60,6 +60,7 @@ import { CareerLedger, type CareerOperationsSnapshot } from "./career-ledger.js"
 import { PacketComposer } from "./packet-composer.js";
 import { ApplicationSubmissionRecorder, type SubmissionDraft } from "./application-submission.js";
 import { H1bEvidencePanel, type RoleWordingReview } from "./h1b-evidence.js";
+import { MatchEvidenceLens } from "./match-evidence-lens.js";
 import {
   RoleProvenanceCard,
   type RoleProvenanceData,
@@ -232,6 +233,15 @@ type Match = {
     ruleVersion: string;
     band: string;
     coverage: string;
+    evidenceStrength?: string;
+    evidenceStrengthBasis?: {
+      ruleVersion: string;
+      calculation: string;
+      supportedRequirementCount: number;
+      sourceLinkedRequirementCount: number;
+      candidateAttestedOnlyRequirementCount: number;
+      thresholdPerThousand: { sourceStrong: number; sourceMixed: number };
+    };
     dimensions: Array<{
       name: string;
       state: string;
@@ -4727,6 +4737,9 @@ function Jobs({
                     <small>
                       {supportedRequirementCount}/{match.result.requirements.length} requirements
                       supported
+                      {match.result.evidenceStrength
+                        ? ` · ${human(match.result.evidenceStrength)}`
+                        : ""}
                     </small>
                   </>
                 ) : (
@@ -4870,6 +4883,7 @@ function Jobs({
                         ? " This result is not scored."
                         : " This result meets the coverage floor."}
                     </p>
+                    <MatchEvidenceLens result={match.result} />
                     {/* Two different things go stale here and they need opposite
                      * actions, so both are reported. Explaining again fixes an old
                      * version; it does nothing at all when the confirmed evidence is
@@ -4909,8 +4923,8 @@ function Jobs({
                       Coverage below 0.60, including roles without known requirements, remains not
                       scored. At or above that floor, the four weighted dimensions determine the
                       scored band; explicit blockers remain separate and are never averaged away.
-                      Evidence Strength is intentionally excluded from this view; this is not a
-                      hiring probability.
+                      Evidence source mix remains a separate, currently unweighted ordinal and
+                      cannot change that band.
                     </p>
                     {match.result.blockers.map((blocker) => (
                       <p className="blocker" key={blocker.code}>
@@ -7055,22 +7069,25 @@ function ApplicationDossier({
         <section>
           <span>02 · Evidence decision</span>
           {dossier.match ? (
-            <dl>
-              <div>
-                <dt>Match band</dt>
-                <dd>{human(dossier.match.result.band)}</dd>
-              </div>
-              <div>
-                <dt>Publication</dt>
-                <dd>
-                  <code>{dossier.match.id.slice(0, 12)}</code>
-                </dd>
-              </div>
-              <div>
-                <dt>Requirements</dt>
-                <dd>{dossier.match.result.requirements.length} literal checks</dd>
-              </div>
-            </dl>
+            <>
+              <dl>
+                <div>
+                  <dt>Match band</dt>
+                  <dd>{human(dossier.match.result.band)}</dd>
+                </div>
+                <div>
+                  <dt>Publication</dt>
+                  <dd>
+                    <code>{dossier.match.id.slice(0, 12)}</code>
+                  </dd>
+                </div>
+                <div>
+                  <dt>Requirements</dt>
+                  <dd>{dossier.match.result.requirements.length} literal checks</dd>
+                </div>
+              </dl>
+              <MatchEvidenceLens result={dossier.match.result} compact />
+            </>
           ) : (
             <p>No Match Publication is loaded for this Role.</p>
           )}

@@ -118,8 +118,14 @@ or an employer decision.
 
 Match publication reads only the claim IDs frozen by the exact profile version.
 Its input hash covers normalized job content, the job content hash, the profile
-input hash, frozen claim IDs, and rule version. The match run and receipt commit
-together, and the receipt includes evidence IDs from requirements and dimensions.
+input hash, frozen claim IDs, the fit-rule version, and the separately versioned
+Evidence Strength rule. New results store the exact supported, source-linked,
+and candidate-attested-only counts used by
+`evidence_strength_unweighted_v1`; historical results without that basis remain
+literal rather than receiving reconstructed counts. The Evidence Strength
+ordinal is visibly unweighted and cannot alter the fit band. The match run and
+receipt commit together, and the receipt includes evidence IDs from requirements
+and dimensions.
 
 Profile-version creation is serialized by a tenant-row lock. Confirmed claim IDs
 and NFC-trimmed authorization wording are compared with the latest literal
