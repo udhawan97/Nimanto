@@ -46,13 +46,15 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-Current main advances the database to schema version 13. Version 6
+Current main advances the database to schema version 14. Version 6
 transactionally backfills canonical hashes for legacy Packet manifests and
 Action Intents; version 7 adds tenant-scoped role dispositions and private
 Application notes. Versions 8–12 retain the discovery and government-evidence
 trust records described below. Version 13 adds the candidate Career Ledger and
 one clearly labeled current-status migration marker for each existing
-Application without reconstructing earlier transitions. A
+Application without reconstructing earlier transitions. Version 14 adds
+tenant-owned, append-only Submission Records with optional exact approved-Packet
+and artifact-format bindings. A
 migration version is recorded only after its work commits, so an interrupted
 upgrade resumes from the last complete step. Startup refuses a database created
 by a newer Nimanto runtime rather than guessing how to open it. On every open,
@@ -62,7 +64,7 @@ one-time schema or data mutations.
 
 Keep the stopped full-directory copy. The beta has no schema downgrade
 guarantee, so restore that copy or fix forward rather than running older source
-against a version-7 database.
+against a newer-schema database.
 
 ## Private invitations
 
@@ -235,6 +237,20 @@ The queue stores only provider and board identifiers. Scheduled work cannot prep
   creation window. Optional role-source and match-band filters use current stored
   values. Unmatched means no stored match; unknown preserves a stored band this
   client does not recognize. Results are raw counts, never rates or predictions.
+- **Applications → Open dossier** shows one Application-owned read-only case
+  file: current role and Match, packet and assurance history, candidate ledger,
+  external-action history, and Submission Records. It does not infer an
+  employer timeline or treat a candidate record as an employer acknowledgment.
+- **Applications → Submitted externally** requires a candidate-authored
+  Submission Record. Record the actual channel, destination, and time, then
+  either select the exact current approved composed Packet and formats used or
+  explicitly choose **Materials were not captured**. Nimanto does not perform
+  the submission and does not call this record a receipt.
+- **Review packets → Compose packet** selects and orders one to eight confirmed
+  claims from the Application's exact Profile Version and shows their current
+  Match requirement links. Creation fails closed when the Profile, role, Match,
+  or evidence changes. The frozen composition is shared by every generated
+  format, and identical inputs reproduce the same canonical packet hash.
 - **Review packets → Inspect content, formats, and assurance** shows canonical
   content, `document_assurance_v1` checks, artifact hashes, and the latest stored
   assurance run. Inspection verifies structure and configured rules; it does not
@@ -263,13 +279,14 @@ The queue stores only provider and board identifiers. Scheduled work cannot prep
 ## Inspect a workspace export
 
 Open **Data controls**, read the sensitive-data warning, and confirm it before
-downloading JSON. `nimanto-local-beta-v8` wraps `nimanto_export_v8`, including
+downloading JSON. `nimanto-local-beta-v9` wraps `nimanto_export_v9`, including
 retained discovery profiles, source runs, normalized posting observations,
 verification attempts, availability, profile versions, match runs, assurance
 runs, exact role-wording reviews, packet manifests, dataset editions and their
 trusted provenance and qualified-language-review manifests, reviewed employer
-entities/aliases, applications, complete Answer revision history, activities,
-interview rounds, contacts, saved views, offers, and receipts. It
+entities/aliases, applications, immutable Submission Records, complete Answer
+revision history, activities, interview rounds, contacts, saved views, offers,
+and receipts. It
 excludes discarded raw provider bodies, sessions, invitation secrets, deletion
 internals, and generated packet files.
 
@@ -316,6 +333,14 @@ failed service. If a different process owns port 4310, stop it or set matching `
 ### A packet is blocked
 
 Run assurance and read its required findings. Common causes are no confirmed evidence, missing authorization wording, changed locked wording, or a prohibited outcome promise.
+
+### A Submission Record is blocked
+
+Refresh the dossier. If materials were captured, the selected Packet must still
+be the latest approved `packet_v2`, and its Profile, Match, role, evidence,
+manifest, and hashes must remain current. Create, assure, and approve a current
+Packet before recording those formats. If you genuinely did not capture the
+materials, choose that explicit option instead of inventing a Packet binding.
 
 ### Execute is disabled
 

@@ -405,7 +405,7 @@ describe("beta workflow persistence", () => {
     );
     await firstInspection.close();
     expect(firstLedger.rows.map((row) => row.version)).toEqual([
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
     ]);
     expect(firstLedger.rows.at(-1)?.version).toBe(CURRENT_SCHEMA_VERSION);
 
@@ -448,7 +448,7 @@ describe("beta workflow persistence", () => {
       "SELECT version FROM schema_versions ORDER BY version",
     );
     expect(schemaVersions.rows.map((row) => row.version)).toEqual([
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
     ]);
     expect(schemaVersions.rows.at(-1)?.version).toBe(CURRENT_SCHEMA_VERSION);
     const packetSequences = await migrated.query<{ generation_sequence: string | number }>(
@@ -562,7 +562,7 @@ describe("beta workflow persistence", () => {
         version integer PRIMARY KEY,
         applied_at timestamptz NOT NULL DEFAULT now()
       );
-      INSERT INTO schema_versions(version) VALUES (14);
+      INSERT INTO schema_versions(version) VALUES (15);
     `);
     await future.close();
     await expect(NimantoStore.open(data)).rejects.toThrow("DATABASE_SCHEMA_NEWER_THAN_RUNTIME");
@@ -869,7 +869,7 @@ describe("beta workflow persistence", () => {
     ]);
 
     const exported = await store.exportTenant(alpha.tenantId);
-    expect(exported).toMatchObject({ schemaVersion: "nimanto_export_v8" });
+    expect(exported).toMatchObject({ schemaVersion: "nimanto_export_v9" });
     expect(exported.profileVersions).toHaveLength(2);
     expect(exported.matchRuns).toHaveLength(2);
     expect(exported.assuranceRuns).toHaveLength(2);
@@ -1417,7 +1417,7 @@ describe("beta workflow persistence", () => {
     expect((await store.listRoleWordingReviews(owner.tenantId))[0]).toEqual(review);
     expect(await store.listRoleWordingReviews(other.tenantId)).toEqual([]);
     expect(await store.exportTenant(owner.tenantId)).toMatchObject({
-      schemaVersion: "nimanto_export_v8",
+      schemaVersion: "nimanto_export_v9",
       roleWordingReviews: [review],
     });
 
@@ -1527,7 +1527,7 @@ describe("beta workflow persistence", () => {
       ),
     ).toEqual({ state: "ambiguous" });
     expect(await store.exportTenant(owner.tenantId)).toMatchObject({
-      schemaVersion: "nimanto_export_v8",
+      schemaVersion: "nimanto_export_v9",
       employerEntities: expect.arrayContaining([
         expect.objectContaining({ normalizedName: "northwind systems" }),
         expect.objectContaining({ normalizedName: "contoso" }),
@@ -2114,6 +2114,190 @@ describe("beta workflow persistence", () => {
     expect(withdrawn?.status).toBe("withdrawn");
   });
 
+  it("records immutable tenant-scoped submissions against the exact current Packet v2", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nimanto-store-submission-"));
+    const store = await NimantoStore.open(join(root, "data"));
+    stores.push(store);
+    const owner = await store.createLocalTenant("submission@example.test", "Submission Owner");
+    const other = await store.createLocalTenant("other-submission@example.test", "Other Owner");
+    const pending = await store.createEvidence(owner.tenantId, {
+      kind: "skill",
+      value: "TypeScript",
+      status: "pending",
+      confidence: "high",
+      sourceName: "Synthetic resume",
+      locator: "line:1",
+    });
+    const evidence = await store.confirmEvidence(owner.tenantId, pending.id);
+    const profile = await store.saveProfileVersion(owner.tenantId, "Authorized to work.");
+    const job = await store.upsertJob(owner.tenantId, {
+      source: "manual",
+      sourceJobId: "submission-job",
+      title: "Engineer",
+      company: "Northwind",
+      description: "Build TypeScript services",
+      location: "Remote",
+      workMode: "remote",
+      url: "",
+      requirements: ["TypeScript"],
+      capability: "deep_link",
+      sourceMeta: {},
+      contentHash: "submission-job-v1",
+    });
+    const result = matchJob({
+      job: {
+        id: job.id,
+        title: job.title,
+        company: job.company,
+        description: job.description,
+        requirements: job.requirements,
+        location: job.location,
+        workMode: job.workMode,
+        roleFamily: job.roleFamily,
+        descriptionLocator: "manual:submission-job",
+        observedAt: job.availability.lastSeenAt,
+      },
+      evidence: [evidence!],
+    });
+    const match = await store.saveMatch(
+      owner.tenantId,
+      job.id,
+      profile.version.id,
+      result,
+      canonicalHash({ job: job.contentHash, profile: profile.version.inputHash }),
+    );
+    const application = await store.createApplication(owner.tenantId, job.id, profile.version.id);
+    const canonicalContent = {
+      schemaVersion: "packet_v2",
+      candidateName: "Submission Owner",
+      destination: { company: job.company, role: job.title },
+      summary: "Selected one confirmed item.",
+      claims: [{ text: evidence!.value, evidenceIds: [evidence!.id] }],
+      authorizationWording: profile.version.authorizationWording,
+      composition: {
+        inputHash: "packet-input",
+        profileVersionId: profile.version.id,
+        matchRunId: match.id,
+        matchInputHash: match.inputHash,
+        matchArtifactHash: match.artifactHash,
+        jobContentHash: match.jobContentHash,
+        evidenceIds: [evidence!.id],
+      },
+    };
+    const artifactManifest = {
+      artifacts: [
+        { format: "ats_docx", filename: "packet.docx", sha256: "a".repeat(64) },
+        { format: "modern_pdf", filename: "packet.pdf", sha256: "b".repeat(64) },
+      ],
+    };
+    const packet = await store.createPacket(owner.tenantId, {
+      applicationId: application.id,
+      profileVersionId: profile.version.id,
+      canonicalContent,
+      artifactManifest,
+    });
+    const assurance = await store.saveAssurance(owner.tenantId, packet.id, {
+      status: "passed",
+      ruleVersion: "submission-test",
+      findings: [],
+      packetArtifactHash: packet.artifactHash,
+      manifestHash: packet.manifestHash,
+    });
+    await store.approvePacketExact(
+      owner.tenantId,
+      packet.id,
+      assurance.id,
+      packet.artifactHash,
+      packet.manifestHash,
+    );
+    await store.setApplicationStatus(owner.tenantId, application.id, "approved_for_export");
+
+    const submitted = await store.transitionCandidateApplicationStatus(
+      owner.tenantId,
+      application.id,
+      "submitted_externally",
+      true,
+      {
+        materialsCaptured: true,
+        packetId: packet.id,
+        artifactFormats: ["ats_docx", "modern_pdf"],
+        channel: "employer_portal",
+        destination: "https://careers.example.test/apply",
+        submittedAt: "2026-08-29T12:00:00.000Z",
+      },
+    );
+    expect(submitted).toMatchObject({
+      status: "submitted_externally",
+      submittedAt: "2026-08-29T12:00:00.000Z",
+      submissions: [
+        expect.objectContaining({
+          packetId: packet.id,
+          packetArtifactHash: packet.artifactHash,
+          artifactFormats: ["ats_docx", "modern_pdf"],
+        }),
+      ],
+    });
+    expect(await store.listApplicationSubmissions(other.tenantId)).toEqual([]);
+
+    await store.createPacket(owner.tenantId, {
+      applicationId: application.id,
+      profileVersionId: profile.version.id,
+      canonicalContent,
+      artifactManifest,
+    });
+    await store.transitionCandidateApplicationStatus(
+      owner.tenantId,
+      application.id,
+      "approved_for_export",
+      true,
+    );
+    await expect(
+      store.transitionCandidateApplicationStatus(
+        owner.tenantId,
+        application.id,
+        "submitted_externally",
+        true,
+        {
+          materialsCaptured: true,
+          packetId: packet.id,
+          artifactFormats: ["ats_docx"],
+          channel: "email",
+          destination: "recruiter@example.test",
+          submittedAt: "2026-08-30T00:00:00.000Z",
+        },
+      ),
+    ).rejects.toThrow("SUBMISSION_CURRENT_APPROVED_PACKET_REQUIRED");
+    expect(
+      (await store.listApplications(owner.tenantId)).find(
+        (candidate) => candidate.id === application.id,
+      ),
+    ).toMatchObject({ status: "approved_for_export" });
+    expect(await store.listApplicationSubmissions(owner.tenantId, application.id)).toHaveLength(1);
+
+    await store.transitionCandidateApplicationStatus(
+      owner.tenantId,
+      application.id,
+      "submitted_externally",
+      true,
+      {
+        materialsCaptured: false,
+        packetId: null,
+        artifactFormats: [],
+        channel: "referral",
+        destination: "Candidate-known referral",
+        submittedAt: "2026-08-30T01:00:00.000Z",
+      },
+    );
+    expect(await store.listApplicationSubmissions(owner.tenantId, application.id)).toHaveLength(2);
+    expect(await store.exportTenant(owner.tenantId)).toMatchObject({
+      schemaVersion: "nimanto_export_v9",
+      applicationSubmissions: [
+        expect.objectContaining({ materialsCaptured: false }),
+        expect.objectContaining({ packetId: packet.id, packetArtifactHash: packet.artifactHash }),
+      ],
+    });
+  });
+
   it("keeps the packet persistence primitive separate from candidate intent", async () => {
     // PacketLifecycle decides its named system consequence inside its owning
     // transaction. This low-level write deliberately does not run candidate
@@ -2423,7 +2607,7 @@ describe("beta workflow persistence", () => {
     });
     expect((await store.listApplications(owner.tenantId))[0]?.statusEvents).toHaveLength(2);
     expect(await store.exportTenant(owner.tenantId)).toMatchObject({
-      schemaVersion: "nimanto_export_v8",
+      schemaVersion: "nimanto_export_v9",
       careerOperations: {
         answerBlocks: [expect.objectContaining({ revisions: expect.any(Array) })],
       },

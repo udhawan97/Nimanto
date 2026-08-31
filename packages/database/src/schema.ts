@@ -333,6 +333,41 @@ CREATE TABLE IF NOT EXISTS packets (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS application_submissions (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  application_id text NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+  packet_id text REFERENCES packets(id) ON DELETE RESTRICT,
+  materials_captured boolean NOT NULL,
+  artifact_formats jsonb NOT NULL DEFAULT '[]'::jsonb,
+  channel text NOT NULL,
+  destination text NOT NULL,
+  submitted_at timestamptz NOT NULL,
+  packet_artifact_hash text,
+  packet_manifest_hash text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CHECK (
+    (materials_captured AND packet_id IS NOT NULL AND packet_artifact_hash IS NOT NULL
+      AND packet_manifest_hash IS NOT NULL)
+    OR
+    (NOT materials_captured AND packet_id IS NULL AND packet_artifact_hash IS NULL
+      AND packet_manifest_hash IS NULL)
+  )
+);
+CREATE INDEX IF NOT EXISTS application_submissions_tenant_application_idx
+  ON application_submissions(tenant_id, application_id, submitted_at DESC, id);
+
+CREATE OR REPLACE FUNCTION nimanto_keep_application_submission_immutable()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  RAISE EXCEPTION 'APPLICATION_SUBMISSION_IMMUTABLE';
+END;
+$$;
+DROP TRIGGER IF EXISTS nimanto_immutable_submission ON application_submissions;
+CREATE TRIGGER nimanto_immutable_submission
+  BEFORE UPDATE ON application_submissions
+  FOR EACH ROW EXECUTE FUNCTION nimanto_keep_application_submission_immutable();
+
 CREATE SEQUENCE IF NOT EXISTS assurance_runs_run_sequence_seq;
 
 CREATE TABLE IF NOT EXISTS assurance_runs (
@@ -585,6 +620,7 @@ BEGIN
     'applications', 'outcomes', 'application_notes', 'application_status_events',
     'contacts', 'application_contacts', 'application_activities', 'interview_rounds',
     'answer_blocks', 'answer_revisions', 'saved_application_views', 'offers', 'packets',
+    'application_submissions',
     'assurance_runs', 'external_actions', 'receipts', 'source_settings',
     'scheduled_jobs', 'dataset_editions', 'source_runs', 'role_availability',
     'role_observations', 'verification_attempts', 'discovery_profiles',
@@ -1138,4 +1174,46 @@ BEGIN
   END LOOP;
 END;
 $$;
+`;
+
+export const schemaVersion14Sql = String.raw`
+CREATE TABLE IF NOT EXISTS application_submissions (
+  id text PRIMARY KEY,
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  application_id text NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+  packet_id text REFERENCES packets(id) ON DELETE RESTRICT,
+  materials_captured boolean NOT NULL,
+  artifact_formats jsonb NOT NULL DEFAULT '[]'::jsonb,
+  channel text NOT NULL,
+  destination text NOT NULL,
+  submitted_at timestamptz NOT NULL,
+  packet_artifact_hash text,
+  packet_manifest_hash text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CHECK (
+    (materials_captured AND packet_id IS NOT NULL AND packet_artifact_hash IS NOT NULL
+      AND packet_manifest_hash IS NOT NULL)
+    OR
+    (NOT materials_captured AND packet_id IS NULL AND packet_artifact_hash IS NULL
+      AND packet_manifest_hash IS NULL)
+  )
+);
+CREATE INDEX IF NOT EXISTS application_submissions_tenant_application_idx
+  ON application_submissions(tenant_id, application_id, submitted_at DESC, id);
+
+CREATE OR REPLACE FUNCTION nimanto_keep_application_submission_immutable()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  RAISE EXCEPTION 'APPLICATION_SUBMISSION_IMMUTABLE';
+END;
+$$;
+DROP TRIGGER IF EXISTS nimanto_immutable_submission ON application_submissions;
+CREATE TRIGGER nimanto_immutable_submission
+  BEFORE UPDATE ON application_submissions
+  FOR EACH ROW EXECUTE FUNCTION nimanto_keep_application_submission_immutable();
+
+DROP TRIGGER IF EXISTS nimanto_active_tenant_write ON application_submissions;
+CREATE TRIGGER nimanto_active_tenant_write
+  BEFORE INSERT OR UPDATE ON application_submissions
+  FOR EACH ROW EXECUTE FUNCTION nimanto_require_active_tenant();
 `;

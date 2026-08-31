@@ -22,6 +22,14 @@ async function approveExactPacket(scope: Page | Locator) {
   await scope.getByRole("button", { name: "Approve this packet" }).first().click();
 }
 
+async function generatePacket(scope: Page | Locator) {
+  const composer = scope.locator(".packet-composer").first();
+  if ((await composer.getAttribute("open")) === null) {
+    await composer.locator("summary").click();
+  }
+  await composer.getByRole("button", { name: "Generate selected packet" }).click();
+}
+
 async function expectCopyLineContained(copyLine: Locator) {
   await expect(copyLine).toBeVisible();
   const geometry = await copyLine.evaluate((line) => {
@@ -715,7 +723,7 @@ test("a revoked session clears identity-bound drafts before another workspace op
   await status.selectOption("approved_for_export");
   await page.getByRole("button", { name: "Mark approved for export" }).click();
   await page.getByRole("button", { name: "Review packets" }).click();
-  await page.getByRole("button", { name: "Generate", exact: true }).first().click();
+  await generatePacket(page);
   await page.getByRole("button", { name: "Assure", exact: true }).first().click();
   await approveExactPacket(page);
   await page.getByRole("button", { name: "Approved actions" }).click();
@@ -794,7 +802,7 @@ test("a shared-cookie identity rotation clears every lifted draft before replace
   await page.getByLabel("Optional note").fill("Original candidate outcome note");
   await page.getByLabel("Created from").fill("2020-01-01");
   await page.getByRole("button", { name: "Review packets" }).click();
-  await page.getByRole("button", { name: "Generate", exact: true }).first().click();
+  await generatePacket(page);
   await page.getByRole("button", { name: "Assure", exact: true }).first().click();
   await approveExactPacket(page);
   await page.getByRole("button", { name: "Approved actions" }).click();
@@ -959,7 +967,9 @@ test("delayed role, outcome, and action submissions retain newer candidate edits
   await expect(page.getByLabel("Company")).toHaveValue("Newer Candidate Company");
   await expect(page.getByLabel("Description")).toHaveValue("Newer candidate description");
   await page.unroute("**/v1/jobs");
-  await page.getByRole("button", { name: "Track", exact: true }).first().click();
+  const submittedRole = page.locator(".job-row").filter({ hasText: "Submitted Company" });
+  await submittedRole.getByRole("button", { name: "Explain fit" }).click();
+  await submittedRole.getByRole("button", { name: "Track", exact: true }).click();
 
   await page.getByRole("button", { name: "Applications" }).click();
   await page.getByRole("button", { name: "Record outcome" }).first().click();
@@ -990,7 +1000,7 @@ test("delayed role, outcome, and action submissions retain newer candidate edits
   await page.unroute("**/v1/applications/*/outcomes");
 
   await page.getByRole("button", { name: "Review packets" }).click();
-  await page.getByRole("button", { name: "Generate", exact: true }).first().click();
+  await generatePacket(page);
   await page.getByRole("button", { name: "Assure", exact: true }).first().click();
   await approveExactPacket(page);
   await page.getByRole("button", { name: "Approved actions" }).click();
@@ -1190,8 +1200,10 @@ test("one guarded control owns every status change, and the two views are exclus
   await expect(status).toHaveValue("approved_for_export");
 
   await status.selectOption("submitted_externally");
-  await expect(strip).toContainText("Nimanto does not submit anything for you");
-  await strip.getByRole("button", { name: "Mark submitted" }).click();
+  const submission = page.locator(".application-table .submission-recorder");
+  await expect(submission).toContainText("This is your record of an external action");
+  await submission.getByLabel("Destination").fill("Candidate-recorded portal");
+  await submission.getByRole("button", { name: "Record external submission" }).click();
   await expect(status).toHaveValue("submitted_externally");
 
   /* Declining has to leave the record alone — and leave the control showing the
@@ -1317,7 +1329,7 @@ test("evidence-rich review features stay literal, local, and inspectable", async
   ).toBeVisible();
 
   await page.getByRole("button", { name: "Review packets" }).click();
-  await page.getByRole("button", { name: "Generate", exact: true }).first().click();
+  await generatePacket(page);
   await expect(page.getByText("Packet generated: 6 files across 4 file types.")).toBeVisible();
   await page.getByRole("button", { name: "Assure", exact: true }).first().click();
   const packet = page.locator(".packet-row").first();
@@ -1581,8 +1593,8 @@ test("retained history, record review, cohorts, and sensitive export stay bounde
   await page.getByRole("button", { name: "Open navigation" }).click();
   await page.getByRole("button", { name: "Review packets" }).click();
   const packet = page.locator(".packet-row").first();
-  await packet.getByRole("button", { name: "Generate", exact: true }).click();
-  await packet.getByRole("button", { name: "Generate new" }).click();
+  await generatePacket(packet);
+  await generatePacket(packet);
   await packet.getByRole("button", { name: "Assure", exact: true }).click();
   await packet.getByRole("button", { name: "Assure", exact: true }).click();
   await packet.getByRole("button", { name: "History", exact: true }).click();
@@ -1598,7 +1610,8 @@ test("retained history, record review, cohorts, and sensitive export stay bounde
     .click();
   await expect(packetHistory.getByText("Run 2 · Passed")).toBeVisible();
   await expect(packetHistory.getByText(/no workspace-global sequence is exposed/)).toBeVisible();
-  await expect(packetHistory.getByText(/Changed fields:/)).toBeVisible();
+  await expect(packetHistory.getByText("Same stored hash", { exact: true })).toBeVisible();
+  await expect(packetHistory.getByText("No literal field changes", { exact: true })).toBeVisible();
   await expect(packetHistory.getByText("Artifact manifest", { exact: true })).toBeVisible();
   await expectSurfaceContained(page, packetHistory, "packet history at 320px");
 
@@ -2077,7 +2090,7 @@ test("long action references keep their Copy control clear at 320px", async ({ p
   await page.getByRole("button", { name: "Track", exact: true }).first().click();
 
   await page.getByRole("button", { name: "Review packets" }).click();
-  await page.getByRole("button", { name: "Generate", exact: true }).first().click();
+  await generatePacket(page);
   await page.getByRole("button", { name: "Assure", exact: true }).first().click();
   const packet = page.locator(".packet-row").first();
   await approveExactPacket(packet);
@@ -2125,7 +2138,7 @@ test("long action references keep their Copy control clear at 320px", async ({ p
   // current approved packet is chosen explicitly.
   await page.getByRole("button", { name: "Review packets" }).click();
   const replacementPacket = page.locator(".packet-row").first();
-  await replacementPacket.getByRole("button", { name: "Generate new" }).click();
+  await generatePacket(replacementPacket);
   await replacementPacket.getByRole("button", { name: "Assure", exact: true }).click();
   await approveExactPacket(replacementPacket);
   await page.getByRole("button", { name: "Approved actions" }).click();
@@ -2476,7 +2489,7 @@ test("gated and empty-state controls say what they are waiting for", async ({ pa
   await page.getByRole("button", { name: "Mark approved for export" }).click();
 
   await page.getByRole("button", { name: "Review packets" }).click();
-  await page.getByRole("button", { name: "Generate", exact: true }).first().click();
+  await generatePacket(page);
   const packet = page.locator(".packet-row").first();
   const approve = packet.getByRole("button", { name: "Approve", exact: true });
   const assure = packet.getByRole("button", { name: "Assure", exact: true });
@@ -2548,6 +2561,49 @@ test("gated and empty-state controls say what they are waiting for", async ({ pa
   await expect(packet.locator(".packet-actions .button.primary")).toHaveCount(0);
   await expect(approve).not.toHaveAttribute("aria-describedby");
   await expect(page.locator(`#${gate}`)).toHaveCount(0);
+});
+
+test("an Application Dossier records the candidate's exact external submission", async ({
+  page,
+}) => {
+  test.setTimeout(75_000);
+  await page.goto(`/workspace/#bootstrap=${bootstrapSecret}`);
+  await page.getByRole("button", { name: "Use clearly labeled synthetic demo" }).click();
+  await page.getByRole("button", { name: "Run starter matches" }).click();
+  await page.getByRole("button", { name: "Role discovery" }).click();
+  await page.getByRole("button", { name: "Track", exact: true }).first().click();
+  await page.getByRole("button", { name: "Review packets" }).click();
+  await generatePacket(page);
+  const packet = page.locator(".packet-row").first();
+  await packet.getByRole("button", { name: "Assure", exact: true }).click();
+  await approveExactPacket(packet);
+  await expect(page.getByText("Packet approved for export.")).toBeVisible();
+
+  await page.getByRole("button", { name: "Applications" }).click();
+  await page.getByRole("button", { name: "Open dossier" }).first().click();
+  const dossier = page.locator("#application-dossier");
+  await expect(dossier).toBeFocused();
+  await expect(dossier.getByText("Candidate case file")).toBeVisible();
+  await expect(dossier.getByText("No external submission has been recorded.")).toBeVisible();
+  await dossier.getByRole("button", { name: "Close dossier" }).click();
+
+  await page
+    .locator(".board button", { hasText: /^Submitted$/ })
+    .first()
+    .click();
+  const submission = page.locator(".submission-recorder");
+  await expect(submission.getByText(/not proof the employer received it/)).toBeVisible();
+  await submission.getByLabel("JSON").check();
+  await submission.getByLabel("Destination").fill("https://jobs.example.test/application/42");
+  await submission.getByRole("button", { name: "Record external submission" }).click();
+  await expect(
+    page.getByText("External submission recorded without claiming employer receipt."),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "Open dossier" }).first().click();
+  await expect(dossier.getByText("Immutable submission record")).toBeVisible();
+  await expect(dossier.getByText("https://jobs.example.test/application/42")).toBeVisible();
+  await expect(dossier.getByText(/JSON · packet/)).toBeVisible();
 });
 
 test("the candidate career ledger carries the P1 and P2 application workflow", async ({ page }) => {

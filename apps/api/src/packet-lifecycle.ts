@@ -86,7 +86,19 @@ export class PacketLifecycle {
     if (!application) throw new Error("APPLICATION_NOT_FOUND");
   }
 
-  private async inputs(database: NimantoStore, tenantId: string, applicationId: string) {
+  private async inputs(
+    database: NimantoStore,
+    tenantId: string,
+    applicationId: string,
+    evidenceIds: readonly string[],
+  ) {
+    if (
+      evidenceIds.length === 0 ||
+      evidenceIds.length > 8 ||
+      new Set(evidenceIds).size !== evidenceIds.length
+    ) {
+      throw new Error("INVALID_PACKET_EVIDENCE_SELECTION");
+    }
     const application = (await database.listApplications(tenantId)).find(
       (candidate) => candidate.id === applicationId,
     );
@@ -94,14 +106,30 @@ export class PacketLifecycle {
     if (!application.profileVersionId) throw new Error("PROFILE_VERSION_REQUIRED");
     const profile = await database.getProfileVersion(tenantId, application.profileVersionId);
     if (!profile) throw new Error("PROFILE_VERSION_REQUIRED");
-    const evidence = await database.listEvidenceByIds(tenantId, profile.claimIds);
+    if (evidenceIds.some((id) => !profile.claimIds.includes(id))) {
+      throw new Error("PACKET_EVIDENCE_OUTSIDE_PROFILE");
+    }
+    const loadedEvidence = await database.listEvidenceByIds(tenantId, evidenceIds);
+    const evidenceById = new Map(loadedEvidence.map((claim) => [claim.id, claim]));
+    const evidence = evidenceIds.flatMap((id) => {
+      const claim = evidenceById.get(id);
+      return claim ? [claim] : [];
+    });
     if (
-      evidence.length !== profile.claimIds.length ||
+      evidence.length !== evidenceIds.length ||
       evidence.some((claim) => claim.status !== "confirmed")
     ) {
       throw new Error("PROFILE_EVIDENCE_CHANGED");
     }
-    return { application, profile, evidence };
+    const match = (await database.listLatestMatches(tenantId)).find(
+      (candidate) => candidate.jobId === application.jobId,
+    );
+    if (!match) throw new Error("MATCH_PUBLICATION_REQUIRED");
+    const job = await database.getJob(tenantId, application.jobId);
+    if (!job || match.profileVersionId !== profile.id || match.jobContentHash !== job.contentHash) {
+      throw new Error("PACKET_MATCH_INPUT_CHANGED");
+    }
+    return { application, profile, evidence, match, job };
   }
 
   async create(input: {
@@ -109,45 +137,75 @@ export class PacketLifecycle {
     applicationId: string;
     candidateName: string;
     contactEmail?: string;
+    evidenceIds: string[];
   }): Promise<PacketRecord> {
-    const snapshot = await this.inputs(this.store, input.tenantId, input.applicationId);
-    const generatedAt = new Date().toISOString();
+    const snapshot = await this.inputs(
+      this.store,
+      input.tenantId,
+      input.applicationId,
+      input.evidenceIds,
+    );
     const packetId = randomUUID();
+    const inputHash = canonicalHash({
+      applicationId: input.applicationId,
+      candidateName: input.candidateName,
+      contactEmail: input.contactEmail ?? "",
+      job: { id: snapshot.job.id, contentHash: snapshot.job.contentHash },
+      profile: { id: snapshot.profile.id, inputHash: snapshot.profile.inputHash },
+      match: {
+        id: snapshot.match.id,
+        inputHash: snapshot.match.inputHash,
+        artifactHash: snapshot.match.artifactHash,
+      },
+      evidence: snapshot.evidence,
+      evidenceIds: input.evidenceIds,
+    });
     const packet: CanonicalPacket = {
-      schemaVersion: "packet_v1",
+      schemaVersion: "packet_v2",
       candidateName: input.candidateName,
       destination: {
         company: snapshot.application.job!.company,
         role: snapshot.application.job!.title,
         ...(input.contactEmail ? { contactEmail: input.contactEmail } : {}),
       },
-      summary: `${input.candidateName} brings ${snapshot.evidence.length} confirmed evidence item${snapshot.evidence.length === 1 ? "" : "s"} relevant to this application.`,
-      claims: snapshot.evidence
-        .slice(0, 8)
-        .map((claim) => ({ text: claim.value, evidenceIds: [claim.id] })),
+      summary: `${input.candidateName} selected ${snapshot.evidence.length} confirmed evidence item${snapshot.evidence.length === 1 ? "" : "s"} for this application.`,
+      claims: snapshot.evidence.map((claim) => ({ text: claim.value, evidenceIds: [claim.id] })),
       authorizationWording: snapshot.profile.authorizationWording,
-      generatedAt,
+      composition: {
+        inputHash,
+        profileVersionId: snapshot.profile.id,
+        matchRunId: snapshot.match.id,
+        matchInputHash: snapshot.match.inputHash,
+        matchArtifactHash: snapshot.match.artifactHash,
+        jobContentHash: snapshot.job.contentHash,
+        evidenceIds: [...input.evidenceIds],
+      },
     };
-    const inputHash = canonicalHash({
-      applicationId: input.applicationId,
-      job: snapshot.application.job,
-      profile: snapshot.profile,
-      evidence: snapshot.evidence,
-      contactEmail: input.contactEmail ?? "",
-    });
     const staging = path.join(this.artifactDirectory, input.tenantId, ".staging", packetId);
     const finalDirectory = path.join(this.artifactDirectory, input.tenantId, packetId);
     let promoted = false;
     try {
       return await this.store.transaction(async (database) => {
         await database.lockTenantActive(input.tenantId);
-        const current = await this.inputs(database, input.tenantId, input.applicationId);
+        const current = await this.inputs(
+          database,
+          input.tenantId,
+          input.applicationId,
+          input.evidenceIds,
+        );
         const currentHash = canonicalHash({
           applicationId: input.applicationId,
-          job: current.application.job,
-          profile: current.profile,
-          evidence: current.evidence,
+          candidateName: input.candidateName,
           contactEmail: input.contactEmail ?? "",
+          job: { id: current.job.id, contentHash: current.job.contentHash },
+          profile: { id: current.profile.id, inputHash: current.profile.inputHash },
+          match: {
+            id: current.match.id,
+            inputHash: current.match.inputHash,
+            artifactHash: current.match.artifactHash,
+          },
+          evidence: current.evidence,
+          evidenceIds: input.evidenceIds,
         });
         if (currentHash !== inputHash) throw new Error("PACKET_INPUT_CHANGED");
         await mkdir(path.dirname(finalDirectory), { recursive: true, mode: 0o700 });
@@ -184,7 +242,9 @@ export class PacketLifecycle {
           input: {
             applicationId: input.applicationId,
             profileVersionId: current.profile.id,
-            evidenceIds: current.evidence.map((claim) => claim.id),
+            evidenceIds: [...input.evidenceIds],
+            matchRunId: current.match.id,
+            jobContentHash: current.job.contentHash,
             inputHash,
           },
           artifact: {

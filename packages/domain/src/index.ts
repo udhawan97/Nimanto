@@ -9,4 +9,5 @@ export * from "./receipts.js";
 export * from "./roles.js";
 export * from "./schedules.js";
 export * from "./sponsorship.js";
+export * from "./submissions.js";
 export * from "./types.js";

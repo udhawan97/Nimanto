@@ -1748,7 +1748,11 @@ describe("Nimanto beta API", () => {
       method: "POST",
       url: "/v1/packets",
       headers: { cookie },
-      payload: { applicationId, contactEmail: "jobs@example.test" },
+      payload: {
+        applicationId,
+        contactEmail: "jobs@example.test",
+        evidenceIds: initial.profile.claimIds.slice(0, 1),
+      },
     });
     expect(createdPacket.statusCode).toBe(200);
     const packetId = createdPacket.json().id as string;
@@ -1766,6 +1770,35 @@ describe("Nimanto beta API", () => {
     });
     expect(approval.json().status).toBe("approved");
 
+    const recordedSubmission = await app.inject({
+      method: "PUT",
+      url: `/v1/applications/${applicationId}/status`,
+      headers: { cookie },
+      payload: {
+        status: "submitted_externally",
+        confirmed: true,
+        submission: {
+          materialsCaptured: true,
+          packetId,
+          artifactFormats: ["ats_docx", "modern_pdf"],
+          channel: "employer_portal",
+          destination: "https://careers.example.test/apply",
+          submittedAt: "2026-08-29T12:00:00.000Z",
+        },
+      },
+    });
+    expect(recordedSubmission.statusCode).toBe(200);
+    expect(recordedSubmission.json()).toMatchObject({
+      status: "submitted_externally",
+      submissions: [
+        expect.objectContaining({
+          packetId,
+          artifactFormats: ["ats_docx", "modern_pdf"],
+          packetArtifactHash: createdPacket.json().artifactHash,
+        }),
+      ],
+    });
+
     const reviewedDashboard = (
       await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } })
     ).json();
@@ -1773,7 +1806,7 @@ describe("Nimanto beta API", () => {
       expect.objectContaining({
         id: packetId,
         artifactHash: expect.any(String),
-        canonicalContent: expect.objectContaining({ schemaVersion: "packet_v1" }),
+        canonicalContent: expect.objectContaining({ schemaVersion: "packet_v2" }),
         artifactManifest: expect.objectContaining({
           documentInspection: expect.objectContaining({ status: "passed" }),
         }),
@@ -1783,6 +1816,9 @@ describe("Nimanto beta API", () => {
           findings: [],
         }),
       }),
+    ]);
+    expect(reviewedDashboard.applications[0].submissions).toEqual([
+      expect.objectContaining({ packetId, materialsCaptured: true }),
     ]);
 
     const profileHistory = await app.inject({
@@ -1844,7 +1880,11 @@ describe("Nimanto beta API", () => {
       method: "POST",
       url: "/v1/packets",
       headers: { cookie },
-      payload: { applicationId, contactEmail: "newer@example.test" },
+      payload: {
+        applicationId,
+        contactEmail: "newer@example.test",
+        evidenceIds: initial.profile.claimIds.slice(0, 1),
+      },
     });
     expect(newerDraftPacket.statusCode).toBe(200);
     const dashboardWithActionHistory = (
@@ -1953,10 +1993,10 @@ describe("Nimanto beta API", () => {
     });
     expect(exported.statusCode).toBe(200);
     expect(exported.json()).toMatchObject({
-      exportVersion: "nimanto-local-beta-v8",
+      exportVersion: "nimanto-local-beta-v9",
       identity: { displayName: "Priya Shah", email: "priya@example.test" },
       workspace: {
-        schemaVersion: "nimanto_export_v8",
+        schemaVersion: "nimanto_export_v9",
         profileVersions: expect.any(Array),
         matchRuns: expect.any(Array),
         assuranceRuns: expect.any(Array),
@@ -2085,6 +2125,12 @@ describe("Nimanto beta API", () => {
     const dashboard = (
       await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } })
     ).json();
+    const match = await app.inject({
+      method: "POST",
+      url: `/v1/jobs/${dashboard.jobs[0].id}/match`,
+      headers: { cookie },
+    });
+    expect(match.statusCode).toBe(200);
     const tracked = await app.inject({
       method: "POST",
       url: "/v1/applications",
@@ -2095,7 +2141,10 @@ describe("Nimanto beta API", () => {
       method: "POST",
       url: "/v1/packets",
       headers: { cookie },
-      payload: { applicationId: tracked.json().id },
+      payload: {
+        applicationId: tracked.json().id,
+        evidenceIds: dashboard.profile.claimIds.slice(0, 1),
+      },
     });
     const packet = packetResponse.json();
     await app.inject({
@@ -2129,6 +2178,12 @@ describe("Nimanto beta API", () => {
     const dashboard = (
       await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } })
     ).json();
+    const match = await app.inject({
+      method: "POST",
+      url: `/v1/jobs/${dashboard.jobs[0].id}/match`,
+      headers: { cookie },
+    });
+    expect(match.statusCode).toBe(200);
     const tracked = await app.inject({
       method: "POST",
       url: "/v1/applications",
@@ -2139,7 +2194,10 @@ describe("Nimanto beta API", () => {
       method: "POST",
       url: "/v1/packets",
       headers: { cookie },
-      payload: { applicationId: tracked.json().id },
+      payload: {
+        applicationId: tracked.json().id,
+        evidenceIds: dashboard.profile.claimIds.slice(0, 1),
+      },
     });
     const assurance = await app.inject({
       method: "POST",

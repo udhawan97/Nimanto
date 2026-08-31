@@ -32,6 +32,8 @@ import {
   type InterviewRoundState,
   type OutcomeType,
   type OfferState,
+  type PacketArtifactFormat,
+  type SubmissionChannel,
   type DiscoveryProfileInput,
   type RoleFamily,
   type StructuredArea,
@@ -318,11 +320,40 @@ function messageForError(error: Error): { code: string; status: number; message:
       message:
         "A withdrawn application cannot take a new follow-up date. Clear the retained date or move the application back to Tracked first.",
     };
-  if (code === "EVIDENCE_SELECTION_CHANGED")
+  if (code === "EVIDENCE_SELECTION_CHANGED" || code === "PROFILE_EVIDENCE_CHANGED")
     return {
       code,
       status: 409,
       message: "One or more selected claims are no longer confirmed. Review the selection again.",
+    };
+  if (code === "PACKET_EVIDENCE_OUTSIDE_PROFILE")
+    return {
+      code,
+      status: 400,
+      message: "Choose confirmed claims from the Profile Version bound to this application.",
+    };
+  if (code === "MATCH_PUBLICATION_REQUIRED" || code === "PACKET_MATCH_INPUT_CHANGED")
+    return {
+      code,
+      status: 409,
+      message: "Publish a current Match for this exact role and Profile before composing a packet.",
+    };
+  if (
+    code === "APPLICATION_ALREADY_SUBMITTED" ||
+    code.startsWith("SUBMISSION_PACKET_") ||
+    code === "SUBMISSION_CURRENT_APPROVED_PACKET_REQUIRED"
+  )
+    return {
+      code,
+      status: 409,
+      message:
+        "The selected submission evidence is no longer current. Review the dossier and record the candidate action again.",
+    };
+  if (code === "UNEXPECTED_SUBMISSION_RECORD")
+    return {
+      code,
+      status: 400,
+      message: "A Submission Record is accepted only with Submitted externally.",
     };
   if (code === "LOCAL_DRAFT_INPUT_TOO_LARGE")
     return {
@@ -1280,11 +1311,29 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     const requestedStatus = string(body.status, "status");
     if (!applicationTransitions.isStatus(requestedStatus)) throw new Error("INVALID_STATUS");
     const id = (request.params as { id: string }).id;
+    const submissionBody =
+      body.submission === undefined || body.submission === null ? null : object(body.submission);
+    if (submissionBody && typeof submissionBody.materialsCaptured !== "boolean") {
+      throw new Error("INVALID_SUBMISSION_MATERIALS");
+    }
     const record = await store.transitionCandidateApplicationStatus(
       person.tenantId,
       id,
       requestedStatus,
       body.confirmed === true,
+      submissionBody
+        ? {
+            materialsCaptured: submissionBody.materialsCaptured as boolean,
+            packetId: optionalString(submissionBody.packetId, "submission_packet_id"),
+            artifactFormats: strings(
+              submissionBody.artifactFormats ?? [],
+              "submission_artifact_formats",
+            ) as PacketArtifactFormat[],
+            channel: string(submissionBody.channel, "submission_channel") as SubmissionChannel,
+            destination: string(submissionBody.destination, "submission_destination"),
+            submittedAt: string(submissionBody.submittedAt, "submission_time"),
+          }
+        : undefined,
     );
     if (!record) throw new Error("APPLICATION_NOT_FOUND");
     return record;
@@ -1527,6 +1576,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
       ...(typeof body.contactEmail === "string"
         ? { contactEmail: string(body.contactEmail, "contact_email") }
         : {}),
+      evidenceIds: strings(body.evidenceIds ?? [], "packet_evidence_ids"),
     });
   });
 
@@ -1627,7 +1677,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     const person = identity(request);
     const workspace = await store.exportTenant(person.tenantId);
     return reply.header("content-disposition", 'attachment; filename="nimanto-export.json"').send({
-      exportVersion: "nimanto-local-beta-v8",
+      exportVersion: "nimanto-local-beta-v9",
       exportedAt: new Date().toISOString(),
       identity: {
         displayName: person.displayName,
@@ -1635,7 +1685,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
       },
       workspace,
       artifactNote:
-        "This inspection export includes stored profile, match, exact role-wording review, packet, assurance, application, candidate career-ledger, offer, and receipt records. Generated packet files remain individually downloadable. It is not a restore archive, immutable job history, or replay proof.",
+        "This inspection export includes stored profile, match, exact role-wording review, packet, assurance, application, immutable submission, candidate career-ledger, offer, and receipt records. Generated packet files remain individually downloadable. It is not a restore archive, immutable job history, or replay proof.",
     });
   });
   app.delete("/v1/data", async (request, reply) => {

@@ -916,6 +916,24 @@ describe("failure messages", () => {
     );
   });
 
+  it("routes stale composed packets back through the exact Match gate", () => {
+    expect(failureMessage({ code: "SUBMISSION_PACKET_INPUT_CHANGED", message: "generic" })).toBe(
+      "The role or Match changed after this packet was composed. Publish, compose, assure, and approve the current inputs first.",
+    );
+  });
+
+  it("routes a stale Profile evidence selection back through candidate review", () => {
+    expect(failureMessage({ code: "PROFILE_EVIDENCE_CHANGED", message: "generic" })).toContain(
+      "save a current Profile Version",
+    );
+  });
+
+  it("explains why an older packet cannot support a new submission record", () => {
+    expect(
+      failureMessage({ code: "SUBMISSION_CURRENT_APPROVED_PACKET_REQUIRED", message: "generic" }),
+    ).toContain("no longer the current approved packet");
+  });
+
   it("keeps the server wording when the code is not one it can improve on", () => {
     expect(failureMessage({ code: "SOMETHING_NEW", message: "Server said this." })).toBe(
       "Server said this.",

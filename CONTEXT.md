@@ -27,8 +27,12 @@ A candidate-owned current record of preparation, external submission, and candid
 _Avoid_: Employer workflow, hiring stage
 
 **Packet**:
-A frozen candidate artifact set prepared for one application from confirmed evidence.
+A frozen candidate artifact set prepared for one Application from an explicit ordered selection of confirmed Evidence Claims in its exact Profile Version and current Match Publication.
 _Avoid_: Submission, application send
+
+**Submission Record**:
+An append-only candidate-authored record of an external submission the candidate says they performed, including channel, destination, time, and either the exact approved Packet formats used or an explicit statement that materials were not captured.
+_Avoid_: Receipt, delivery confirmation, employer acknowledgment
 
 **Assurance Run**:
 An immutable review of one exact Packet artifact set whose findings either pass or block approval.

@@ -57,6 +57,8 @@ import { CommandPalette, type PaletteEntry } from "./command-palette.js";
 import { ConnectionBanner, ConnectionIndicator, useConnection } from "./connection.js";
 import { CopyLine } from "./copy-line.js";
 import { CareerLedger, type CareerOperationsSnapshot } from "./career-ledger.js";
+import { PacketComposer } from "./packet-composer.js";
+import { ApplicationSubmissionRecorder, type SubmissionDraft } from "./application-submission.js";
 import { H1bEvidencePanel, type RoleWordingReview } from "./h1b-evidence.js";
 import {
   RoleProvenanceCard,
@@ -125,6 +127,7 @@ import {
 } from "../lib/applications-workbench.js";
 import { buildFollowUpCalendar } from "../lib/calendar-export.js";
 import { buildApplicationCsv } from "../lib/application-csv-export.js";
+import { projectApplicationDossier } from "../lib/application-dossier.js";
 import { ApiError, api, fenceApiWritesToSession } from "../lib/api-client.js";
 
 const API = process.env.NEXT_PUBLIC_NIMANTO_API_ORIGIN ?? "http://127.0.0.1:4310";
@@ -258,6 +261,7 @@ type ApplicationNote = { id: string; text: string; recordedAt: string };
 type Application = {
   id: string;
   jobId: string;
+  profileVersionId: string | null;
   // Narrowed from string: the board maps status to a column and the API rejects
   // anything outside the union, so a widened type here just hides the mismatch.
   status: ApplicationStatus;
@@ -286,6 +290,19 @@ type Application = {
     note: string;
     occurredAt: string | null;
   }>;
+  submissions?: Array<{
+    id: string;
+    applicationId: string;
+    packetId: string | null;
+    materialsCaptured: boolean;
+    artifactFormats: string[];
+    channel: "employer_portal" | "email" | "referral" | "other";
+    destination: string;
+    submittedAt: string;
+    packetArtifactHash: string | null;
+    packetManifestHash: string | null;
+    createdAt: string;
+  }>;
 };
 type Packet = {
   id: string;
@@ -304,6 +321,15 @@ type Packet = {
     claims?: Array<{ text: string; evidenceIds: string[] }>;
     authorizationWording?: string;
     generatedAt?: string;
+    composition?: {
+      inputHash: string;
+      profileVersionId: string;
+      matchRunId: string;
+      matchInputHash: string;
+      matchArtifactHash: string;
+      jobContentHash: string;
+      evidenceIds: string[];
+    };
   };
   artifactManifest: {
     artifacts?: Array<{ format: string; filename: string; sha256: string }>;
@@ -489,6 +515,7 @@ type Receipt = {
   inputHash: string;
   artifactHash: string;
   receiptHash: string;
+  material: Record<string, unknown>;
 };
 type SourceSchedule = {
   id: string;
@@ -5682,7 +5709,11 @@ function Applications({
   const [pendingMove, setPendingMove] = useState<{ id: string; to: ApplicationStatus } | null>(
     null,
   );
-  const pendingMoveOrigin = useRef<HTMLSelectElement | null>(null);
+  const [dossierFor, setDossierFor] = useState<string | null>(null);
+  const dossierApplication = dossierFor
+    ? (dashboard.applications.find((application) => application.id === dossierFor) ?? null)
+    : null;
+  const pendingMoveOrigin = useRef<HTMLElement | null>(null);
   const returnPendingMoveFocus = useRef(false);
   const board = useOverflowFlag<HTMLElement>();
   const now = new Date();
@@ -5865,6 +5896,20 @@ function Applications({
     setPendingMove(null);
   };
 
+  const toggleDossier = (applicationId: string) => {
+    const opening = dossierFor !== applicationId;
+    setDossierFor(opening ? applicationId : null);
+    if (opening) {
+      window.requestAnimationFrame(() =>
+        window.requestAnimationFrame(() => {
+          const dossier = document.getElementById("application-dossier");
+          dossier?.focus({ preventScroll: true });
+          dossier?.scrollIntoView({ block: "start" });
+        }),
+      );
+    }
+  };
+
   /* Moving a card is a claim about what the candidate did in the world, so the
    * consequential columns ask first. The server enforces legality independently
    * — this only decides which moves to offer.
@@ -5873,22 +5918,26 @@ function Applications({
    * while the row list wrote the same endpoint through a bare <select> with no
    * legality filter and no confirmation, so the strongest gate in the product
    * could be walked around without leaving the screen. */
-  const move = (application: Application, to: ApplicationStatus) => {
+  const move = (application: Application, to: ApplicationStatus, submission?: SubmissionDraft) => {
     if (to === application.status || !canMove(application.status, to)) return;
-    const tableOrigin = pendingMove?.id === application.id ? pendingMoveOrigin.current : null;
+    if (to === "submitted_externally" && !submission) return;
+    const moveOrigin = pendingMove?.id === application.id ? pendingMoveOrigin.current : null;
     setPendingMove(null);
     const confirmed = needsConfirmation(application.status, to);
     void onAct.run({
       request: () =>
         api(`/v1/applications/${application.id}/status`, {
           method: "PUT",
-          body: JSON.stringify({ status: to, confirmed }),
+          body: JSON.stringify({ status: to, confirmed, ...(submission ? { submission } : {}) }),
         }),
-      success: "Application status updated.",
+      success:
+        to === "submitted_externally"
+          ? "External submission recorded without claiming employer receipt."
+          : "Application status updated.",
       transient: true,
       focus: () => {
-        if (tableOrigin?.isConnected) {
-          tableOrigin.focus();
+        if (moveOrigin?.isConnected) {
+          moveOrigin.focus();
           return;
         }
         const card = document.getElementById(`board-card-${application.id}`);
@@ -5903,11 +5952,7 @@ function Applications({
 
   /* The table's control is a <select>, which cannot arm itself, so the pending
    * consequential target waits here until the strip beneath it is answered. */
-  const requestMove = (
-    application: Application,
-    to: ApplicationStatus,
-    origin?: HTMLSelectElement,
-  ) => {
+  const requestMove = (application: Application, to: ApplicationStatus, origin?: HTMLElement) => {
     if (to === application.status || !canMove(application.status, to)) return;
     if (needsConfirmation(application.status, to)) {
       pendingMoveOrigin.current = origin ?? null;
@@ -6017,6 +6062,16 @@ function Applications({
                     )}
                     <RecordedTimeline application={application} />
                     <button
+                      id={`dossier-trigger-board-${application.id}`}
+                      className="button mini quiet"
+                      type="button"
+                      aria-expanded={dossierFor === application.id}
+                      aria-controls="application-dossier"
+                      onClick={() => toggleDossier(application.id)}
+                    >
+                      <FolderSearch2 size={15} /> Open dossier
+                    </button>
+                    <button
                       id={`outcome-trigger-board-${application.id}`}
                       className="button mini quiet"
                       type="button"
@@ -6117,7 +6172,20 @@ function Applications({
                         .filter((id) => id !== application.status)
                         .map((id) => BOARD_COLUMNS.find((column) => column.id === id)!)
                         .map((target) =>
-                          needsConfirmation(application.status, target.id) ? (
+                          target.id === "submitted_externally" ? (
+                            <button
+                              key={target.id}
+                              type="button"
+                              disabled={busy}
+                              aria-label={`Record external submission for ${role}`}
+                              onClick={(event) => {
+                                pendingMoveOrigin.current = event.currentTarget;
+                                setPendingMove({ id: application.id, to: target.id });
+                              }}
+                            >
+                              {target.label}
+                            </button>
+                          ) : needsConfirmation(application.status, target.id) ? (
                             <ConfirmAction
                               key={target.id}
                               className=""
@@ -6144,6 +6212,21 @@ function Applications({
                           ),
                         )}
                     </div>
+                    {pendingMove?.id === application.id &&
+                      pendingMove.to === "submitted_externally" && (
+                        <ApplicationSubmissionRecorder
+                          packet={
+                            dashboard.packets.find(
+                              (packet) => packet.applicationId === application.id,
+                            ) ?? null
+                          }
+                          busy={busy}
+                          onConfirm={(submission) =>
+                            move(application, "submitted_externally", submission)
+                          }
+                          onCancel={cancelPendingMove}
+                        />
+                      )}
                   </article>
                 );
               })}
@@ -6210,16 +6293,30 @@ function Applications({
                     ))}
                   </select>
                 </label>
-                {pendingMove?.id === application.id && (
-                  <ConfirmationStrip
-                    question={confirmationPrompt(pendingMove.to, application)}
-                    confirmLabel={`Mark ${BOARD_COLUMNS.find((column) => column.id === pendingMove.to)!.label.toLocaleLowerCase("en-US")}`}
-                    cancelLabel="Cancel"
-                    disabled={busy}
-                    onConfirm={() => move(application, pendingMove.to)}
-                    onCancel={cancelPendingMove}
-                  />
-                )}
+                {pendingMove?.id === application.id &&
+                  (pendingMove.to === "submitted_externally" ? (
+                    <ApplicationSubmissionRecorder
+                      packet={
+                        dashboard.packets.find(
+                          (packet) => packet.applicationId === application.id,
+                        ) ?? null
+                      }
+                      busy={busy}
+                      onConfirm={(submission) =>
+                        move(application, "submitted_externally", submission)
+                      }
+                      onCancel={cancelPendingMove}
+                    />
+                  ) : (
+                    <ConfirmationStrip
+                      question={confirmationPrompt(pendingMove.to, application)}
+                      confirmLabel={`Mark ${BOARD_COLUMNS.find((column) => column.id === pendingMove.to)!.label.toLocaleLowerCase("en-US")}`}
+                      cancelLabel="Cancel"
+                      disabled={busy}
+                      onConfirm={() => move(application, pendingMove.to)}
+                      onCancel={cancelPendingMove}
+                    />
+                  ))}
                 <div className="outcome-chips">
                   {application.outcomes?.length ? (
                     application.outcomes.map((outcome) => (
@@ -6230,6 +6327,16 @@ function Applications({
                   )}
                   <RecordedTimeline application={application} />
                 </div>
+                <button
+                  id={`dossier-trigger-table-${application.id}`}
+                  className="button mini quiet"
+                  type="button"
+                  aria-expanded={dossierFor === application.id}
+                  aria-controls="application-dossier"
+                  onClick={() => toggleDossier(application.id)}
+                >
+                  <FolderSearch2 size={15} /> Open dossier
+                </button>
                 <button
                   id={`outcome-trigger-table-${application.id}`}
                   className="button mini quiet"
@@ -6322,6 +6429,17 @@ function Applications({
             );
           })}
         </section>
+      )}
+      {dossierApplication && (
+        <ApplicationDossier
+          dashboard={dashboard}
+          application={dossierApplication}
+          onClose={() => {
+            const triggerId = `dossier-trigger-${view}-${dossierApplication.id}`;
+            setDossierFor(null);
+            window.requestAnimationFrame(() => document.getElementById(triggerId)?.focus());
+          }}
+        />
       )}
       {dashboard.applications.length === 0 && (
         <Empty
@@ -6869,6 +6987,196 @@ function RecordedTimeline({ application }: { application: Application }) {
   );
 }
 
+function ApplicationDossier({
+  dashboard,
+  application,
+  onClose,
+}: {
+  dashboard: Dashboard;
+  application: Application;
+  onClose: () => void;
+}) {
+  const dossier = projectApplicationDossier({
+    application,
+    jobs: dashboard.jobs,
+    matches: dashboard.matches,
+    packets: dashboard.packets,
+    actionPackets: dashboard.actionPackets,
+    actions: dashboard.externalActions,
+    receipts: dashboard.receipts,
+    careerOperations: dashboard.careerOperations,
+  });
+  const currentPacket = dossier.packets[0] ?? null;
+  return (
+    <section
+      id="application-dossier"
+      className="application-dossier"
+      aria-label="Application dossier"
+      tabIndex={-1}
+    >
+      <header className="dossier-header">
+        <div>
+          <span>Candidate case file</span>
+          <h3>
+            {application.job?.title ?? "Unknown role"} · {application.job?.company}
+          </h3>
+          <p>One read-only projection. Every fact below stays owned by its original record.</p>
+        </div>
+        <button className="button mini quiet" type="button" onClick={onClose}>
+          <X size={15} /> Close dossier
+        </button>
+      </header>
+      <div className="dossier-spine" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+        <span />
+      </div>
+      <div className="dossier-grid">
+        <section>
+          <span>01 · Opportunity</span>
+          <dl>
+            <div>
+              <dt>Source</dt>
+              <dd>{dossier.job?.source ?? "Unknown"}</dd>
+            </div>
+            <div>
+              <dt>Role snapshot</dt>
+              <dd>
+                <code>{dossier.job?.contentHash.slice(0, 12) ?? "Unavailable"}</code>
+              </dd>
+            </div>
+            <div>
+              <dt>Follow-up</dt>
+              <dd>{application.followUpOn ?? "None recorded"}</dd>
+            </div>
+          </dl>
+        </section>
+        <section>
+          <span>02 · Evidence decision</span>
+          {dossier.match ? (
+            <dl>
+              <div>
+                <dt>Match band</dt>
+                <dd>{human(dossier.match.result.band)}</dd>
+              </div>
+              <div>
+                <dt>Publication</dt>
+                <dd>
+                  <code>{dossier.match.id.slice(0, 12)}</code>
+                </dd>
+              </div>
+              <div>
+                <dt>Requirements</dt>
+                <dd>{dossier.match.result.requirements.length} literal checks</dd>
+              </div>
+            </dl>
+          ) : (
+            <p>No Match Publication is loaded for this Role.</p>
+          )}
+        </section>
+        <section>
+          <span>03 · Frozen materials</span>
+          {currentPacket ? (
+            <dl>
+              <div>
+                <dt>Current packet</dt>
+                <dd>
+                  {currentPacket.id.slice(0, 8)} · {human(currentPacket.status)}
+                </dd>
+              </div>
+              <div>
+                <dt>Canonical hash</dt>
+                <dd>
+                  <code>{currentPacket.artifactHash.slice(0, 12)}</code>
+                </dd>
+              </div>
+              <div>
+                <dt>Selected evidence</dt>
+                <dd>
+                  {currentPacket.canonicalContent.composition?.evidenceIds.length ?? "Legacy"}
+                </dd>
+              </div>
+              <div>
+                <dt>Frozen match</dt>
+                <dd>
+                  <code>
+                    {currentPacket.canonicalContent.composition?.matchRunId.slice(0, 12) ??
+                      "Legacy"}
+                  </code>
+                </dd>
+              </div>
+            </dl>
+          ) : (
+            <p>No Packet is loaded for this Application.</p>
+          )}
+          <PacketHistoryPanel applicationId={application.id} />
+        </section>
+        <section>
+          <span>04 · Candidate record</span>
+          <dl>
+            <div>
+              <dt>Status events</dt>
+              <dd>{dossier.statusEvents.length}</dd>
+            </div>
+            <div>
+              <dt>Activities / interviews</dt>
+              <dd>
+                {dossier.activities.length} / {dossier.interviews.length}
+              </dd>
+            </div>
+            <div>
+              <dt>Contacts / offers</dt>
+              <dd>
+                {dossier.contacts.length} / {dossier.offers.length}
+              </dd>
+            </div>
+            <div>
+              <dt>Actions / receipts</dt>
+              <dd>
+                {dossier.actions.length} / {dossier.receipts.length}
+              </dd>
+            </div>
+          </dl>
+        </section>
+      </div>
+      <section className="dossier-submissions">
+        <header>
+          <span>Immutable submission record</span>
+          <strong>{dossier.submissions.length}</strong>
+        </header>
+        {dossier.submissions.length > 0 ? (
+          <ol>
+            {dossier.submissions.map((submission) => (
+              <li key={submission.id}>
+                <div>
+                  <strong>{human(submission.channel)}</strong>
+                  <time dateTime={submission.submittedAt}>
+                    {localDateTime(submission.submittedAt)}
+                  </time>
+                </div>
+                <p>{submission.destination}</p>
+                <small>
+                  {submission.materialsCaptured
+                    ? `${submission.artifactFormats.map((format) => format.toUpperCase()).join(" · ")} · packet ${submission.packetId?.slice(0, 8)}`
+                    : "Materials explicitly not captured"}
+                </small>
+                {submission.packetArtifactHash && <code>{submission.packetArtifactHash}</code>}
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p>No external submission has been recorded.</p>
+        )}
+        <p className="boundary-note">
+          Submission Records preserve what the candidate entered. They do not prove delivery,
+          receipt, review, or an employer decision.
+        </p>
+      </section>
+    </section>
+  );
+}
+
 function LocalDraftPanel({ dashboard }: { dashboard: Dashboard }) {
   const confirmedEvidence = dashboard.evidence.filter((claim) => claim.status === "confirmed");
   const confirmedEvidenceKey = confirmedEvidence.map((claim) => claim.id).join("\u0000");
@@ -7115,6 +7423,20 @@ function Packets({
       <div className="packet-list">
         {dashboard.applications.map((application) => {
           const packet = packetByApplication.get(application.id);
+          const job =
+            dashboard.jobs.find((candidate) => candidate.id === application.jobId) ?? null;
+          const match =
+            dashboard.matches.find((candidate) => candidate.jobId === application.jobId) ?? null;
+          const generate = (evidenceIds: string[]) => {
+            void onAct.run({
+              request: () =>
+                api<Packet>("/v1/packets", {
+                  method: "POST",
+                  body: JSON.stringify({ applicationId: application.id, evidenceIds }),
+                }),
+              success: (result) => packetInventoryNotice(result.artifactManifest),
+            });
+          };
           const approvalNeedsAssurance =
             packet !== undefined &&
             packet.status !== "assurance_passed" &&
@@ -7142,42 +7464,29 @@ function Packets({
               </div>
               <div className="packet-actions">
                 {!packet ? (
-                  <button
-                    className="button mini primary"
-                    type="button"
-                    disabled={busy}
-                    onClick={() => {
-                      void onAct.run({
-                        request: () =>
-                          api<Packet>("/v1/packets", {
-                            method: "POST",
-                            body: JSON.stringify({ applicationId: application.id }),
-                          }),
-                        success: (result) => packetInventoryNotice(result.artifactManifest),
-                      });
-                    }}
-                  >
-                    <FileOutput size={15} /> Generate
-                  </button>
+                  <PacketComposer
+                    application={application}
+                    profile={dashboard.profile}
+                    job={job}
+                    match={match}
+                    evidence={dashboard.evidence}
+                    busy={busy}
+                    compact
+                    onGenerate={generate}
+                  />
                 ) : (
                   <>
-                    <button
-                      className="button mini quiet"
-                      type="button"
-                      disabled={busy}
-                      onClick={() => {
-                        void onAct.run({
-                          request: () =>
-                            api<Packet>("/v1/packets", {
-                              method: "POST",
-                              body: JSON.stringify({ applicationId: application.id }),
-                            }),
-                          success: (result) => packetInventoryNotice(result.artifactManifest),
-                        });
-                      }}
-                    >
-                      <FileOutput size={15} /> Generate new
-                    </button>
+                    <PacketComposer
+                      application={application}
+                      profile={dashboard.profile}
+                      job={job}
+                      match={match}
+                      evidence={dashboard.evidence}
+                      busy={busy}
+                      compact
+                      primary={false}
+                      onGenerate={generate}
+                    />
                     <button
                       className={`button mini ${approvalNeedsAssurance ? "primary" : "quiet"}`}
                       type="button"

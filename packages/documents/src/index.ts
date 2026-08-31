@@ -11,14 +11,28 @@ export interface PacketClaim {
   evidenceIds: string[];
 }
 
+export interface PacketComposition {
+  inputHash: string;
+  profileVersionId: string;
+  matchRunId: string;
+  matchInputHash: string;
+  matchArtifactHash: string;
+  jobContentHash: string;
+  evidenceIds: string[];
+}
+
 export interface CanonicalPacket {
-  schemaVersion: "packet_v1";
+  schemaVersion: "packet_v1" | "packet_v2";
   candidateName: string;
   destination: { company: string; role: string; contactEmail?: string };
   summary: string;
   claims: PacketClaim[];
   authorizationWording: string;
-  generatedAt: string;
+  /** v1 recorded wall-clock generation in canonical content. Packet v2 keeps
+   * the canonical content reproducible and relies on the Packet record's
+   * createdAt for the event time. */
+  generatedAt?: string;
+  composition?: PacketComposition;
 }
 
 export interface PacketArtifact {

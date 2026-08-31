@@ -64,13 +64,18 @@ half-finished forms. Nimanto gives that work one inspectable path:
    view, export a focused local CSV or calendar file, and use one candidate-owned
    career ledger for activities, interview rounds, people, reusable answers,
    saved reviews, descriptive timing observations, and offer terms.
-7. **Draft and generate**: optionally copy an unverified local Ollama draft from
-   only the confirmed evidence you select, then generate JSON, plain text, and
-   paired modern and ATS-safe DOCX/PDF from confirmed evidence only.
-8. **Inspect** retained profile, match, packet, and assurance records when you
-   need them; compare literal stored values without inventing causality.
+7. **Compose and generate**: choose and order up to eight confirmed claims from
+   the Application's exact Profile Version, inspect how they map to its current
+   Match, then generate JSON, plain text, and paired modern and ATS-safe
+   DOCX/PDF. Identical frozen inputs reproduce the same canonical packet hash.
+8. **Inspect** an Application Dossier with its current role, Match, packet,
+   assurance, candidate ledger, and retained history; compare literal stored
+   values without inventing causality.
 9. **Approve** — assurance, then the packet, then the exact action, then a runtime
    switch that resets itself off.
+10. **Record an external submission** only after you perform it. Capture the
+    channel, destination, time, and exact packet formats used—or explicitly say
+    the materials were not captured. Nimanto never calls that record a receipt.
 
 Nimanto is a **candidate tool**. It does not screen you for employers, estimate
 your hiring odds, give legal advice, or promise that a company sponsors transfers
@@ -78,6 +83,23 @@ today.
 
 ## Unreleased on main
 
+- **Application Dossiers.** Each tracked Application opens one read-only case
+  file joining only its current role and Match, exact Packet composition
+  bindings and assurance history, candidate-authored ledger records, external
+  actions, and immutable Submission Records. The dossier does not reconstruct
+  an employer timeline or claim that an employer received anything.
+- **Candidate-selected packet composition.** Packet creation now requires an
+  explicit ordered selection of one to eight confirmed claims from the exact
+  Profile Version bound to the Application and a current published Match. The
+  stored `packet_v2` composition binds the Profile, Match input/artifact hashes,
+  role content hash, and evidence order; canonical hashes omit wall-clock time
+  so identical frozen inputs reproduce identically.
+- **Append-only Submission Records.** Moving an Application to **Submitted
+  externally** records the candidate's channel, destination, time, and either
+  the exact current approved packet formats used or an explicit “materials not
+  captured” decision. Packet-backed records revalidate current Profile, Match,
+  role, evidence, manifest, and packet hashes in the same tenant transaction.
+  Later packets and status changes cannot rewrite historical records.
 - **One integrated career ledger.** Applications now retain typed candidate
   activities, structured interview rounds, a manual contact/referral ledger,
   and versioned candidate-authored answer blocks linked to confirmed evidence.
@@ -97,8 +119,9 @@ today.
   immigration, negotiation, or financial advice.
 - Schema version 13 adds the tenant-owned career-ledger tables and backfills one
   clearly labeled current-status migration marker for existing Applications.
-  Inspection export v8 includes the full answer revision history and every new
-  record; workspace deletion cascades through the same tenant boundary.
+  Schema version 14 adds tenant-owned immutable Submission Records. Inspection
+  export v9 includes the full answer revision history and every new record;
+  workspace deletion cascades through the same tenant boundary.
 
 ## New in v0.9.0
 
@@ -582,7 +605,10 @@ artifacts.
 
 ### Grounded packets
 
-- Deterministic assembly from confirmed evidence only.
+- Candidate-selected deterministic assembly from one to eight ordered,
+  confirmed claims owned by the Application's exact Profile Version. Packet
+  creation also binds the current Match Publication and role content hash and
+  fails closed when any frozen input changes.
 - Shared JSON and plain text, plus synchronized modern and conservative ATS-safe
   DOCX/PDF variants with SHA-256 hashes.
 - `application_assurance_v1` checks unsupported claims, authorization-wording
@@ -716,7 +742,8 @@ Version `0.9.0` is a **local beta**:
 - External action payloads cannot execute from draft or pending states.
 - The runtime switch is in memory and resets off.
 - Versioned inspection exports contain identity, provenance, hashes, packet
-  manifests, dataset editions, and retained profile/match/assurance records. The workbench disables
+  manifests, immutable candidate-authored Submission Records, dataset editions,
+  and retained profile/match/assurance records. The workbench disables
   its download control until the candidate acknowledges the sensitive-data
   warning; the authenticated local API remains directly callable. Exports exclude
   sessions, invitation secrets, deletion internals, and generated packet files.

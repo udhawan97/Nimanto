@@ -785,6 +785,26 @@ const FAILURE_COPY: Record<string, string> = {
     "A newer packet replaced the one selected for this action. Refresh, review and approve the current packet, then create and approve a replacement action.",
   ACTION_APPROVAL_STALE:
     "A newer packet replaced the one approved for this action. Review and approve the current packet, then create and approve a replacement action.",
+  PACKET_EVIDENCE_OUTSIDE_PROFILE:
+    "Choose confirmed claims from the Profile Version bound to this application.",
+  PROFILE_EVIDENCE_CHANGED:
+    "One or more selected Profile claims are no longer confirmed. Review the evidence and save a current Profile Version.",
+  MATCH_PUBLICATION_REQUIRED:
+    "Publish a current Match for this exact role and Profile before composing a packet.",
+  PACKET_MATCH_INPUT_CHANGED:
+    "The role, Profile, or Match changed. Publish the current Match and review the packet composition again.",
+  SUBMISSION_CURRENT_APPROVED_PACKET_REQUIRED:
+    "That packet is no longer the current approved packet. Review the dossier before recording the submission.",
+  SUBMISSION_PACKET_PROFILE_CHANGED:
+    "The application Profile changed after this packet was composed. Create and approve a current packet first.",
+  SUBMISSION_PACKET_COMPOSITION_REQUIRED:
+    "That historical packet has no frozen composition record. Choose a current composed packet or explicitly record that materials were not captured.",
+  SUBMISSION_PACKET_INPUT_CHANGED:
+    "The role or Match changed after this packet was composed. Publish, compose, assure, and approve the current inputs first.",
+  SUBMISSION_PACKET_EVIDENCE_CHANGED:
+    "A selected claim is no longer confirmed. Review the evidence and compose a new packet first.",
+  SUBMISSION_PACKET_FORMAT_UNAVAILABLE:
+    "One of the selected formats is not in that packet manifest. Choose only formats you actually used.",
   PROHIBITED_DOCUMENT_CONTENT:
     "That file looks like an immigration or identity document. Nimanto refuses those — remove it and import career evidence only.",
   UNSUPPORTED_FILE_TYPE:

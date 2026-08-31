@@ -6,6 +6,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { NimantoStore } from "@nimanto/database";
 import { renderPacketArtifacts } from "@nimanto/documents";
 import { DeletionCoordinator } from "../src/deletion-coordinator.js";
+import { publishMatch } from "../src/match-publication.js";
 import { PacketLifecycle, type PacketArtifactRenderer } from "../src/packet-lifecycle.js";
 
 const stores: NimantoStore[] = [];
@@ -47,6 +48,7 @@ async function packetFixture(label: string) {
     contentHash: `${label}-content`,
   });
   const application = await store.createApplication(identity.tenantId, job.id, profile.version.id);
+  await publishMatch(store, identity.tenantId, job.id, "manual");
   return {
     root,
     dataDirectory,
@@ -56,12 +58,13 @@ async function packetFixture(label: string) {
     identity,
     job,
     application,
+    evidenceIds: [claim.id],
   };
 }
 
 describe("packet lifecycle staging", () => {
   it("cleans render failures and serializes tenant staging with deletion", async () => {
-    const { store, identity, application, artifactDirectory, outboxDirectory } =
+    const { store, identity, application, evidenceIds, artifactDirectory, outboxDirectory } =
       await packetFixture("packet-staging");
     const failingRenderer: PacketArtifactRenderer = async (_packetId, _packet, directory) => {
       await mkdir(directory, { recursive: true });
@@ -75,6 +78,7 @@ describe("packet lifecycle staging", () => {
         tenantId: identity.tenantId,
         applicationId: application.id,
         candidateName: "Packet Staging",
+        evidenceIds,
       }),
     ).rejects.toThrow("INJECTED_RENDER_FAILURE");
     const stagingRoot = join(artifactDirectory, identity.tenantId, ".staging");
@@ -106,6 +110,7 @@ describe("packet lifecycle staging", () => {
       tenantId: identity.tenantId,
       applicationId: application.id,
       candidateName: "Packet Staging",
+      evidenceIds,
     });
     await renderStarted;
     let deletionSettled = false;
@@ -125,7 +130,7 @@ describe("packet lifecycle staging", () => {
   });
 
   it("rejects changed frozen inputs before rendering any candidate artifact", async () => {
-    const { store, identity, application, artifactDirectory } =
+    const { store, identity, application, evidenceIds, artifactDirectory } =
       await packetFixture("packet-input-change");
     const wrapped = new Proxy(store, {
       get(target, property) {
@@ -135,20 +140,12 @@ describe("packet lifecycle staging", () => {
               work(
                 new Proxy(database, {
                   get(transactionTarget, transactionProperty) {
-                    if (transactionProperty === "listApplications") {
-                      return async (tenantId: string) =>
-                        (await database.listApplications(tenantId)).map((candidate) =>
-                          candidate.id === application.id && candidate.job
-                            ? {
-                                ...candidate,
-                                job: {
-                                  ...candidate.job,
-                                  description: "Changed after the first snapshot",
-                                  contentHash: "changed-content",
-                                },
-                              }
-                            : candidate,
-                        );
+                    if (transactionProperty === "listEvidenceByIds") {
+                      return async (tenantId: string, ids: readonly string[]) =>
+                        (await database.listEvidenceByIds(tenantId, ids)).map((claim) => ({
+                          ...claim,
+                          value: `${claim.value} changed`,
+                        }));
                     }
                     const transactionValue = Reflect.get(
                       transactionTarget,
@@ -173,13 +170,42 @@ describe("packet lifecycle staging", () => {
         tenantId: identity.tenantId,
         applicationId: application.id,
         candidateName: "Packet Input Change",
+        evidenceIds,
       }),
     ).rejects.toThrow("PACKET_INPUT_CHANGED");
     await expect(access(join(artifactDirectory, identity.tenantId))).rejects.toThrow();
   });
 
+  it("reproduces the canonical hash for identical frozen composition inputs", async () => {
+    const { store, identity, application, evidenceIds, artifactDirectory } =
+      await packetFixture("packet-reproducible");
+    const lifecycle = new PacketLifecycle(store, artifactDirectory);
+
+    const first = await lifecycle.create({
+      tenantId: identity.tenantId,
+      applicationId: application.id,
+      candidateName: "Packet Reproducible",
+      evidenceIds,
+    });
+    const second = await lifecycle.create({
+      tenantId: identity.tenantId,
+      applicationId: application.id,
+      candidateName: "Packet Reproducible",
+      evidenceIds,
+    });
+
+    expect(second.id).not.toBe(first.id);
+    expect(second.artifactHash).toBe(first.artifactHash);
+    expect(second.canonicalContent).toEqual(first.canonicalContent);
+    expect(second.canonicalContent).toMatchObject({
+      schemaVersion: "packet_v2",
+      composition: { evidenceIds },
+    });
+    expect(second.canonicalContent).not.toHaveProperty("generatedAt");
+  });
+
   it("does not erase candidate-recorded submission or withdrawal facts", async () => {
-    const { store, identity, application, artifactDirectory } =
+    const { store, identity, application, evidenceIds, artifactDirectory } =
       await packetFixture("packet-candidate-facts");
     const lifecycle = new PacketLifecycle(store, artifactDirectory);
     const submitted = await store.setApplicationStatus(
@@ -193,6 +219,7 @@ describe("packet lifecycle staging", () => {
       tenantId: identity.tenantId,
       applicationId: application.id,
       candidateName: "Packet Candidate Facts",
+      evidenceIds,
     });
     const afterGeneration = (await store.listApplications(identity.tenantId)).find(
       (candidate) => candidate.id === application.id,
@@ -248,6 +275,7 @@ describe("packet lifecycle staging", () => {
         tenantId: fixture.identity.tenantId,
         applicationId: fixture.application.id,
         candidateName: "Packet Transaction Failure",
+        evidenceIds: fixture.evidenceIds,
       }),
     ).rejects.toThrow("INJECTED_PACKET_FAILURE");
     const tenantDirectory = join(fixture.artifactDirectory, fixture.identity.tenantId);

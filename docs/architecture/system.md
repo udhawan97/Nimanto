@@ -2,14 +2,15 @@
 
 ## Purpose
 
-Nimanto is a candidate-side evidence and application workbench. Its architecture keeps six trust boundaries explicit:
+Nimanto is a candidate-side evidence and application workbench. Its architecture keeps seven trust boundaries explicit:
 
 1. imported material is not confirmed evidence;
 2. historical sponsorship evidence is not a current employer promise;
 3. a current Role record is not immutable posting history;
 4. a match explanation is not a hiring probability;
 5. generated text is not an approved packet;
-6. an approved packet is not permission to perform an external action.
+6. an approved packet is not permission to perform an external action;
+7. a candidate-authored Submission Record is not an employer receipt or delivery proof.
 
 ## Runtime topology
 
@@ -44,7 +45,8 @@ stateDiagram-v2
   Confirmed --> ProfileVersion: snapshot
   ProfileVersion --> MatchRun: deterministic rules
   MatchRun --> Application: candidate tracks role
-  Application --> PacketDraft: deterministic assembly
+  Application --> PacketDraft: candidate selects frozen evidence
+  Application --> SubmissionRecord: candidate records an external act
   PacketDraft --> AssurancePassed: no findings
   PacketDraft --> AssuranceBlocked: required finding
   AssurancePassed --> PacketApproved: candidate approves
@@ -56,6 +58,11 @@ stateDiagram-v2
   Executing --> Ambiguous: provider may have succeeded; never auto-retry
   Succeeded --> Receipt
 ```
+
+The `SubmissionRecord` path records only an action the candidate says they
+performed outside Nimanto. It can bind the exact current approved Packet and
+formats used, or explicitly state that materials were not captured; it never
+invokes a provider and never becomes an employer acknowledgment.
 
 ## Package seams
 
@@ -84,6 +91,15 @@ holding the tenant lock, then promotes the complete artifact set and writes the
 packet, application state and receipt atomically. Stored
 execution receipts are verified against their canonical hashes on dashboard read;
 the workbench exposes those internal hashes without treating them as signatures.
+
+`packet_v2` stores the ordered candidate-selected evidence IDs plus exact Profile
+Version, Match Publication input/artifact hashes, and role content hash. Its
+canonical content omits generation time, so the same frozen composition produces
+the same canonical packet hash. Schema version 14 stores append-only,
+tenant-owned Submission Records. A packet-backed submission transaction requires
+the exact latest approved Packet and rechecks its Profile, Match, role, evidence,
+manifest, and hashes before it updates Application status. A later Packet or
+status change cannot rewrite an earlier Submission Record.
 
 Retained profile, match, packet, and assurance records are exposed through
 tenant-scoped, cursor-paginated read seams. The dashboard loads only the latest
@@ -345,7 +361,7 @@ email, or submit.
 
 ## External actions
 
-The database state machine and domain state machine must agree. Action approval binds the immutable target/payload intent hash and the exact approved packet hash. Schema version 4 assigns a monotonic internal generation sequence at packet insertion after acquiring the tenant lock; current-packet selection and history use that sequence rather than timestamp/random-ID tie-breaking. Schema version 5 adds the nullable date-only `applications.follow_up_on` candidate record. One pure domain policy owns its strict literal parsing, legal candidate changes, inactive withdrawn behavior, and candidate-local due-day evaluation; it has no worker, provider, notification, or status-transition authority. Schema version 6 transactionally backfills legacy Packet manifest and Action Intent hashes. Schema version 13 adds tenant-owned status events, activities, contacts/links, interview rounds, answer blocks/revisions, saved review views, and offers. Existing Applications receive one labeled migration snapshot; no earlier status history is invented. Migrations run in ascending order and record each version only after its transaction commits; a database from a newer runtime fails closed. Action creation, approval, and execution share the tenant lock used by packet generation; each boundary transactionally requires that the selected approved packet is still the application's current packet. Execution repeats that check after reacquiring the lock immediately before the provider effect. A historical approved packet therefore cannot create, approve, or execute a handoff after a newer packet exists. Execution also revalidates the intent and packet hashes, requires the in-memory runtime switch, and compare-and-swaps `approved` to `executing`. Provider failure becomes `failed`; a provider success followed by uncertain local persistence becomes `ambiguous`, and an interrupted `executing` record is recovered as ambiguous on restart. Neither state is retried automatically. The switch has no environment override and resets to off with every API restart.
+The database state machine and domain state machine must agree. Action approval binds the immutable target/payload intent hash and the exact approved packet hash. Schema version 4 assigns a monotonic internal generation sequence at packet insertion after acquiring the tenant lock; current-packet selection and history use that sequence rather than timestamp/random-ID tie-breaking. Schema version 5 adds the nullable date-only `applications.follow_up_on` candidate record. One pure domain policy owns its strict literal parsing, legal candidate changes, inactive withdrawn behavior, and candidate-local due-day evaluation; it has no worker, provider, notification, or status-transition authority. Schema version 6 transactionally backfills legacy Packet manifest and Action Intent hashes. Schema version 13 adds tenant-owned status events, activities, contacts/links, interview rounds, answer blocks/revisions, saved review views, and offers. Existing Applications receive one labeled migration snapshot; no earlier status history is invented. Schema version 14 adds append-only candidate-authored Submission Records with optional exact Packet and format bindings. Migrations run in ascending order and record each version only after its transaction commits; a database from a newer runtime fails closed. Action creation, approval, and execution share the tenant lock used by packet generation; each boundary transactionally requires that the selected approved packet is still the application's current packet. Execution repeats that check after reacquiring the lock immediately before the provider effect. A historical approved packet therefore cannot create, approve, or execute a handoff after a newer packet exists. Execution also revalidates the intent and packet hashes, requires the in-memory runtime switch, and compare-and-swaps `approved` to `executing`. Provider failure becomes `failed`; a provider success followed by uncertain local persistence becomes `ambiguous`, and an interrupted `executing` record is recovered as ambiguous on restart. Neither state is retried automatically. The switch has no environment override and resets off with every API restart.
 
 Version 0.9.0 has no connected-account provider. Verification uses only a user-opened deep link and the local test outbox. Gmail, Outlook, form submission, and desktop delivery remain behind the separately approved Slice 4 boundary.
 

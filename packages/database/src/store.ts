@@ -16,6 +16,7 @@ import {
   normalizeWorkplaceMode,
   normalizeEmployerName,
   OFFER_STATES,
+  normalizeCandidateSubmission,
   scheduledFailureEvent,
   scheduledRetryDelayMinutes,
   validateStructuredArea,
@@ -38,6 +39,9 @@ import {
   type MatchResult,
   type OutcomeType,
   type OfferState,
+  type CandidateSubmissionInput,
+  type PacketArtifactFormat,
+  type SubmissionChannel,
   type PublicationState,
   type RoleFamily,
   type ScheduledJobState,
@@ -339,6 +343,21 @@ export interface ApplicationRecord {
   outcomes?: OutcomeRecord[];
   notes?: ApplicationNoteRecord[];
   statusEvents?: ApplicationStatusEvent[];
+  submissions?: ApplicationSubmissionRecord[];
+}
+
+export interface ApplicationSubmissionRecord {
+  id: string;
+  applicationId: string;
+  packetId: string | null;
+  materialsCaptured: boolean;
+  artifactFormats: PacketArtifactFormat[];
+  channel: SubmissionChannel;
+  destination: string;
+  submittedAt: string;
+  packetArtifactHash: string | null;
+  packetManifestHash: string | null;
+  createdAt: string;
 }
 
 export interface OutcomeRecord {
@@ -3110,7 +3129,12 @@ export class NimantoStore {
     id: string,
     status: ApplicationStatus,
     confirmed: boolean,
+    submission?: CandidateSubmissionInput,
   ): Promise<ApplicationRecord | null> {
+    if (status === "submitted_externally") {
+      return this.recordCandidateSubmission(tenantId, id, submission, confirmed);
+    }
+    if (submission) throw new Error("UNEXPECTED_SUBMISSION_RECORD");
     return this.transaction(async (database) => {
       await database.lockTenantActive(tenantId);
       const current = await database.#db.query<{ status: ApplicationStatus }>(
@@ -3138,6 +3162,188 @@ export class NimantoStore {
         return unchanged.rows[0] ? database.#mapApplication(unchanged.rows[0]) : null;
       }
       return database.setApplicationStatus(tenantId, id, decision.transition.to, "candidate");
+    });
+  }
+
+  #mapApplicationSubmission(row: any): ApplicationSubmissionRecord {
+    return {
+      id: row.id,
+      applicationId: row.application_id,
+      packetId: row.packet_id,
+      materialsCaptured: row.materials_captured,
+      artifactFormats: row.artifact_formats,
+      channel: row.channel,
+      destination: row.destination,
+      submittedAt: isoRequired(row.submitted_at),
+      packetArtifactHash: row.packet_artifact_hash,
+      packetManifestHash: row.packet_manifest_hash,
+      createdAt: isoRequired(row.created_at),
+    };
+  }
+
+  async listApplicationSubmissions(
+    tenantId: string,
+    applicationId?: string,
+  ): Promise<ApplicationSubmissionRecord[]> {
+    const result = await this.#db.query<any>(
+      `SELECT * FROM application_submissions
+       WHERE tenant_id = $1 AND ($2::text IS NULL OR application_id = $2)
+       ORDER BY submitted_at DESC, id DESC`,
+      [tenantId, applicationId ?? null],
+    );
+    return result.rows.map((row) => this.#mapApplicationSubmission(row));
+  }
+
+  async recordCandidateSubmission(
+    tenantId: string,
+    applicationId: string,
+    rawInput: CandidateSubmissionInput | undefined,
+    confirmed: boolean,
+  ): Promise<ApplicationRecord | null> {
+    return this.transaction(async (database) => {
+      await database.lockTenantActive(tenantId);
+      const current = await database.#db.query<any>(
+        `SELECT * FROM applications
+         WHERE tenant_id = $1 AND id = $2
+         FOR UPDATE`,
+        [tenantId, applicationId],
+      );
+      const row = current.rows[0];
+      if (!row) return null;
+      const decision = applicationTransitions
+        .candidate(row.status as ApplicationStatus)
+        .decide("submitted_externally", confirmed ? { confirmed: true } : undefined);
+      if (decision.kind === "confirmation_required") {
+        throw new Error("APPLICATION_TRANSITION_CONFIRMATION_REQUIRED");
+      }
+      if (decision.kind === "illegal") throw new Error(decision.code);
+      if (decision.kind === "unchanged") throw new Error("APPLICATION_ALREADY_SUBMITTED");
+      if (!rawInput) throw new Error("SUBMISSION_RECORD_REQUIRED");
+      const input = normalizeCandidateSubmission(rawInput);
+
+      let packetArtifactHash: string | null = null;
+      let packetManifestHash: string | null = null;
+      if (input.materialsCaptured) {
+        const packet = await database.getPacket(tenantId, input.packetId!);
+        const latestPacket = await database.getLatestPacketForApplication(tenantId, applicationId);
+        if (
+          !packet ||
+          packet.applicationId !== applicationId ||
+          packet.id !== latestPacket?.id ||
+          packet.status !== "approved"
+        ) {
+          throw new Error("SUBMISSION_CURRENT_APPROVED_PACKET_REQUIRED");
+        }
+        if (packet.profileVersionId !== row.profile_version_id) {
+          throw new Error("SUBMISSION_PACKET_PROFILE_CHANGED");
+        }
+        const content = packet.canonicalContent as {
+          schemaVersion?: unknown;
+          composition?: {
+            profileVersionId?: unknown;
+            matchRunId?: unknown;
+            matchInputHash?: unknown;
+            matchArtifactHash?: unknown;
+            jobContentHash?: unknown;
+            evidenceIds?: unknown;
+          };
+        };
+        const composition = content.composition;
+        if (
+          content.schemaVersion !== "packet_v2" ||
+          !composition ||
+          composition.profileVersionId !== row.profile_version_id ||
+          typeof composition.matchRunId !== "string" ||
+          typeof composition.matchInputHash !== "string" ||
+          typeof composition.matchArtifactHash !== "string" ||
+          typeof composition.jobContentHash !== "string" ||
+          !Array.isArray(composition.evidenceIds)
+        ) {
+          throw new Error("SUBMISSION_PACKET_COMPOSITION_REQUIRED");
+        }
+        const [job, latestMatch, evidence] = await Promise.all([
+          database.getJob(tenantId, row.job_id),
+          database
+            .listLatestMatches(tenantId)
+            .then((matches) => matches.find((match) => match.jobId === row.job_id)),
+          database.listEvidenceByIds(tenantId, composition.evidenceIds as string[]),
+        ]);
+        if (
+          !job ||
+          !latestMatch ||
+          latestMatch.id !== composition.matchRunId ||
+          latestMatch.profileVersionId !== row.profile_version_id ||
+          latestMatch.inputHash !== composition.matchInputHash ||
+          latestMatch.artifactHash !== composition.matchArtifactHash ||
+          latestMatch.jobContentHash !== composition.jobContentHash ||
+          job.contentHash !== composition.jobContentHash
+        ) {
+          throw new Error("SUBMISSION_PACKET_INPUT_CHANGED");
+        }
+        if (
+          evidence.length !== composition.evidenceIds.length ||
+          evidence.some((claim) => claim.status !== "confirmed")
+        ) {
+          throw new Error("SUBMISSION_PACKET_EVIDENCE_CHANGED");
+        }
+        const artifacts = (
+          packet.artifactManifest as {
+            artifacts?: Array<{ format?: unknown; sha256?: unknown }>;
+          }
+        ).artifacts;
+        if (
+          !artifacts ||
+          input.artifactFormats.some(
+            (format) =>
+              !artifacts.some(
+                (artifact) => artifact.format === format && typeof artifact.sha256 === "string",
+              ),
+          )
+        ) {
+          throw new Error("SUBMISSION_PACKET_FORMAT_UNAVAILABLE");
+        }
+        packetArtifactHash = packet.artifactHash;
+        packetManifestHash = packet.manifestHash;
+      }
+
+      const updated = await database.#db.query<any>(
+        `UPDATE applications
+         SET status = 'submitted_externally', submitted_at = $3, updated_at = now()
+         WHERE tenant_id = $1 AND id = $2
+         RETURNING id, job_id, profile_version_id, status, submitted_at, follow_up_on,
+           created_at, updated_at`,
+        [tenantId, applicationId, input.submittedAt],
+      );
+      const submissionId = randomUUID();
+      await database.#db.query(
+        `INSERT INTO application_submissions(
+           id, tenant_id, application_id, packet_id, materials_captured,
+           artifact_formats, channel, destination, submitted_at,
+           packet_artifact_hash, packet_manifest_hash
+         ) VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9,$10,$11)`,
+        [
+          submissionId,
+          tenantId,
+          applicationId,
+          input.packetId,
+          input.materialsCaptured,
+          JSON.stringify(input.artifactFormats),
+          input.channel,
+          input.destination,
+          input.submittedAt,
+          packetArtifactHash,
+          packetManifestHash,
+        ],
+      );
+      await database.#db.query(
+        `INSERT INTO application_status_events(
+           id, tenant_id, application_id, from_status, to_status, source, occurred_at
+         ) VALUES ($1,$2,$3,$4,'submitted_externally','candidate',$5)`,
+        [randomUUID(), tenantId, applicationId, row.status, input.submittedAt],
+      );
+      const application = database.#mapApplication(updated.rows[0]);
+      application.submissions = await database.listApplicationSubmissions(tenantId, applicationId);
+      return application;
     });
   }
 
@@ -3199,7 +3405,7 @@ export class NimantoStore {
   }
 
   async listApplications(tenantId: string): Promise<ApplicationRecord[]> {
-    const [applications, outcomes, notes, statusEvents, jobs] = await Promise.all([
+    const [applications, outcomes, notes, statusEvents, submissions, jobs] = await Promise.all([
       this.#db.query<any>(
         `SELECT id, job_id, profile_version_id, status, submitted_at, follow_up_on,
            created_at, updated_at
@@ -3220,6 +3426,11 @@ export class NimantoStore {
         `SELECT id, application_id, from_status, to_status, source, occurred_at
          FROM application_status_events
          WHERE tenant_id = $1 ORDER BY occurred_at, id`,
+        [tenantId],
+      ),
+      this.#db.query<any>(
+        `SELECT * FROM application_submissions
+         WHERE tenant_id = $1 ORDER BY submitted_at DESC, id DESC`,
         [tenantId],
       ),
       this.listJobs(tenantId),
@@ -3248,6 +3459,9 @@ export class NimantoStore {
             text: note.text,
             recordedAt: iso(note.recorded_at)!,
           })),
+        submissions: submissions.rows
+          .filter((submission) => submission.application_id === record.id)
+          .map((submission) => this.#mapApplicationSubmission(submission)),
         statusEvents: statusEvents.rows
           .filter((event) => event.application_id === record.id)
           .map((event) => ({
@@ -4418,6 +4632,7 @@ export class NimantoStore {
       employerEntities,
       employerAliases,
       careerOperations,
+      applicationSubmissions,
     ] = await Promise.all([
       this.listEvidence(tenantId),
       this.latestProfileVersion(tenantId),
@@ -4441,6 +4656,7 @@ export class NimantoStore {
       this.listEmployerEntities(tenantId),
       this.listEmployerAliases(tenantId),
       this.readCareerOperations(tenantId),
+      this.listApplicationSubmissions(tenantId),
     ]);
     const profileVersions = [...profileVersionsPage.items];
     let profileCursor = profileVersionsPage.nextCursor;
@@ -4457,7 +4673,7 @@ export class NimantoStore {
       matchCursor = page.nextCursor;
     }
     return {
-      schemaVersion: "nimanto_export_v8",
+      schemaVersion: "nimanto_export_v9",
       exportedAt: new Date().toISOString(),
       evidence,
       profile,
@@ -4481,6 +4697,7 @@ export class NimantoStore {
       employerEntities,
       employerAliases,
       careerOperations,
+      applicationSubmissions,
     };
   }
 
