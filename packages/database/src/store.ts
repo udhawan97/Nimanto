@@ -3586,42 +3586,49 @@ export class NimantoStore {
       this.listJobs(tenantId),
     ]);
     const jobsById = new Map(jobs.map((job) => [job.id, job]));
+    const groupByApplication = <T extends { application_id: string }>(rows: T[]) => {
+      const grouped = new Map<string, T[]>();
+      for (const row of rows) {
+        const group = grouped.get(row.application_id);
+        if (group) group.push(row);
+        else grouped.set(row.application_id, [row]);
+      }
+      return grouped;
+    };
+    const outcomesByApplication = groupByApplication(outcomes.rows);
+    const notesByApplication = groupByApplication(notes.rows);
+    const submissionsByApplication = groupByApplication(submissions.rows);
+    const statusEventsByApplication = groupByApplication(statusEvents.rows);
     return applications.rows.map((row) => {
       const record = this.#mapApplication(row);
       const job = jobsById.get(record.jobId);
       return {
         ...record,
         ...(job ? { job: { title: job.title, company: job.company } } : {}),
-        outcomes: outcomes.rows
-          .filter((outcome) => outcome.application_id === record.id)
-          .map((outcome) => ({
-            id: outcome.id,
-            applicationId: outcome.application_id,
-            type: outcome.type,
-            note: outcome.note,
-            occurredAt: iso(outcome.occurred_at)!,
-          })),
-        notes: notes.rows
-          .filter((note) => note.application_id === record.id)
-          .map((note) => ({
-            id: note.id,
-            applicationId: note.application_id,
-            text: note.text,
-            recordedAt: iso(note.recorded_at)!,
-          })),
-        submissions: submissions.rows
-          .filter((submission) => submission.application_id === record.id)
-          .map((submission) => this.#mapApplicationSubmission(submission)),
-        statusEvents: statusEvents.rows
-          .filter((event) => event.application_id === record.id)
-          .map((event) => ({
-            id: event.id,
-            applicationId: event.application_id,
-            fromStatus: event.from_status,
-            toStatus: event.to_status,
-            source: event.source,
-            occurredAt: iso(event.occurred_at)!,
-          })),
+        outcomes: (outcomesByApplication.get(record.id) ?? []).map((outcome) => ({
+          id: outcome.id,
+          applicationId: outcome.application_id,
+          type: outcome.type,
+          note: outcome.note,
+          occurredAt: iso(outcome.occurred_at)!,
+        })),
+        notes: (notesByApplication.get(record.id) ?? []).map((note) => ({
+          id: note.id,
+          applicationId: note.application_id,
+          text: note.text,
+          recordedAt: iso(note.recorded_at)!,
+        })),
+        submissions: (submissionsByApplication.get(record.id) ?? []).map((submission) =>
+          this.#mapApplicationSubmission(submission),
+        ),
+        statusEvents: (statusEventsByApplication.get(record.id) ?? []).map((event) => ({
+          id: event.id,
+          applicationId: event.application_id,
+          fromStatus: event.from_status,
+          toStatus: event.to_status,
+          source: event.source,
+          occurredAt: iso(event.occurred_at)!,
+        })),
       };
     });
   }
@@ -3981,10 +3988,26 @@ export class NimantoStore {
         ],
       );
     });
-    return (await this.listAnswerBlocks(tenantId, true)).find((answer) => answer.id === id)!;
+    return (await this.getAnswerBlock(tenantId, id, true))!;
   }
 
   async listAnswerBlocks(tenantId: string, includeHistory = false): Promise<AnswerBlockRecord[]> {
+    return this.#readAnswerBlocks(tenantId, null, includeHistory);
+  }
+
+  async getAnswerBlock(
+    tenantId: string,
+    id: string,
+    includeHistory = false,
+  ): Promise<AnswerBlockRecord | null> {
+    return (await this.#readAnswerBlocks(tenantId, id, includeHistory))[0] ?? null;
+  }
+
+  async #readAnswerBlocks(
+    tenantId: string,
+    id: string | null,
+    includeHistory: boolean,
+  ): Promise<AnswerBlockRecord[]> {
     const blocks = await this.#db.query<any>(
       `SELECT block.*,
          COALESCE(
@@ -4003,11 +4026,13 @@ export class NimantoStore {
          ) AS revisions
        FROM answer_blocks block
        LEFT JOIN answer_revisions revision
-         ON revision.tenant_id = block.tenant_id AND revision.answer_block_id = block.id
-       WHERE block.tenant_id = $1
+         ON revision.tenant_id = block.tenant_id
+           AND revision.answer_block_id = block.id
+           AND ($3::boolean OR revision.revision = block.current_revision)
+       WHERE block.tenant_id = $1 AND ($2::text IS NULL OR block.id = $2)
        GROUP BY block.id
        ORDER BY block.updated_at DESC, block.id`,
-      [tenantId],
+      [tenantId, id, includeHistory],
     );
     return blocks.rows.map((row) => {
       const history: AnswerRevisionRecord[] = (

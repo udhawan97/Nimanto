@@ -50,7 +50,7 @@ export class DashboardRead {
         database.listLatestRoleObservations(person.tenantId),
         database.listLatestVerificationAttempts(person.tenantId),
         database.listRoleWordingReviews(person.tenantId),
-        database.readCareerOperations(person.tenantId),
+        database.readCareerOperations(person.tenantId, false),
         this.externalActionCapability(person.tenantId),
       ]);
       const actionPackets = await database.listPacketsByIds(
@@ -67,6 +67,12 @@ export class DashboardRead {
       const assuranceByPacket = new Map(
         assurances.map((assurance) => [assurance.packetId, assurance]),
       );
+      const activitiesByApplication = new Map<string, typeof careerOperations.activities>();
+      for (const activity of careerOperations.activities) {
+        const activities = activitiesByApplication.get(activity.applicationId);
+        if (activities) activities.push(activity);
+        else activitiesByApplication.set(activity.applicationId, [activity]);
+      }
       const sourceRunById = new Map(sourceRuns.map((run) => [run.id, run]));
       const observationByJob = new Map(
         latestRoleObservations.map((observation) => [observation.jobId, observation]),
@@ -143,9 +149,7 @@ export class DashboardRead {
         careerOperations,
         applications: applications.map((application) => ({
           ...application,
-          activities: careerOperations.activities.filter(
-            (activity) => activity.applicationId === application.id,
-          ),
+          activities: activitiesByApplication.get(application.id) ?? [],
         })),
         packets: packets.map((packet) => ({
           ...packet,

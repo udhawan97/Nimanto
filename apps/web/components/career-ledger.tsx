@@ -951,6 +951,66 @@ export function AnswerRevisionHistory({
   );
 }
 
+export function AnswerHistoryDetails({
+  answer,
+  onCopyEvidence,
+}: {
+  answer: CareerOperationsSnapshot["answerBlocks"][number];
+  onCopyEvidence: (evidenceId: string, revision: number) => void;
+}) {
+  const [history, setHistory] = useState<{
+    revision: number;
+    state: "loading" | "loaded" | "failed";
+    revisions: AnswerRevision[];
+  } | null>(null);
+  const currentHistory = history?.revision === answer.currentRevision ? history : null;
+  const loadHistory = () => {
+    if (currentHistory?.state === "loading" || currentHistory?.state === "loaded") return;
+    setHistory({ revision: answer.currentRevision, state: "loading", revisions: [] });
+    void api<CareerOperationsSnapshot["answerBlocks"][number]>(
+      `/v1/answer-blocks/${answer.id}/revisions`,
+    )
+      .then((record) =>
+        setHistory({
+          revision: record.currentRevision,
+          state: "loaded",
+          revisions: record.revisions ?? [],
+        }),
+      )
+      .catch(() =>
+        setHistory({ revision: answer.currentRevision, state: "failed", revisions: [] }),
+      );
+  };
+
+  return (
+    <details
+      className="answer-history"
+      onToggle={(event) => {
+        if (event.currentTarget.open) loadHistory();
+      }}
+    >
+      <summary>
+        {answer.currentRevision} retained revision{answer.currentRevision === 1 ? "" : "s"}
+      </summary>
+      {currentHistory?.state === "loading" && <p role="status">Loading revision history…</p>}
+      {currentHistory?.state === "failed" && (
+        <div>
+          <p role="alert">Revision history could not be loaded. The saved answer is unchanged.</p>
+          <button className="button mini quiet" type="button" onClick={loadHistory}>
+            Try again
+          </button>
+        </div>
+      )}
+      {currentHistory?.state === "loaded" && (
+        <AnswerRevisionHistory
+          revisions={currentHistory.revisions}
+          onCopyEvidence={onCopyEvidence}
+        />
+      )}
+    </details>
+  );
+}
+
 function AnswersPanel({
   evidence,
   answers,
@@ -1111,25 +1171,17 @@ function AnswersPanel({
               >
                 Revise
               </button>
-              {(answer.revisions?.length ?? 0) > 0 && (
-                <details className="answer-history">
-                  <summary>
-                    {answer.revisions!.length} retained revision
-                    {answer.revisions!.length === 1 ? "" : "s"}
-                  </summary>
-                  <AnswerRevisionHistory
-                    revisions={answer.revisions!}
-                    onCopyEvidence={(evidenceId, revision) =>
-                      void navigator.clipboard
-                        .writeText(evidenceId)
-                        .then(() => setCopyStatus(`Copied evidence ID from revision ${revision}.`))
-                        .catch(() =>
-                          setCopyStatus("Copy failed. Select the full evidence ID and copy it."),
-                        )
-                    }
-                  />
-                </details>
-              )}
+              <AnswerHistoryDetails
+                answer={answer}
+                onCopyEvidence={(evidenceId, revision) =>
+                  void navigator.clipboard
+                    .writeText(evidenceId)
+                    .then(() => setCopyStatus(`Copied evidence ID from revision ${revision}.`))
+                    .catch(() =>
+                      setCopyStatus("Copy failed. Select the full evidence ID and copy it."),
+                    )
+                }
+              />
             </div>
           </li>
         ))}

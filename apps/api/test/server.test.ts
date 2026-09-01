@@ -651,6 +651,14 @@ describe("Nimanto beta API", () => {
     });
     expect(revision.statusCode).toBe(200);
     expect(revision.json().currentRevision).toBe(2);
+    const revisionHistory = await app.inject({
+      method: "GET",
+      url: `/v1/answer-blocks/${answer.json().id}/revisions`,
+      headers: { cookie },
+    });
+    expect(revisionHistory.statusCode).toBe(200);
+    expect(revisionHistory.json().revisions).toHaveLength(2);
+    expect(revisionHistory.json().revisions[0].answerText).toContain("retained the revision");
     const pendingEvidence = await app.inject({
       method: "POST",
       url: "/v1/evidence",

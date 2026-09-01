@@ -10,7 +10,7 @@ import {
   ApplicationSubmissionRecorder,
   createSubmissionDraft,
 } from "../components/application-submission.js";
-import { AnswerRevisionHistory } from "../components/career-ledger.js";
+import { AnswerHistoryDetails, AnswerRevisionHistory } from "../components/career-ledger.js";
 import { PacketComposer } from "../components/packet-composer.js";
 import { RoleProvenanceCard } from "../components/role-provenance.js";
 import { RoleIdentityReviewNotice } from "../components/role-identity-review.js";
@@ -552,5 +552,78 @@ describe("candidate-controlled packet and submission forms", () => {
       ).click(),
     );
     expect(onCopyEvidence).toHaveBeenCalledWith("evidence-second-full-id", 2);
+  });
+
+  it("loads immutable answer history only when the candidate expands it", async () => {
+    const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        id: "answer-1",
+        topic: "why_role",
+        prompt: "Why this role?",
+        currentRevision: 2,
+        latest: {
+          answerText: "Current answer",
+          evidenceIds: [],
+          createdAt: "2026-09-01T12:00:00.000Z",
+        },
+        revisions: [
+          {
+            id: "revision-2",
+            revision: 2,
+            topic: "why_role",
+            prompt: "Why this role?",
+            answerText: "Current answer",
+            evidenceIds: [],
+            createdAt: "2026-09-01T12:00:00.000Z",
+          },
+          {
+            id: "revision-1",
+            revision: 1,
+            topic: "why_role",
+            prompt: "Why this role?",
+            answerText: "First answer",
+            evidenceIds: [],
+            createdAt: "2026-08-31T12:00:00.000Z",
+          },
+        ],
+        createdAt: "2026-08-31T12:00:00.000Z",
+        updatedAt: "2026-09-01T12:00:00.000Z",
+      }),
+    } as Response);
+    const view = await render(
+      createElement(AnswerHistoryDetails, {
+        answer: {
+          id: "answer-1",
+          topic: "why_role",
+          prompt: "Why this role?",
+          currentRevision: 2,
+          latest: {
+            answerText: "Current answer",
+            evidenceIds: [],
+            createdAt: "2026-09-01T12:00:00.000Z",
+          },
+          createdAt: "2026-08-31T12:00:00.000Z",
+          updatedAt: "2026-09-01T12:00:00.000Z",
+        },
+        onCopyEvidence: vi.fn(),
+      }),
+    );
+
+    expect(fetch).not.toHaveBeenCalled();
+    const details = view.querySelector("details")!;
+    await act(async () => {
+      details.open = true;
+      details.dispatchEvent(new Event("toggle"));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/v1/answer-blocks/answer-1/revisions"),
+      expect.objectContaining({ credentials: "include" }),
+    );
+    expect(view.textContent).toContain("Revision 2");
+    expect(view.textContent).toContain("First answer");
   });
 });

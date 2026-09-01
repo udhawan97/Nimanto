@@ -1505,6 +1505,17 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     return record;
   });
 
+  app.get("/v1/answer-blocks/:id/revisions", async (request) => {
+    const person = identity(request);
+    const record = await store.getAnswerBlock(
+      person.tenantId,
+      (request.params as { id: string }).id,
+      true,
+    );
+    if (!record) throw new Error("ANSWER_BLOCK_NOT_FOUND");
+    return record;
+  });
+
   app.post("/v1/answer-blocks", async (request) => {
     const person = identity(request);
     const body = object(request.body);
