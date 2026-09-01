@@ -1,11 +1,14 @@
 import { type SessionIdentity, NimantoStore } from "@nimanto/database";
 import { freshH1bLabel } from "@nimanto/domain";
 import { JOB_SOURCE_REGISTRY, routeAtsLink } from "@nimanto/providers";
+import type { ExternalActionCapability } from "./external-action-lifecycle.js";
 
 export class DashboardRead {
   constructor(
     private readonly store: NimantoStore,
-    private readonly externalActionsEnabled: () => boolean,
+    private readonly externalActionCapability: (
+      tenantId: string,
+    ) => Promise<ExternalActionCapability>,
   ) {}
 
   /** Assemble one tenant-scoped Dashboard from a coherent database view. Exact
@@ -30,6 +33,7 @@ export class DashboardRead {
         latestVerificationAttempts,
         roleWordingReviews,
         careerOperations,
+        runtime,
       ] = await Promise.all([
         database.listEvidence(person.tenantId),
         database.listJobs(person.tenantId),
@@ -47,6 +51,7 @@ export class DashboardRead {
         database.listLatestVerificationAttempts(person.tenantId),
         database.listRoleWordingReviews(person.tenantId),
         database.readCareerOperations(person.tenantId),
+        this.externalActionCapability(person.tenantId),
       ]);
       const actionPackets = await database.listPacketsByIds(
         person.tenantId,
@@ -172,7 +177,7 @@ export class DashboardRead {
           ).length,
           scope: "Candidate-reported outcomes in this local workspace; not a hiring probability.",
         },
-        runtime: { externalActionsEnabled: this.externalActionsEnabled() },
+        runtime,
       };
     });
   }

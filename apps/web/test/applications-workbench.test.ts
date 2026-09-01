@@ -100,6 +100,46 @@ describe("Applications workbench working state", () => {
     expect(state.notes.byApplication).toEqual({});
   });
 
+  it("keeps a newer submission-recorder draft when a delayed success commits an older snapshot", () => {
+    let state = createApplicationsWorkbenchState(new Date(2026, 7, 22, 12));
+    const initial = {
+      materialsCaptured: true,
+      packetId: "packet-a",
+      artifactFormats: ["json"],
+      channel: "employer_portal" as const,
+      destination: "First destination",
+      submittedAt: "2026-08-22T12:00",
+    };
+    state = applicationsWorkbenchReducer(state, {
+      type: "submission_opened",
+      applicationId: "application-a",
+      initialDraft: initial,
+    });
+    state = applicationsWorkbenchReducer(state, {
+      type: "submission_changed",
+      applicationId: "application-a",
+      draft: { ...initial, destination: "Typed while saving" },
+    });
+    state = applicationsWorkbenchReducer(state, {
+      type: "submission_committed",
+      applicationId: "application-a",
+      submitted: initial,
+    });
+    expect(state.submissions).toMatchObject({
+      activeApplicationId: "application-a",
+      byApplication: {
+        "application-a": { destination: "Typed while saving", artifactFormats: ["json"] },
+      },
+    });
+
+    state = applicationsWorkbenchReducer(state, {
+      type: "submission_committed",
+      applicationId: "application-a",
+      submitted: { ...initial, destination: "Typed while saving" },
+    });
+    expect(state.submissions).toEqual({ activeApplicationId: null, byApplication: {} });
+  });
+
   it("owns display, review, cohort, and Reminder working state behind one reset", () => {
     let state = createApplicationsWorkbenchState(new Date(2026, 7, 22, 12));
     state = applicationsWorkbenchReducer(state, { type: "display_changed", display: "table" });

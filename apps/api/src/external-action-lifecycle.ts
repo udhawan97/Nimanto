@@ -10,22 +10,45 @@ import { executeProviderAction, validateActionPayload } from "@nimanto/providers
 
 export type ProviderActionExecutor = typeof executeProviderAction;
 
+export interface ExternalActionCapability {
+  operatorEnabled: boolean;
+  tenantReady: boolean;
+  externalActionsEnabled: boolean;
+}
+
 export class ExternalActionLifecycle {
-  private enabled = false;
+  readonly #readyTenants = new Set<string>();
 
   constructor(
     private readonly store: NimantoStore,
     private readonly outboxDirectory: string,
     private readonly executeAction: ProviderActionExecutor = executeProviderAction,
+    private readonly operatorEnabled = false,
   ) {}
 
-  setRuntime(enabled: boolean): { externalActionsEnabled: boolean } {
-    this.enabled = enabled;
-    return { externalActionsEnabled: this.enabled };
+  operatorCapability(): Pick<ExternalActionCapability, "operatorEnabled"> & {
+    externalActionsEnabled: false;
+  } {
+    return { operatorEnabled: this.operatorEnabled, externalActionsEnabled: false };
   }
 
-  runtime(): boolean {
-    return this.enabled;
+  capability(tenantId: string): ExternalActionCapability {
+    const tenantReady = this.#readyTenants.has(tenantId);
+    return {
+      operatorEnabled: this.operatorEnabled,
+      tenantReady,
+      externalActionsEnabled: this.operatorEnabled && tenantReady,
+    };
+  }
+
+  setTenantOptIn(tenantId: string, enabled: boolean): ExternalActionCapability {
+    if (enabled) this.#readyTenants.add(tenantId);
+    else this.#readyTenants.delete(tenantId);
+    return this.capability(tenantId);
+  }
+
+  clearTenantReadiness(tenantId: string): void {
+    this.#readyTenants.delete(tenantId);
   }
 
   async recoverInterrupted(): Promise<number> {
@@ -48,6 +71,9 @@ export class ExternalActionLifecycle {
       await database.lockTenantActive(input.tenantId);
       const packet = await database.getPacket(input.tenantId, input.packetId);
       if (packet?.status !== "approved") throw new Error("APPROVED_PACKET_REQUIRED");
+      if (!(await database.isPacketCurrent(input.tenantId, input.packetId))) {
+        throw new Error("ACTION_APPROVAL_STALE");
+      }
       const latest = await database.getLatestPacketForApplication(
         input.tenantId,
         packet.applicationId,
@@ -77,6 +103,9 @@ export class ExternalActionLifecycle {
     } catch {
       throw new Error("INVALID_TRANSITION");
     }
+    if (!current.packetId || !(await this.store.isPacketCurrent(tenantId, current.packetId))) {
+      throw new Error("ACTION_APPROVAL_STALE");
+    }
     return this.store.approveExternalActionExact(tenantId, id);
   }
 
@@ -99,7 +128,9 @@ export class ExternalActionLifecycle {
   }
 
   async execute(tenantId: string, id: string) {
-    if (!this.enabled) throw new Error("EXTERNAL_ACTIONS_DISABLED");
+    if (!this.capability(tenantId).externalActionsEnabled) {
+      throw new Error("EXTERNAL_ACTIONS_DISABLED");
+    }
     const executing = await this.store.transaction(async (database) => {
       await database.lockTenantActive(tenantId);
       const current = await database.getExternalAction(tenantId, id);
@@ -112,6 +143,9 @@ export class ExternalActionLifecycle {
       if (!current.packetId) throw new Error("APPROVED_PACKET_REQUIRED");
       const packet = await database.getPacket(tenantId, current.packetId);
       if (!packet) throw new Error("APPROVED_PACKET_REQUIRED");
+      if (!(await database.isPacketCurrent(tenantId, current.packetId))) {
+        throw new Error("ACTION_APPROVAL_STALE");
+      }
       const latest = await database.getLatestPacketForApplication(tenantId, packet.applicationId);
       if (latest?.id !== packet.id) throw new Error("ACTION_APPROVAL_STALE");
       const exactIntentHash = canonicalHash({
@@ -165,6 +199,7 @@ export class ExternalActionLifecycle {
           current?.state !== "executing" ||
           !packet ||
           packet.status !== "approved" ||
+          !(await database.isPacketCurrent(tenantId, packet.id)) ||
           latest?.id !== packet.id ||
           packet.artifactHash !== current.approvedPacketHash
         ) {

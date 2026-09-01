@@ -1926,6 +1926,44 @@ svg {
   color: var(--text-muted);
   font-size: var(--text-sm);
 }
+.role-identity-review {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--space-sm);
+  align-items: start;
+  width: 100%;
+  max-width: var(--measure-wide);
+  margin-block-start: var(--space-sm);
+  padding: var(--space-md);
+  border: 1px solid var(--brass-300);
+  border-radius: var(--radius-md);
+  background: var(--brass-100);
+  color: var(--text);
+}
+.role-identity-review > svg {
+  color: var(--brass-600);
+}
+.role-identity-review > div {
+  display: grid;
+  gap: var(--space-3xs);
+  min-width: 0;
+}
+.role-identity-review :is(p, small) {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.role-identity-review code {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 700px) {
+  .role-identity-review {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .role-identity-review > .button {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+}
 .h1b-evidence {
   width: 100%;
   max-width: var(--measure-wide);
@@ -2821,7 +2859,7 @@ svg {
   min-height: 4.5rem;
 }
 .ledger-change-list,
-.answer-history ol {
+.answer-history > ol {
   display: grid;
   gap: var(--space-3xs);
   margin-block-start: var(--space-xs);
@@ -2843,12 +2881,43 @@ svg {
 .answer-history summary {
   cursor: pointer;
 }
-.answer-history ol {
+.answer-history > ol {
   max-height: 18rem;
   overflow-y: auto;
 }
-.answer-history time {
-  display: block;
+.answer-revision-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-xs);
+}
+.answer-revision-context {
+  display: grid;
+  gap: var(--space-3xs);
+  margin-block: var(--space-xs);
+}
+.answer-revision-context p {
+  margin: 0;
+}
+.answer-revision-evidence {
+  display: grid;
+  gap: var(--space-xs);
+  margin-block-start: var(--space-sm);
+}
+.answer-revision-evidence ol {
+  display: grid;
+  gap: var(--space-xs);
+  margin: 0;
+  padding-inline-start: var(--space-lg);
+}
+.ledger-records .answer-revision-evidence li {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-sm);
+}
+.answer-revision-evidence code {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .saved-view-form {
   display: grid;
@@ -4199,6 +4268,11 @@ textarea {
   margin-inline-start: auto;
   color: var(--text-muted);
 }
+.submission-formats > .field-note {
+  grid-column: 1 / -1;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
 .submission-fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4290,6 +4364,42 @@ textarea {
   margin: 0;
   text-align: end;
   overflow-wrap: anywhere;
+}
+.dossier-match-history,
+.dossier-packet-composition {
+  display: grid;
+  gap: var(--space-sm);
+  min-width: 0;
+  padding-block-start: var(--space-sm);
+  border-block-start: 1px solid var(--brass-100);
+  color: var(--text-body);
+  font-size: var(--text-sm);
+}
+.dossier-match-history summary,
+.dossier-packet-composition summary {
+  color: var(--text);
+  cursor: pointer;
+}
+.dossier-match-history ol,
+.dossier-packet-composition ol {
+  display: grid;
+  gap: var(--space-sm);
+  padding-inline-start: var(--space-lg);
+}
+.dossier-match-history li {
+  display: grid;
+  gap: var(--space-3xs);
+}
+.dossier-match-history code,
+.dossier-packet-composition code {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.dossier-packet-composition dl > div {
+  grid-template-columns: minmax(8rem, auto) minmax(0, 1fr);
+}
+.dossier-packet-composition dd {
+  text-align: start;
 }
 .dossier-submissions > header,
 .dossier-submissions li > div {

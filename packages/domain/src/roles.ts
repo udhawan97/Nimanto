@@ -5,6 +5,7 @@ import {
   type WorkplaceEvidence,
   type WorkplaceMode,
 } from "./marketplace.js";
+import { canonicalHash } from "./receipts.js";
 
 export type RoleSource =
   | "manual"
@@ -63,6 +64,60 @@ export type CurrentRole = Readonly<{
   contentHash: string;
 }>;
 
+/** Hash the complete normalized Role content that downstream decisions depend on.
+ * Observation time is provenance rather than content, so an identical recheck does
+ * not invalidate an otherwise unchanged Match Publication. */
+export function roleSnapshotHash(role: {
+  source: string;
+  title: string;
+  company: string;
+  description: string;
+  location: string;
+  workMode: string;
+  roleFamily?: RoleFamily;
+  workplaceEvidence?: readonly WorkplaceEvidence[];
+  url: string;
+  requirements: readonly string[];
+  sourcePostedAt?: string | null;
+  sourceUpdatedAt?: string | null;
+  validThrough?: string | null;
+  availability?: {
+    sourcePostedAt?: string | null;
+    sourceUpdatedAt?: string | null;
+    validThrough?: string | null;
+  };
+  capability: string;
+  sourceMeta: Readonly<Record<string, unknown>>;
+}): string {
+  // Some persistence adapters retain the observation timestamp alongside
+  // source metadata for display. It is provenance, not decision content, just
+  // like the top-level observedAt field, so repeated observation cannot make
+  // an otherwise identical role stale.
+  const {
+    observedAt: _observedAt,
+    workplaceEvidence: _persistedWorkplaceEvidence,
+    ...decisionSourceMeta
+  } = role.sourceMeta;
+  return canonicalHash({
+    schemaVersion: "role_snapshot_v1",
+    source: role.source,
+    title: role.title,
+    company: role.company,
+    description: role.description,
+    location: role.location,
+    workMode: role.workMode,
+    roleFamily: role.roleFamily ?? null,
+    workplaceEvidence: role.workplaceEvidence ?? [],
+    url: role.url,
+    requirements: role.requirements,
+    sourcePostedAt: role.sourcePostedAt ?? role.availability?.sourcePostedAt ?? null,
+    sourceUpdatedAt: role.sourceUpdatedAt ?? role.availability?.sourceUpdatedAt ?? null,
+    validThrough: role.validThrough ?? role.availability?.validThrough ?? null,
+    capability: role.capability,
+    sourceMeta: decisionSourceMeta,
+  });
+}
+
 function normalized(value: string): string {
   return value.normalize("NFC").trim();
 }
@@ -103,5 +158,21 @@ export function normalizeRoleObservation(observation: RoleObservation): CurrentR
     capability: "deep_link",
     sourceMeta: { ...observation.sourceMeta },
     contentHash: required(observation.contentHash, "ROLE_SOURCE_HASH_REQUIRED"),
+  };
+}
+
+/** Normalize source input and derive the only content hash downstream
+ * publications may bind to. Source-provided fingerprints remain run
+ * provenance and never substitute for this complete normalized snapshot. */
+export function normalizeRoleSnapshot(
+  observation: Omit<RoleObservation, "contentHash">,
+): CurrentRole {
+  const normalizedRole = normalizeRoleObservation({
+    ...observation,
+    contentHash: "pending-normalized-role-snapshot",
+  });
+  return {
+    ...normalizedRole,
+    contentHash: roleSnapshotHash(normalizedRole),
   };
 }

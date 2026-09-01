@@ -18,9 +18,10 @@ import {
   schemaVersion12Sql,
   schemaVersion13Sql,
   schemaVersion14Sql,
+  schemaVersion15Sql,
 } from "./schema.js";
 
-export const CURRENT_SCHEMA_VERSION = 14;
+export const CURRENT_SCHEMA_VERSION = 15;
 
 async function backfillIntegrityHashes(database: PGlite): Promise<void> {
   const legacyPackets = await database.query<{
@@ -90,6 +91,7 @@ const migrations: ReadonlyArray<{
   { version: 12, sql: schemaVersion12Sql },
   { version: 13, sql: schemaVersion13Sql },
   { version: 14, sql: schemaVersion14Sql },
+  { version: 15, sql: schemaVersion15Sql },
 ];
 
 /** Ordered, resumable PGlite migration seam. Base CREATE statements are safe

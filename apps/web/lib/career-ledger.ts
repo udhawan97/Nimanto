@@ -1,5 +1,11 @@
-import { candidateLocalDate, type ApplicationStatus } from "@nimanto/domain";
+import type { ApplicationStatus } from "@nimanto/domain";
 import type { ApplicationViewState } from "./applications-workbench.js";
+import {
+  filterApplications,
+  recordReviewQueue,
+  sortApplications,
+  type ApplicationLike,
+} from "./derive.js";
 
 export function filtersFromSavedView(
   filters: Record<string, unknown>,
@@ -36,6 +42,53 @@ export function filtersFromSavedView(
   };
 }
 
+export function careerLedgerInsightCounts(input: {
+  activities: ReadonlyArray<{ state: "planned" | "completed" | "cancelled" }>;
+  interviews: ReadonlyArray<{ state: "scheduled" | "completed" | "cancelled" }>;
+}): {
+  plannedActivities: number;
+  completedActivities: number;
+  nonCancelledInterviews: number;
+  completedInterviews: number;
+} {
+  return {
+    plannedActivities: input.activities.filter((activity) => activity.state === "planned").length,
+    completedActivities: input.activities.filter((activity) => activity.state === "completed")
+      .length,
+    nonCancelledInterviews: input.interviews.filter((interview) => interview.state !== "cancelled")
+      .length,
+    completedInterviews: input.interviews.filter((interview) => interview.state === "completed")
+      .length,
+  };
+}
+
+type ApplicationViewProjection = Pick<
+  ApplicationViewState,
+  "reviewOnly" | "query" | "status" | "source" | "followUp" | "sort"
+>;
+
+/** The live Applications surface and saved review views share this exact
+ * membership projection. A saved view therefore cannot count a record that
+ * opening the same literal filters would hide, or hide one the live view shows. */
+export function projectApplicationView<T extends ApplicationLike>(input: {
+  applications: readonly T[];
+  jobs: ReadonlyArray<{ id: string; source: string }>;
+  view: ApplicationViewProjection;
+  now?: Date;
+}): { applications: T[]; scopeCount: number } {
+  const now = input.now ?? new Date();
+  const scope = input.view.reviewOnly
+    ? recordReviewQueue(input.applications, now).map((item) => item.application)
+    : [...input.applications];
+  return {
+    applications: sortApplications(
+      filterApplications(scope, input.jobs, input.view, now),
+      input.view.sort,
+    ),
+    scopeCount: scope.length,
+  };
+}
+
 /** A change inbox is a timestamp comparison over a candidate-named view. It
  * does not mutate the review watermark or infer what happened at an employer. */
 export function changedApplicationsForView(input: {
@@ -48,72 +101,107 @@ export function changedApplicationsForView(input: {
     followUpOn?: string | null;
     job?: { title: string; company: string };
     outcomes?: Array<{ occurredAt: string }>;
+    notes?: Array<{ text: string; recordedAt: string }>;
     statusEvents?: Array<{
+      id: string;
+      fromStatus: ApplicationStatus | null;
+      toStatus: ApplicationStatus;
       source: "candidate" | "packet" | "migration";
       occurredAt: string;
     }>;
     activities?: Array<{
+      id: string;
+      kind: string;
       state: "planned" | "completed" | "cancelled";
+      title: string;
+      note: string;
       occurredAt: string | null;
     }>;
+    submissions?: Array<{ submittedAt: string; createdAt?: string }>;
   }>;
   jobs: ReadonlyArray<{ id: string; source: string; updatedAt: string }>;
+  careerOperations?: {
+    activities: ReadonlyArray<{
+      applicationId: string;
+      occurredAt: string | null;
+      createdAt: string;
+      updatedAt: string;
+    }>;
+    contacts: ReadonlyArray<{
+      applicationLinks: ReadonlyArray<{ applicationId: string }>;
+      createdAt: string;
+      updatedAt: string;
+    }>;
+    interviews: ReadonlyArray<{
+      applicationId: string;
+      createdAt: string;
+      updatedAt: string;
+    }>;
+    offers: ReadonlyArray<{
+      applicationId: string;
+      createdAt: string;
+      updatedAt: string;
+    }>;
+  };
   filters: Record<string, unknown>;
   lastReviewedAt: string | null;
   now?: Date;
 }): string[] {
-  const view = filtersFromSavedView(input.filters);
+  const view: ApplicationViewProjection = {
+    reviewOnly: false,
+    query: "",
+    status: "all",
+    source: "all",
+    followUp: "all",
+    sort: "stored",
+    ...filtersFromSavedView(input.filters),
+  };
   const reviewedAt = input.lastReviewedAt
     ? Date.parse(input.lastReviewedAt)
     : Number.NEGATIVE_INFINITY;
   const now = input.now ?? new Date();
-  const today = candidateLocalDate(now);
   const jobs = new Map(input.jobs.map((job) => [job.id, job]));
-  const query = (view.query ?? "").trim().toLocaleLowerCase("en-US");
-  return input.applications.flatMap((application) => {
+  return projectApplicationView<(typeof input.applications)[number]>({
+    applications: input.applications,
+    jobs: input.jobs,
+    view,
+    now,
+  }).applications.flatMap((application) => {
     const job = jobs.get(application.jobId);
-    if (view.status !== "all" && application.status !== view.status) return [];
-    if (view.source !== "all" && job?.source !== view.source) return [];
-    if (
-      query &&
-      !`${application.job?.title ?? ""} ${application.job?.company ?? ""}`
-        .toLocaleLowerCase("en-US")
-        .includes(query)
-    ) {
-      return [];
-    }
-    if (view.followUp === "due" && (!application.followUpOn || application.followUpOn > today)) {
-      return [];
-    }
-    if (view.followUp === "scheduled" && !application.followUpOn) return [];
-    if (view.followUp === "none" && application.followUpOn) return [];
-    if (view.followUp === "inactive" && application.status !== "withdrawn") return [];
-    if (view.reviewOnly) {
-      if (application.status === "withdrawn") return [];
-      if (application.followUpOn) {
-        if (application.followUpOn > today) return [];
-      } else {
-        const literalRecords = [
-          application.createdAt,
-          ...(application.outcomes ?? []).map((outcome) => outcome.occurredAt),
-          ...(application.statusEvents ?? [])
-            .filter((event) => event.source !== "migration")
-            .map((event) => event.occurredAt),
-          ...(application.activities ?? [])
-            .filter((activity) => activity.state === "completed")
-            .map((activity) => activity.occurredAt),
-        ]
-          .filter((value): value is string => Boolean(value))
-          .map(Date.parse)
-          .filter(Number.isFinite);
-        const latest = literalRecords.length ? Math.max(...literalRecords) : null;
-        if (latest === null || now.getTime() - latest < 336 * 60 * 60 * 1_000) return [];
-      }
-    }
-    const changedAt = Math.max(
-      Date.parse(application.updatedAt ?? application.createdAt ?? ""),
-      Date.parse(job?.updatedAt ?? ""),
-    );
+    const operations = input.careerOperations;
+    const candidateVisibleStamps = [
+      application.updatedAt,
+      application.createdAt,
+      job?.updatedAt,
+      ...(application.outcomes ?? []).map((outcome) => outcome.occurredAt),
+      ...(application.notes ?? []).map((note) => note.recordedAt),
+      ...(application.statusEvents ?? []).map((event) => event.occurredAt),
+      ...(application.activities ?? []).map((activity) => activity.occurredAt),
+      ...(application.submissions ?? []).flatMap((submission) => [
+        submission.createdAt,
+        submission.submittedAt,
+      ]),
+      ...(operations?.activities ?? [])
+        .filter((activity) => activity.applicationId === application.id)
+        .flatMap((activity) => [activity.createdAt, activity.updatedAt, activity.occurredAt]),
+      ...(operations?.contacts ?? [])
+        .filter((contact) =>
+          contact.applicationLinks.some((link) => link.applicationId === application.id),
+        )
+        .flatMap((contact) => [contact.createdAt, contact.updatedAt]),
+      ...(operations?.interviews ?? [])
+        .filter((interview) => interview.applicationId === application.id)
+        .flatMap((interview) => [interview.createdAt, interview.updatedAt]),
+      ...(operations?.offers ?? [])
+        .filter((offer) => offer.applicationId === application.id)
+        .flatMap((offer) => [offer.createdAt, offer.updatedAt]),
+    ]
+      .filter((value): value is string => typeof value === "string")
+      .map(Date.parse)
+      .filter(Number.isFinite);
+    const changedAt = candidateVisibleStamps.length
+      ? Math.max(...candidateVisibleStamps)
+      : Number.NEGATIVE_INFINITY;
     return Number.isFinite(changedAt) && changedAt > reviewedAt ? [application.id] : [];
   });
 }

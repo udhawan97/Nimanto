@@ -79,7 +79,7 @@ curl --fail-with-body --silent --show-error \
   http://127.0.0.1:4310/v1/auth/invitations
 ```
 
-Give only the intended candidate a URL shaped like `http://127.0.0.1:4300/workspace/#invite=RETURNED_TOKEN`. Nimanto removes the token from the address bar immediately. Acceptance creates an empty tenant-isolated workspace; the exact email must match. The admin API can revoke an unused invitation with `DELETE /v1/auth/invitations/{id}` and the same private-key header.
+Give only the intended candidate a URL shaped like `http://127.0.0.1:4300/workspace/#invite=RETURNED_TOKEN`. Nimanto removes the token from the address bar immediately. Acceptance creates an empty tenant-isolated workspace; the exact email must match. The admin API can revoke an unused invitation with `DELETE /v1/auth/invitations/{id}` and the same private-key header. Acceptance immediately removes the stored token hash and intended email. Accepted, revoked, and expired tombstones are retained for at most 30 days for bounded local audit and pruned at API startup; live unused invitations are never pruned before expiry.
 
 This beta uses invitation tokens and local cookie sessions. Passkeys, account recovery, TLS termination, and production hosted identity remain deployment gates.
 

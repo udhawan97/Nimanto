@@ -4,6 +4,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { DashboardRead } from "../src/dashboard-read.js";
 
 const stores: NimantoStore[] = [];
+const disabledRuntime = async () => ({
+  operatorEnabled: false,
+  tenantReady: false,
+  externalActionsEnabled: false,
+});
 
 afterEach(async () => {
   vi.restoreAllMocks();
@@ -32,7 +37,7 @@ describe("DashboardRead", () => {
       contentHash: canonicalHash({ role: "route" }),
     });
 
-    const dashboard = await new DashboardRead(store, () => false).read(person);
+    const dashboard = await new DashboardRead(store, disabledRuntime).read(person);
     expect(dashboard.jobs[0]?.atsRoute).toMatchObject({
       state: "ready",
       provider: "greenhouse",
@@ -98,7 +103,7 @@ describe("DashboardRead", () => {
       },
     });
 
-    const dashboard = await new DashboardRead(store, () => false).read(person);
+    const dashboard = await new DashboardRead(store, disabledRuntime).read(person);
     expect(dashboard.jobs[0]?.provenance).toMatchObject({
       observation: {
         sourceRunId: recorded.sourceRun.id,
@@ -182,7 +187,7 @@ describe("DashboardRead", () => {
       return packets;
     });
 
-    const dashboardPromise = new DashboardRead(store, () => false).read(person);
+    const dashboardPromise = new DashboardRead(store, disabledRuntime).read(person);
     await reachedPacketRead;
 
     let writeSettled = false;

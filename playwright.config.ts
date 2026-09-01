@@ -35,6 +35,9 @@ export default defineConfig({
       NIMANTO_BOOTSTRAP_SECRET: bootstrapSecret,
       NIMANTO_DATA_DIR: path.join(tmpdir(), `nimanto-playwright-${process.pid}`),
       NIMANTO_API_PORT: String(apiPort),
+      // The suite still requires each tenant to opt in explicitly. This only
+      // supplies the operator ceiling needed by the one executable-action journey.
+      NIMANTO_EXTERNAL_ACTIONS_ENABLED: "on",
       NIMANTO_WEB_ORIGIN: webOrigin,
       NIMANTO_WEB_PORT: String(webPort),
       ...(process.env.NIMANTO_URL_ALLOWLIST

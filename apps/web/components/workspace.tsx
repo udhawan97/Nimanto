@@ -58,9 +58,10 @@ import { ConnectionBanner, ConnectionIndicator, useConnection } from "./connecti
 import { CopyLine } from "./copy-line.js";
 import { CareerLedger, type CareerOperationsSnapshot } from "./career-ledger.js";
 import { PacketComposer } from "./packet-composer.js";
-import { ApplicationSubmissionRecorder, type SubmissionDraft } from "./application-submission.js";
+import { ApplicationSubmissionRecorder, createSubmissionDraft } from "./application-submission.js";
 import { H1bEvidencePanel, type RoleWordingReview } from "./h1b-evidence.js";
 import { MatchEvidenceLens } from "./match-evidence-lens.js";
+import { RoleIdentityReviewNotice } from "./role-identity-review.js";
 import {
   RoleProvenanceCard,
   type RoleProvenanceData,
@@ -76,7 +77,6 @@ import {
   confirmationPrompt,
   failureMessage,
   filterEvidence,
-  filterApplications,
   followUpNote,
   funnelStages,
   legalTargets,
@@ -89,7 +89,6 @@ import {
   profileVersionDiff,
   recordReviewQueue,
   recordedApplicationTimeline,
-  sortApplications,
   type EvidenceFilters,
   type ApplicationStatus,
   type Section,
@@ -117,6 +116,7 @@ import {
   type WorkbenchMutations,
 } from "../lib/workbench-mutations.js";
 import { createScopedRequestGate } from "../lib/scoped-request-gate.js";
+import { deriveExternalActionRuntimeView } from "../lib/external-action-runtime.js";
 import {
   applicationsWorkbenchReducer,
   createApplicationsWorkbenchState,
@@ -125,10 +125,17 @@ import {
   type OutcomeDraft,
   type ReminderDraft,
   type ApplicationNoteDraft,
+  type SubmissionDraft,
 } from "../lib/applications-workbench.js";
+import {
+  careerLedgerWorkbenchReducer,
+  createCareerLedgerWorkbenchState,
+  type CareerLedgerWorkbench,
+} from "../lib/career-ledger-workbench.js";
 import { buildFollowUpCalendar } from "../lib/calendar-export.js";
 import { buildApplicationCsv } from "../lib/application-csv-export.js";
 import { projectApplicationDossier } from "../lib/application-dossier.js";
+import { projectApplicationView } from "../lib/career-ledger.js";
 import { ApiError, api, fenceApiWritesToSession } from "../lib/api-client.js";
 
 const API = process.env.NEXT_PUBLIC_NIMANTO_API_ORIGIN ?? "http://127.0.0.1:4310";
@@ -180,6 +187,10 @@ type Job = {
   requirements: string[];
   url: string;
   contentHash: string;
+  identityReview: {
+    required: boolean;
+    reason: string | null;
+  };
   updatedAt: string;
   atsRoute: {
     state: "ready" | "gated" | "unrecognized";
@@ -371,6 +382,7 @@ type ProfileVersion = {
 };
 type ProfileVersionResponse = ProfileVersion & { created: boolean };
 type ManualRoleDraft = {
+  roleId: string | null;
   title: string;
   company: string;
   location: string;
@@ -451,6 +463,7 @@ const emptyEvidenceFilters = (): EvidenceFilters => ({
   source: "all",
 });
 const emptyManualRoleDraft = (): ManualRoleDraft => ({
+  roleId: null,
   title: "",
   company: "",
   location: "",
@@ -463,6 +476,23 @@ const emptyManualRoleDraft = (): ManualRoleDraft => ({
   benefits: "",
   interviewEvidence: "",
   interviewSource: "",
+});
+const manualRoleDraftForReview = (job: Job): ManualRoleDraft => ({
+  roleId: job.id,
+  title: job.title,
+  company: job.company,
+  location: job.location,
+  workMode: ["remote", "hybrid", "onsite"].includes(job.workMode) ? job.workMode : "unspecified",
+  url: job.url,
+  description: job.description,
+  requirements: job.requirements.join("\n"),
+  compensationMin:
+    job.sourceMeta.compensation?.minimum == null ? "" : String(job.sourceMeta.compensation.minimum),
+  compensationMax:
+    job.sourceMeta.compensation?.maximum == null ? "" : String(job.sourceMeta.compensation.maximum),
+  benefits: job.sourceMeta.benefits?.join("\n") ?? "",
+  interviewEvidence: job.sourceMeta.interviewEvidence?.text ?? "",
+  interviewSource: job.sourceMeta.interviewEvidence?.sourceLocator ?? "",
 });
 const sameManualRoleDraft = (left: ManualRoleDraft, right: ManualRoleDraft) =>
   (Object.keys(left) as Array<keyof ManualRoleDraft>).every(
@@ -607,7 +637,11 @@ type Dashboard = {
     offers: number;
     scope: string;
   };
-  runtime: { externalActionsEnabled: boolean };
+  runtime: {
+    operatorEnabled: boolean;
+    tenantReady: boolean;
+    externalActionsEnabled: boolean;
+  };
 };
 type RuntimeMeta = {
   providers: {
@@ -977,6 +1011,11 @@ export function Workspace() {
     undefined,
     () => createApplicationsWorkbenchState(),
   );
+  const [careerLedgerWorkbenchState, dispatchCareerLedgerWorkbench] = useReducer(
+    careerLedgerWorkbenchReducer,
+    undefined,
+    createCareerLedgerWorkbenchState,
+  );
   const commitActionDraft = useCallback((submitted: ActionDraft) => {
     setActionDraft((current) => (current && sameActionDraft(current, submitted) ? null : current));
   }, []);
@@ -1105,6 +1144,7 @@ export function Workspace() {
       setComparisonRoleIds([]);
       setActionDraft(null);
       dispatchApplicationsWorkbench({ type: "reset" });
+      dispatchCareerLedgerWorkbench({ type: "reset" });
       // Remount the active section too: import previews and other child-local
       // state are identity-scoped even though they are not durable drafts.
       setIdentityEpoch((epoch) => epoch + 1);
@@ -1666,7 +1706,12 @@ export function Workspace() {
               onAct={mutations}
               busy={busy}
               draft={manualRoleDraft}
-              onDraftOpen={() => setManualRoleDraft((value) => value ?? emptyManualRoleDraft())}
+              onDraftOpen={(job) =>
+                setManualRoleDraft(
+                  (value) =>
+                    value ?? (job ? manualRoleDraftForReview(job) : emptyManualRoleDraft()),
+                )
+              }
               onDraftChange={setManualRoleDraft}
               onDraftClose={() => setManualRoleDraft(null)}
               onDraftCommitted={commitManualRoleDraft}
@@ -1703,6 +1748,10 @@ export function Workspace() {
               workbench={{
                 state: applicationsWorkbenchState,
                 dispatch: dispatchApplicationsWorkbench,
+              }}
+              careerLedgerWorkbench={{
+                state: careerLedgerWorkbenchState,
+                dispatch: dispatchCareerLedgerWorkbench,
               }}
             />
           )}
@@ -3092,7 +3141,7 @@ function Jobs({
   onAct: ActionRunner;
   busy: boolean;
   draft: ManualRoleDraft | null;
-  onDraftOpen: () => void;
+  onDraftOpen: (job?: Job) => void;
   onDraftChange: (draft: ManualRoleDraft) => void;
   onDraftClose: () => void;
   onDraftCommitted: (submitted: ManualRoleDraft) => void;
@@ -3306,8 +3355,8 @@ function Jobs({
     const submittedDraft = { ...draft };
     void onAct.run({
       request: () =>
-        api("/v1/jobs", {
-          method: "POST",
+        api(submittedDraft.roleId ? `/v1/jobs/${submittedDraft.roleId}` : "/v1/jobs", {
+          method: submittedDraft.roleId ? "PUT" : "POST",
           body: JSON.stringify({
             title: submittedDraft.title,
             company: submittedDraft.company,
@@ -3323,7 +3372,9 @@ function Jobs({
             requirements,
           }),
         }),
-      success: "Role added.",
+      success: submittedDraft.roleId
+        ? "Stored posting reviewed and updated on the same role record."
+        : "Role added.",
       transient: true,
       commit: () => {
         setCompensationError(null);
@@ -3925,13 +3976,14 @@ function Jobs({
             <form id="manual-role-draft" className="work-panel form-panel" onSubmit={addJob}>
               <div className="panel-heading">
                 <div>
-                  <span>Manual intake</span>
-                  <h2>Add a role</h2>
+                  <span>{draft.roleId ? "Candidate identity review" : "Manual intake"}</span>
+                  <h2>{draft.roleId ? "Review the exact stored posting" : "Add a role"}</h2>
                 </div>
               </div>
               <p className="field-note">
-                Kept only in this tab while this workspace remains signed in; reload or sign-out
-                clears it.
+                {draft.roleId
+                  ? "Saving updates this exact stored role ID. It does not create a replacement or change attached application history."
+                  : "Kept only in this tab while this workspace remains signed in; reload or sign-out clears it."}
               </p>
               <div className="field-grid">
                 <label>
@@ -4072,7 +4124,7 @@ function Jobs({
               </label>
               <div className="button-group">
                 <button className="button primary" disabled={busy}>
-                  Save role
+                  {draft.roleId ? "Confirm and update this role" : "Save role"}
                 </button>
                 <ConfirmAction
                   className="button quiet"
@@ -4634,6 +4686,22 @@ function Jobs({
                   {job.atsRoute.state === "gated" && (
                     <small className="posting-verification">{atsRouteGateLabel(job)}</small>
                   )}
+                  {clusterMembers
+                    .filter((member) => member.identityReview.required)
+                    .map((member) => (
+                      <RoleIdentityReviewNotice
+                        key={member.id}
+                        roleId={member.id}
+                        reason={member.identityReview.reason}
+                        editorOpen={draft?.roleId === member.id}
+                        editBlocked={draft !== null && draft.roleId !== member.id}
+                        busy={busy}
+                        onReview={() => {
+                          onDraftOpen(member);
+                          window.requestAnimationFrame(() => roleTitleField.current?.focus());
+                        }}
+                      />
+                    ))}
                   <RoleProvenanceCard
                     source={job.source}
                     sourceJobId={job.sourceJobId}
@@ -5704,12 +5772,14 @@ function Applications({
   busy,
   onGo,
   workbench,
+  careerLedgerWorkbench,
 }: {
   dashboard: Dashboard;
   onAct: ActionRunner;
   busy: boolean;
   onGo: (section: Section) => void;
   workbench: ApplicationsWorkbench;
+  careerLedgerWorkbench: CareerLedgerWorkbench;
 }) {
   const { state, dispatch } = workbench;
   const view = state.display;
@@ -5720,6 +5790,10 @@ function Applications({
   const reminderDraft = reminderFor ? (state.reminders.byApplication[reminderFor] ?? null) : null;
   const noteFor = state.notes.activeApplicationId;
   const noteDraft = noteFor ? (state.notes.byApplication[noteFor] ?? null) : null;
+  const submissionFor = state.submissions.activeApplicationId;
+  const submissionDraft = submissionFor
+    ? (state.submissions.byApplication[submissionFor] ?? null)
+    : null;
   const [pendingMove, setPendingMove] = useState<{ id: string; to: ApplicationStatus } | null>(
     null,
   );
@@ -5737,18 +5811,13 @@ function Applications({
   ).length;
   const derivedReviewCount = reviewQueue.length - scheduledReviewCount;
   const deferredApplicationQuery = useDeferredValue(workingView.query);
-  const reviewApplications = workingView.reviewOnly
-    ? reviewQueue.map((item) => item.application)
-    : dashboard.applications;
-  const visibleApplications = sortApplications(
-    filterApplications(
-      reviewApplications,
-      dashboard.jobs,
-      { ...workingView, query: deferredApplicationQuery },
-      now,
-    ),
-    workingView.sort,
-  );
+  const applicationView = projectApplicationView({
+    applications: dashboard.applications,
+    jobs: dashboard.jobs,
+    view: { ...workingView, query: deferredApplicationQuery },
+    now,
+  });
+  const visibleApplications = applicationView.applications;
   const cohort = applicationCohortCounts({
     applications: dashboard.applications,
     jobs: dashboard.jobs,
@@ -5910,6 +5979,23 @@ function Applications({
     setPendingMove(null);
   };
 
+  const openSubmission = (application: Application, origin?: HTMLElement) => {
+    const packet =
+      dashboard.packets.find((candidate) => candidate.applicationId === application.id) ?? null;
+    pendingMoveOrigin.current = origin ?? null;
+    setPendingMove(null);
+    dispatch({
+      type: "submission_opened",
+      applicationId: application.id,
+      initialDraft: createSubmissionDraft(packet),
+    });
+  };
+
+  const closeSubmission = (applicationId: string) => {
+    dispatch({ type: "submission_closed", applicationId });
+    window.requestAnimationFrame(() => pendingMoveOrigin.current?.focus());
+  };
+
   const toggleDossier = (applicationId: string) => {
     const opening = dossierFor !== applicationId;
     setDossierFor(opening ? applicationId : null);
@@ -5935,8 +6021,14 @@ function Applications({
   const move = (application: Application, to: ApplicationStatus, submission?: SubmissionDraft) => {
     if (to === application.status || !canMove(application.status, to)) return;
     if (to === "submitted_externally" && !submission) return;
-    const moveOrigin = pendingMove?.id === application.id ? pendingMoveOrigin.current : null;
-    setPendingMove(null);
+    const moveOrigin =
+      pendingMove?.id === application.id || submissionFor === application.id
+        ? pendingMoveOrigin.current
+        : null;
+    // Keep the recorder mounted until the write itself commits. If the request
+    // fails, its exact candidate-entered draft remains available for correction
+    // or retry; identity transitions still unmount and clear it.
+    if (!submission) setPendingMove(null);
     const confirmed = needsConfirmation(application.status, to);
     void onAct.run({
       request: () =>
@@ -5949,6 +6041,16 @@ function Applications({
           ? "External submission recorded without claiming employer receipt."
           : "Application status updated.",
       transient: true,
+      ...(submission
+        ? {
+            commit: () =>
+              dispatch({
+                type: "submission_committed",
+                applicationId: application.id,
+                submitted: submission,
+              }),
+          }
+        : {}),
       focus: () => {
         if (moveOrigin?.isConnected) {
           moveOrigin.focus();
@@ -5968,6 +6070,10 @@ function Applications({
    * consequential target waits here until the strip beneath it is answered. */
   const requestMove = (application: Application, to: ApplicationStatus, origin?: HTMLElement) => {
     if (to === application.status || !canMove(application.status, to)) return;
+    if (to === "submitted_externally") {
+      openSubmission(application, origin);
+      return;
+    }
     if (needsConfirmation(application.status, to)) {
       pendingMoveOrigin.current = origin ?? null;
       setPendingMove({ id: application.id, to });
@@ -6193,8 +6299,7 @@ function Applications({
                               disabled={busy}
                               aria-label={`Record external submission for ${role}`}
                               onClick={(event) => {
-                                pendingMoveOrigin.current = event.currentTarget;
-                                setPendingMove({ id: application.id, to: target.id });
+                                openSubmission(application, event.currentTarget);
                               }}
                             >
                               {target.label}
@@ -6226,21 +6331,28 @@ function Applications({
                           ),
                         )}
                     </div>
-                    {pendingMove?.id === application.id &&
-                      pendingMove.to === "submitted_externally" && (
-                        <ApplicationSubmissionRecorder
-                          packet={
-                            dashboard.packets.find(
-                              (packet) => packet.applicationId === application.id,
-                            ) ?? null
-                          }
-                          busy={busy}
-                          onConfirm={(submission) =>
-                            move(application, "submitted_externally", submission)
-                          }
-                          onCancel={cancelPendingMove}
-                        />
-                      )}
+                    {submissionFor === application.id && submissionDraft && (
+                      <ApplicationSubmissionRecorder
+                        packet={
+                          dashboard.packets.find(
+                            (packet) => packet.applicationId === application.id,
+                          ) ?? null
+                        }
+                        draft={submissionDraft}
+                        busy={busy}
+                        onDraftChange={(draft) =>
+                          dispatch({
+                            type: "submission_changed",
+                            applicationId: application.id,
+                            draft,
+                          })
+                        }
+                        onConfirm={(submission) =>
+                          move(application, "submitted_externally", submission)
+                        }
+                        onCancel={() => closeSubmission(application.id)}
+                      />
+                    )}
                   </article>
                 );
               })}
@@ -6307,30 +6419,36 @@ function Applications({
                     ))}
                   </select>
                 </label>
-                {pendingMove?.id === application.id &&
-                  (pendingMove.to === "submitted_externally" ? (
-                    <ApplicationSubmissionRecorder
-                      packet={
-                        dashboard.packets.find(
-                          (packet) => packet.applicationId === application.id,
-                        ) ?? null
-                      }
-                      busy={busy}
-                      onConfirm={(submission) =>
-                        move(application, "submitted_externally", submission)
-                      }
-                      onCancel={cancelPendingMove}
-                    />
-                  ) : (
-                    <ConfirmationStrip
-                      question={confirmationPrompt(pendingMove.to, application)}
-                      confirmLabel={`Mark ${BOARD_COLUMNS.find((column) => column.id === pendingMove.to)!.label.toLocaleLowerCase("en-US")}`}
-                      cancelLabel="Cancel"
-                      disabled={busy}
-                      onConfirm={() => move(application, pendingMove.to)}
-                      onCancel={cancelPendingMove}
-                    />
-                  ))}
+                {submissionFor === application.id && submissionDraft ? (
+                  <ApplicationSubmissionRecorder
+                    packet={
+                      dashboard.packets.find((packet) => packet.applicationId === application.id) ??
+                      null
+                    }
+                    draft={submissionDraft}
+                    busy={busy}
+                    onDraftChange={(draft) =>
+                      dispatch({
+                        type: "submission_changed",
+                        applicationId: application.id,
+                        draft,
+                      })
+                    }
+                    onConfirm={(submission) =>
+                      move(application, "submitted_externally", submission)
+                    }
+                    onCancel={() => closeSubmission(application.id)}
+                  />
+                ) : pendingMove?.id === application.id ? (
+                  <ConfirmationStrip
+                    question={confirmationPrompt(pendingMove.to, application)}
+                    confirmLabel={`Mark ${BOARD_COLUMNS.find((column) => column.id === pendingMove.to)!.label.toLocaleLowerCase("en-US")}`}
+                    cancelLabel="Cancel"
+                    disabled={busy}
+                    onConfirm={() => move(application, pendingMove.to)}
+                    onCancel={cancelPendingMove}
+                  />
+                ) : null}
                 <div className="outcome-chips">
                   {application.outcomes?.length ? (
                     application.outcomes.map((outcome) => (
@@ -6488,7 +6606,7 @@ function Applications({
           dispatch={dispatch}
           cohortSources={cohortSources}
           visibleCount={visibleApplications.length}
-          totalCount={reviewApplications.length}
+          totalCount={applicationView.scopeCount}
           filtersActive={applicationFiltersActive}
         />
       )}
@@ -6501,6 +6619,7 @@ function Applications({
         onAct={onAct}
         currentView={workingView}
         onApplyView={(savedView) => dispatch({ type: "view_changed", view: savedView })}
+        workbench={careerLedgerWorkbench}
       />
       <Funnel funnel={dashboard.personalFunnel} />
 
@@ -7089,41 +7208,131 @@ function ApplicationDossier({
               <MatchEvidenceLens result={dossier.match.result} compact />
             </>
           ) : (
-            <p>No Match Publication is loaded for this Role.</p>
+            <p>
+              No current Match Publication is loaded for this exact Profile Version and Role
+              snapshot.
+            </p>
+          )}
+          {dossier.matchHistory.length > 0 && (
+            <details className="dossier-match-history">
+              <summary>
+                {dossier.matchHistory.length} earlier immutable publication
+                {dossier.matchHistory.length === 1 ? "" : "s"}
+              </summary>
+              <ol>
+                {dossier.matchHistory.map((match) => (
+                  <li key={match.id}>
+                    <strong>{human(match.result.band)} · not current</strong>
+                    <small>
+                      Publication <code>{match.id}</code>
+                    </small>
+                    <small>
+                      Profile <code>{match.profileVersionId ?? "none"}</code>
+                    </small>
+                    <small>
+                      Role snapshot <code>{match.jobContentHash}</code>
+                    </small>
+                    <time dateTime={match.createdAt}>{localDateTime(match.createdAt)}</time>
+                  </li>
+                ))}
+              </ol>
+              <p className="boundary-note">
+                Earlier publications remain inspectable history. They are not presented as the
+                current evidence decision.
+              </p>
+            </details>
           )}
         </section>
         <section>
           <span>03 · Frozen materials</span>
           {currentPacket ? (
-            <dl>
-              <div>
-                <dt>Current packet</dt>
-                <dd>
-                  {currentPacket.id.slice(0, 8)} · {human(currentPacket.status)}
-                </dd>
-              </div>
-              <div>
-                <dt>Canonical hash</dt>
-                <dd>
-                  <code>{currentPacket.artifactHash.slice(0, 12)}</code>
-                </dd>
-              </div>
-              <div>
-                <dt>Selected evidence</dt>
-                <dd>
-                  {currentPacket.canonicalContent.composition?.evidenceIds.length ?? "Legacy"}
-                </dd>
-              </div>
-              <div>
-                <dt>Frozen match</dt>
-                <dd>
-                  <code>
-                    {currentPacket.canonicalContent.composition?.matchRunId.slice(0, 12) ??
-                      "Legacy"}
-                  </code>
-                </dd>
-              </div>
-            </dl>
+            <>
+              <dl>
+                <div>
+                  <dt>Current packet</dt>
+                  <dd>
+                    {currentPacket.id.slice(0, 8)} · {human(currentPacket.status)}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Canonical hash</dt>
+                  <dd>
+                    <code>{currentPacket.artifactHash.slice(0, 12)}</code>
+                  </dd>
+                </div>
+                <div>
+                  <dt>Selected evidence</dt>
+                  <dd>
+                    {currentPacket.canonicalContent.composition?.evidenceIds.length ?? "Legacy"}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Frozen match</dt>
+                  <dd>
+                    <code>
+                      {currentPacket.canonicalContent.composition?.matchRunId.slice(0, 12) ??
+                        "Legacy"}
+                    </code>
+                  </dd>
+                </div>
+              </dl>
+              {currentPacket.canonicalContent.composition ? (
+                <details className="dossier-packet-composition">
+                  <summary>Inspect exact Packet v2 composition</summary>
+                  <dl>
+                    <div>
+                      <dt>Input hash</dt>
+                      <dd>
+                        <code>{currentPacket.canonicalContent.composition.inputHash}</code>
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Profile Version</dt>
+                      <dd>
+                        <code>{currentPacket.canonicalContent.composition.profileVersionId}</code>
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Match Publication</dt>
+                      <dd>
+                        <code>{currentPacket.canonicalContent.composition.matchRunId}</code>
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Match input hash</dt>
+                      <dd>
+                        <code>{currentPacket.canonicalContent.composition.matchInputHash}</code>
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Match artifact hash</dt>
+                      <dd>
+                        <code>{currentPacket.canonicalContent.composition.matchArtifactHash}</code>
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Role content hash</dt>
+                      <dd>
+                        <code>{currentPacket.canonicalContent.composition.jobContentHash}</code>
+                      </dd>
+                    </div>
+                  </dl>
+                  <strong>Candidate-selected evidence order</strong>
+                  <ol aria-label="Candidate-selected evidence order">
+                    {currentPacket.canonicalContent.composition.evidenceIds.map((evidenceId) => (
+                      <li key={evidenceId}>
+                        <code>{evidenceId}</code>
+                      </li>
+                    ))}
+                  </ol>
+                </details>
+              ) : (
+                <p className="boundary-note">
+                  Legacy packet: no Packet v2 composition was stored, so Nimanto does not
+                  reconstruct one.
+                </p>
+              )}
+            </>
           ) : (
             <p>No Packet is loaded for this Application.</p>
           )}
@@ -8014,6 +8223,7 @@ function Actions({
   };
   const prepareActionButton = useRef<HTMLButtonElement>(null);
   const packetField = useRef<HTMLSelectElement>(null);
+  const runtimeView = deriveExternalActionRuntimeView(dashboard.runtime);
   const packetSelectionValid = Boolean(
     draft && approvedPackets.some((packet) => packet.id === draft.packetId),
   );
@@ -8042,7 +8252,7 @@ function Actions({
       <PageIntro
         eyebrow="Approved actions"
         title="Nothing leaves without two keys."
-        copy="Approve the exact action, then turn on the reset-on-restart execution switch. This beta offers only a user-opened mail link and a private local test outbox; connected accounts are not enabled."
+        copy="Approve the exact action, then turn on this workspace's reset-on-restart opt-in. The operator ceiling remains separate. This beta offers only a user-opened mail link and a private local test outbox; connected accounts are not enabled."
         action={
           <span>
             <button
@@ -8078,46 +8288,40 @@ function Actions({
       />
       <div className="runtime-gate">
         <div>
-          <span
-            className={
-              dashboard.runtime.externalActionsEnabled ? "runtime-light on" : "runtime-light"
-            }
-          />
+          <span className={runtimeView.effectiveEnabled ? "runtime-light on" : "runtime-light"} />
           <div>
-            <strong id="execution-runtime-status">
-              Execution runtime is {dashboard.runtime.externalActionsEnabled ? "on" : "off"}
-            </strong>
-            <p>It always starts off after the service restarts.</p>
+            <strong id="execution-runtime-status">{runtimeView.statusLabel}</strong>
+            <p id="execution-runtime-explanation">{runtimeView.explanation}</p>
+            <small>The workspace opt-in resets off after the service restarts.</small>
           </div>
         </div>
         <button
           className={
-            dashboard.runtime.externalActionsEnabled
-              ? "button mini danger-button"
-              : "button mini inverted"
+            dashboard.runtime.tenantReady ? "button mini danger-button" : "button mini inverted"
           }
           type="button"
           disabled={busy}
+          aria-describedby="execution-runtime-explanation"
           onClick={() => {
             void onAct.run({
               request: () =>
                 api("/v1/actions/runtime", {
                   method: "PUT",
-                  body: JSON.stringify({ enabled: !dashboard.runtime.externalActionsEnabled }),
+                  body: JSON.stringify({ enabled: runtimeView.nextTenantReady }),
                 }),
-              success: dashboard.runtime.externalActionsEnabled
-                ? "Execution switch turned off."
-                : "Execution switch turned on for this runtime.",
+              success: dashboard.runtime.tenantReady
+                ? "Workspace execution opt-in turned off."
+                : "Workspace execution opt-in turned on. Effective execution still depends on the operator ceiling.",
             });
           }}
         >
-          {dashboard.runtime.externalActionsEnabled ? (
+          {dashboard.runtime.tenantReady ? (
             <>
-              <X size={15} /> Turn off
+              <X size={15} /> Turn workspace opt-in off
             </>
           ) : (
             <>
-              <Play size={15} /> Turn on
+              <Play size={15} /> Turn workspace opt-in on
             </>
           )}
         </button>
@@ -8281,11 +8485,9 @@ function Actions({
                 <button
                   className="button mini primary"
                   type="button"
-                  disabled={busy || !dashboard.runtime.externalActionsEnabled}
+                  disabled={busy || !runtimeView.effectiveEnabled}
                   aria-describedby={
-                    dashboard.runtime.externalActionsEnabled
-                      ? undefined
-                      : "execution-runtime-status"
+                    runtimeView.effectiveEnabled ? undefined : "execution-runtime-explanation"
                   }
                   onClick={() => {
                     void onAct.run({

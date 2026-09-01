@@ -1,14 +1,6 @@
 import { FileCheck2, FileQuestion, Send } from "lucide-react";
-import { useState } from "react";
-
-export type SubmissionDraft = {
-  materialsCaptured: boolean;
-  packetId: string | null;
-  artifactFormats: string[];
-  channel: "employer_portal" | "email" | "referral" | "other";
-  destination: string;
-  submittedAt: string;
-};
+import { useId, useRef, useState } from "react";
+import type { SubmissionDraft } from "../lib/applications-workbench.js";
 
 type Packet = {
   id: string;
@@ -22,14 +14,33 @@ function localInputValue(date = new Date()): string {
   return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 }
 
+export function createSubmissionDraft(packet: Packet | null, date = new Date()): SubmissionDraft {
+  const usablePacket =
+    packet?.status === "approved" && packet.canonicalContent.schemaVersion === "packet_v2"
+      ? packet
+      : null;
+  return {
+    materialsCaptured: Boolean(usablePacket),
+    packetId: usablePacket?.id ?? null,
+    artifactFormats: [],
+    channel: "employer_portal",
+    destination: "",
+    submittedAt: localInputValue(date),
+  };
+}
+
 export function ApplicationSubmissionRecorder({
   packet,
+  draft,
   busy,
+  onDraftChange,
   onConfirm,
   onCancel,
 }: {
   packet: Packet | null;
+  draft: SubmissionDraft;
   busy: boolean;
+  onDraftChange: (draft: SubmissionDraft) => void;
   onConfirm: (draft: SubmissionDraft) => void;
   onCancel: () => void;
 }) {
@@ -37,32 +48,38 @@ export function ApplicationSubmissionRecorder({
     packet?.status === "approved" && packet.canonicalContent.schemaVersion === "packet_v2"
       ? packet
       : null;
-  const [materialsCaptured, setMaterialsCaptured] = useState(Boolean(usablePacket));
-  const [formats, setFormats] = useState<string[]>([]);
-  const [channel, setChannel] = useState<SubmissionDraft["channel"]>("employer_portal");
-  const [destination, setDestination] = useState("");
-  const [submittedAt, setSubmittedAt] = useState(localInputValue);
+  const [formatAttempted, setFormatAttempted] = useState(false);
+  const formatGroup = useRef<HTMLFieldSetElement>(null);
+  const formatRequirementId = useId();
   const artifacts = usablePacket?.artifactManifest.artifacts ?? [];
-  const submittedAtMs = Date.parse(submittedAt);
-  const valid =
-    destination.trim().length > 0 &&
+  const submittedAtMs = Date.parse(draft.submittedAt);
+  const recordFieldsValid =
+    draft.destination.trim().length > 0 &&
     Number.isFinite(submittedAtMs) &&
-    submittedAtMs <= Date.now() + 5 * 60_000 &&
-    (!materialsCaptured || (Boolean(usablePacket) && formats.length > 0));
+    submittedAtMs <= Date.now() + 5 * 60_000;
+  const formatMissing =
+    draft.materialsCaptured && (!Boolean(usablePacket) || draft.artifactFormats.length === 0);
+  const valid = recordFieldsValid && !formatMissing;
 
   return (
     <form
       className="submission-recorder"
       onSubmit={(event) => {
         event.preventDefault();
+        if (formatMissing) {
+          setFormatAttempted(true);
+          formatGroup.current?.focus();
+          return;
+        }
         if (!valid) return;
+        setFormatAttempted(false);
         onConfirm({
-          materialsCaptured,
-          packetId: materialsCaptured ? usablePacket!.id : null,
-          artifactFormats: materialsCaptured ? formats : [],
-          channel,
-          destination,
-          submittedAt: new Date(submittedAt).toISOString(),
+          materialsCaptured: draft.materialsCaptured,
+          packetId: draft.materialsCaptured ? usablePacket!.id : null,
+          artifactFormats: draft.materialsCaptured ? [...draft.artifactFormats] : [],
+          channel: draft.channel,
+          destination: draft.destination,
+          submittedAt: new Date(draft.submittedAt).toISOString(),
         });
       }}
     >
@@ -83,9 +100,16 @@ export function ApplicationSubmissionRecorder({
           <input
             type="radio"
             name="materials"
-            checked={materialsCaptured}
+            checked={draft.materialsCaptured}
             disabled={!usablePacket}
-            onChange={() => setMaterialsCaptured(true)}
+            onChange={() => {
+              onDraftChange({
+                ...draft,
+                materialsCaptured: true,
+                packetId: usablePacket!.id,
+              });
+              setFormatAttempted(false);
+            }}
           />
           <FileCheck2 size={16} />
           <span>
@@ -101,10 +125,15 @@ export function ApplicationSubmissionRecorder({
           <input
             type="radio"
             name="materials"
-            checked={!materialsCaptured}
+            checked={!draft.materialsCaptured}
             onChange={() => {
-              setMaterialsCaptured(false);
-              setFormats([]);
+              onDraftChange({
+                ...draft,
+                materialsCaptured: false,
+                packetId: null,
+                artifactFormats: [],
+              });
+              setFormatAttempted(false);
             }}
           />
           <FileQuestion size={16} />
@@ -114,34 +143,59 @@ export function ApplicationSubmissionRecorder({
           </span>
         </label>
       </fieldset>
-      {materialsCaptured && usablePacket && (
-        <fieldset className="submission-formats">
+      {draft.materialsCaptured && usablePacket && (
+        <fieldset
+          ref={formatGroup}
+          className="submission-formats"
+          aria-describedby={formatRequirementId}
+          tabIndex={-1}
+        >
           <legend>Formats used</legend>
           {artifacts.map((artifact) => (
             <label key={artifact.format}>
               <input
                 type="checkbox"
-                checked={formats.includes(artifact.format)}
-                onChange={(event) =>
-                  setFormats((current) =>
-                    event.currentTarget.checked
-                      ? [...current, artifact.format]
-                      : current.filter((format) => format !== artifact.format),
-                  )
-                }
+                aria-describedby={formatRequirementId}
+                checked={draft.artifactFormats.includes(artifact.format)}
+                onChange={(event) => {
+                  const checked = event.currentTarget.checked;
+                  onDraftChange({
+                    ...draft,
+                    artifactFormats: checked
+                      ? [...draft.artifactFormats, artifact.format]
+                      : draft.artifactFormats.filter((format) => format !== artifact.format),
+                  });
+                  if (checked) setFormatAttempted(false);
+                }}
               />
               <span>{artifact.format.toUpperCase()}</span>
               <code>{artifact.sha256.slice(0, 10)}…</code>
             </label>
           ))}
+          <p
+            id={formatRequirementId}
+            className={formatAttempted && formatMissing ? "field-note field-error" : "field-note"}
+            role={formatAttempted && formatMissing ? "alert" : undefined}
+          >
+            {formatAttempted && formatMissing
+              ? "Choose at least one exact packet format before recording."
+              : draft.artifactFormats.length > 0
+                ? `${draft.artifactFormats.length} packet format${draft.artifactFormats.length === 1 ? "" : "s"} selected.`
+                : "Select at least one exact packet format before recording this submission."}
+          </p>
         </fieldset>
       )}
       <div className="submission-fields">
         <label>
           Channel
           <select
-            value={channel}
-            onChange={(event) => setChannel(event.target.value as SubmissionDraft["channel"])}
+            value={draft.channel}
+            onChange={(event) =>
+              onDraftChange({
+                ...draft,
+                channel: event.target.value as SubmissionDraft["channel"],
+              })
+            }
           >
             <option value="employer_portal">Employer portal</option>
             <option value="email">Email</option>
@@ -155,8 +209,8 @@ export function ApplicationSubmissionRecorder({
             type="datetime-local"
             required
             max={localInputValue()}
-            value={submittedAt}
-            onChange={(event) => setSubmittedAt(event.target.value)}
+            value={draft.submittedAt}
+            onChange={(event) => onDraftChange({ ...draft, submittedAt: event.target.value })}
           />
         </label>
         <label className="submission-destination">
@@ -164,9 +218,9 @@ export function ApplicationSubmissionRecorder({
           <input
             required
             maxLength={500}
-            value={destination}
+            value={draft.destination}
             placeholder="Portal URL, recruiter address, or literal destination"
-            onChange={(event) => setDestination(event.target.value)}
+            onChange={(event) => onDraftChange({ ...draft, destination: event.target.value })}
           />
         </label>
       </div>
@@ -174,7 +228,12 @@ export function ApplicationSubmissionRecorder({
         <button type="button" className="button mini quiet" disabled={busy} onClick={onCancel}>
           Cancel
         </button>
-        <button type="submit" className="button mini primary" disabled={busy || !valid}>
+        <button
+          type="submit"
+          className="button mini primary"
+          disabled={busy || !recordFieldsValid}
+          aria-describedby={draft.materialsCaptured ? formatRequirementId : undefined}
+        >
           <Send size={15} /> Record external submission
         </button>
       </div>

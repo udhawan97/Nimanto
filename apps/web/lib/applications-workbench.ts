@@ -17,6 +17,15 @@ export type ApplicationNoteDraft = {
   text: string;
 };
 
+export type SubmissionDraft = {
+  materialsCaptured: boolean;
+  packetId: string | null;
+  artifactFormats: string[];
+  channel: "employer_portal" | "email" | "referral" | "other";
+  destination: string;
+  submittedAt: string;
+};
+
 type DraftState<T> = {
   activeApplicationId: string | null;
   byApplication: Record<string, T>;
@@ -42,6 +51,7 @@ export type ApplicationsWorkbenchState = {
   outcomes: DraftState<OutcomeDraft>;
   reminders: DraftState<ReminderDraft>;
   notes: DraftState<ApplicationNoteDraft>;
+  submissions: DraftState<SubmissionDraft>;
 };
 
 export type ApplicationsWorkbenchAction =
@@ -64,7 +74,11 @@ export type ApplicationsWorkbenchAction =
   | { type: "note_opened"; applicationId: string; activeDraft?: ApplicationNoteDraft | null }
   | { type: "note_changed"; draft: ApplicationNoteDraft }
   | { type: "note_closed"; applicationId: string }
-  | { type: "note_committed"; submitted: ApplicationNoteDraft };
+  | { type: "note_committed"; submitted: ApplicationNoteDraft }
+  | { type: "submission_opened"; applicationId: string; initialDraft: SubmissionDraft }
+  | { type: "submission_changed"; applicationId: string; draft: SubmissionDraft }
+  | { type: "submission_closed"; applicationId: string }
+  | { type: "submission_committed"; applicationId: string; submitted: SubmissionDraft };
 
 export type ApplicationsWorkbench = {
   state: ApplicationsWorkbenchState;
@@ -98,6 +112,7 @@ export function createApplicationsWorkbenchState(now = new Date()): Applications
     outcomes: { activeApplicationId: null, byApplication: {} },
     reminders: { activeApplicationId: null, byApplication: {} },
     notes: { activeApplicationId: null, byApplication: {} },
+    submissions: { activeApplicationId: null, byApplication: {} },
   };
 }
 
@@ -115,6 +130,18 @@ function sameReminder(left: ReminderDraft, right: ReminderDraft): boolean {
 
 function sameNote(left: ApplicationNoteDraft, right: ApplicationNoteDraft): boolean {
   return left.applicationId === right.applicationId && left.text === right.text;
+}
+
+function sameSubmission(left: SubmissionDraft, right: SubmissionDraft): boolean {
+  return (
+    left.materialsCaptured === right.materialsCaptured &&
+    left.packetId === right.packetId &&
+    left.artifactFormats.length === right.artifactFormats.length &&
+    left.artifactFormats.every((format, index) => format === right.artifactFormats[index]) &&
+    left.channel === right.channel &&
+    left.destination === right.destination &&
+    Date.parse(left.submittedAt) === Date.parse(right.submittedAt)
+  );
 }
 
 function closeDraft<T>(state: DraftState<T>, applicationId: string): DraftState<T> {
@@ -234,6 +261,36 @@ export function applicationsWorkbenchReducer(
       return !retained || !sameNote(retained, action.submitted)
         ? state
         : { ...state, notes: closeDraft(state.notes, action.submitted.applicationId) };
+    }
+    case "submission_opened": {
+      const byApplication = { ...state.submissions.byApplication };
+      byApplication[action.applicationId] ??= action.initialDraft;
+      return {
+        ...state,
+        submissions: { activeApplicationId: action.applicationId, byApplication },
+      };
+    }
+    case "submission_changed":
+      return {
+        ...state,
+        submissions: {
+          ...state.submissions,
+          byApplication: {
+            ...state.submissions.byApplication,
+            [action.applicationId]: action.draft,
+          },
+        },
+      };
+    case "submission_closed":
+      return { ...state, submissions: closeDraft(state.submissions, action.applicationId) };
+    case "submission_committed": {
+      const retained = state.submissions.byApplication[action.applicationId];
+      return !retained || !sameSubmission(retained, action.submitted)
+        ? state
+        : {
+            ...state,
+            submissions: closeDraft(state.submissions, action.applicationId),
+          };
     }
   }
 }

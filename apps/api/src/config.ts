@@ -44,6 +44,8 @@ export interface NimantoApiOptions {
   outboxDirectory: string;
   webOrigin: string;
   demoMode: boolean;
+  /** Operator ceiling. A tenant opt-in can never raise this capability. */
+  externalActionsEnabled: boolean;
   bootstrapSecret: string;
   assuranceModel?: string;
   urlAllowlist: string[];
@@ -56,6 +58,59 @@ export interface NimantoApiOptions {
   removePath?: (target: string, options: { recursive?: boolean; force?: boolean }) => Promise<void>;
   port: number;
   host: string;
+}
+
+function booleanEnvironment(name: string, raw: string | undefined, fallback: boolean): boolean {
+  if (raw === undefined) return fallback;
+  const normalized = raw.trim().toLocaleLowerCase("en-US");
+  if (normalized === "on") return true;
+  if (normalized === "off") return false;
+  throw new Error(`${name} must be either on or off`);
+}
+
+function portEnvironment(name: string, raw: string | undefined, fallback: number): number {
+  if (raw === undefined) return fallback;
+  const normalized = raw.trim();
+  if (!/^\d{1,5}$/u.test(normalized)) throw new Error(`${name} must be an integer port`);
+  const value = Number(normalized);
+  if (!Number.isInteger(value) || value < 1 || value > 65_535) {
+    throw new Error(`${name} must be between 1 and 65535`);
+  }
+  return value;
+}
+
+function reviewedDate(raw: string | undefined): string | undefined {
+  if (raw === undefined || raw.trim() === "") return undefined;
+  const value = raw.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/u.test(value)) {
+    throw new Error("NIMANTO_URL_TERMS_REVIEWED_AT must be an ISO calendar date");
+  }
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value) {
+    throw new Error("NIMANTO_URL_TERMS_REVIEWED_AT must be an ISO calendar date");
+  }
+  return value;
+}
+
+function webOriginEnvironment(raw: string | undefined): string {
+  const value = raw?.trim() || "http://127.0.0.1:4300";
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw new Error("NIMANTO_WEB_ORIGIN must be a valid HTTP or HTTPS origin");
+  }
+  if (
+    !["http:", "https:"].includes(parsed.protocol) ||
+    parsed.username ||
+    parsed.password ||
+    parsed.pathname !== "/" ||
+    parsed.search ||
+    parsed.hash
+  ) {
+    throw new Error("NIMANTO_WEB_ORIGIN must be a credential-free HTTP or HTTPS origin");
+  }
+  return parsed.origin;
 }
 
 function localBootstrapSecret(root: string, environment: NodeJS.ProcessEnv): string {
@@ -92,16 +147,20 @@ export function loadOptions(environment: NodeJS.ProcessEnv = process.env): Niman
   const root = path.resolve(
     environment.NIMANTO_DATA_DIR ?? path.join(import.meta.dirname, "../../..", ".nimanto-data"),
   );
-  const host = environment.NIMANTO_API_HOST ?? "127.0.0.1";
-  const demoMode = environment.NIMANTO_DEMO_MODE !== "off";
+  const host = environment.NIMANTO_API_HOST?.trim() || "127.0.0.1";
+  const demoMode = booleanEnvironment("NIMANTO_DEMO_MODE", environment.NIMANTO_DEMO_MODE, true);
+  const externalActionsEnabled = booleanEnvironment(
+    "NIMANTO_EXTERNAL_ACTIONS_ENABLED",
+    environment.NIMANTO_EXTERNAL_ACTIONS_ENABLED,
+    false,
+  );
+  const webOrigin = webOriginEnvironment(environment.NIMANTO_WEB_ORIGIN);
+  const urlTermsReviewedAt = reviewedDate(environment.NIMANTO_URL_TERMS_REVIEWED_AT);
   const urlAllowlist = (environment.NIMANTO_URL_ALLOWLIST ?? "")
     .split(",")
     .map((host) => host.trim().toLocaleLowerCase("en-US"))
     .filter(Boolean);
-  if (
-    urlAllowlist.length > 0 &&
-    !/^\d{4}-\d{2}-\d{2}$/u.test(environment.NIMANTO_URL_TERMS_REVIEWED_AT ?? "")
-  ) {
+  if (urlAllowlist.length > 0 && !urlTermsReviewedAt) {
     throw new Error("NIMANTO_URL_TERMS_REVIEWED_AT is required for an enabled URL allowlist");
   }
   if (demoMode && host !== "127.0.0.1" && host !== "::1" && host !== "localhost") {
@@ -111,17 +170,16 @@ export function loadOptions(environment: NodeJS.ProcessEnv = process.env): Niman
     dataDirectory: path.join(root, "database"),
     artifactDirectory: path.join(root, "artifacts"),
     outboxDirectory: path.join(root, "outbox"),
-    webOrigin: environment.NIMANTO_WEB_ORIGIN ?? "http://127.0.0.1:4300",
+    webOrigin,
     demoMode,
+    externalActionsEnabled,
     bootstrapSecret: localBootstrapSecret(root, environment),
     ...(environment.NIMANTO_ASSURANCE_MODEL?.trim()
       ? { assuranceModel: environment.NIMANTO_ASSURANCE_MODEL.trim() }
       : {}),
     urlAllowlist,
-    ...(environment.NIMANTO_URL_TERMS_REVIEWED_AT
-      ? { urlTermsReviewedAt: environment.NIMANTO_URL_TERMS_REVIEWED_AT }
-      : {}),
-    port: Number.parseInt(environment.NIMANTO_API_PORT ?? "4310", 10),
+    ...(urlTermsReviewedAt ? { urlTermsReviewedAt } : {}),
+    port: portEnvironment("NIMANTO_API_PORT", environment.NIMANTO_API_PORT, 4310),
     host,
   };
 }

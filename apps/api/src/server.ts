@@ -1,4 +1,4 @@
-import { timingSafeEqual } from "node:crypto";
+import { randomUUID, timingSafeEqual } from "node:crypto";
 import { chmod, mkdir } from "node:fs/promises";
 import path from "node:path";
 import cookie from "@fastify/cookie";
@@ -18,7 +18,7 @@ import {
   CONTACT_KINDS,
   INTERVIEW_ROUND_KINDS,
   INTERVIEW_ROUND_STATES,
-  normalizeRoleObservation,
+  normalizeRoleSnapshot,
   OFFER_STATES,
   type ActivityKind,
   type ActivityState,
@@ -227,6 +227,71 @@ function privateSourceUrl(value: unknown): string {
     throw new Error("INVALID_URL");
   }
   return url.toString();
+}
+
+function manualOperationId(request: FastifyRequest): string {
+  const value = request.headers["idempotency-key"];
+  if (value === undefined) return randomUUID();
+  if (typeof value !== "string" || !/^[A-Za-z0-9._:-]{8,128}$/u.test(value)) {
+    throw new Error("INVALID_IDEMPOTENCY_KEY");
+  }
+  return value;
+}
+
+function manualRoleInput(body: JsonObject, sourceRoleId: string) {
+  const title = string(body.title, "title");
+  const company = string(body.company, "company");
+  const description = string(body.description, "description");
+  const requirements = strings(body.requirements ?? [], "requirements");
+  const compensationMin = typeof body.compensationMin === "number" ? body.compensationMin : null;
+  const compensationMax = typeof body.compensationMax === "number" ? body.compensationMax : null;
+  if (
+    (compensationMin !== null && (!Number.isFinite(compensationMin) || compensationMin < 0)) ||
+    (compensationMax !== null && (!Number.isFinite(compensationMax) || compensationMax < 0)) ||
+    (compensationMin !== null && compensationMax !== null && compensationMin > compensationMax)
+  ) {
+    throw new Error("INVALID_COMPENSATION");
+  }
+  return normalizeRoleSnapshot({
+    source: "manual",
+    sourceRoleId,
+    title,
+    company,
+    description,
+    location: typeof body.location === "string" ? body.location : "",
+    workMode: typeof body.workMode === "string" ? body.workMode : "unspecified",
+    url: privateSourceUrl(body.url),
+    requirements,
+    sourceMeta: {
+      manual: true,
+      compensation:
+        compensationMin !== null || compensationMax !== null
+          ? {
+              minimum: compensationMin,
+              maximum: compensationMax,
+              currency: "USD",
+              period: "annual",
+              source: "user_supplied_posting",
+            }
+          : null,
+      benefits: Array.isArray(body.benefits)
+        ? body.benefits.filter((value): value is string => typeof value === "string").slice(0, 30)
+        : [],
+      interviewEvidence:
+        typeof body.interviewEvidence === "string" && body.interviewEvidence.trim()
+          ? {
+              text: body.interviewEvidence.normalize("NFC").trim(),
+              sourceLocator:
+                typeof body.interviewSource === "string"
+                  ? body.interviewSource.normalize("NFC").trim()
+                  : "user supplied",
+              observedAt: new Date().toISOString(),
+              confidence: "user_supplied",
+              limitations: "Applies only to the recorded role/location context; verify freshness.",
+            }
+          : null,
+    },
+  });
 }
 
 function identity(request: FastifyRequest): SessionIdentity {
@@ -533,36 +598,38 @@ async function seedDemo(store: NimantoStore, person: SessionIdentity): Promise<v
   }
   const jobs = await store.listJobs(person.tenantId);
   if (jobs.length === 0) {
-    await store.upsertJob(person.tenantId, {
-      source: "manual",
-      sourceJobId: "synthetic-platform-engineer",
-      title: "Platform Engineer",
-      company: "Northwind Systems",
-      description:
-        "Build TypeScript services and accessible React tools. H-1B transfer support is reviewed case by case.",
-      location: "Chicago or remote",
-      workMode: "hybrid",
-      url: "https://example.test/jobs/platform-engineer",
-      requirements: ["TypeScript and Node.js", "PostgreSQL", "Accessible React interfaces"],
-      capability: "deep_link",
-      sourceMeta: { synthetic: true },
-      contentHash: canonicalHash({ seed: "platform-engineer-v1" }),
-    });
-    await store.upsertJob(person.tenantId, {
-      source: "manual",
-      sourceJobId: "synthetic-product-engineer",
-      title: "Product Engineer",
-      company: "Contoso Labs",
-      description:
-        "Ship user-facing React and API features. No sponsorship of any kind is available for this role.",
-      location: "New York",
-      workMode: "onsite",
-      url: "https://example.test/jobs/product-engineer",
-      requirements: ["React", "API design", "User research"],
-      capability: "deep_link",
-      sourceMeta: { synthetic: true },
-      contentHash: canonicalHash({ seed: "product-engineer-v1" }),
-    });
+    await store.upsertJob(
+      person.tenantId,
+      normalizeRoleSnapshot({
+        source: "manual",
+        sourceRoleId: "synthetic-platform-engineer",
+        title: "Platform Engineer",
+        company: "Northwind Systems",
+        description:
+          "Build TypeScript services and accessible React tools. H-1B transfer support is reviewed case by case.",
+        location: "Chicago or remote",
+        workMode: "hybrid",
+        url: "https://example.test/jobs/platform-engineer",
+        requirements: ["TypeScript and Node.js", "PostgreSQL", "Accessible React interfaces"],
+        sourceMeta: { synthetic: true },
+      }),
+    );
+    await store.upsertJob(
+      person.tenantId,
+      normalizeRoleSnapshot({
+        source: "manual",
+        sourceRoleId: "synthetic-product-engineer",
+        title: "Product Engineer",
+        company: "Contoso Labs",
+        description:
+          "Ship user-facing React and API features. No sponsorship of any kind is available for this role.",
+        location: "New York",
+        workMode: "onsite",
+        url: "https://example.test/jobs/product-engineer",
+        requirements: ["React", "API design", "User research"],
+        sourceMeta: { synthetic: true },
+      }),
+    );
   }
   if ((await store.listH1bSignals(person.tenantId)).length === 0) {
     await store.createH1bSignal(person.tenantId, {
@@ -586,14 +653,22 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     secureRuntimeDirectory(options.outboxDirectory),
   ]);
   const store = await NimantoStore.open(options.dataDirectory);
+  await store.pruneTerminalInvitations();
   const evidenceIntake = new EvidenceIntake(store);
   const packetLifecycle = new PacketLifecycle(
     store,
     options.artifactDirectory,
     options.assuranceModel,
   );
-  const externalActionLifecycle = new ExternalActionLifecycle(store, options.outboxDirectory);
-  const dashboardRead = new DashboardRead(store, () => externalActionLifecycle.runtime());
+  const externalActionLifecycle = new ExternalActionLifecycle(
+    store,
+    options.outboxDirectory,
+    undefined,
+    options.externalActionsEnabled,
+  );
+  const dashboardRead = new DashboardRead(store, async (tenantId) =>
+    externalActionLifecycle.capability(tenantId),
+  );
   await externalActionLifecycle.recoverInterrupted();
   const discoveryCycle = new DiscoveryCycle(store, options.providerJobsFetcher);
   const atsVerification = new AtsVerification(store, options.providerJobVerifier);
@@ -614,7 +689,9 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     options.artifactDirectory,
     options.outboxDirectory,
     options.removePath,
+    (tenantId) => externalActionLifecycle.clearTenantReadiness(tenantId),
   );
+  await deletionCoordinator.recoverPending();
   const app = Fastify({ logger: false, bodyLimit: 12 * 1024 * 1024, trustProxy: false });
 
   await app.register(cookie, { hook: "onRequest" });
@@ -682,7 +759,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     name: "Nimanto",
     version: NIMANTO_VERSION,
     mode: "local_beta",
-    externalActionsEnabled: externalActionLifecycle.runtime(),
+    ...externalActionLifecycle.operatorCapability(),
     providers: {
       deepLink: true,
       testOutbox: true,
@@ -877,6 +954,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     if (!secretsEqual(request.headers["x-nimanto-bootstrap-secret"], options.bootstrapSecret)) {
       throw new Error("INVALID_BOOTSTRAP_SECRET");
     }
+    await deletionCoordinator.recoverPending();
     return discoveryCycle.runWorkerCycle();
   });
 
@@ -1091,65 +1169,22 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
   app.post("/v1/jobs", async (request) => {
     const person = identity(request);
     const body = object(request.body);
-    const title = string(body.title, "title");
-    const company = string(body.company, "company");
-    const description = string(body.description, "description");
-    const requirements = strings(body.requirements ?? [], "requirements");
-    const compensationMin = typeof body.compensationMin === "number" ? body.compensationMin : null;
-    const compensationMax = typeof body.compensationMax === "number" ? body.compensationMax : null;
-    if (
-      (compensationMin !== null && (!Number.isFinite(compensationMin) || compensationMin < 0)) ||
-      (compensationMax !== null && (!Number.isFinite(compensationMax) || compensationMax < 0)) ||
-      (compensationMin !== null && compensationMax !== null && compensationMin > compensationMax)
-    ) {
-      throw new Error("INVALID_COMPENSATION");
-    }
-    return store.upsertJob(
+    return store.createManualJob(
       person.tenantId,
-      normalizeRoleObservation({
-        source: "manual",
-        sourceRoleId: canonicalHash({ title, company, description }).slice(0, 24),
-        title,
-        company,
-        description,
-        location: typeof body.location === "string" ? body.location : "",
-        workMode: typeof body.workMode === "string" ? body.workMode : "unspecified",
-        url: privateSourceUrl(body.url),
-        requirements,
-        sourceMeta: {
-          manual: true,
-          compensation:
-            compensationMin !== null || compensationMax !== null
-              ? {
-                  minimum: compensationMin,
-                  maximum: compensationMax,
-                  currency: "USD",
-                  period: "annual",
-                  source: "user_supplied_posting",
-                }
-              : null,
-          benefits: Array.isArray(body.benefits)
-            ? body.benefits
-                .filter((value): value is string => typeof value === "string")
-                .slice(0, 30)
-            : [],
-          interviewEvidence:
-            typeof body.interviewEvidence === "string" && body.interviewEvidence.trim()
-              ? {
-                  text: body.interviewEvidence.normalize("NFC").trim(),
-                  sourceLocator:
-                    typeof body.interviewSource === "string"
-                      ? body.interviewSource.normalize("NFC").trim()
-                      : "user supplied",
-                  observedAt: new Date().toISOString(),
-                  confidence: "user_supplied",
-                  limitations:
-                    "Applies only to the recorded role/location context; verify freshness.",
-                }
-              : null,
-        },
-        contentHash: canonicalHash({ title, company, description, requirements }),
-      }),
+      manualOperationId(request),
+      manualRoleInput(body, randomUUID()),
+    );
+  });
+
+  app.put("/v1/jobs/:id", async (request) => {
+    const person = identity(request);
+    const roleId = (request.params as { id: string }).id;
+    const current = await store.getJob(person.tenantId, roleId);
+    if (!current) throw new Error("ROLE_NOT_FOUND");
+    return store.replaceManualJob(
+      person.tenantId,
+      roleId,
+      manualRoleInput(object(request.body), current.sourceJobId),
     );
   });
 
@@ -1182,7 +1217,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     const requirements = strings(body.requirements ?? [], "requirements");
     return store.upsertJob(
       person.tenantId,
-      normalizeRoleObservation({
+      normalizeRoleSnapshot({
         source: "allowlisted_url",
         sourceRoleId: canonicalHash(page.canonicalUrl).slice(0, 24),
         title,
@@ -1200,13 +1235,6 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
           redistribution: "tenant_private_normalized_text_only",
         },
         observedAt: page.observedAt,
-        contentHash: canonicalHash({
-          title,
-          company,
-          description: page.text,
-          requirements,
-          url: page.canonicalUrl,
-        }),
       }),
     );
   });
@@ -1639,9 +1667,10 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
   });
 
   app.put("/v1/actions/runtime", async (request) => {
+    const person = identity(request);
     const body = object(request.body);
     if (typeof body.enabled !== "boolean") throw new Error("INVALID_ENABLED");
-    return externalActionLifecycle.setRuntime(body.enabled);
+    return externalActionLifecycle.setTenantOptIn(person.tenantId, body.enabled);
   });
   app.post("/v1/actions", async (request) => {
     const person = identity(request);

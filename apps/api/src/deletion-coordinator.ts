@@ -19,9 +19,11 @@ export class DeletionCoordinator {
     private readonly artifactDirectory: string,
     private readonly outboxDirectory: string,
     private readonly removePath: RemovePath = rm,
+    private readonly clearTenantRuntime: (tenantId: string) => void = () => {},
   ) {}
 
   async start(tenantId: string) {
+    this.clearTenantRuntime(tenantId);
     const run = await this.store.beginTenantDeletion(tenantId);
     try {
       return { run, completedAt: await this.finish(run), pending: false as const };
@@ -33,12 +35,32 @@ export class DeletionCoordinator {
   async resume(token: string) {
     const run = await this.store.deletionRunByToken(token);
     if (!run) throw new Error("DELETION_NOT_FOUND");
+    this.clearTenantRuntime(run.tenantId);
     if (run.state === "completed") return { run, completedAt: null, pending: false as const };
     try {
       return { run, completedAt: await this.finish(run), pending: false as const };
     } catch {
       return { run, completedAt: null, pending: true as const };
     }
+  }
+
+  /** Internal recovery path. It is intentionally not bearer-gated: the local
+   * operator process already owns the data directory and must be able to finish
+   * cleanup after a candidate status token expires. */
+  async recoverPending(): Promise<{ recovered: number; pending: number }> {
+    const runs = await this.store.recoverableDeletionRuns();
+    let recovered = 0;
+    let pending = 0;
+    for (const run of runs) {
+      this.clearTenantRuntime(run.tenantId);
+      try {
+        await this.finish(run);
+        recovered += 1;
+      } catch {
+        pending += 1;
+      }
+    }
+    return { recovered, pending };
   }
 
   private async finish(run: DeletionRun): Promise<string> {

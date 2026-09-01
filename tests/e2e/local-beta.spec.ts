@@ -27,6 +27,10 @@ async function generatePacket(scope: Page | Locator) {
   if ((await composer.getAttribute("open")) === null) {
     await composer.locator("summary").click();
   }
+  if ((await composer.locator(".packet-evidence-toggle.selected").count()) === 0) {
+    await expect(composer.getByRole("button", { name: "Generate selected packet" })).toBeDisabled();
+    await composer.locator(".packet-evidence-pool .packet-evidence-toggle").first().click();
+  }
   await composer.getByRole("button", { name: "Generate selected packet" }).click();
 }
 
@@ -2165,7 +2169,7 @@ test("long action references keep their Copy control clear at 320px", async ({ p
   await page.getByRole("button", { name: "Create approval request" }).click();
   const action = page.locator(".action-row").filter({ hasText: "Candidate-reviewed subject" });
   await action.getByRole("button", { name: "Approve", exact: true }).click();
-  await page.getByRole("button", { name: "Turn on" }).click();
+  await page.getByRole("button", { name: "Turn workspace opt-in on" }).click();
   await action.getByRole("button", { name: "Execute", exact: true }).click();
   await expect(action.getByText("Succeeded", { exact: true })).toBeVisible();
 
@@ -2596,6 +2600,16 @@ test("an Application Dossier records the candidate's exact external submission",
   await expect(dossier.getByRole("region", { name: "Match evidence lens" })).toContainText(
     "evidence_strength_unweighted_v1",
   );
+  const composition = dossier.locator(".dossier-packet-composition");
+  await composition.locator("summary").click();
+  await expect(composition.getByText("Match artifact hash")).toBeVisible();
+  await expect(composition.getByText("Role content hash")).toBeVisible();
+  await expect(
+    composition.getByRole("list", { name: "Candidate-selected evidence order" }),
+  ).toBeVisible();
+  const frozenValues = composition.locator("dl code");
+  await expect(frozenValues).toHaveCount(6);
+  for (const value of await frozenValues.all()) await expect(value).not.toHaveText(/…/);
   await expect(dossier.getByText("No external submission has been recorded.")).toBeVisible();
   await dossier.getByRole("button", { name: "Close dossier" }).click();
 
@@ -2605,12 +2619,65 @@ test("an Application Dossier records the candidate's exact external submission",
     .click();
   const submission = page.locator(".submission-recorder");
   await expect(submission.getByText(/not proof the employer received it/)).toBeVisible();
+  const submit = submission.getByRole("button", { name: "Record external submission" });
+  const formatRequirement = await submit.getAttribute("aria-describedby");
+  expect(formatRequirement).toBeTruthy();
+  await expect(page.locator(`#${formatRequirement}`)).toContainText(
+    "Select at least one exact packet format",
+  );
+  const destination = submission.getByLabel("Destination");
+  await destination.fill("https://jobs.example.test/application/42");
+  let rejectSubmission = true;
+  let statusWriteAttempts = 0;
+  await page.route("**/v1/applications/*/status", async (route) => {
+    if (route.request().method() !== "PUT" || !rejectSubmission) {
+      await route.continue();
+      return;
+    }
+    statusWriteAttempts += 1;
+    rejectSubmission = false;
+    await route.fulfill({
+      status: 500,
+      contentType: "application/json",
+      body: JSON.stringify({ error: { code: "TEST_FAILURE", message: "Synthetic failure." } }),
+    });
+  });
+  await expect(submit).toBeEnabled();
+  await submit.click();
+  await expect(submission.getByRole("alert")).toContainText(
+    "Choose at least one exact packet format",
+  );
+  await expect(submission.locator(".submission-formats")).toBeFocused();
+  expect(statusWriteAttempts, "missing format must not call the status API").toBe(0);
+
   await submission.getByLabel("JSON").check();
-  await submission.getByLabel("Destination").fill("https://jobs.example.test/application/42");
-  await submission.getByRole("button", { name: "Record external submission" }).click();
+  await submit.click();
+  expect(statusWriteAttempts).toBe(1);
+  await expect(submit).toBeEnabled();
+  await expect(destination).toHaveValue("https://jobs.example.test/application/42");
+  await expect(submission.getByLabel("JSON")).toBeChecked();
+  await page.unroute("**/v1/applications/*/status");
+  let releaseDelayedSuccess = () => undefined;
+  const delayedSuccess = new Promise<void>((resolve) => {
+    releaseDelayedSuccess = resolve;
+  });
+  await page.route("**/v1/applications/*/status", async (route) => {
+    if (route.request().method() !== "PUT") {
+      await route.continue();
+      return;
+    }
+    await delayedSuccess;
+    await route.continue();
+  });
+  await submit.click();
+  await destination.fill("Typed while the earlier submission was saving");
+  releaseDelayedSuccess();
   await expect(
     page.getByText("External submission recorded without claiming employer receipt."),
   ).toBeVisible();
+  await expect(submission).toBeVisible();
+  await expect(destination).toHaveValue("Typed while the earlier submission was saving");
+  await page.unroute("**/v1/applications/*/status");
 
   await page.getByRole("button", { name: "Open dossier" }).first().click();
   await expect(dossier.getByText("Immutable submission record")).toBeVisible();
@@ -2633,11 +2700,19 @@ test("the candidate career ledger carries the P1 and P2 application workflow", a
   await expect(ledger.getByRole("heading", { name: "Career ledger" })).toBeVisible();
   const now = ledger.getByRole("tabpanel");
   await now.getByLabel("Action").fill("Send a concise thank-you note");
+  await ledger.getByRole("tab", { name: "People" }).click();
+  await ledger.getByRole("tab", { name: "Now" }).click();
+  await expect(now.getByLabel("Action")).toHaveValue("Send a concise thank-you note");
   await now.getByRole("button", { name: "Add activity" }).click();
   const activity = now.locator("li").filter({ hasText: "Send a concise thank-you note" });
   await expect(activity).toBeVisible();
   await activity.getByRole("button", { name: "Complete" }).click();
   await expect(activity).toContainText("Follow up · Completed");
+  await now.getByLabel("Action").fill("Cancel a superseded follow-up");
+  await now.getByRole("button", { name: "Add activity" }).click();
+  const cancelledActivity = now.locator("li").filter({ hasText: "Cancel a superseded follow-up" });
+  await cancelledActivity.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(cancelledActivity).toContainText("Follow up · Cancelled");
   await now.getByLabel("Scheduled at").fill("2026-09-03T13:00");
   await now.getByLabel("Location or link note").fill("Video link stored in private notes");
   await now.getByLabel("Participants, comma-separated").fill("Taylor, Morgan");
@@ -2649,6 +2724,12 @@ test("the candidate career ledger carries the P1 and P2 application workflow", a
     .fill("Candidate-recorded round outcome.");
   await interview.getByRole("button", { name: "Complete" }).click();
   await expect(interview).toContainText("Candidate-recorded round outcome.");
+  await now.getByLabel("Scheduled at").fill("2026-09-04T13:00");
+  await now.getByLabel("Participants, comma-separated").fill("Cancelled round participant");
+  await now.getByRole("button", { name: "Add round" }).click();
+  const cancelledInterview = now.locator("li").filter({ hasText: "Cancelled round participant" });
+  await cancelledInterview.getByRole("button", { name: "Cancel round" }).click();
+  await expect(cancelledInterview).toContainText("Recruiter screen · Cancelled");
 
   await ledger.getByRole("tab", { name: "People" }).click();
   const people = ledger.getByRole("tabpanel");
@@ -2665,7 +2746,7 @@ test("the candidate career ledger carries the P1 and P2 application workflow", a
     .getByLabel("Your answer")
     .fill("I chose this role because the recorded scope matches my evidence.");
   await answers.getByRole("button", { name: "Save answer" }).click();
-  const answer = answers.locator("li").filter({ hasText: "Why this role?" });
+  const answer = answers.locator(".ledger-records > li").filter({ hasText: "Why this role?" });
   await expect(answer).toBeVisible();
   await answer.getByRole("button", { name: "Revise" }).click();
   await answers
@@ -2683,6 +2764,13 @@ test("the candidate career ledger carries the P1 and P2 application workflow", a
   await ledger.getByRole("tab", { name: "Reviews" }).click();
   const reviews = ledger.getByRole("tabpanel");
   await reviews.getByLabel("View name").fill("Roles to review");
+  await page.getByRole("button", { name: "Overview" }).click();
+  await page.getByRole("button", { name: "Applications" }).click();
+  await expect(ledger.getByRole("tab", { name: "Reviews" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await expect(reviews.getByLabel("View name")).toHaveValue("Roles to review");
   await reviews.getByRole("button", { name: "Save current view" }).click();
   await expect(reviews.getByText("Roles to review")).toBeVisible();
   await expect(
@@ -2694,12 +2782,27 @@ test("the candidate career ledger carries the P1 and P2 application workflow", a
   await expect(reviews.getByText(/^Reviewed /)).toBeVisible();
 
   await ledger.getByRole("tab", { name: "Insights" }).click();
+  const insights = ledger.getByRole("tabpanel");
+  const activityInsight = insights
+    .locator(".career-insight-grid article")
+    .filter({ hasText: "Typed activities" });
+  await expect(activityInsight.locator("strong")).toHaveText("0");
+  await expect(activityInsight).toContainText("Planned now · 1 completed");
+  const interviewInsight = insights
+    .locator(".career-insight-grid article")
+    .filter({ hasText: "Recorded interview rounds" });
+  await expect(interviewInsight.locator("strong")).toHaveText("1");
+  await expect(interviewInsight).toContainText("Non-cancelled · 1 completed");
   await expect(
     ledger.getByText(/not conversion rates, benchmarks, causal evidence/i),
   ).toBeVisible();
 
   await ledger.getByRole("tab", { name: "Offers" }).click();
   const offers = ledger.getByRole("tabpanel");
+  await offers.getByLabel("Annual base").fill("$145,000");
+  await expect(offers.getByLabel("Annual base")).toHaveAttribute("aria-invalid", "true");
+  await expect(offers.getByText(/do not use commas or currency symbols/i).first()).toBeVisible();
+  await expect(offers.getByRole("button", { name: "Save offer" })).toBeDisabled();
   await offers.getByLabel("Annual base").fill("145000");
   await offers.getByLabel("Annual bonus").fill("15000");
   await offers.getByLabel("Equity terms").fill("Candidate-entered RSU description");

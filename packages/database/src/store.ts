@@ -80,6 +80,8 @@ export interface LocalIdentity {
   displayName: string;
 }
 
+export const INVITATION_TOMBSTONE_RETENTION_DAYS = 30;
+
 export interface SessionIdentity extends LocalIdentity {
   sessionId: string;
 }
@@ -89,6 +91,12 @@ export interface InvitationRecord {
   intendedEmail: string;
   token: string;
   expiresAt: string;
+}
+
+export interface InvitationRetentionRecord {
+  accepted: boolean;
+  retainsTokenHash: boolean;
+  retainsIntendedEmail: boolean;
 }
 
 export interface ProfileVersionRecord {
@@ -126,6 +134,10 @@ export interface JobRecord {
   capability: string;
   sourceMeta: Record<string, unknown>;
   contentHash: string;
+  identityReview: {
+    required: boolean;
+    reason: string | null;
+  };
   updatedAt: string;
   availability: RoleAvailabilityRecord;
   cluster: {
@@ -421,6 +433,10 @@ export interface InterviewRoundRecord {
 export interface AnswerRevisionRecord {
   id: string;
   revision: number;
+  /** Legacy revisions predate revision-owned question metadata. */
+  topic: AnswerTopic | null;
+  /** Legacy revisions use null rather than borrowing a newer prompt. */
+  prompt: string | null;
   answerText: string;
   evidenceIds: string[];
   createdAt: string;
@@ -741,6 +757,17 @@ export class NimantoStore {
     return this.#db.transaction((tx) => work(new NimantoStore(tx as unknown as PGlite, true)));
   }
 
+  async readSnapshot<T>(work: (store: NimantoStore) => Promise<T>): Promise<T> {
+    if (this.#transactional) return work(this);
+    return this.#db.transaction(async (tx) => {
+      // This must be the first statement in the transaction. Unlike a lock
+      // convention, REPEATABLE READ covers every present and future writer,
+      // including deletes and append-only history tables.
+      await tx.exec("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY");
+      return work(new NimantoStore(tx as unknown as PGlite, true));
+    });
+  }
+
   async assertTenantActive(tenantId: string): Promise<void> {
     const active = await this.#db.query<{ id: string }>(
       `SELECT id FROM tenants
@@ -756,6 +783,16 @@ export class NimantoStore {
       `SELECT id FROM tenants
        WHERE id = $1 AND deletion_state = 'active'
        FOR UPDATE`,
+      [tenantId],
+    );
+    if (!active.rows[0]) throw new Error("TENANT_NOT_ACTIVE");
+  }
+
+  async assertTenantReadable(tenantId: string): Promise<void> {
+    const active = await this.#db.query<{ id: string }>(
+      `SELECT id FROM tenants
+       WHERE id = $1 AND deletion_state = 'active'
+       LIMIT 1`,
       [tenantId],
     );
     if (!active.rows[0]) throw new Error("TENANT_NOT_ACTIVE");
@@ -839,7 +876,7 @@ export class NimantoStore {
     return this.#db.transaction(async (tx) => {
       const invite = await tx.query<{
         id: string;
-        intended_email: string;
+        intended_email: string | null;
         expires_at: string | Date;
         accepted_at: string | Date | null;
         revoked_at: string | Date | null;
@@ -856,7 +893,8 @@ export class NimantoStore {
       if (row.intended_email !== normalizedEmail) throw new Error("INVITATION_EMAIL_MISMATCH");
 
       const consumed = await tx.query<{ id: string }>(
-        `UPDATE invitations SET accepted_at = now()
+        `UPDATE invitations
+         SET accepted_at = now(), token_hash = NULL, intended_email = NULL
          WHERE id = $1 AND accepted_at IS NULL AND revoked_at IS NULL AND expires_at > now()
          RETURNING id`,
         [row.id],
@@ -881,6 +919,44 @@ export class NimantoStore {
       ]);
       return { userId, tenantId, email: normalizedEmail, displayName: normalizedName };
     });
+  }
+
+  async invitationRetention(id: string): Promise<InvitationRetentionRecord | null> {
+    const result = await this.#db.query<{
+      accepted_at: string | Date | null;
+      token_hash: string | null;
+      intended_email: string | null;
+    }>(
+      `SELECT accepted_at, token_hash, intended_email
+       FROM invitations WHERE id = $1 LIMIT 1`,
+      [id],
+    );
+    const row = result.rows[0];
+    return row
+      ? {
+          accepted: row.accepted_at !== null,
+          retainsTokenHash: row.token_hash !== null,
+          retainsIntendedEmail: row.intended_email !== null,
+        }
+      : null;
+  }
+
+  /** Delete terminal invitation tombstones after the documented 30-day
+   * operator-audit window. Live unexpired and unrevoked invitations never
+   * qualify. Accepted credentials and email are scrubbed immediately elsewhere. */
+  async pruneTerminalInvitations(now = new Date()): Promise<number> {
+    const cutoff = new Date(
+      now.getTime() - INVITATION_TOMBSTONE_RETENTION_DAYS * 24 * 60 * 60 * 1000,
+    ).toISOString();
+    const result = await this.#db.query<{ id: string }>(
+      `DELETE FROM invitations
+       WHERE (accepted_at IS NOT NULL AND accepted_at <= $1)
+          OR (revoked_at IS NOT NULL AND revoked_at <= $1)
+          OR (accepted_at IS NULL AND revoked_at IS NULL AND expires_at <= $1)
+       RETURNING id`,
+      [cutoff],
+    );
+    return result.rows.length;
   }
 
   async createSession(
@@ -1636,6 +1712,62 @@ export class NimantoStore {
     return saved;
   }
 
+  async createManualJob(
+    tenantId: string,
+    operationId: string,
+    input: JobUpsertInput,
+  ): Promise<JobRecord> {
+    return this.transaction(async (database) => {
+      await database.lockTenantActive(tenantId);
+      const existing = await database.#db.query<{ role_id: string }>(
+        `SELECT role_id FROM manual_role_operations
+         WHERE tenant_id = $1 AND operation_id = $2 LIMIT 1`,
+        [tenantId, operationId],
+      );
+      if (existing.rows[0]) {
+        const role = await database.getJob(tenantId, existing.rows[0].role_id);
+        if (!role) throw new Error("ROLE_OPERATION_INVALID");
+        return role;
+      }
+      if (input.source !== "manual") throw new Error("MANUAL_ROLE_REQUIRED");
+      const role = await database.upsertJob(tenantId, input);
+      await database.#db.query(
+        `INSERT INTO manual_role_operations(tenant_id, operation_id, role_id)
+         VALUES ($1, $2, $3)`,
+        [tenantId, operationId, role.id],
+      );
+      return role;
+    });
+  }
+
+  async replaceManualJob(
+    tenantId: string,
+    roleId: string,
+    input: JobUpsertInput,
+  ): Promise<JobRecord> {
+    return this.transaction(async (database) => {
+      await database.lockTenantActive(tenantId);
+      const current = await database.getJob(tenantId, roleId);
+      if (!current) throw new Error("ROLE_NOT_FOUND");
+      if (current.source !== "manual") throw new Error("MANUAL_ROLE_REQUIRED");
+      const reviewed = await database.upsertJob(tenantId, {
+        ...input,
+        id: current.id,
+        source: "manual",
+        sourceJobId: current.sourceJobId,
+      });
+      if (!reviewed.identityReview.required) return reviewed;
+      await database.#db.query(
+        `UPDATE jobs SET identity_review_required = false, identity_review_reason = NULL
+         WHERE tenant_id = $1 AND id = $2`,
+        [tenantId, current.id],
+      );
+      const cleared = await database.getJob(tenantId, current.id);
+      if (!cleared) throw new Error("ROLE_NOT_FOUND");
+      return cleared;
+    });
+  }
+
   #mapJob(row: {
     id: string;
     source: string;
@@ -1652,6 +1784,8 @@ export class NimantoStore {
     capability: string;
     source_meta: Record<string, unknown>;
     content_hash: string;
+    identity_review_required?: boolean;
+    identity_review_reason?: string | null;
     updated_at: string | Date;
     archived_at?: string | Date | null;
     availability_first_seen_at?: string | Date | null;
@@ -1703,6 +1837,10 @@ export class NimantoStore {
       capability: row.capability,
       sourceMeta,
       contentHash: row.content_hash,
+      identityReview: {
+        required: row.identity_review_required ?? false,
+        reason: row.identity_review_reason ?? null,
+      },
       updatedAt: iso(row.updated_at)!,
       availability: {
         firstSeenAt,
@@ -1733,7 +1871,8 @@ export class NimantoStore {
     const result = await this.#db.query<any>(
       `SELECT job.id, job.source, job.source_job_id, job.title, job.company, job.description,
         job.location, job.work_mode, job.role_family, job.url, job.requirements, job.status,
-        job.capability, job.source_meta, job.content_hash, job.updated_at, disposition.archived_at,
+        job.capability, job.source_meta, job.content_hash, job.identity_review_required,
+        job.identity_review_reason, job.updated_at, disposition.archived_at,
         availability.first_seen_at AS availability_first_seen_at,
         availability.last_seen_at AS availability_last_seen_at,
         availability.last_verified_at AS availability_last_verified_at,
@@ -1765,7 +1904,8 @@ export class NimantoStore {
     const result = await this.#db.query<any>(
       `SELECT job.id, job.source, job.source_job_id, job.title, job.company, job.description,
         job.location, job.work_mode, job.role_family, job.url, job.requirements, job.status,
-        job.capability, job.source_meta, job.content_hash, job.updated_at, disposition.archived_at,
+        job.capability, job.source_meta, job.content_hash, job.identity_review_required,
+        job.identity_review_reason, job.updated_at, disposition.archived_at,
         availability.first_seen_at AS availability_first_seen_at,
         availability.last_seen_at AS availability_last_seen_at,
         availability.last_verified_at AS availability_last_verified_at,
@@ -1798,7 +1938,8 @@ export class NimantoStore {
     const result = await this.#db.query<any>(
       `SELECT job.id, job.source, job.source_job_id, job.title, job.company, job.description,
         job.location, job.work_mode, job.role_family, job.url, job.requirements, job.status,
-        job.capability, job.source_meta, job.content_hash, job.updated_at, disposition.archived_at,
+        job.capability, job.source_meta, job.content_hash, job.identity_review_required,
+        job.identity_review_reason, job.updated_at, disposition.archived_at,
         availability.first_seen_at AS availability_first_seen_at,
         availability.last_seen_at AS availability_last_seen_at,
         availability.last_verified_at AS availability_last_verified_at,
@@ -1905,7 +2046,7 @@ export class NimantoStore {
             input.source,
             input.sourceJobId,
             observedAt,
-            input.contentHash,
+            saved.contentHash,
             canonicalHash(input.rawPayload ?? normalizedPayload),
             JSON.stringify(normalizedPayload),
           ],
@@ -2449,7 +2590,15 @@ export class NimantoStore {
       `SELECT DISTINCT ON (m.job_id)
          m.id, m.job_id, m.profile_version_id, m.rule_version, m.result,
          m.input_hash, m.artifact_hash, m.job_content_hash, m.created_at
-       FROM match_runs m WHERE m.tenant_id = $1
+       FROM match_runs m
+       JOIN jobs job ON job.tenant_id = m.tenant_id AND job.id = m.job_id
+       WHERE m.tenant_id = $1
+         AND m.job_content_hash = job.content_hash
+         AND m.profile_version_id IS NOT DISTINCT FROM (
+           SELECT profile.id FROM profile_versions profile
+           WHERE profile.tenant_id = m.tenant_id
+           ORDER BY profile.created_at DESC, profile.id DESC LIMIT 1
+         )
        ORDER BY m.job_id, m.created_at DESC, m.id DESC`,
       [tenantId],
     );
@@ -3817,13 +3966,15 @@ export class NimantoStore {
       }
       await database.#db.query(
         `INSERT INTO answer_revisions(
-           id, tenant_id, answer_block_id, revision, answer_text, evidence_ids
-         ) VALUES ($1,$2,$3,$4,$5,$6::jsonb)`,
+           id, tenant_id, answer_block_id, revision, topic, prompt, answer_text, evidence_ids
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb)`,
         [
           randomUUID(),
           tenantId,
           id,
           revision,
+          input.topic,
+          recordText(input.prompt, "answer_prompt", 500, true),
           recordText(input.answerText, "answer_text", 8_000, true),
           JSON.stringify(evidenceIds),
         ],
@@ -3840,6 +3991,8 @@ export class NimantoStore {
              jsonb_build_object(
                'id', revision.id,
                'revision', revision.revision,
+               'topic', revision.topic,
+               'prompt', revision.prompt,
                'answerText', revision.answer_text,
                'evidenceIds', revision.evidence_ids,
                'createdAt', revision.created_at
@@ -3860,6 +4013,8 @@ export class NimantoStore {
         row.revisions as Array<{
           id: string;
           revision: string | number;
+          topic: AnswerTopic | null;
+          prompt: string | null;
           answerText: string;
           evidenceIds: string[];
           createdAt: string | Date;
@@ -3867,6 +4022,8 @@ export class NimantoStore {
       ).map((revision) => ({
         id: revision.id,
         revision: Number(revision.revision),
+        topic: revision.topic,
+        prompt: revision.prompt,
         answerText: revision.answerText,
         evidenceIds: revision.evidenceIds,
         createdAt: iso(revision.createdAt)!,
@@ -4136,6 +4293,58 @@ export class NimantoStore {
       [tenantId, applicationId],
     );
     return result.rows[0] ? this.#mapPacket(result.rows[0]) : null;
+  }
+
+  async isPacketCurrent(tenantId: string, packetId: string): Promise<boolean> {
+    const result = await this.#db.query<any>(
+      `SELECT packet.canonical_content, packet.profile_version_id,
+         application.profile_version_id AS application_profile_version_id,
+         job.content_hash AS job_content_hash,
+         (SELECT profile.id FROM profile_versions AS profile
+          WHERE profile.tenant_id = packet.tenant_id
+          ORDER BY profile.created_at DESC, profile.id DESC LIMIT 1) AS latest_profile_version_id,
+         (SELECT match.id FROM match_runs AS match
+          WHERE match.tenant_id = packet.tenant_id AND match.job_id = application.job_id
+          ORDER BY match.created_at DESC, match.id DESC LIMIT 1) AS latest_match_run_id
+       FROM packets AS packet
+       JOIN applications AS application
+         ON application.tenant_id = packet.tenant_id AND application.id = packet.application_id
+       JOIN jobs AS job
+         ON job.tenant_id = application.tenant_id AND job.id = application.job_id
+       WHERE packet.tenant_id = $1 AND packet.id = $2 LIMIT 1`,
+      [tenantId, packetId],
+    );
+    const row = result.rows[0];
+    if (!row) return false;
+    const content = row.canonical_content as {
+      schemaVersion?: unknown;
+      composition?: {
+        profileVersionId?: unknown;
+        matchRunId?: unknown;
+        jobContentHash?: unknown;
+        evidenceIds?: unknown;
+      };
+    };
+    const composition = content.composition;
+    if (
+      content.schemaVersion !== "packet_v2" ||
+      !composition ||
+      composition.profileVersionId !== row.profile_version_id ||
+      composition.profileVersionId !== row.application_profile_version_id ||
+      composition.profileVersionId !== row.latest_profile_version_id ||
+      composition.matchRunId !== row.latest_match_run_id ||
+      composition.jobContentHash !== row.job_content_hash ||
+      !Array.isArray(composition.evidenceIds) ||
+      composition.evidenceIds.some((id) => typeof id !== "string")
+    ) {
+      return false;
+    }
+    const evidenceIds = composition.evidenceIds as string[];
+    const evidence = await this.listEvidenceByIds(tenantId, evidenceIds);
+    return (
+      evidence.length === evidenceIds.length &&
+      evidence.every((claim) => claim.status === "confirmed")
+    );
   }
 
   async listPackets(tenantId: string): Promise<PacketRecord[]> {
@@ -4609,6 +4818,12 @@ export class NimantoStore {
   }
 
   async exportTenant(tenantId: string): Promise<Record<string, unknown>> {
+    if (!this.#transactional) {
+      return this.readSnapshot(async (database) => {
+        await database.assertTenantReadable(tenantId);
+        return database.exportTenant(tenantId);
+      });
+    }
     const [
       evidence,
       profile,
@@ -4810,6 +5025,33 @@ export class NimantoStore {
             : [],
         }
       : null;
+  }
+
+  async recoverableDeletionRuns(): Promise<
+    Array<{ id: string; tenantId: string; state: string; actionIds: string[] }>
+  > {
+    const result = await this.#db.query<{
+      id: string;
+      tenant_id: string;
+      state: string;
+      cleanup_inventory: { actionIds?: unknown };
+    }>(
+      `SELECT id, tenant_id, state, cleanup_inventory
+       FROM deletion_runs
+       WHERE state IN ('running','database_deleted','cleanup_pending')
+       ORDER BY requested_at, id`,
+    );
+    return result.rows.map((row) => {
+      const values = row.cleanup_inventory.actionIds;
+      return {
+        id: row.id,
+        tenantId: row.tenant_id,
+        state: row.state,
+        actionIds: Array.isArray(values)
+          ? values.filter((value): value is string => typeof value === "string")
+          : [],
+      };
+    });
   }
 
   async deletionStatus(

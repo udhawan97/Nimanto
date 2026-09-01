@@ -48,17 +48,12 @@ export function PacketComposer({
     [application, evidence, job, match, profile],
   );
   const optionKey = projection.options.map((option) => option.id).join("\u0000");
-  const [selected, setSelected] = useState<string[]>(() =>
-    projection.options.slice(0, 8).map((option) => option.id),
-  );
+  const [selected, setSelected] = useState<string[]>([]);
 
   useEffect(() => {
     setSelected((current) => {
       const available = new Set(projection.options.map((option) => option.id));
-      const retained = current.filter((id) => available.has(id)).slice(0, 8);
-      return retained.length > 0
-        ? retained
-        : projection.options.slice(0, 8).map((option) => option.id);
+      return current.filter((id) => available.has(id)).slice(0, 8);
     });
   }, [optionKey, projection.options]);
 
@@ -142,6 +137,12 @@ export function PacketComposer({
             </li>
           ))}
         </ol>
+        {selectedOptions.length === 0 && (
+          <p className="field-note">
+            Nothing is selected. Choose each claim you want in this packet; Nimanto does not choose
+            evidence on your behalf.
+          </p>
+        )}
         {unselectedOptions.length > 0 && (
           <div className="packet-evidence-pool">
             <span>Available confirmed evidence</span>

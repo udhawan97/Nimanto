@@ -8,6 +8,7 @@ import {
   governmentEvidenceLanguageContractChecksum,
   governmentEvidenceLanguageReviewChecksum,
   governmentDatasetProvenanceChecksum,
+  roleSnapshotHash,
   type GovernmentDatasetProvenance,
   type GovernmentEvidenceLanguageReview,
 } from "@nimanto/domain";
@@ -30,6 +31,7 @@ async function setup(options?: {
     settings: { recursive?: boolean; force?: boolean },
   ) => Promise<void>;
   assuranceModel?: string;
+  externalActionsEnabled?: boolean;
   urlAllowlist?: string[];
   urlTermsReviewedAt?: string;
   governmentDatasetTrust?: GovernmentDatasetTrust;
@@ -83,6 +85,7 @@ async function setup(options?: {
     outboxDirectory: path.join(root, "outbox"),
     webOrigin: "http://127.0.0.1:4300",
     demoMode: true,
+    externalActionsEnabled: options?.externalActionsEnabled ?? true,
     bootstrapSecret,
     urlAllowlist: options?.urlAllowlist ?? [],
     port: 4310,
@@ -172,7 +175,7 @@ describe("Nimanto beta API", () => {
   });
 
   it("reports one release version through health, metadata, and OpenAPI", async () => {
-    const { app } = await setup();
+    const { app, cookie } = await setup();
     expect((await app.inject({ method: "GET", url: "/health" })).json().version).toBe(
       NIMANTO_VERSION,
     );
@@ -186,6 +189,79 @@ describe("Nimanto beta API", () => {
       reviewedUrlIntake: false,
       reviewedUrlTermsAt: null,
       reviewedUrlHosts: [],
+    });
+    const dashboard = (
+      await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } })
+    ).json();
+    for (const job of dashboard.jobs) {
+      expect(job.contentHash).toBe(roleSnapshotHash(job));
+    }
+  });
+
+  it("keeps tenant external-action consent below the operator ceiling", async () => {
+    const { app, cookie } = await setup({ externalActionsEnabled: false });
+    const optedIn = await app.inject({
+      method: "PUT",
+      url: "/v1/actions/runtime",
+      headers: { cookie },
+      payload: { enabled: true },
+    });
+    expect(optedIn.statusCode).toBe(200);
+    expect(optedIn.json()).toEqual({
+      operatorEnabled: false,
+      tenantReady: true,
+      externalActionsEnabled: false,
+    });
+    const dashboard = await app.inject({
+      method: "GET",
+      url: "/v1/dashboard",
+      headers: { cookie },
+    });
+    expect(dashboard.json().runtime).toEqual({
+      operatorEnabled: false,
+      tenantReady: true,
+      externalActionsEnabled: false,
+    });
+    const optedOut = await app.inject({
+      method: "PUT",
+      url: "/v1/actions/runtime",
+      headers: { cookie },
+      payload: { enabled: false },
+    });
+    expect(optedOut.json()).toEqual({
+      operatorEnabled: false,
+      tenantReady: false,
+      externalActionsEnabled: false,
+    });
+    expect(
+      (await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } })).json()
+        .runtime,
+    ).toEqual({
+      operatorEnabled: false,
+      tenantReady: false,
+      externalActionsEnabled: false,
+    });
+  });
+
+  it("projects readiness only after the tenant enables it for this server process", async () => {
+    const { app, cookie } = await setup({ externalActionsEnabled: true });
+    const before = await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } });
+    expect(before.json().runtime).toEqual({
+      operatorEnabled: true,
+      tenantReady: false,
+      externalActionsEnabled: false,
+    });
+    await app.inject({
+      method: "PUT",
+      url: "/v1/actions/runtime",
+      headers: { cookie },
+      payload: { enabled: true },
+    });
+    const after = await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } });
+    expect(after.json().runtime).toEqual({
+      operatorEnabled: true,
+      tenantReady: true,
+      externalActionsEnabled: true,
     });
   });
 
@@ -242,6 +318,50 @@ describe("Nimanto beta API", () => {
         transientBodyDeleted: true,
       },
     });
+    const published = await app.inject({
+      method: "POST",
+      url: `/v1/jobs/${imported.json().id}/match`,
+      headers: { cookie },
+    });
+    expect(published.statusCode).toBe(200);
+    const unchanged = await app.inject({
+      method: "POST",
+      url: "/v1/jobs/url-import",
+      headers: { cookie },
+      payload: {
+        url: "https://jobs.example.test/openings/platform",
+        title: " Platform Engineer ",
+        company: " Example Labs ",
+        location: " Remote ",
+        workMode: "remote",
+        requirements: [" TypeScript ", "Accessible interfaces"],
+      },
+    });
+    expect(unchanged.json().contentHash).toBe(imported.json().contentHash);
+    expect(
+      (await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } }))
+        .json()
+        .matches.some((match: { jobId: string }) => match.jobId === imported.json().id),
+    ).toBe(true);
+    const materiallyChanged = await app.inject({
+      method: "POST",
+      url: "/v1/jobs/url-import",
+      headers: { cookie },
+      payload: {
+        url: "https://jobs.example.test/openings/platform",
+        title: "Platform Engineer",
+        company: "Example Labs",
+        location: "Chicago",
+        workMode: "hybrid",
+        requirements: ["TypeScript", "Accessible interfaces"],
+      },
+    });
+    expect(materiallyChanged.json().contentHash).not.toBe(imported.json().contentHash);
+    expect(
+      (await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } }))
+        .json()
+        .matches.some((match: { jobId: string }) => match.jobId === imported.json().id),
+    ).toBe(false);
 
     const refused = await app.inject({
       method: "POST",
@@ -1093,7 +1213,7 @@ describe("Nimanto beta API", () => {
           company: "direct-board",
           location: "Remote",
           requirements: ["TypeScript"],
-          contentHash: "direct-role-content-1",
+          contentHash: expect.stringMatching(/^[a-f0-9]{64}$/u),
           availability: {
             publicationState: "active",
             verificationHealth: "verified",
@@ -1120,6 +1240,58 @@ describe("Nimanto beta API", () => {
         sourceItemCount: 1,
       }),
     ]);
+  });
+
+  it("binds provider roles to normalized content instead of provider fingerprints", async () => {
+    let location = " Remote ";
+    let providerFingerprint = "provider-fingerprint-one";
+    const { app, cookie } = await setup({
+      providerJobsFetcher: async ({ provider, board }) => [
+        {
+          source: provider,
+          sourceJobId: "stable-provider-role",
+          title: " Platform Engineer ",
+          company: ` ${board} `,
+          description: "Build dependable TypeScript services.",
+          location,
+          workMode: "remote",
+          url: "https://example.test/jobs/stable-provider-role",
+          requirements: [" TypeScript "],
+          contentHash: providerFingerprint,
+          sourceMeta: { fixture: true },
+        },
+      ],
+    });
+    const importRole = () =>
+      app.inject({
+        method: "POST",
+        url: "/v1/jobs/import",
+        headers: { cookie },
+        payload: { provider: "greenhouse", board: "normalized-board" },
+      });
+    const first = await importRole();
+    expect(first.statusCode).toBe(200);
+    const job = first.json().jobs[0];
+    expect(job.contentHash).toBe(roleSnapshotHash(job));
+    await app.inject({ method: "POST", url: `/v1/jobs/${job.id}/match`, headers: { cookie } });
+
+    providerFingerprint = "provider-fingerprint-two";
+    const repeated = await importRole();
+    expect(repeated.json().jobs[0].contentHash).toBe(job.contentHash);
+    expect(
+      (await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } }))
+        .json()
+        .matches.some((match: { jobId: string }) => match.jobId === job.id),
+    ).toBe(true);
+
+    location = "Chicago";
+    const changed = await importRole();
+    expect(changed.json().jobs[0].contentHash).not.toBe(job.contentHash);
+    expect(
+      (await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } }))
+        .json()
+        .matches.some((match: { jobId: string }) => match.jobId === job.id),
+    ).toBe(false);
   });
 
   it("records a candidate-requested approved ATS recheck and keeps gated routes offline", async () => {
@@ -1418,7 +1590,7 @@ describe("Nimanto beta API", () => {
     const created = await app.inject({
       method: "POST",
       url: "/v1/jobs",
-      headers: { cookie },
+      headers: { cookie, "idempotency-key": "manual-role-create-001" },
       payload: {
         title: " Staff Engineer ",
         company: " Northwind ",
@@ -1436,7 +1608,91 @@ describe("Nimanto beta API", () => {
       location: "Chicago",
       workMode: "hybrid",
       requirements: ["TypeScript", "Evidence design"],
+      contentHash: expect.stringMatching(/^[a-f0-9]{64}$/u),
     });
+    const retried = await app.inject({
+      method: "POST",
+      url: "/v1/jobs",
+      headers: { cookie, "idempotency-key": "manual-role-create-001" },
+      payload: {
+        title: "This retry payload is ignored",
+        company: "Retry identity controls dedupe",
+        description: "The original operation result remains authoritative.",
+        requirements: [],
+      },
+    });
+    expect(retried.json()).toMatchObject({
+      id: created.json().id,
+      sourceJobId: created.json().sourceJobId,
+      title: "Staff Engineer",
+    });
+
+    const application = await app.inject({
+      method: "POST",
+      url: "/v1/applications",
+      headers: { cookie },
+      payload: { jobId: created.json().id },
+    });
+    expect(application.statusCode).toBe(200);
+    const edited = await app.inject({
+      method: "PUT",
+      url: `/v1/jobs/${created.json().id}`,
+      headers: { cookie },
+      payload: {
+        title: "Staff Engineer",
+        company: "Northwind",
+        description: "Build trustworthy systems.",
+        location: "Chicago Loop",
+        workMode: "hybrid",
+        requirements: ["TypeScript", "Evidence design"],
+      },
+    });
+    expect(edited.json()).toMatchObject({
+      id: created.json().id,
+      sourceJobId: created.json().sourceJobId,
+      location: "Chicago Loop",
+    });
+    expect(edited.json().contentHash).not.toBe(created.json().contentHash);
+    const afterEdit = (
+      await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } })
+    ).json();
+    expect(afterEdit.applications).toContainEqual(
+      expect.objectContaining({ id: application.json().id, jobId: created.json().id }),
+    );
+
+    const unkeyedDuplicate = await app.inject({
+      method: "POST",
+      url: "/v1/jobs",
+      headers: { cookie },
+      payload: {
+        title: "Staff Engineer",
+        company: "Northwind",
+        description: "Build trustworthy systems.",
+        location: "Chicago Loop",
+        workMode: "hybrid",
+        requirements: ["TypeScript", "Evidence design"],
+      },
+    });
+    expect(unkeyedDuplicate.json().id).not.toBe(created.json().id);
+    expect(unkeyedDuplicate.json().sourceJobId).not.toBe(created.json().sourceJobId);
+
+    const similar = await app.inject({
+      method: "POST",
+      url: "/v1/jobs",
+      headers: { cookie },
+      payload: {
+        title: "Staff Engineer",
+        company: "Northwind",
+        description: "Build trustworthy systems.",
+        location: "New York",
+        workMode: "onsite",
+        requirements: ["TypeScript", "Evidence design"],
+      },
+    });
+    expect(similar.statusCode).toBe(200);
+    expect(similar.json().id).not.toBe(created.json().id);
+    expect(similar.json().sourceJobId).not.toBe(created.json().sourceJobId);
+    expect(similar.json().contentHash).not.toBe(created.json().contentHash);
   });
 
   it("keeps government imports disabled without exact provenance and language review", async () => {
@@ -2117,7 +2373,7 @@ describe("Nimanto beta API", () => {
         displayName: "Invitee",
       },
     });
-    expect(reused.statusCode).toBe(409);
+    expect(reused.statusCode).toBe(401);
   });
 
   it("fails packet approval and download closed after artifact tampering", async () => {

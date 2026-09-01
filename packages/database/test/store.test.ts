@@ -1,14 +1,16 @@
 import { chmod, mkdir, mkdtemp, readdir, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { PGlite } from "@electric-sql/pglite";
 import {
   buildEmployerCandidates,
   canonicalHash,
   createReceipt,
   matchJob,
+  normalizeRoleSnapshot,
   resolveEmployer,
+  roleSnapshotHash,
 } from "@nimanto/domain";
 import { CURRENT_SCHEMA_VERSION } from "../src/migrations.js";
 import { NimantoStore } from "../src/store.js";
@@ -110,7 +112,7 @@ INSERT INTO jobs(
   id, tenant_id, source, source_job_id, title, company, description,
   requirements, content_hash
 ) VALUES (
-  'legacy-job', 'legacy-tenant', 'manual', 'legacy-job', 'Upgrade Engineer',
+  'legacy-job', 'legacy-tenant', 'manual', '0123456789abcdef01234567', 'Upgrade Engineer',
   'Northwind', 'Preserve local data', '[]'::jsonb, 'legacy-content'
 );
 INSERT INTO applications(id, tenant_id, job_id, status)
@@ -149,6 +151,7 @@ async function expectPrivateTree(directory: string): Promise<void> {
 }
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   await Promise.all(stores.splice(0).map((store) => store.close()));
 });
 
@@ -161,6 +164,38 @@ describe("tenant-scoped persistence public seam", () => {
     const store = await NimantoStore.open(data);
     stores.push(store);
     await expectPrivateTree(data);
+  });
+
+  it("round-trips the complete normalized role snapshot hash", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nimanto-store-role-snapshot-"));
+    const store = await NimantoStore.open(join(root, "data"));
+    stores.push(store);
+    const identity = await store.createLocalTenant("role-snapshot@example.test", "Snapshot");
+    const normalized = normalizeRoleSnapshot({
+      source: "greenhouse",
+      sourceRoleId: "round-trip-role",
+      title: "Platform Engineer",
+      company: "Northwind",
+      description: "Build dependable services.",
+      location: "Chicago",
+      workMode: "hybrid",
+      url: "https://example.test/jobs/round-trip-role",
+      requirements: ["TypeScript"],
+      workplaceEvidence: [],
+      observedAt: "2026-08-31T12:00:00.000Z",
+      sourcePostedAt: "2026-08-20T12:00:00.000Z",
+      sourceUpdatedAt: "2026-08-25T12:00:00.000Z",
+      validThrough: "2026-09-30T12:00:00.000Z",
+      sourceMeta: { board: "northwind" },
+    });
+    const saved = await store.upsertJob(identity.tenantId, normalized);
+    expect(saved.contentHash).toBe(normalized.contentHash);
+    expect(roleSnapshotHash(saved)).toBe(normalized.contentHash);
+    expect(saved.availability).toMatchObject({
+      sourcePostedAt: "2026-08-20T12:00:00.000Z",
+      sourceUpdatedAt: "2026-08-25T12:00:00.000Z",
+      validThrough: "2026-09-30T12:00:00.000Z",
+    });
   });
 
   it("never returns another tenant's evidence even when a foreign ID is supplied", async () => {
@@ -297,9 +332,14 @@ describe("tenant-scoped persistence public seam", () => {
       "Invited Candidate",
     );
     expect(identity).toMatchObject({ email: "invited@example.test" });
+    expect(await store.invitationRetention(invite.id)).toEqual({
+      accepted: true,
+      retainsTokenHash: false,
+      retainsIntendedEmail: false,
+    });
     await expect(
       store.acceptInvitation(invite.token, "invited@example.test", "Again"),
-    ).rejects.toThrow("INVITATION_USED");
+    ).rejects.toThrow("INVITATION_INVALID");
 
     const expired = await store.issueInvitation("expired@example.test", -1);
     await expect(
@@ -311,6 +351,18 @@ describe("tenant-scoped persistence public seam", () => {
     await expect(
       store.acceptInvitation(revoked.token, "revoked@example.test", "Revoked"),
     ).rejects.toThrow("INVITATION_REVOKED");
+
+    const live = await store.issueInvitation("live@example.test", 24 * 90);
+    const future = new Date(Date.now() + 31 * 24 * 60 * 60 * 1000);
+    await expect(store.pruneTerminalInvitations(future)).resolves.toBe(3);
+    await expect(store.invitationRetention(invite.id)).resolves.toBeNull();
+    await expect(store.invitationRetention(expired.id)).resolves.toBeNull();
+    await expect(store.invitationRetention(revoked.id)).resolves.toBeNull();
+    await expect(store.invitationRetention(live.id)).resolves.toEqual({
+      accepted: false,
+      retainsTokenHash: true,
+      retainsIntendedEmail: true,
+    });
   });
 
   it("revokes tenant access as soon as resumable deletion begins", async () => {
@@ -324,6 +376,29 @@ describe("tenant-scoped persistence public seam", () => {
 
     await store.beginTenantDeletion(identity.tenantId, []);
     expect(await store.resolveSession(session.token)).toBeNull();
+  });
+
+  it("discovers crash-left running deletion work after its candidate token expires", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nimanto-store-expired-deletion-recovery-"));
+    const data = join(root, "data");
+    const initial = await NimantoStore.open(data);
+    const identity = await initial.createLocalTenant("expired-delete@example.test", "Delete");
+    const run = await initial.beginTenantDeletion(identity.tenantId);
+    await initial.close();
+
+    const raw = await PGlite.create(data);
+    await raw.query(
+      "UPDATE deletion_runs SET expires_at = now() - interval '1 day' WHERE id = $1",
+      [run.id],
+    );
+    await raw.close();
+
+    const reopened = await NimantoStore.open(data);
+    stores.push(reopened);
+    await expect(reopened.deletionRunByToken(run.token)).resolves.toBeNull();
+    await expect(reopened.recoverableDeletionRuns()).resolves.toEqual([
+      expect.objectContaining({ id: run.id, tenantId: identity.tenantId, state: "running" }),
+    ]);
   });
 
   it("captures cleanup inventory atomically and fences every later tenant write", async () => {
@@ -405,7 +480,7 @@ describe("beta workflow persistence", () => {
     );
     await firstInspection.close();
     expect(firstLedger.rows.map((row) => row.version)).toEqual([
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
     ]);
     expect(firstLedger.rows.at(-1)?.version).toBe(CURRENT_SCHEMA_VERSION);
 
@@ -438,18 +513,39 @@ describe("beta workflow persistence", () => {
       approvedIntentHash: null,
       approvedPacketHash: null,
     });
-    expect(await upgraded.listJobs("legacy-tenant")).toEqual([
-      expect.objectContaining({ id: "legacy-job", title: "Upgrade Engineer" }),
+    const [legacyJob] = await upgraded.listJobs("legacy-tenant");
+    expect([legacyJob]).toEqual([
+      expect.objectContaining({
+        id: "legacy-job",
+        sourceJobId: "0123456789abcdef01234567",
+        title: "Upgrade Engineer",
+        identityReview: {
+          required: true,
+          reason: "legacy_partial_derived_identity",
+        },
+      }),
     ]);
+    expect((await upgraded.listApplications("legacy-tenant"))[0]?.jobId).toBe("legacy-job");
+    const reviewed = await upgraded.replaceManualJob("legacy-tenant", "legacy-job", {
+      ...legacyJob!,
+      description: "Candidate-reviewed local data",
+      contentHash: "candidate-reviewed-content",
+    });
+    expect(reviewed).toMatchObject({
+      id: "legacy-job",
+      sourceJobId: "0123456789abcdef01234567",
+      identityReview: { required: false, reason: null },
+    });
+    expect((await upgraded.listApplications("legacy-tenant"))[0]?.jobId).toBe("legacy-job");
     await upgraded.close();
 
     const migrated = await PGlite.create(data);
     const schemaVersions = await migrated.query<{ version: number }>(
       "SELECT version FROM schema_versions ORDER BY version",
     );
-    expect(schemaVersions.rows.map((row) => row.version)).toEqual([
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
-    ]);
+    expect(schemaVersions.rows.map((row) => row.version)).toEqual(
+      Array.from({ length: CURRENT_SCHEMA_VERSION }, (_, index) => index + 1),
+    );
     expect(schemaVersions.rows.at(-1)?.version).toBe(CURRENT_SCHEMA_VERSION);
     const packetSequences = await migrated.query<{ generation_sequence: string | number }>(
       "SELECT generation_sequence FROM packets WHERE id = 'legacy-packet'",
@@ -472,6 +568,23 @@ describe("beta workflow persistence", () => {
         source: "migration",
       },
     ]);
+    const migrationChronology = await migrated.query<{
+      occurred_at: string | Date;
+      recorded_at: string | Date;
+      application_created_at: string | Date;
+    }>(
+      `SELECT event.occurred_at, event.created_at AS recorded_at,
+         application.created_at AS application_created_at
+       FROM application_status_events AS event
+       JOIN applications AS application ON application.id = event.application_id
+       WHERE event.application_id = 'legacy-application'`,
+    );
+    expect(new Date(migrationChronology.rows[0]!.occurred_at).toISOString()).toBe(
+      new Date(migrationChronology.rows[0]!.recorded_at).toISOString(),
+    );
+    expect(new Date(migrationChronology.rows[0]!.occurred_at).toISOString()).not.toBe(
+      new Date(migrationChronology.rows[0]!.application_created_at).toISOString(),
+    );
     await migrated.close();
 
     const reopened = await NimantoStore.open(data);
@@ -562,7 +675,7 @@ describe("beta workflow persistence", () => {
         version integer PRIMARY KEY,
         applied_at timestamptz NOT NULL DEFAULT now()
       );
-      INSERT INTO schema_versions(version) VALUES (15);
+      INSERT INTO schema_versions(version) VALUES (${CURRENT_SCHEMA_VERSION + 1});
     `);
     await future.close();
     await expect(NimantoStore.open(data)).rejects.toThrow("DATABASE_SCHEMA_NEWER_THAN_RUNTIME");
@@ -875,6 +988,191 @@ describe("beta workflow persistence", () => {
     expect(exported.assuranceRuns).toHaveLength(2);
     expect(JSON.stringify(exported)).not.toContain("Private beta wording");
     expect(JSON.stringify(exported)).not.toContain("runSequence");
+  });
+
+  it("exports one coherent tenant snapshot while a writer waits", async () => {
+    const store = await NimantoStore.open("memory://coherent-export");
+    stores.push(store);
+    const owner = await store.createLocalTenant("export-snapshot@example.test", "Exporter");
+    const role = async (sourceJobId: string) =>
+      store.upsertJob(owner.tenantId, {
+        source: "manual",
+        sourceJobId,
+        title: sourceJobId,
+        company: "Synthetic Company",
+        description: "Synthetic role",
+        location: "Remote",
+        workMode: "remote",
+        url: "",
+        requirements: [],
+        capability: "deep_link",
+        sourceMeta: {},
+        contentHash: sourceJobId,
+      });
+    const first = await role("snapshot-first");
+    const second = await role("snapshot-second");
+    const initialProfile = await store.createProfileVersion(owner.tenantId, "initial wording");
+    await store.saveMatch(
+      owner.tenantId,
+      first.id,
+      initialProfile.id,
+      matchJob({ job: first, evidence: [] }),
+    );
+    await store.createApplication(owner.tenantId, first.id, initialProfile.id);
+
+    let releaseRead!: () => void;
+    const paused = new Promise<void>((resolve) => {
+      releaseRead = resolve;
+    });
+    let reportRead!: () => void;
+    const reached = new Promise<void>((resolve) => {
+      reportRead = resolve;
+    });
+    const listApplications = NimantoStore.prototype.listApplications;
+    vi.spyOn(NimantoStore.prototype, "listApplications").mockImplementation(async function (
+      this: NimantoStore,
+      tenantId,
+    ) {
+      const applications = await listApplications.call(this, tenantId);
+      reportRead();
+      await paused;
+      return applications;
+    });
+
+    const exportPromise = store.exportTenant(owner.tenantId);
+    await reached;
+    let writeSettled = false;
+    const write = (async () => {
+      const profile = await store.createProfileVersion(owner.tenantId, "concurrent wording");
+      await store.saveMatch(
+        owner.tenantId,
+        second.id,
+        profile.id,
+        matchJob({ job: second, evidence: [] }),
+      );
+      const application = await store.createApplication(owner.tenantId, second.id, profile.id);
+      await store.createPacket(owner.tenantId, {
+        applicationId: application.id,
+        profileVersionId: profile.id,
+        canonicalContent: {
+          schemaVersion: "packet_v2",
+          composition: { profileVersionId: profile.id },
+        },
+        artifactManifest: {},
+      });
+      await store.setApplicationStatus(owner.tenantId, application.id, "prepared");
+      await store.setApplicationStatus(owner.tenantId, application.id, "approved_for_export");
+      await store.transitionCandidateApplicationStatus(
+        owner.tenantId,
+        application.id,
+        "submitted_externally",
+        true,
+        {
+          materialsCaptured: false,
+          packetId: null,
+          artifactFormats: [],
+          channel: "other",
+          destination: "Candidate-recorded synthetic destination",
+          submittedAt: "2026-08-31T20:00:00.000Z",
+        },
+      );
+    })().finally(() => {
+      writeSettled = true;
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(writeSettled).toBe(false);
+
+    releaseRead();
+    const [exported] = await Promise.all([exportPromise, write]);
+    expect(exported.applications).toHaveLength(1);
+    expect(exported.profileVersions).toHaveLength(1);
+    expect(exported.matchRuns).toHaveLength(1);
+    expect(exported.packets).toEqual([]);
+    expect(exported.applicationSubmissions).toEqual([]);
+    expect(await store.listApplications(owner.tenantId)).toHaveLength(2);
+    expect(await store.listApplicationSubmissions(owner.tenantId)).toHaveLength(1);
+  });
+
+  it("paginates profile and Match history without duplicates across one export snapshot", async () => {
+    const store = await NimantoStore.open("memory://coherent-export-pagination");
+    stores.push(store);
+    const owner = await store.createLocalTenant("export-pages@example.test", "Export Pages");
+    const job = await store.upsertJob(owner.tenantId, {
+      source: "manual",
+      sourceJobId: "export-pages-role",
+      title: "Export Engineer",
+      company: "Synthetic Company",
+      description: "Exercise paginated history",
+      location: "Remote",
+      workMode: "remote",
+      url: "",
+      requirements: [],
+      capability: "deep_link",
+      sourceMeta: {},
+      contentHash: "export-pages-role-v1",
+    });
+    const matchResult = matchJob({ job, evidence: [] });
+    for (let index = 0; index < 51; index += 1) {
+      const profile = await store.createProfileVersion(owner.tenantId, `wording ${index}`);
+      await store.saveMatch(owner.tenantId, job.id, profile.id, matchResult);
+    }
+
+    let releaseSecondPage!: () => void;
+    const secondPagePaused = new Promise<void>((resolve) => {
+      releaseSecondPage = resolve;
+    });
+    let reportSecondPage!: () => void;
+    const reachedSecondPage = new Promise<void>((resolve) => {
+      reportSecondPage = resolve;
+    });
+    const listProfileVersions = NimantoStore.prototype.listProfileVersions;
+    let profilePageCalls = 0;
+    vi.spyOn(NimantoStore.prototype, "listProfileVersions").mockImplementation(async function (
+      this: NimantoStore,
+      tenantId,
+      options,
+    ) {
+      const page = await listProfileVersions.call(this, tenantId, options);
+      profilePageCalls += 1;
+      if (profilePageCalls === 2) {
+        reportSecondPage();
+        await secondPagePaused;
+      }
+      return page;
+    });
+
+    const exportPromise = store.exportTenant(owner.tenantId);
+    await reachedSecondPage;
+    let writerSettled = false;
+    const writer = (async () => {
+      const profile = await store.createProfileVersion(owner.tenantId, "concurrent page");
+      await store.saveMatch(owner.tenantId, job.id, profile.id, matchResult);
+    })().finally(() => {
+      writerSettled = true;
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(writerSettled).toBe(false);
+    releaseSecondPage();
+
+    const [exported] = await Promise.all([exportPromise, writer]);
+    const profileIds = (exported.profileVersions as Array<{ id: string }>).map(({ id }) => id);
+    const matchIds = (exported.matchRuns as Array<{ id: string }>).map(({ id }) => id);
+    expect(profileIds).toHaveLength(51);
+    expect(new Set(profileIds).size).toBe(51);
+    expect(matchIds).toHaveLength(51);
+    expect(new Set(matchIds).size).toBe(51);
+    const liveProfilesFirst = await store.listProfileVersions(owner.tenantId, { limit: 50 });
+    const liveProfilesSecond = await store.listProfileVersions(owner.tenantId, {
+      limit: 50,
+      cursor: liveProfilesFirst.nextCursor!,
+    });
+    expect([...liveProfilesFirst.items, ...liveProfilesSecond.items]).toHaveLength(52);
+    const liveMatchesFirst = await store.listMatchRuns(owner.tenantId, { limit: 50 });
+    const liveMatchesSecond = await store.listMatchRuns(owner.tenantId, {
+      limit: 50,
+      cursor: liveMatchesFirst.nextCursor!,
+    });
+    expect([...liveMatchesFirst.items, ...liveMatchesSecond.items]).toHaveLength(52);
   });
 
   it("backfills assurance order when reopening a pre-sequence workspace", async () => {
@@ -1381,6 +1679,7 @@ describe("beta workflow persistence", () => {
       description: "Updated posting. No sponsorship of any kind is available for this role.",
       contentHash: "wording-v2",
     });
+    expect(await store.listLatestMatches(owner.tenantId)).toEqual([]);
     await expect(
       store.setRoleWordingReviewed(
         owner.tenantId,
@@ -2538,8 +2837,8 @@ describe("beta workflow persistence", () => {
     });
     const revised = await store.saveAnswerBlock(owner.tenantId, {
       id: answer.id,
-      topic: "accomplishment",
-      prompt: answer.prompt,
+      topic: "leadership",
+      prompt: "Tell me how you led a measurable improvement.",
       answerText: "I reduced incident response time by 30% through a reviewed runbook.",
       evidenceIds: [evidence.id],
     });
@@ -2574,7 +2873,18 @@ describe("beta workflow persistence", () => {
     );
 
     expect(revised).toMatchObject({ currentRevision: 2, latest: { revision: 2 } });
-    expect((await store.listAnswerBlocks(owner.tenantId, true))[0]?.revisions).toHaveLength(2);
+    expect((await store.listAnswerBlocks(owner.tenantId, true))[0]?.revisions).toEqual([
+      expect.objectContaining({
+        revision: 2,
+        topic: "leadership",
+        prompt: "Tell me how you led a measurable improvement.",
+      }),
+      expect.objectContaining({
+        revision: 1,
+        topic: "accomplishment",
+        prompt: "Tell me about a measurable result.",
+      }),
+    ]);
     expect(await store.readCareerOperations(owner.tenantId)).toMatchObject({
       activities: [expect.objectContaining({ state: "completed", contactId: contact.id })],
       contacts: [

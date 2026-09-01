@@ -12,6 +12,7 @@ type DossierSubmission = {
 type DossierApplication = {
   id: string;
   jobId: string;
+  profileVersionId: string | null;
   outcomes?: unknown[];
   notes?: unknown[];
   statusEvents?: unknown[];
@@ -24,15 +25,20 @@ type ActionLike = { packetId: string | null };
 type ContactLike = { applicationLinks: Array<{ applicationId: string }> };
 
 export function projectApplicationDossier<
-  TJob,
-  TMatch,
+  TJob extends { id: string; contentHash: string },
+  TMatch extends {
+    id: string;
+    jobId: string;
+    profileVersionId: string | null;
+    jobContentHash: string;
+  },
   TPacket extends PacketLike,
   TAction extends ActionLike,
   TReceipt extends { material?: unknown },
 >(input: {
   application: DossierApplication;
-  jobs: Array<TJob & { id: string }>;
-  matches: Array<TMatch & { jobId: string }>;
+  jobs: TJob[];
+  matches: TMatch[];
   packets: TPacket[];
   actionPackets: TPacket[];
   actions: TAction[];
@@ -45,6 +51,16 @@ export function projectApplicationDossier<
   };
 }) {
   const applicationId = input.application.id;
+  const job = input.jobs.find((candidate) => candidate.id === input.application.jobId) ?? null;
+  const roleMatches = input.matches.filter((match) => match.jobId === input.application.jobId);
+  const match =
+    job === null || input.application.profileVersionId === null
+      ? null
+      : (roleMatches.find(
+          (candidate) =>
+            candidate.profileVersionId === input.application.profileVersionId &&
+            candidate.jobContentHash === job.contentHash,
+        ) ?? null);
   const packetMap = new Map(
     [...input.packets, ...input.actionPackets]
       .filter((packet) => packet.applicationId === applicationId)
@@ -53,8 +69,9 @@ export function projectApplicationDossier<
   const packetIds = new Set(packetMap.keys());
   return {
     application: input.application,
-    job: input.jobs.find((job) => job.id === input.application.jobId) ?? null,
-    match: input.matches.find((match) => match.jobId === input.application.jobId) ?? null,
+    job,
+    match,
+    matchHistory: roleMatches.filter((candidate) => candidate.id !== match?.id),
     packets: [...packetMap.values()],
     actions: input.actions.filter((action) => action.packetId && packetIds.has(action.packetId)),
     receipts: input.receipts.filter((receipt) => {

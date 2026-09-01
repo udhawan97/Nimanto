@@ -1,8 +1,9 @@
-import { access, mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { NimantoStore } from "@nimanto/database";
+import { matchJob } from "@nimanto/domain";
 import type { ActionResult } from "@nimanto/providers";
 import { DeletionCoordinator } from "../src/deletion-coordinator.js";
 import { ExternalActionLifecycle } from "../src/external-action-lifecycle.js";
@@ -35,11 +36,38 @@ async function approvedActionFixture(label: string) {
     sourceMeta: {},
     contentHash: `${label}-job-content`,
   });
-  const application = await store.createApplication(identity.tenantId, job.id, null);
+  const profile = await store.createProfileVersion(identity.tenantId, "");
+  const match = await store.saveMatch(
+    identity.tenantId,
+    job.id,
+    profile.id,
+    matchJob({
+      job: {
+        id: job.id,
+        title: job.title,
+        company: job.company,
+        description: job.description,
+        requirements: job.requirements,
+      },
+      evidence: [],
+    }),
+  );
+  const application = await store.createApplication(identity.tenantId, job.id, profile.id);
   const packet = await store.createPacket(identity.tenantId, {
     applicationId: application.id,
-    profileVersionId: null,
-    canonicalContent: { claims: [] },
+    profileVersionId: profile.id,
+    canonicalContent: {
+      schemaVersion: "packet_v2",
+      composition: {
+        profileVersionId: profile.id,
+        matchRunId: match.id,
+        matchInputHash: match.inputHash,
+        matchArtifactHash: match.artifactHash,
+        jobContentHash: job.contentHash,
+        evidenceIds: [],
+      },
+      claims: [],
+    },
     artifactManifest: {},
   });
   const assurance = await store.saveAssurance(identity.tenantId, packet.id, {
@@ -66,6 +94,82 @@ async function approvedActionFixture(label: string) {
 }
 
 describe("external action lifecycle", () => {
+  it("keeps readiness tenant-scoped in memory and resets it for a new lifecycle", async () => {
+    const { store, identity, action, artifactDirectory, outboxDirectory } =
+      await approvedActionFixture("tenant-runtime");
+    const other = await store.createLocalTenant("other-runtime@example.test", "Other Runtime");
+    const lifecycle = new ExternalActionLifecycle(store, outboxDirectory, undefined, true);
+
+    expect(lifecycle.capability(identity.tenantId)).toMatchObject({
+      tenantReady: false,
+      externalActionsEnabled: false,
+    });
+    lifecycle.setTenantOptIn(other.tenantId, true);
+    expect(lifecycle.capability(other.tenantId).externalActionsEnabled).toBe(true);
+    expect(lifecycle.capability(identity.tenantId).externalActionsEnabled).toBe(false);
+    await expect(lifecycle.execute(other.tenantId, action.id)).rejects.toThrow("ACTION_NOT_FOUND");
+
+    lifecycle.setTenantOptIn(identity.tenantId, true);
+    const restarted = new ExternalActionLifecycle(store, outboxDirectory, undefined, true);
+    expect(restarted.capability(identity.tenantId).externalActionsEnabled).toBe(false);
+    expect(restarted.capability(other.tenantId).externalActionsEnabled).toBe(false);
+
+    const coordinator = new DeletionCoordinator(
+      store,
+      artifactDirectory,
+      outboxDirectory,
+      undefined,
+      (tenantId) => lifecycle.clearTenantReadiness(tenantId),
+    );
+    await expect(coordinator.start(identity.tenantId)).resolves.toMatchObject({ pending: false });
+    expect(lifecycle.capability(identity.tenantId).externalActionsEnabled).toBe(false);
+    expect(lifecycle.capability(other.tenantId).externalActionsEnabled).toBe(true);
+  });
+
+  it("recovers pending deletion cleanup through the internal operator path", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nimanto-deletion-recovery-"));
+    const store = await NimantoStore.open(join(root, "data"));
+    stores.push(store);
+    const identity = await store.createLocalTenant("cleanup@example.test", "Cleanup");
+    let failOnce = true;
+    const coordinator = new DeletionCoordinator(
+      store,
+      join(root, "artifacts"),
+      join(root, "outbox"),
+      async (target, options) => {
+        if (failOnce) {
+          failOnce = false;
+          throw new Error("synthetic cleanup failure");
+        }
+        await rm(target, options);
+      },
+    );
+    const started = await coordinator.start(identity.tenantId);
+    expect(started.pending).toBe(true);
+
+    await expect(coordinator.recoverPending()).resolves.toEqual({ recovered: 1, pending: 0 });
+    await expect(store.deletionStatus(started.run.token)).resolves.toMatchObject({
+      state: "completed",
+    });
+  });
+
+  it("recovers a crash-left running deletion without a candidate bearer", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nimanto-running-deletion-recovery-"));
+    const store = await NimantoStore.open(join(root, "data"));
+    stores.push(store);
+    const identity = await store.createLocalTenant("running-cleanup@example.test", "Cleanup");
+    const run = await store.beginTenantDeletion(identity.tenantId);
+    expect(run.state).toBe("running");
+
+    const coordinator = new DeletionCoordinator(
+      store,
+      join(root, "artifacts"),
+      join(root, "outbox"),
+    );
+    await expect(coordinator.recoverPending()).resolves.toEqual({ recovered: 1, pending: 0 });
+    await expect(store.deletionStatus(run.token)).resolves.toMatchObject({ state: "completed" });
+  });
+
   it("rejects an approved packet after a newer packet replaces it", async () => {
     const { store, identity, application, packet, outboxDirectory } =
       await approvedActionFixture("retired-packet");
@@ -135,7 +239,7 @@ describe("external action lifecycle", () => {
         subject: "Tied timestamp",
         body: "The older packet must stay historical.",
       }),
-    ).rejects.toThrow("LATEST_APPROVED_PACKET_REQUIRED");
+    ).rejects.toThrow("ACTION_APPROVAL_STALE");
   });
 
   it("rejects approval when a newer packet replaces the action packet", async () => {
@@ -176,11 +280,16 @@ describe("external action lifecycle", () => {
       artifactManifest: {},
     });
     let providerCalls = 0;
-    const lifecycle = new ExternalActionLifecycle(store, outboxDirectory, async () => {
-      providerCalls += 1;
-      throw new Error("PROVIDER_MUST_NOT_RUN");
-    });
-    lifecycle.setRuntime(true);
+    const lifecycle = new ExternalActionLifecycle(
+      store,
+      outboxDirectory,
+      async () => {
+        providerCalls += 1;
+        throw new Error("PROVIDER_MUST_NOT_RUN");
+      },
+      true,
+    );
+    await lifecycle.setTenantOptIn(identity.tenantId, true);
 
     await expect(lifecycle.execute(identity.tenantId, action.id)).rejects.toThrow(
       "ACTION_APPROVAL_STALE",
@@ -197,10 +306,15 @@ describe("external action lifecycle", () => {
       "packet-execution-interleave",
     );
     let providerCalls = 0;
-    const lifecycle = new ExternalActionLifecycle(store, outboxDirectory, async () => {
-      providerCalls += 1;
-      throw new Error("PROVIDER_MUST_NOT_RUN");
-    });
+    const lifecycle = new ExternalActionLifecycle(
+      store,
+      outboxDirectory,
+      async () => {
+        providerCalls += 1;
+        throw new Error("PROVIDER_MUST_NOT_RUN");
+      },
+      true,
+    );
     const originalTransaction = store.transaction.bind(store);
     let lifecycleTransactions = 0;
     store.transaction = async <T>(work: (database: NimantoStore) => Promise<T>): Promise<T> => {
@@ -218,7 +332,7 @@ describe("external action lifecycle", () => {
       }
       return result;
     };
-    lifecycle.setRuntime(true);
+    await lifecycle.setTenantOptIn(identity.tenantId, true);
 
     await expect(lifecycle.execute(identity.tenantId, action.id)).rejects.toThrow(
       "ACTION_APPROVAL_STALE",
@@ -251,8 +365,8 @@ describe("external action lifecycle", () => {
       await writeFile(providerReference, "synthetic outbox effect", { flag: "wx" });
       return { provider: "test_outbox", status: "sent", providerReference };
     };
-    const lifecycle = new ExternalActionLifecycle(store, outboxDirectory, executor);
-    lifecycle.setRuntime(true);
+    const lifecycle = new ExternalActionLifecycle(store, outboxDirectory, executor, true);
+    await lifecycle.setTenantOptIn(identity.tenantId, true);
     const executionPromise = lifecycle.execute(identity.tenantId, action.id);
     await effectStarted;
 

@@ -92,7 +92,7 @@ export default function Home() {
         {/* 00 — the invitation opens toward the literal product job. */}
         <section className="hero" aria-labelledby="hero-title">
           <div className="hero-copy">
-            <p className="placard">Source-distributed local beta · v0.9.0</p>
+            <p className="placard">Unreleased local build · v0.10.0-dev.0</p>
             <h1 id="hero-title">Nimanto</h1>
             <h2>Build the evidence. Work the application. Keep the truth yours.</h2>
             <p className="hero-line">

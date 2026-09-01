@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.6",
-  "serialNumber": "urn:uuid:fbca14a1-1fa2-4999-a683-8eca7c3d0ba7",
+  "serialNumber": "urn:uuid:621edb40-5b77-4c19-88ec-36ecaa203584",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-08-30T05:57:37Z",
+    "timestamp": "2026-09-01T01:18:51Z",
     "tools": {
       "components": [
         {
@@ -36,15 +36,15 @@
     "component": {
       "name": "nimanto",
       "group": "",
-      "version": "0.9.0",
+      "version": "0.10.0-dev.0",
       "description": "An evidence-first, candidate-controlled job search and application workbench for H-1B professionals.",
-      "purl": "pkg:npm/nimanto@0.9.0",
-      "bom-ref": "pkg:npm/nimanto@0.9.0",
+      "purl": "pkg:npm/nimanto@0.10.0-dev.0",
+      "bom-ref": "pkg:npm/nimanto@0.10.0-dev.0",
       "author": "Umang Dhawan",
       "properties": [
         {
           "name": "cdx:npm:scripts",
-          "value": "build, check, clean, dev, dev:all, dev:core, format:check, format, lint, licenses:check, release:check, sbom:check, sbom:release, screenshots:check, screenshots:render, start, start:all, test, test:scripts, test:e2e, typecheck, version:check"
+          "value": "build, check, clean, dev, dev:all, dev:core, format:check, format, lint, licenses:check, release:check, sbom:check, sbom:current, sbom:release, screenshots:check, screenshots:render, start, start:all, test, test:scripts, test:e2e, typecheck, version:check"
         },
         {
           "name": "cdx:npm:buildScripts",
@@ -60,10 +60,10 @@
         {
           "group": "@nimanto",
           "name": "api",
-          "version": "0.9.0",
-          "purl": "pkg:npm/%40nimanto/api@0.9.0",
+          "version": "0.10.0-dev.0",
+          "purl": "pkg:npm/%40nimanto/api@0.10.0-dev.0",
           "type": "application",
-          "bom-ref": "pkg:npm/@nimanto/api@0.9.0",
+          "bom-ref": "pkg:npm/@nimanto/api@0.10.0-dev.0",
           "properties": [
             {
               "name": "internal:is_workspace",
@@ -82,10 +82,10 @@
         {
           "group": "@nimanto",
           "name": "web",
-          "version": "0.9.0",
-          "purl": "pkg:npm/%40nimanto/web@0.9.0",
+          "version": "0.10.0-dev.0",
+          "purl": "pkg:npm/%40nimanto/web@0.10.0-dev.0",
           "type": "application",
-          "bom-ref": "pkg:npm/@nimanto/web@0.9.0",
+          "bom-ref": "pkg:npm/@nimanto/web@0.10.0-dev.0",
           "properties": [
             {
               "name": "internal:is_workspace",
@@ -104,10 +104,10 @@
         {
           "group": "@nimanto",
           "name": "worker",
-          "version": "0.9.0",
-          "purl": "pkg:npm/%40nimanto/worker@0.9.0",
+          "version": "0.10.0-dev.0",
+          "purl": "pkg:npm/%40nimanto/worker@0.10.0-dev.0",
           "type": "application",
-          "bom-ref": "pkg:npm/@nimanto/worker@0.9.0",
+          "bom-ref": "pkg:npm/@nimanto/worker@0.10.0-dev.0",
           "properties": [
             {
               "name": "internal:is_workspace",
@@ -126,10 +126,10 @@
         {
           "group": "@nimanto",
           "name": "database",
-          "version": "0.9.0",
-          "purl": "pkg:npm/%40nimanto/database@0.9.0",
+          "version": "0.10.0-dev.0",
+          "purl": "pkg:npm/%40nimanto/database@0.10.0-dev.0",
           "type": "application",
-          "bom-ref": "pkg:npm/@nimanto/database@0.9.0",
+          "bom-ref": "pkg:npm/@nimanto/database@0.10.0-dev.0",
           "properties": [
             {
               "name": "internal:is_workspace",
@@ -148,10 +148,10 @@
         {
           "group": "@nimanto",
           "name": "documents",
-          "version": "0.9.0",
-          "purl": "pkg:npm/%40nimanto/documents@0.9.0",
+          "version": "0.10.0-dev.0",
+          "purl": "pkg:npm/%40nimanto/documents@0.10.0-dev.0",
           "type": "application",
-          "bom-ref": "pkg:npm/@nimanto/documents@0.9.0",
+          "bom-ref": "pkg:npm/@nimanto/documents@0.10.0-dev.0",
           "properties": [
             {
               "name": "internal:is_workspace",
@@ -170,10 +170,10 @@
         {
           "group": "@nimanto",
           "name": "domain",
-          "version": "0.9.0",
-          "purl": "pkg:npm/%40nimanto/domain@0.9.0",
+          "version": "0.10.0-dev.0",
+          "purl": "pkg:npm/%40nimanto/domain@0.10.0-dev.0",
           "type": "application",
-          "bom-ref": "pkg:npm/@nimanto/domain@0.9.0",
+          "bom-ref": "pkg:npm/@nimanto/domain@0.10.0-dev.0",
           "properties": [
             {
               "name": "internal:is_workspace",
@@ -192,10 +192,10 @@
         {
           "group": "@nimanto",
           "name": "parsers",
-          "version": "0.9.0",
-          "purl": "pkg:npm/%40nimanto/parsers@0.9.0",
+          "version": "0.10.0-dev.0",
+          "purl": "pkg:npm/%40nimanto/parsers@0.10.0-dev.0",
           "type": "application",
-          "bom-ref": "pkg:npm/@nimanto/parsers@0.9.0",
+          "bom-ref": "pkg:npm/@nimanto/parsers@0.10.0-dev.0",
           "properties": [
             {
               "name": "internal:is_workspace",
@@ -214,10 +214,10 @@
         {
           "group": "@nimanto",
           "name": "providers",
-          "version": "0.9.0",
-          "purl": "pkg:npm/%40nimanto/providers@0.9.0",
+          "version": "0.10.0-dev.0",
+          "purl": "pkg:npm/%40nimanto/providers@0.10.0-dev.0",
           "type": "application",
-          "bom-ref": "pkg:npm/@nimanto/providers@0.9.0",
+          "bom-ref": "pkg:npm/@nimanto/providers@0.10.0-dev.0",
           "properties": [
             {
               "name": "internal:is_workspace",
@@ -3431,7 +3431,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-13T11:52:58.701Z"
+          "value": "2026-08-31T18:10:55.344Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -3471,7 +3471,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "77"
+          "value": "78"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -6889,7 +6889,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T09:01:13.154Z"
+          "value": "2026-08-31T15:30:42.252Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -6929,7 +6929,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "287"
+          "value": "291"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -7076,7 +7076,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T09:01:03.507Z"
+          "value": "2026-08-31T15:29:28.533Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -7116,7 +7116,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "252"
+          "value": "256"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -7263,7 +7263,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T09:00:33.094Z"
+          "value": "2026-08-31T15:27:03.979Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -7303,7 +7303,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "13"
+          "value": "17"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -7451,7 +7451,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T09:00:54.155Z"
+          "value": "2026-08-31T15:29:17.871Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -7491,7 +7491,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "218"
+          "value": "222"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -7638,7 +7638,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T09:00:53.902Z"
+          "value": "2026-08-31T15:29:16.644Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -7678,7 +7678,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "108"
+          "value": "112"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -7825,7 +7825,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T09:00:56.798Z"
+          "value": "2026-08-31T15:29:21.986Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -7865,7 +7865,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "185"
+          "value": "189"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -8012,7 +8012,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T09:00:57.449Z"
+          "value": "2026-08-31T15:28:19.704Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -8052,7 +8052,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "284"
+          "value": "288"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -8199,7 +8199,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T09:00:23.471Z"
+          "value": "2026-08-31T15:26:41.594Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -8239,7 +8239,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "13"
+          "value": "17"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -16043,7 +16043,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-23T18:33:53.974Z"
+          "value": "2026-08-31T17:09:59.270Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -16083,7 +16083,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "117"
+          "value": "118"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -19371,7 +19371,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T09:01:01.809Z"
+          "value": "2026-08-31T15:28:01.260Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -19411,7 +19411,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "141"
+          "value": "145"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -19558,7 +19558,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T09:01:15.711Z"
+          "value": "2026-08-31T15:32:19.636Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -19598,7 +19598,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "57"
+          "value": "61"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -19745,7 +19745,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T09:00:04.298Z"
+          "value": "2026-08-31T15:26:16.693Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -19785,7 +19785,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "11"
+          "value": "15"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -19933,7 +19933,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T09:00:56.862Z"
+          "value": "2026-08-31T15:28:20.093Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -19973,7 +19973,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "157"
+          "value": "161"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -20120,7 +20120,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T09:00:57.268Z"
+          "value": "2026-08-31T15:27:08.300Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -20160,7 +20160,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "70"
+          "value": "74"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -20485,7 +20485,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -20660,7 +20660,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -20668,7 +20668,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/database@0.9.0"
+          "value": "pkg:npm/@nimanto/database@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -20805,7 +20805,7 @@
           },
           {
             "location": "packages/database/dist/store.js",
-            "line": 152
+            "line": 179
           },
           {
             "location": "packages/database/src/migrations.ts",
@@ -20817,7 +20817,7 @@
           },
           {
             "location": "packages/database/src/store.ts",
-            "line": 567
+            "line": 740
           }
         ]
       },
@@ -25707,7 +25707,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -25890,7 +25890,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -26078,7 +26078,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -26272,7 +26272,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -26474,7 +26474,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -26662,7 +26662,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -26846,7 +26846,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -27029,7 +27029,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -27227,7 +27227,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -27411,7 +27411,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -27598,7 +27598,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -27796,7 +27796,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -27976,7 +27976,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -28156,7 +28156,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -28353,7 +28353,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -28547,7 +28547,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -28740,7 +28740,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -28937,7 +28937,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -34948,7 +34948,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -34956,7 +34956,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -34964,7 +34964,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/worker@0.9.0"
+          "value": "pkg:npm/@nimanto/worker@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -34972,7 +34972,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/providers@0.9.0"
+          "value": "pkg:npm/@nimanto/providers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -34980,7 +34980,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/parsers@0.9.0"
+          "value": "pkg:npm/@nimanto/parsers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -34988,7 +34988,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/domain@0.9.0"
+          "value": "pkg:npm/@nimanto/domain@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -34996,7 +34996,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -35004,7 +35004,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/database@0.9.0"
+          "value": "pkg:npm/@nimanto/database@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -35366,7 +35366,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -37701,7 +37701,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -37721,7 +37721,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T23:38:07.884Z"
+          "value": "2026-08-31T23:45:00.446Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -37761,7 +37761,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "2981"
+          "value": "2984"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -37899,7 +37899,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T23:42:35.750Z"
+          "value": "2026-08-31T23:43:30.558Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -37939,7 +37939,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "2702"
+          "value": "2705"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -38078,7 +38078,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T23:38:14.092Z"
+          "value": "2026-08-31T23:43:31.227Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -38118,7 +38118,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "2696"
+          "value": "2699"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -38261,7 +38261,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T23:38:42.654Z"
+          "value": "2026-08-31T23:43:13.804Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -38301,7 +38301,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "2579"
+          "value": "2582"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -38444,7 +38444,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T23:39:02.997Z"
+          "value": "2026-08-31T23:43:13.811Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -38484,7 +38484,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "2578"
+          "value": "2581"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -38627,7 +38627,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T23:38:06.653Z"
+          "value": "2026-08-31T23:43:45.880Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -38667,7 +38667,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "2697"
+          "value": "2700"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -38810,7 +38810,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T23:38:25.378Z"
+          "value": "2026-08-31T23:43:45.518Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -38850,7 +38850,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "2566"
+          "value": "2569"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -38989,7 +38989,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T23:38:37.642Z"
+          "value": "2026-08-31T23:43:57.675Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -39029,7 +39029,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "2579"
+          "value": "2582"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -39168,7 +39168,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T23:38:39.496Z"
+          "value": "2026-08-31T23:43:57.244Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -39208,7 +39208,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "2695"
+          "value": "2698"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -40465,7 +40465,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -40648,7 +40648,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/parsers@0.9.0"
+          "value": "pkg:npm/@nimanto/parsers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -40656,7 +40656,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -40835,7 +40835,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/parsers@0.9.0"
+          "value": "pkg:npm/@nimanto/parsers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -40843,7 +40843,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -41018,7 +41018,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -41221,7 +41221,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-30T05:49:22.085Z"
+          "value": "2026-08-31T05:35:01.767Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -41261,7 +41261,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "3340"
+          "value": "3341"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -43944,7 +43944,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -44139,7 +44139,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -44147,7 +44147,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -44155,7 +44155,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/worker@0.9.0"
+          "value": "pkg:npm/@nimanto/worker@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -44163,7 +44163,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/providers@0.9.0"
+          "value": "pkg:npm/@nimanto/providers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -44171,7 +44171,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/parsers@0.9.0"
+          "value": "pkg:npm/@nimanto/parsers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -44179,7 +44179,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/domain@0.9.0"
+          "value": "pkg:npm/@nimanto/domain@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -44187,7 +44187,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -44195,7 +44195,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/database@0.9.0"
+          "value": "pkg:npm/@nimanto/database@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -44386,7 +44386,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -44581,7 +44581,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -44771,7 +44771,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -44779,7 +44779,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -44787,7 +44787,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/worker@0.9.0"
+          "value": "pkg:npm/@nimanto/worker@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -44795,7 +44795,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/providers@0.9.0"
+          "value": "pkg:npm/@nimanto/providers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -44803,7 +44803,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/parsers@0.9.0"
+          "value": "pkg:npm/@nimanto/parsers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -44811,7 +44811,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/domain@0.9.0"
+          "value": "pkg:npm/@nimanto/domain@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -44819,7 +44819,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -44827,7 +44827,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/database@0.9.0"
+          "value": "pkg:npm/@nimanto/database@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -44998,7 +44998,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -45172,7 +45172,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -45342,7 +45342,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -45516,7 +45516,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -45690,7 +45690,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -45860,7 +45860,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -46038,7 +46038,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -46212,7 +46212,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -46382,7 +46382,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -46560,7 +46560,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -46734,7 +46734,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -47087,7 +47087,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T08:12:02.288Z"
+          "value": "2026-08-31T08:28:58.516Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -47127,7 +47127,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "49"
+          "value": "51"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -47253,7 +47253,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T08:10:50.127Z"
+          "value": "2026-08-31T08:24:51.882Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -47293,7 +47293,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "49"
+          "value": "51"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -47751,7 +47751,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T08:12:35.487Z"
+          "value": "2026-08-31T08:26:15.856Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -47791,7 +47791,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "49"
+          "value": "51"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -47917,7 +47917,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T08:10:54.294Z"
+          "value": "2026-08-31T08:24:55.625Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -47957,7 +47957,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "49"
+          "value": "51"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -48913,7 +48913,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T08:12:38.438Z"
+          "value": "2026-08-31T08:27:12.049Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -48953,7 +48953,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "49"
+          "value": "51"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -49909,7 +49909,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T08:11:05.578Z"
+          "value": "2026-08-31T08:25:06.937Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -49949,7 +49949,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "49"
+          "value": "51"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -50075,7 +50075,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T08:12:46.341Z"
+          "value": "2026-08-31T08:29:20.354Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -50115,7 +50115,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "49"
+          "value": "51"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -50408,7 +50408,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -50416,7 +50416,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -50424,7 +50424,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/worker@0.9.0"
+          "value": "pkg:npm/@nimanto/worker@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -50432,7 +50432,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/providers@0.9.0"
+          "value": "pkg:npm/@nimanto/providers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -50440,7 +50440,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/parsers@0.9.0"
+          "value": "pkg:npm/@nimanto/parsers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -50448,7 +50448,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/domain@0.9.0"
+          "value": "pkg:npm/@nimanto/domain@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -50456,7 +50456,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -50464,7 +50464,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/database@0.9.0"
+          "value": "pkg:npm/@nimanto/database@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -50484,7 +50484,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-28T22:53:52.722Z"
+          "value": "2026-08-31T11:14:09.813Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -50524,7 +50524,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "204"
+          "value": "205"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -50655,7 +50655,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -50663,7 +50663,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -50671,7 +50671,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/worker@0.9.0"
+          "value": "pkg:npm/@nimanto/worker@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -50679,7 +50679,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/providers@0.9.0"
+          "value": "pkg:npm/@nimanto/providers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -50687,7 +50687,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/parsers@0.9.0"
+          "value": "pkg:npm/@nimanto/parsers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -50695,7 +50695,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/domain@0.9.0"
+          "value": "pkg:npm/@nimanto/domain@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -50703,7 +50703,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -50711,7 +50711,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/database@0.9.0"
+          "value": "pkg:npm/@nimanto/database@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -50723,7 +50723,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-28T22:53:45.980Z"
+          "value": "2026-08-31T11:14:03.032Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -50763,7 +50763,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "111"
+          "value": "112"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -50889,7 +50889,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -50913,7 +50913,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-28T22:54:11.987Z"
+          "value": "2026-08-31T11:14:31.232Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -50953,7 +50953,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "121"
+          "value": "122"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -51083,7 +51083,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -51091,7 +51091,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -51099,7 +51099,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/worker@0.9.0"
+          "value": "pkg:npm/@nimanto/worker@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -51107,7 +51107,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/providers@0.9.0"
+          "value": "pkg:npm/@nimanto/providers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -51115,7 +51115,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/parsers@0.9.0"
+          "value": "pkg:npm/@nimanto/parsers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -51123,7 +51123,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/domain@0.9.0"
+          "value": "pkg:npm/@nimanto/domain@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -51131,7 +51131,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -51139,7 +51139,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/database@0.9.0"
+          "value": "pkg:npm/@nimanto/database@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -51330,7 +51330,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -51338,7 +51338,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -51346,7 +51346,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/worker@0.9.0"
+          "value": "pkg:npm/@nimanto/worker@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -51354,7 +51354,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/providers@0.9.0"
+          "value": "pkg:npm/@nimanto/providers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -51362,7 +51362,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/parsers@0.9.0"
+          "value": "pkg:npm/@nimanto/parsers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -51370,7 +51370,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/domain@0.9.0"
+          "value": "pkg:npm/@nimanto/domain@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -51378,7 +51378,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -51386,7 +51386,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/database@0.9.0"
+          "value": "pkg:npm/@nimanto/database@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -51406,7 +51406,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-28T22:53:38.176Z"
+          "value": "2026-08-31T11:13:55.336Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -51446,7 +51446,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "185"
+          "value": "186"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -51572,7 +51572,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -51596,7 +51596,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-28T22:54:05.716Z"
+          "value": "2026-08-31T11:14:24.068Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -51636,7 +51636,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "204"
+          "value": "205"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -51762,7 +51762,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -51786,7 +51786,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-28T22:53:59.221Z"
+          "value": "2026-08-31T11:14:15.977Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -51826,7 +51826,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "204"
+          "value": "205"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -51957,7 +51957,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -52141,7 +52141,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -52311,7 +52311,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -52487,7 +52487,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -52683,7 +52683,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -52875,7 +52875,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -53054,7 +53054,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -53402,7 +53402,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -53582,7 +53582,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -53762,7 +53762,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -53930,7 +53930,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -54109,7 +54109,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -54459,7 +54459,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -54655,7 +54655,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -54794,7 +54794,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -54974,7 +54974,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -55152,7 +55152,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -55342,7 +55342,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -55843,7 +55843,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -56022,7 +56022,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -56196,7 +56196,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -56387,7 +56387,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -56562,7 +56562,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -56746,7 +56746,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -57280,7 +57280,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -57459,7 +57459,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -57642,7 +57642,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -57833,7 +57833,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -58167,7 +58167,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -58345,7 +58345,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -58519,7 +58519,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -59244,7 +59244,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -59418,7 +59418,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -59553,7 +59553,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -59919,7 +59919,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -60098,7 +60098,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -60794,7 +60794,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -60972,7 +60972,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -61151,7 +61151,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -61663,7 +61663,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -61843,7 +61843,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -62223,7 +62223,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -62418,7 +62418,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -62613,7 +62613,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -62816,7 +62816,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -62991,7 +62991,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -63186,7 +63186,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T09:01:03.353Z"
+          "value": "2026-08-31T15:30:25.976Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -63226,7 +63226,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "177"
+          "value": "181"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -63373,7 +63373,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T09:01:09.579Z"
+          "value": "2026-08-31T15:29:38.425Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -63413,7 +63413,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "166"
+          "value": "170"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -63568,7 +63568,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T09:01:08.658Z"
+          "value": "2026-08-31T15:30:41.421Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -63608,7 +63608,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "244"
+          "value": "248"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -63755,7 +63755,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T09:01:00.339Z"
+          "value": "2026-08-31T15:27:19.970Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -63795,7 +63795,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "316"
+          "value": "320"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -63950,7 +63950,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T09:01:03.697Z"
+          "value": "2026-08-31T15:28:24.867Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -63990,7 +63990,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "199"
+          "value": "203"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -64137,7 +64137,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T09:01:20.546Z"
+          "value": "2026-08-31T15:27:20.620Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -64177,7 +64177,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "322"
+          "value": "326"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -64325,7 +64325,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T09:01:37.458Z"
+          "value": "2026-08-31T15:29:45.618Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -64365,7 +64365,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "405"
+          "value": "409"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -64500,7 +64500,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T09:01:05.405Z"
+          "value": "2026-08-31T15:28:28.740Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -64540,7 +64540,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "339"
+          "value": "343"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -64695,7 +64695,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T09:01:42.951Z"
+          "value": "2026-08-31T15:30:54.791Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -64735,7 +64735,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "474"
+          "value": "478"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -65248,7 +65248,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -65442,7 +65442,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -65616,7 +65616,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -65775,7 +65775,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -65954,7 +65954,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -66133,7 +66133,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -66320,7 +66320,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -66507,7 +66507,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -66652,7 +66652,7 @@
           },
           {
             "location": "packages/documents/src/index.ts",
-            "line": 100
+            "line": 114
           }
         ]
       },
@@ -67644,7 +67644,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -68377,7 +68377,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -68560,7 +68560,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -69457,7 +69457,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -70170,7 +70170,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -70178,7 +70178,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -70186,7 +70186,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/worker@0.9.0"
+          "value": "pkg:npm/@nimanto/worker@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -70194,7 +70194,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/providers@0.9.0"
+          "value": "pkg:npm/@nimanto/providers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -70202,7 +70202,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/parsers@0.9.0"
+          "value": "pkg:npm/@nimanto/parsers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -70210,7 +70210,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/domain@0.9.0"
+          "value": "pkg:npm/@nimanto/domain@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -70218,7 +70218,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -70226,7 +70226,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/database@0.9.0"
+          "value": "pkg:npm/@nimanto/database@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -70591,7 +70591,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -70599,7 +70599,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/worker@0.9.0"
+          "value": "pkg:npm/@nimanto/worker@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -71005,7 +71005,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -71379,7 +71379,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -71562,7 +71562,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -71744,7 +71744,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -71752,7 +71752,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -71760,7 +71760,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/worker@0.9.0"
+          "value": "pkg:npm/@nimanto/worker@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -71768,7 +71768,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/providers@0.9.0"
+          "value": "pkg:npm/@nimanto/providers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -71776,7 +71776,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/parsers@0.9.0"
+          "value": "pkg:npm/@nimanto/parsers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -71784,7 +71784,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/domain@0.9.0"
+          "value": "pkg:npm/@nimanto/domain@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -71792,7 +71792,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -71800,7 +71800,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/database@0.9.0"
+          "value": "pkg:npm/@nimanto/database@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -71984,7 +71984,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -72159,7 +72159,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -72700,7 +72700,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -72884,7 +72884,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -73071,7 +73071,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -73251,7 +73251,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -73431,7 +73431,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -73615,7 +73615,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -73748,15 +73748,15 @@
           },
           {
             "location": "apps/api/dist/server.js",
-            "line": 477
+            "line": 566
           },
           {
             "location": "apps/api/src/server.ts",
-            "line": 34
+            "line": 50
           },
           {
             "location": "apps/api/src/server.ts",
-            "line": 571
+            "line": 695
           }
         ]
       },
@@ -73825,7 +73825,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -74015,7 +74015,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -74023,7 +74023,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -74031,7 +74031,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/worker@0.9.0"
+          "value": "pkg:npm/@nimanto/worker@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -74039,7 +74039,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/providers@0.9.0"
+          "value": "pkg:npm/@nimanto/providers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -74047,7 +74047,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/parsers@0.9.0"
+          "value": "pkg:npm/@nimanto/parsers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -74055,7 +74055,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/domain@0.9.0"
+          "value": "pkg:npm/@nimanto/domain@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -74063,7 +74063,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -74071,7 +74071,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/database@0.9.0"
+          "value": "pkg:npm/@nimanto/database@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -74246,7 +74246,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/parsers@0.9.0"
+          "value": "pkg:npm/@nimanto/parsers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -74254,7 +74254,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -74403,7 +74403,7 @@
           },
           {
             "location": "packages/documents/src/index.ts",
-            "line": 202
+            "line": 216
           },
           {
             "location": "packages/parsers/src/index.ts",
@@ -74650,7 +74650,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -76447,7 +76447,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -76627,7 +76627,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -77160,7 +77160,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -77356,7 +77356,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -77714,7 +77714,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -78072,7 +78072,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -78951,7 +78951,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -79138,7 +79138,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -79658,7 +79658,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -80190,7 +80190,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -80373,7 +80373,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -80747,7 +80747,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -80946,7 +80946,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -81129,7 +81129,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -81316,7 +81316,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -81491,7 +81491,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -81841,7 +81841,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -82020,7 +82020,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -82199,7 +82199,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -82374,7 +82374,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -83294,7 +83294,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -83469,7 +83469,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -83648,7 +83648,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -84160,7 +84160,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -84696,7 +84696,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -84879,7 +84879,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -86944,7 +86944,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -86952,7 +86952,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -86960,7 +86960,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/worker@0.9.0"
+          "value": "pkg:npm/@nimanto/worker@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -86968,7 +86968,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/providers@0.9.0"
+          "value": "pkg:npm/@nimanto/providers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -86976,7 +86976,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/parsers@0.9.0"
+          "value": "pkg:npm/@nimanto/parsers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -86984,7 +86984,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/domain@0.9.0"
+          "value": "pkg:npm/@nimanto/domain@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -86992,7 +86992,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -87000,7 +87000,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/database@0.9.0"
+          "value": "pkg:npm/@nimanto/database@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -87191,7 +87191,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -87377,7 +87377,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -87389,7 +87389,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T07:25:15.306Z"
+          "value": "2026-08-31T07:24:13.829Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -87429,7 +87429,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "689"
+          "value": "690"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -87477,7 +87477,7 @@
         },
         {
           "name": "ImportedModules",
-          "value": "lucide-react,Apple,lucide-react/Apple,ArrowRight,lucide-react/ArrowRight,ArrowUpRight,lucide-react/ArrowUpRight,Check,lucide-react/Check,Container,lucide-react/Container,FileCheck2,lucide-react/FileCheck2,GitBranch,lucide-react/GitBranch,LifeBuoy,lucide-react/LifeBuoy,ShieldCheck,lucide-react/ShieldCheck,Terminal,lucide-react/Terminal,Command,lucide-react/Command,Search,lucide-react/Search,lucide-react/X,CircleAlert,lucide-react/CircleAlert,Copy,lucide-react/Copy,RotateCcw,lucide-react/RotateCcw,Activity,lucide-react/Activity,Archive,lucide-react/Archive,ArchiveRestore,lucide-react/ArchiveRestore,ArrowLeft,lucide-react/ArrowLeft,BriefcaseBusiness,lucide-react/BriefcaseBusiness,CalendarClock,lucide-react/CalendarClock,CalendarPlus,lucide-react/CalendarPlus,Clock3,lucide-react/Clock3,Database,lucide-react/Database,Download,lucide-react/Download,FileClock,lucide-react/FileClock,FileOutput,lucide-react/FileOutput,FolderSearch2,lucide-react/FolderSearch2,LogOut,lucide-react/LogOut,Link2,lucide-react/Link2,MailCheck,lucide-react/MailCheck,Menu,lucide-react/Menu,NotebookPen,lucide-react/NotebookPen,Pause,lucide-react/Pause,Play,lucide-react/Play,Plus,lucide-react/Plus,RefreshCw,lucide-react/RefreshCw,Send,lucide-react/Send,SlidersHorizontal,lucide-react/SlidersHorizontal,Sparkles,lucide-react/Sparkles,Trash2,lucide-react/Trash2,Upload,lucide-react/Upload,UserRoundCheck,lucide-react/UserRoundCheck"
+          "value": "lucide-react,Apple,lucide-react/Apple,ArrowRight,lucide-react/ArrowRight,ArrowUpRight,lucide-react/ArrowUpRight,Check,lucide-react/Check,Container,lucide-react/Container,FileCheck2,lucide-react/FileCheck2,GitBranch,lucide-react/GitBranch,LifeBuoy,lucide-react/LifeBuoy,ShieldCheck,lucide-react/ShieldCheck,Terminal,lucide-react/Terminal,FileQuestion,lucide-react/FileQuestion,Send,lucide-react/Send,BookOpenText,lucide-react/BookOpenText,BriefcaseBusiness,lucide-react/BriefcaseBusiness,CalendarDays,lucide-react/CalendarDays,ClipboardList,lucide-react/ClipboardList,Copy,lucide-react/Copy,Handshake,lucide-react/Handshake,LineChart,lucide-react/LineChart,Save,lucide-react/Save,UsersRound,lucide-react/UsersRound,lucide-react/X,Command,lucide-react/Command,Search,lucide-react/Search,CircleAlert,lucide-react/CircleAlert,RotateCcw,lucide-react/RotateCcw,ArrowDown,lucide-react/ArrowDown,ArrowUp,lucide-react/ArrowUp,FileOutput,lucide-react/FileOutput,Activity,lucide-react/Activity,Archive,lucide-react/Archive,ArchiveRestore,lucide-react/ArchiveRestore,ArrowLeft,lucide-react/ArrowLeft,CalendarClock,lucide-react/CalendarClock,CalendarPlus,lucide-react/CalendarPlus,Clock3,lucide-react/Clock3,Database,lucide-react/Database,Download,lucide-react/Download,FileClock,lucide-react/FileClock,FolderSearch2,lucide-react/FolderSearch2,LogOut,lucide-react/LogOut,Link2,lucide-react/Link2,MailCheck,lucide-react/MailCheck,Menu,lucide-react/Menu,NotebookPen,lucide-react/NotebookPen,Pause,lucide-react/Pause,Play,lucide-react/Play,Plus,lucide-react/Plus,RefreshCw,lucide-react/RefreshCw,SlidersHorizontal,lucide-react/SlidersHorizontal,Sparkles,lucide-react/Sparkles,Trash2,lucide-react/Trash2,Upload,lucide-react/Upload,UserRoundCheck,lucide-react/UserRoundCheck"
         },
         {
           "name": "cdx:license:category",
@@ -87505,6 +87505,14 @@
             "line": 12
           },
           {
+            "location": "apps/web/components/application-submission.tsx",
+            "line": 1
+          },
+          {
+            "location": "apps/web/components/career-ledger.tsx",
+            "line": 31
+          },
+          {
             "location": "apps/web/components/command-palette.tsx",
             "line": 4
           },
@@ -87515,6 +87523,14 @@
           {
             "location": "apps/web/components/h1b-evidence.tsx",
             "line": 1
+          },
+          {
+            "location": "apps/web/components/packet-composer.tsx",
+            "line": 1
+          },
+          {
+            "location": "apps/web/components/role-identity-review.tsx",
+            "line": 3
           },
           {
             "location": "apps/web/components/workspace.tsx",
@@ -87586,7 +87602,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -88131,7 +88147,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -88319,7 +88335,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -88501,7 +88517,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -88683,7 +88699,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -88865,7 +88881,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -89214,7 +89230,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -89409,7 +89425,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -89583,7 +89599,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -89758,7 +89774,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -89945,7 +89961,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -90124,7 +90140,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -90311,7 +90327,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -90681,7 +90697,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -90859,7 +90875,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -91047,7 +91063,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -91238,7 +91254,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -91424,7 +91440,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -91606,7 +91622,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -91618,7 +91634,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T23:53:06.738Z"
+          "value": "2026-08-31T23:52:31.425Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -91658,7 +91674,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "3917"
+          "value": "3920"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -92735,7 +92751,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -93288,7 +93304,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -93296,7 +93312,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -93304,7 +93320,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/worker@0.9.0"
+          "value": "pkg:npm/@nimanto/worker@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -93312,7 +93328,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/providers@0.9.0"
+          "value": "pkg:npm/@nimanto/providers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -93320,7 +93336,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/parsers@0.9.0"
+          "value": "pkg:npm/@nimanto/parsers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -93328,7 +93344,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/domain@0.9.0"
+          "value": "pkg:npm/@nimanto/domain@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -93336,7 +93352,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -93344,7 +93360,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/database@0.9.0"
+          "value": "pkg:npm/@nimanto/database@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -93535,7 +93551,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -94066,7 +94082,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -94253,7 +94269,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -94436,7 +94452,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -94777,7 +94793,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -95832,7 +95848,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -96007,7 +96023,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -96186,7 +96202,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -96368,7 +96384,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -96542,7 +96558,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -96729,7 +96745,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/parsers@0.9.0"
+          "value": "pkg:npm/@nimanto/parsers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -96737,7 +96753,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -96882,15 +96898,15 @@
           },
           {
             "location": "packages/documents/src/index.ts",
-            "line": 120
+            "line": 134
           },
           {
             "location": "packages/documents/src/index.ts",
-            "line": 126
+            "line": 140
           },
           {
             "location": "packages/documents/src/index.ts",
-            "line": 138
+            "line": 152
           }
         ]
       }
@@ -96953,7 +96969,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/parsers@0.9.0"
+          "value": "pkg:npm/@nimanto/parsers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -96961,7 +96977,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -97094,7 +97110,7 @@
           },
           {
             "location": "packages/documents/src/index.ts",
-            "line": 218
+            "line": 232
           },
           {
             "location": "packages/parsers/src/index.ts",
@@ -97166,7 +97182,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -97349,7 +97365,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -97357,7 +97373,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -97365,7 +97381,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/worker@0.9.0"
+          "value": "pkg:npm/@nimanto/worker@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -97373,7 +97389,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/providers@0.9.0"
+          "value": "pkg:npm/@nimanto/providers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -97381,7 +97397,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/parsers@0.9.0"
+          "value": "pkg:npm/@nimanto/parsers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -97389,7 +97405,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/domain@0.9.0"
+          "value": "pkg:npm/@nimanto/domain@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -97397,7 +97413,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -97405,7 +97421,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/database@0.9.0"
+          "value": "pkg:npm/@nimanto/database@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -97588,7 +97604,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -97783,7 +97799,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -97966,7 +97982,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -98178,7 +98194,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-30T05:48:25.515Z"
+          "value": "2026-08-31T05:35:16.307Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -98218,7 +98234,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "5646"
+          "value": "5647"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -98366,7 +98382,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-30T05:44:01.441Z"
+          "value": "2026-08-31T05:37:53.330Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -98406,7 +98422,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "5661"
+          "value": "5662"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -98538,7 +98554,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -98725,7 +98741,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -98733,7 +98749,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -98741,7 +98757,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/worker@0.9.0"
+          "value": "pkg:npm/@nimanto/worker@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -98749,7 +98765,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/providers@0.9.0"
+          "value": "pkg:npm/@nimanto/providers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -98757,7 +98773,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/parsers@0.9.0"
+          "value": "pkg:npm/@nimanto/parsers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -98765,7 +98781,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/domain@0.9.0"
+          "value": "pkg:npm/@nimanto/domain@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -98773,7 +98789,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -98781,7 +98797,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/database@0.9.0"
+          "value": "pkg:npm/@nimanto/database@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -99322,7 +99338,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -99501,7 +99517,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -99689,7 +99705,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -100056,7 +100072,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -100235,7 +100251,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -100570,7 +100586,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -100744,7 +100760,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -100756,7 +100772,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-28T20:16:32.088Z"
+          "value": "2026-08-31T16:27:52.494Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -100796,7 +100812,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "2879"
+          "value": "2881"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -100923,7 +100939,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -100935,7 +100951,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-28T20:14:18.094Z"
+          "value": "2026-08-31T16:28:09.726Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -100975,7 +100991,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "2924"
+          "value": "2926"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -101023,7 +101039,7 @@
         },
         {
           "name": "ImportedModules",
-          "value": "react,Dispatch,react/Dispatch,useEffect,react/useEffect,useId,react/useId,useRef,react/useRef,useState,react/useState,Component,react/Component,ReactNode,react/ReactNode,FormEvent,react/FormEvent,SetStateAction,react/SetStateAction,useCallback,react/useCallback,useDeferredValue,react/useDeferredValue,useMemo,react/useMemo,useReducer,react/useReducer"
+          "value": "react,Dispatch,react/Dispatch,useId,react/useId,useRef,react/useRef,useState,react/useState,FormEvent,react/FormEvent,useEffect,react/useEffect,useMemo,react/useMemo,Component,react/Component,ReactNode,react/ReactNode,SetStateAction,react/SetStateAction,useCallback,react/useCallback,useDeferredValue,react/useDeferredValue,useReducer,react/useReducer"
         },
         {
           "name": "cdx:license:category",
@@ -101049,6 +101065,50 @@
           {
             "location": "apps/web/lib/applications-workbench.ts",
             "line": 1
+          },
+          {
+            "location": "apps/web/lib/career-ledger-workbench.ts",
+            "line": 2
+          },
+          {
+            "location": "apps/web/components/application-submission.tsx",
+            "line": 2
+          },
+          {
+            "location": "apps/web/components/application-submission.tsx",
+            "line": 51
+          },
+          {
+            "location": "apps/web/components/application-submission.tsx",
+            "line": 52
+          },
+          {
+            "location": "apps/web/components/application-submission.tsx",
+            "line": 53
+          },
+          {
+            "location": "apps/web/components/career-ledger.tsx",
+            "line": 32
+          },
+          {
+            "location": "apps/web/components/career-ledger.tsx",
+            "line": 243
+          },
+          {
+            "location": "apps/web/components/career-ledger.tsx",
+            "line": 970
+          },
+          {
+            "location": "apps/web/components/career-ledger.tsx",
+            "line": 1290
+          },
+          {
+            "location": "apps/web/components/career-ledger.tsx",
+            "line": 1368
+          },
+          {
+            "location": "apps/web/components/career-ledger.tsx",
+            "line": 1369
           },
           {
             "location": "apps/web/components/command-palette.tsx",
@@ -101127,6 +101187,22 @@
             "line": 3
           },
           {
+            "location": "apps/web/components/packet-composer.tsx",
+            "line": 2
+          },
+          {
+            "location": "apps/web/components/packet-composer.tsx",
+            "line": 46
+          },
+          {
+            "location": "apps/web/components/packet-composer.tsx",
+            "line": 51
+          },
+          {
+            "location": "apps/web/components/packet-composer.tsx",
+            "line": 53
+          },
+          {
             "location": "apps/web/components/service-worker.tsx",
             "line": 3
           },
@@ -101140,103 +101216,27 @@
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 918
-          },
-          {
-            "location": "apps/web/components/workspace.tsx",
-            "line": 919
-          },
-          {
-            "location": "apps/web/components/workspace.tsx",
-            "line": 920
-          },
-          {
-            "location": "apps/web/components/workspace.tsx",
-            "line": 921
-          },
-          {
-            "location": "apps/web/components/workspace.tsx",
-            "line": 922
-          },
-          {
-            "location": "apps/web/components/workspace.tsx",
-            "line": 923
-          },
-          {
-            "location": "apps/web/components/workspace.tsx",
-            "line": 928
-          },
-          {
-            "location": "apps/web/components/workspace.tsx",
-            "line": 929
-          },
-          {
-            "location": "apps/web/components/workspace.tsx",
-            "line": 934
-          },
-          {
-            "location": "apps/web/components/workspace.tsx",
-            "line": 935
-          },
-          {
-            "location": "apps/web/components/workspace.tsx",
-            "line": 938
-          },
-          {
-            "location": "apps/web/components/workspace.tsx",
-            "line": 941
-          },
-          {
-            "location": "apps/web/components/workspace.tsx",
-            "line": 942
-          },
-          {
-            "location": "apps/web/components/workspace.tsx",
-            "line": 945
-          },
-          {
-            "location": "apps/web/components/workspace.tsx",
-            "line": 946
-          },
-          {
-            "location": "apps/web/components/workspace.tsx",
-            "line": 947
-          },
-          {
-            "location": "apps/web/components/workspace.tsx",
-            "line": 956
-          },
-          {
-            "location": "apps/web/components/workspace.tsx",
-            "line": 957
-          },
-          {
-            "location": "apps/web/components/workspace.tsx",
-            "line": 958
-          },
-          {
-            "location": "apps/web/components/workspace.tsx",
-            "line": 959
-          },
-          {
-            "location": "apps/web/components/workspace.tsx",
-            "line": 960
-          },
-          {
-            "location": "apps/web/components/workspace.tsx",
-            "line": 961
-          },
-          {
-            "location": "apps/web/components/workspace.tsx",
             "line": 966
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 972
+            "line": 967
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 973
+            "line": 968
+          },
+          {
+            "location": "apps/web/components/workspace.tsx",
+            "line": 969
+          },
+          {
+            "location": "apps/web/components/workspace.tsx",
+            "line": 970
+          },
+          {
+            "location": "apps/web/components/workspace.tsx",
+            "line": 971
           },
           {
             "location": "apps/web/components/workspace.tsx",
@@ -101248,22 +101248,6 @@
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 978
-          },
-          {
-            "location": "apps/web/components/workspace.tsx",
-            "line": 979
-          },
-          {
-            "location": "apps/web/components/workspace.tsx",
-            "line": 980
-          },
-          {
-            "location": "apps/web/components/workspace.tsx",
-            "line": 981
-          },
-          {
-            "location": "apps/web/components/workspace.tsx",
             "line": 982
           },
           {
@@ -101272,15 +101256,11 @@
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 984
+            "line": 986
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 985
-          },
-          {
-            "location": "apps/web/components/workspace.tsx",
-            "line": 988
+            "line": 989
           },
           {
             "location": "apps/web/components/workspace.tsx",
@@ -101288,11 +101268,103 @@
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 1002
+            "line": 993
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 1027
+            "line": 994
+          },
+          {
+            "location": "apps/web/components/workspace.tsx",
+            "line": 995
+          },
+          {
+            "location": "apps/web/components/workspace.tsx",
+            "line": 1004
+          },
+          {
+            "location": "apps/web/components/workspace.tsx",
+            "line": 1005
+          },
+          {
+            "location": "apps/web/components/workspace.tsx",
+            "line": 1006
+          },
+          {
+            "location": "apps/web/components/workspace.tsx",
+            "line": 1007
+          },
+          {
+            "location": "apps/web/components/workspace.tsx",
+            "line": 1008
+          },
+          {
+            "location": "apps/web/components/workspace.tsx",
+            "line": 1009
+          },
+          {
+            "location": "apps/web/components/workspace.tsx",
+            "line": 1014
+          },
+          {
+            "location": "apps/web/components/workspace.tsx",
+            "line": 1019
+          },
+          {
+            "location": "apps/web/components/workspace.tsx",
+            "line": 1025
+          },
+          {
+            "location": "apps/web/components/workspace.tsx",
+            "line": 1026
+          },
+          {
+            "location": "apps/web/components/workspace.tsx",
+            "line": 1029
+          },
+          {
+            "location": "apps/web/components/workspace.tsx",
+            "line": 1030
+          },
+          {
+            "location": "apps/web/components/workspace.tsx",
+            "line": 1031
+          },
+          {
+            "location": "apps/web/components/workspace.tsx",
+            "line": 1032
+          },
+          {
+            "location": "apps/web/components/workspace.tsx",
+            "line": 1033
+          },
+          {
+            "location": "apps/web/components/workspace.tsx",
+            "line": 1034
+          },
+          {
+            "location": "apps/web/components/workspace.tsx",
+            "line": 1035
+          },
+          {
+            "location": "apps/web/components/workspace.tsx",
+            "line": 1036
+          },
+          {
+            "location": "apps/web/components/workspace.tsx",
+            "line": 1037
+          },
+          {
+            "location": "apps/web/components/workspace.tsx",
+            "line": 1038
+          },
+          {
+            "location": "apps/web/components/workspace.tsx",
+            "line": 1041
+          },
+          {
+            "location": "apps/web/components/workspace.tsx",
+            "line": 1043
           },
           {
             "location": "apps/web/components/workspace.tsx",
@@ -101300,11 +101372,11 @@
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 1064
+            "line": 1080
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 1077
+            "line": 1108
           },
           {
             "location": "apps/web/components/workspace.tsx",
@@ -101312,43 +101384,39 @@
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 1121
+            "line": 1130
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 1125
+            "line": 1171
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 1138
+            "line": 1175
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 1147
+            "line": 1179
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 1163
+            "line": 1192
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 1183
+            "line": 1201
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 1197
+            "line": 1217
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 1207
+            "line": 1237
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 1214
-          },
-          {
-            "location": "apps/web/components/workspace.tsx",
-            "line": 1221
+            "line": 1251
           },
           {
             "location": "apps/web/components/workspace.tsx",
@@ -101356,375 +101424,391 @@
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 1269
+            "line": 1268
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 1291
+            "line": 1275
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 1745
+            "line": 1315
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 1746
+            "line": 1323
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 1748
+            "line": 1345
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 1899
+            "line": 1808
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 1900
+            "line": 1809
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 1901
+            "line": 1811
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 1969
+            "line": 1962
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 1970
+            "line": 1963
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 1971
+            "line": 1964
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 1975
+            "line": 2032
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 2369
+            "line": 2033
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 2370
+            "line": 2034
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 2372
+            "line": 2038
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 2530
+            "line": 2432
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 2531
+            "line": 2433
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 2532
+            "line": 2435
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 2533
+            "line": 2593
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 2534
+            "line": 2594
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 2544
+            "line": 2595
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 2545
+            "line": 2596
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 2549
+            "line": 2597
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 2553
+            "line": 2607
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 2567
+            "line": 2608
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 3099
+            "line": 2612
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 3100
+            "line": 2616
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 3101
+            "line": 2630
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 3102
+            "line": 3162
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 3137
+            "line": 3163
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 3138
+            "line": 3164
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 3139
+            "line": 3165
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 3140
+            "line": 3200
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 3141
+            "line": 3201
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 3142
+            "line": 3202
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 3143
+            "line": 3203
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 3144
+            "line": 3204
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 3148
+            "line": 3205
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 3179
+            "line": 3206
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 5019
+            "line": 3207
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 5154
+            "line": 3211
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 5155
+            "line": 3242
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 5156
+            "line": 5105
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 5157
+            "line": 5240
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 5158
+            "line": 5241
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 5159
+            "line": 5242
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 5160
+            "line": 5243
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 5161
+            "line": 5244
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 5162
+            "line": 5245
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 5163
+            "line": 5246
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 5165
+            "line": 5247
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 5190
+            "line": 5248
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 5705
+            "line": 5249
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 5708
+            "line": 5251
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 5709
+            "line": 5276
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 5717
+            "line": 5797
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 5880
+            "line": 5800
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 6559
+            "line": 5804
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 6560
+            "line": 5805
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 6569
+            "line": 5813
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 6571
+            "line": 5971
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 6708
+            "line": 6797
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 6713
+            "line": 6798
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 6799
+            "line": 6807
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 6803
+            "line": 6809
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 6888
+            "line": 6946
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 6889
+            "line": 6951
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 6890
+            "line": 7037
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 6891
+            "line": 7041
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 6892
+            "line": 7409
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 6897
+            "line": 7410
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 6898
+            "line": 7411
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 6899
+            "line": 7412
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 6901
+            "line": 7413
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 6917
+            "line": 7418
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 7086
+            "line": 7419
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 7117
+            "line": 7420
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 7398
+            "line": 7422
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 7399
+            "line": 7438
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 7400
+            "line": 7607
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 7401
+            "line": 7638
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 7402
+            "line": 7920
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 7403
+            "line": 7921
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 7404
+            "line": 7922
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 7405
+            "line": 7923
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 7407
+            "line": 7924
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 7427
+            "line": 7925
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 7702
+            "line": 7926
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 7703
+            "line": 7927
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 8020
+            "line": 7929
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 8021
+            "line": 7949
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 8113
+            "line": 8224
           },
           {
             "location": "apps/web/components/workspace.tsx",
-            "line": 8114
+            "line": 8225
+          },
+          {
+            "location": "apps/web/components/workspace.tsx",
+            "line": 8535
+          },
+          {
+            "location": "apps/web/components/workspace.tsx",
+            "line": 8536
+          },
+          {
+            "location": "apps/web/components/workspace.tsx",
+            "line": 8628
+          },
+          {
+            "location": "apps/web/components/workspace.tsx",
+            "line": 8629
           }
         ]
       },
@@ -101979,7 +102063,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -102159,7 +102243,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -102342,7 +102426,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -102525,7 +102609,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -102705,7 +102789,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -102888,7 +102972,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -103242,7 +103326,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -103437,7 +103521,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -103616,7 +103700,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -103798,7 +103882,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -103806,7 +103890,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -103814,7 +103898,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/worker@0.9.0"
+          "value": "pkg:npm/@nimanto/worker@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -103822,7 +103906,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/providers@0.9.0"
+          "value": "pkg:npm/@nimanto/providers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -103830,7 +103914,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/parsers@0.9.0"
+          "value": "pkg:npm/@nimanto/parsers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -103838,7 +103922,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/domain@0.9.0"
+          "value": "pkg:npm/@nimanto/domain@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -103846,7 +103930,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -103854,7 +103938,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/database@0.9.0"
+          "value": "pkg:npm/@nimanto/database@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -104229,7 +104313,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -104412,7 +104496,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -104595,7 +104679,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -104783,7 +104867,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -105143,7 +105227,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -105323,7 +105407,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/parsers@0.9.0"
+          "value": "pkg:npm/@nimanto/parsers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -105516,7 +105600,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -105528,7 +105612,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-28T20:14:42.871Z"
+          "value": "2026-08-31T16:30:49.156Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -105568,7 +105652,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "2756"
+          "value": "2758"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -105691,7 +105775,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -105879,7 +105963,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -106070,7 +106154,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -106253,7 +106337,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -106433,7 +106517,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -106621,7 +106705,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -106804,7 +106888,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -107213,7 +107297,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -107388,7 +107472,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -108451,7 +108535,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -108459,7 +108543,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -108467,7 +108551,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/worker@0.9.0"
+          "value": "pkg:npm/@nimanto/worker@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -108475,7 +108559,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/providers@0.9.0"
+          "value": "pkg:npm/@nimanto/providers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -108483,7 +108567,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/parsers@0.9.0"
+          "value": "pkg:npm/@nimanto/parsers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -108491,7 +108575,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/domain@0.9.0"
+          "value": "pkg:npm/@nimanto/domain@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -108499,7 +108583,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -108507,7 +108591,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/database@0.9.0"
+          "value": "pkg:npm/@nimanto/database@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -108682,7 +108766,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -109045,7 +109129,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -109061,7 +109145,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-07-29T19:41:31.814Z"
+          "value": "2026-08-31T07:08:29.166Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -109101,7 +109185,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "64"
+          "value": "65"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -109225,7 +109309,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -109941,7 +110025,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -110308,7 +110392,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -110316,7 +110400,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -110324,7 +110408,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/worker@0.9.0"
+          "value": "pkg:npm/@nimanto/worker@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -110332,7 +110416,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/providers@0.9.0"
+          "value": "pkg:npm/@nimanto/providers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -110340,7 +110424,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/parsers@0.9.0"
+          "value": "pkg:npm/@nimanto/parsers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -110348,7 +110432,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/domain@0.9.0"
+          "value": "pkg:npm/@nimanto/domain@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -110356,7 +110440,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -110364,7 +110448,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/database@0.9.0"
+          "value": "pkg:npm/@nimanto/database@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -110708,7 +110792,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -110898,7 +110982,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -110906,7 +110990,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -110914,7 +110998,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/worker@0.9.0"
+          "value": "pkg:npm/@nimanto/worker@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -110922,7 +111006,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/providers@0.9.0"
+          "value": "pkg:npm/@nimanto/providers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -110930,7 +111014,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/parsers@0.9.0"
+          "value": "pkg:npm/@nimanto/parsers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -110938,7 +111022,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/domain@0.9.0"
+          "value": "pkg:npm/@nimanto/domain@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -110946,7 +111030,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -110954,7 +111038,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/database@0.9.0"
+          "value": "pkg:npm/@nimanto/database@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -111137,7 +111221,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -111320,7 +111404,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -111848,7 +111932,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -112027,7 +112111,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -112211,7 +112295,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -112391,7 +112475,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -112530,7 +112614,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -112705,7 +112789,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -113048,7 +113132,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -113410,7 +113494,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -113593,7 +113677,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -113785,7 +113869,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -113793,7 +113877,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -113801,7 +113885,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/worker@0.9.0"
+          "value": "pkg:npm/@nimanto/worker@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -113809,7 +113893,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/providers@0.9.0"
+          "value": "pkg:npm/@nimanto/providers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -113817,7 +113901,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/parsers@0.9.0"
+          "value": "pkg:npm/@nimanto/parsers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -113825,7 +113909,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/domain@0.9.0"
+          "value": "pkg:npm/@nimanto/domain@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -113833,7 +113917,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -113841,7 +113925,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/database@0.9.0"
+          "value": "pkg:npm/@nimanto/database@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -114024,7 +114108,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -114032,7 +114116,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -114040,7 +114124,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/worker@0.9.0"
+          "value": "pkg:npm/@nimanto/worker@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -114048,7 +114132,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/providers@0.9.0"
+          "value": "pkg:npm/@nimanto/providers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -114056,7 +114140,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/parsers@0.9.0"
+          "value": "pkg:npm/@nimanto/parsers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -114064,7 +114148,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/domain@0.9.0"
+          "value": "pkg:npm/@nimanto/domain@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -114072,7 +114156,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -114080,7 +114164,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/database@0.9.0"
+          "value": "pkg:npm/@nimanto/database@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -114283,7 +114367,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -114291,7 +114375,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -114299,7 +114383,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/worker@0.9.0"
+          "value": "pkg:npm/@nimanto/worker@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -114307,7 +114391,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/providers@0.9.0"
+          "value": "pkg:npm/@nimanto/providers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -114315,7 +114399,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/parsers@0.9.0"
+          "value": "pkg:npm/@nimanto/parsers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -114323,7 +114407,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/domain@0.9.0"
+          "value": "pkg:npm/@nimanto/domain@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -114331,7 +114415,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -114339,7 +114423,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/database@0.9.0"
+          "value": "pkg:npm/@nimanto/database@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -114529,7 +114613,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -114716,7 +114800,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -114911,7 +114995,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -115453,7 +115537,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/parsers@0.9.0"
+          "value": "pkg:npm/@nimanto/parsers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -115461,7 +115545,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -115640,7 +115724,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -115819,7 +115903,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -115827,7 +115911,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/worker@0.9.0"
+          "value": "pkg:npm/@nimanto/worker@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -115993,7 +116077,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -116009,7 +116093,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-07-04T22:51:13.436Z"
+          "value": "2026-08-30T23:58:44.826Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -116049,7 +116133,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "192"
+          "value": "193"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -116346,7 +116430,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -116354,7 +116438,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -116362,7 +116446,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/worker@0.9.0"
+          "value": "pkg:npm/@nimanto/worker@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -116370,7 +116454,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/providers@0.9.0"
+          "value": "pkg:npm/@nimanto/providers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -116378,7 +116462,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/parsers@0.9.0"
+          "value": "pkg:npm/@nimanto/parsers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -116386,7 +116470,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/domain@0.9.0"
+          "value": "pkg:npm/@nimanto/domain@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -116394,7 +116478,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -116402,7 +116486,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/database@0.9.0"
+          "value": "pkg:npm/@nimanto/database@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -116418,7 +116502,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T08:18:44.212Z"
+          "value": "2026-08-31T08:31:33.509Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -116458,7 +116542,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "3812"
+          "value": "3814"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -116585,7 +116669,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -116593,7 +116677,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -116601,7 +116685,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/worker@0.9.0"
+          "value": "pkg:npm/@nimanto/worker@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -116609,7 +116693,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/providers@0.9.0"
+          "value": "pkg:npm/@nimanto/providers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -116617,7 +116701,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/parsers@0.9.0"
+          "value": "pkg:npm/@nimanto/parsers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -116625,7 +116709,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/domain@0.9.0"
+          "value": "pkg:npm/@nimanto/domain@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -116633,7 +116717,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -116641,7 +116725,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/database@0.9.0"
+          "value": "pkg:npm/@nimanto/database@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -116661,7 +116745,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-29T08:18:44.212Z"
+          "value": "2026-08-31T08:31:33.509Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -116701,7 +116785,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "3812"
+          "value": "3814"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -116823,7 +116907,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -116835,7 +116919,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-03T15:08:45.647Z"
+          "value": "2026-08-31T13:17:38.804Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -116875,7 +116959,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "130"
+          "value": "131"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -117001,7 +117085,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -117017,7 +117101,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-03T15:08:45.647Z"
+          "value": "2026-08-31T13:17:38.804Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -117057,7 +117141,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "130"
+          "value": "131"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -117207,7 +117291,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-03T15:11:44.012Z"
+          "value": "2026-08-31T13:18:46.176Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -117247,7 +117331,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "300"
+          "value": "301"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -117515,7 +117599,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -117699,7 +117783,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -118224,7 +118308,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -118410,7 +118494,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -118418,7 +118502,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -118426,7 +118510,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/worker@0.9.0"
+          "value": "pkg:npm/@nimanto/worker@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -118434,7 +118518,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/providers@0.9.0"
+          "value": "pkg:npm/@nimanto/providers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -118442,7 +118526,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/parsers@0.9.0"
+          "value": "pkg:npm/@nimanto/parsers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -118450,7 +118534,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/domain@0.9.0"
+          "value": "pkg:npm/@nimanto/domain@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -118458,7 +118542,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -118466,7 +118550,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/database@0.9.0"
+          "value": "pkg:npm/@nimanto/database@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -118650,7 +118734,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -118658,7 +118742,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -118666,7 +118750,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/worker@0.9.0"
+          "value": "pkg:npm/@nimanto/worker@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -118674,7 +118758,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/providers@0.9.0"
+          "value": "pkg:npm/@nimanto/providers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -118682,7 +118766,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/parsers@0.9.0"
+          "value": "pkg:npm/@nimanto/parsers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -118690,7 +118774,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/domain@0.9.0"
+          "value": "pkg:npm/@nimanto/domain@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -118698,7 +118782,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -118706,7 +118790,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/database@0.9.0"
+          "value": "pkg:npm/@nimanto/database@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -118738,7 +118822,7 @@
         },
         {
           "name": "cdx:npm:lastModifiedTime",
-          "value": "2026-08-28T22:54:18.199Z"
+          "value": "2026-08-31T11:14:37.043Z"
         },
         {
           "name": "cdx:npm:publishTime",
@@ -118778,7 +118862,7 @@
         },
         {
           "name": "cdx:npm:versionCount",
-          "value": "481"
+          "value": "482"
         },
         {
           "name": "cdx:npm:releaseGapDays",
@@ -119654,7 +119738,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -120016,7 +120100,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -120402,7 +120486,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -120410,7 +120494,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -120418,7 +120502,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/worker@0.9.0"
+          "value": "pkg:npm/@nimanto/worker@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -120426,7 +120510,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/providers@0.9.0"
+          "value": "pkg:npm/@nimanto/providers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -120434,7 +120518,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/parsers@0.9.0"
+          "value": "pkg:npm/@nimanto/parsers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -120442,7 +120526,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/domain@0.9.0"
+          "value": "pkg:npm/@nimanto/domain@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -120450,7 +120534,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -120458,7 +120542,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/database@0.9.0"
+          "value": "pkg:npm/@nimanto/database@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -120645,7 +120729,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -120824,7 +120908,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -121172,7 +121256,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/web@0.9.0"
+          "value": "pkg:npm/@nimanto/web@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -121538,7 +121622,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -121734,7 +121818,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/documents@0.9.0"
+          "value": "pkg:npm/@nimanto/documents@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -121918,7 +122002,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/parsers@0.9.0"
+          "value": "pkg:npm/@nimanto/parsers@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -122480,7 +122564,7 @@
         },
         {
           "name": "internal:workspaceRef",
-          "value": "pkg:npm/@nimanto/api@0.9.0"
+          "value": "pkg:npm/@nimanto/api@0.10.0-dev.0"
         },
         {
           "name": "internal:workspaceSrcFile",
@@ -123163,39 +123247,39 @@
   ],
   "dependencies": [
     {
-      "ref": "pkg:npm/@nimanto/api@0.9.0",
+      "ref": "pkg:npm/@nimanto/api@0.10.0-dev.0",
       "dependsOn": []
     },
     {
-      "ref": "pkg:npm/@nimanto/web@0.9.0",
+      "ref": "pkg:npm/@nimanto/web@0.10.0-dev.0",
       "dependsOn": []
     },
     {
-      "ref": "pkg:npm/@nimanto/worker@0.9.0",
+      "ref": "pkg:npm/@nimanto/worker@0.10.0-dev.0",
       "dependsOn": []
     },
     {
-      "ref": "pkg:npm/@nimanto/database@0.9.0",
+      "ref": "pkg:npm/@nimanto/database@0.10.0-dev.0",
       "dependsOn": []
     },
     {
-      "ref": "pkg:npm/@nimanto/documents@0.9.0",
+      "ref": "pkg:npm/@nimanto/documents@0.10.0-dev.0",
       "dependsOn": []
     },
     {
-      "ref": "pkg:npm/@nimanto/domain@0.9.0",
+      "ref": "pkg:npm/@nimanto/domain@0.10.0-dev.0",
       "dependsOn": []
     },
     {
-      "ref": "pkg:npm/@nimanto/parsers@0.9.0",
+      "ref": "pkg:npm/@nimanto/parsers@0.10.0-dev.0",
       "dependsOn": []
     },
     {
-      "ref": "pkg:npm/@nimanto/providers@0.9.0",
+      "ref": "pkg:npm/@nimanto/providers@0.10.0-dev.0",
       "dependsOn": []
     },
     {
-      "ref": "pkg:npm/nimanto@0.9.0",
+      "ref": "pkg:npm/nimanto@0.10.0-dev.0",
       "dependsOn": []
     },
     {
@@ -125879,8 +125963,8 @@
           ]
         }
       },
-      "timestamp": "2026-08-30T05:57:37Z",
-      "text": "This Software Bill-of-Materials (SBOM) document was created on Sunday, August 30, 2026 with cdxgen. The data was captured during the pre-build lifecycle phase without building the application. The document describes an application named 'nimanto' with version '0.9.0'. The application also has 8 child modules/components. Trusted publishing metadata is present for 287 npm component(s) and 0 PyPI component(s). The package type in this SBOM is npm with 34 purl namespaces described under components. The components were identified from the source files: pnpm-lock.yaml."
+      "timestamp": "2026-09-01T01:18:51Z",
+      "text": "This Software Bill-of-Materials (SBOM) document was created on Tuesday, September 1, 2026 with cdxgen. The data was captured during the pre-build lifecycle phase without building the application. The document describes an application named 'nimanto' with the dev version '0.10.0-dev.0'. The application also has 8 child modules/components. Trusted publishing metadata is present for 287 npm component(s) and 0 PyPI component(s). The package type in this SBOM is npm with 34 purl namespaces described under components. The components were identified from the source files: pnpm-lock.yaml."
     }
   ]
 }

@@ -1,11 +1,18 @@
-import { act, createElement, type ReactNode } from "react";
+import { act, createElement, type ReactNode, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CommandPalette } from "../components/command-palette.js";
 import { CopyLine } from "../components/copy-line.js";
 import { ErrorBoundary } from "../components/error-boundary.js";
 import { H1bEvidencePanel } from "../components/h1b-evidence.js";
+import {
+  ApplicationSubmissionRecorder,
+  createSubmissionDraft,
+} from "../components/application-submission.js";
+import { AnswerRevisionHistory } from "../components/career-ledger.js";
+import { PacketComposer } from "../components/packet-composer.js";
 import { RoleProvenanceCard } from "../components/role-provenance.js";
+import { RoleIdentityReviewNotice } from "../components/role-identity-review.js";
 import { isLoopbackHost, serviceWorkerScriptUrl } from "../components/service-worker.js";
 
 let root: Root | null = null;
@@ -172,6 +179,30 @@ describe("role source provenance", () => {
     expect(view.querySelector('code[title="source-payload-hash-123456"]')?.textContent).toBe(
       "source-payload-hash-123456".slice(0, 12),
     );
+  });
+});
+
+describe("migrated manual role identity review", () => {
+  it("keeps the quarantine visible and opens review for the exact durable role", async () => {
+    const onReview = vi.fn();
+    const roleId = "legacy-role-with-application-history";
+    const view = await render(
+      createElement(RoleIdentityReviewNotice, {
+        roleId,
+        reason: "legacy_partial_derived_identity",
+        editorOpen: false,
+        editBlocked: false,
+        busy: false,
+        onReview,
+      }),
+    );
+
+    expect(view.textContent).toContain("Candidate review required for this migrated role");
+    expect(view.textContent).toContain("exact stored title, company, URL, description");
+    expect(view.querySelector("code")?.textContent).toBe(roleId);
+    const review = view.querySelector("button")!;
+    await act(async () => review.click());
+    expect(onReview).toHaveBeenCalledOnce();
   });
 });
 
@@ -342,5 +373,161 @@ describe("service worker registration policy", () => {
     expect(isLoopbackHost("example.github.io")).toBe(false);
     expect(serviceWorkerScriptUrl("")).toBe("/sw.js");
     expect(serviceWorkerScriptUrl("/Nimanto/")).toBe("/Nimanto/sw.js");
+  });
+});
+
+describe("candidate-controlled packet and submission forms", () => {
+  it("starts Packet Composer empty and generates only after an explicit claim selection", async () => {
+    const onGenerate = vi.fn();
+    const view = await render(
+      createElement(PacketComposer, {
+        application: { id: "application-1", jobId: "job-1", profileVersionId: "profile-1" },
+        profile: { id: "profile-1", claimIds: ["evidence-1"] },
+        job: { id: "job-1", contentHash: "role-hash" },
+        match: {
+          id: "match-1",
+          jobId: "job-1",
+          profileVersionId: "profile-1",
+          jobContentHash: "role-hash",
+          result: { requirements: [] },
+        },
+        evidence: [
+          {
+            id: "evidence-1",
+            status: "confirmed",
+            value: "Candidate-selected claim",
+            kind: "achievement",
+            sourceName: "Resume",
+            locator: "line 1",
+          },
+        ],
+        busy: false,
+        onGenerate,
+      }),
+    );
+    const generate = [...view.querySelectorAll("button")].find((button) =>
+      button.textContent?.includes("Generate selected packet"),
+    )!;
+    expect(view.querySelector("summary")?.textContent).toContain("0/8 selected");
+    expect(generate.disabled).toBe(true);
+    expect(view.textContent).toContain("does not choose evidence on your behalf");
+
+    const claim = view.querySelector(".packet-evidence-pool button") as HTMLButtonElement;
+    await act(async () => claim.click());
+    expect(generate.disabled).toBe(false);
+    await act(async () => generate.click());
+    expect(onGenerate).toHaveBeenCalledWith(["evidence-1"]);
+  });
+
+  it("announces and focuses a missing bound-packet format only after an attempted submit", async () => {
+    const onConfirm = vi.fn();
+    const packet = {
+      id: "packet-1",
+      status: "approved",
+      canonicalContent: { schemaVersion: "packet_v2" },
+      artifactManifest: {
+        artifacts: [{ format: "json", sha256: "a".repeat(64) }],
+      },
+    };
+    function ControlledRecorder() {
+      const [draft, setDraft] = useState(() => createSubmissionDraft(packet));
+      return createElement(ApplicationSubmissionRecorder, {
+        packet,
+        draft,
+        busy: false,
+        onDraftChange: setDraft,
+        onConfirm,
+        onCancel: () => undefined,
+      });
+    }
+    const view = await render(createElement(ControlledRecorder));
+    const submit = [...view.querySelectorAll("button")].find((button) =>
+      button.textContent?.includes("Record external submission"),
+    )!;
+    const describedBy = submit.getAttribute("aria-describedby")!;
+    expect(describedBy).toBeTruthy();
+    expect(view.ownerDocument.getElementById(describedBy)?.textContent).toContain(
+      "Select at least one exact packet format",
+    );
+    expect(view.querySelector('input[type="checkbox"]')?.getAttribute("aria-describedby")).toBe(
+      describedBy,
+    );
+
+    const destination = view.querySelector('input[placeholder^="Portal URL"]') as HTMLInputElement;
+    const setValue = Object.getOwnPropertyDescriptor(
+      window.HTMLInputElement.prototype,
+      "value",
+    )!.set!;
+    await act(async () => {
+      setValue.call(destination, "Candidate-recorded portal");
+      destination.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(submit.disabled).toBe(false);
+    await act(async () => submit.click());
+    expect(onConfirm).not.toHaveBeenCalled();
+    expect(view.querySelector('[role="alert"]')?.textContent).toContain(
+      "Choose at least one exact packet format",
+    );
+    expect(view.querySelector(".submission-formats")).toBe(document.activeElement);
+
+    const noMaterials = view.querySelectorAll<HTMLInputElement>('input[type="radio"]')[1]!;
+    await act(async () => noMaterials.click());
+    expect(view.querySelector(".submission-formats")).toBeNull();
+    expect(view.querySelector('[role="alert"]')).toBeNull();
+    expect(submit.getAttribute("aria-describedby")).toBeNull();
+    await act(async () => submit.click());
+    expect(onConfirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        materialsCaptured: false,
+        packetId: null,
+        artifactFormats: [],
+      }),
+    );
+  });
+
+  it("renders each answer revision's own context and ordered full evidence IDs", async () => {
+    const onCopyEvidence = vi.fn();
+    const view = await render(
+      createElement(AnswerRevisionHistory, {
+        revisions: [
+          {
+            id: "revision-2",
+            revision: 2,
+            topic: "why_role",
+            prompt: "What made this exact role compelling?",
+            answerText: "Candidate-authored revision two.",
+            evidenceIds: ["evidence-second-full-id", "evidence-first-full-id"],
+            createdAt: "2026-08-31T12:00:00.000Z",
+          },
+          {
+            id: "revision-1",
+            revision: 1,
+            topic: null,
+            prompt: null,
+            answerText: "Legacy answer text.",
+            evidenceIds: [],
+            createdAt: "2026-08-30T12:00:00.000Z",
+          },
+        ],
+        onCopyEvidence,
+      }),
+    );
+
+    expect(view.textContent).toContain("Why role");
+    expect(view.textContent).toContain("What made this exact role compelling?");
+    expect(view.textContent).toContain("Legacy provenance limit");
+    expect(view.textContent).toContain("does not inherit context from the current Answer Block");
+    const evidenceCodes = [
+      ...view.querySelectorAll('[aria-label="Evidence order for answer revision 2"] code'),
+    ].map((node) => node.textContent);
+    expect(evidenceCodes).toEqual(["evidence-second-full-id", "evidence-first-full-id"]);
+    await act(async () =>
+      (
+        view.querySelector(
+          '[aria-label="Copy evidence ID evidence-second-full-id"]',
+        ) as HTMLButtonElement
+      ).click(),
+    );
+    expect(onCopyEvidence).toHaveBeenCalledWith("evidence-second-full-id", 2);
   });
 });

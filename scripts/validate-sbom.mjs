@@ -1,13 +1,21 @@
 import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 
-const paths = process.argv.slice(2);
+const args = process.argv.slice(2);
+const explicitVersion = args[0] === "--version" ? args[1] : undefined;
+if (
+  args[0] === "--version" &&
+  (!explicitVersion || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u.test(explicitVersion))
+) {
+  throw new Error("--version requires one exact semantic version.");
+}
+const paths = args[0] === "--version" ? args.slice(2) : args;
 if (paths.length === 0) throw new Error("Pass at least one SBOM path.");
 
 const releaseManifest = JSON.parse(
   await readFile(new URL("../package.json", import.meta.url), "utf8"),
 );
-const releaseVersion = releaseManifest.version;
+const releaseVersion = explicitVersion ?? releaseManifest.version;
 const releaseWorkspaces = [
   "api",
   "web",

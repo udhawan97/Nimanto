@@ -15,6 +15,24 @@ export const workspacePackages = [
 
 export function versionTextChecks(version) {
   const tag = `v${version}`;
+  if (version.includes("-")) {
+    return [
+      { file: "apps/api/src/version.ts", expected: `NIMANTO_VERSION = "${version}"` },
+      { file: "apps/api/src/server.ts", expected: "version: NIMANTO_VERSION", occurrences: 3 },
+      {
+        file: "packages/providers/src/version.ts",
+        expected: `NIMANTO_PROVIDER_VERSION = "${version}"`,
+      },
+      { file: "packages/providers/src/jobs.ts", expected: "`Nimanto/${NIMANTO_PROVIDER_VERSION}`" },
+      { file: "packages/providers/src/url.ts", expected: "`Nimanto/${NIMANTO_PROVIDER_VERSION}`" },
+      { file: "compose.yaml", expected: `image: nimanto:${version}` },
+      { file: "apps/web/app/page.tsx", expected: `Unreleased local build · ${tag}` },
+      { file: "README.md", expected: `Current source identity: ${version} (unreleased)` },
+      { file: "package.json", expected: `nimanto-${tag}.cdx.json` },
+      { file: "package.json", expected: `nimanto-${tag}.spdx.json` },
+      { file: "package.json", expected: `nimanto-${tag}-SHA256SUMS.txt` },
+    ];
+  }
   const upgradeCommands = [
     "git fetch --tags origin",
     `git checkout ${tag}`,

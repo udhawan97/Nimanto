@@ -40,8 +40,8 @@ CREATE TABLE IF NOT EXISTS sessions (
 
 CREATE TABLE IF NOT EXISTS invitations (
   id text PRIMARY KEY,
-  token_hash text NOT NULL UNIQUE,
-  intended_email text NOT NULL,
+  token_hash text UNIQUE,
+  intended_email text,
   expires_at timestamptz NOT NULL,
   accepted_at timestamptz,
   revoked_at timestamptz,
@@ -89,11 +89,22 @@ CREATE TABLE IF NOT EXISTS jobs (
   capability text NOT NULL DEFAULT 'deep_link',
   source_meta jsonb NOT NULL DEFAULT '{}'::jsonb,
   content_hash text NOT NULL,
+  identity_review_required boolean NOT NULL DEFAULT false,
+  identity_review_reason text,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (tenant_id, source, source_job_id)
 );
 CREATE INDEX IF NOT EXISTS jobs_tenant_idx ON jobs(tenant_id, updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS manual_role_operations (
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  operation_id text NOT NULL,
+  role_id text NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (tenant_id, operation_id),
+  UNIQUE (tenant_id, role_id)
+);
 
 CREATE TABLE IF NOT EXISTS role_dispositions (
   tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
@@ -277,6 +288,8 @@ CREATE TABLE IF NOT EXISTS answer_revisions (
   tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   answer_block_id text NOT NULL REFERENCES answer_blocks(id) ON DELETE CASCADE,
   revision integer NOT NULL,
+  topic text,
+  prompt text,
   answer_text text NOT NULL,
   evidence_ids jsonb NOT NULL DEFAULT '[]'::jsonb,
   created_at timestamptz NOT NULL DEFAULT now(),
@@ -1148,7 +1161,7 @@ INSERT INTO application_status_events(
   id, tenant_id, application_id, from_status, to_status, source, occurred_at
 )
 SELECT 'initial:' || application.id, application.tenant_id, application.id,
-  NULL, application.status, 'migration', application.created_at
+  NULL, application.status, 'migration', now()
 FROM applications AS application
 WHERE NOT EXISTS (
   SELECT 1 FROM application_status_events AS event
@@ -1216,4 +1229,42 @@ DROP TRIGGER IF EXISTS nimanto_active_tenant_write ON application_submissions;
 CREATE TRIGGER nimanto_active_tenant_write
   BEFORE INSERT OR UPDATE ON application_submissions
   FOR EACH ROW EXECUTE FUNCTION nimanto_require_active_tenant();
+`;
+
+export const schemaVersion15Sql = String.raw`
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS identity_review_required boolean NOT NULL DEFAULT false;
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS identity_review_reason text;
+
+-- Manual roles created before v15 used a 24-character prefix of a partial
+-- content hash as source identity. Preserve the durable role/application IDs,
+-- but make that legacy ambiguity explicit for candidate review. New manual
+-- identities are opaque UUIDs and therefore do not match this bounded shape.
+UPDATE jobs
+SET identity_review_required = true,
+  identity_review_reason = 'legacy_partial_derived_identity'
+WHERE source = 'manual'
+  AND source_job_id ~ '^[0-9a-f]{24}$'
+  AND identity_review_required = false;
+
+CREATE TABLE IF NOT EXISTS manual_role_operations (
+  tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  operation_id text NOT NULL,
+  role_id text NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (tenant_id, operation_id),
+  UNIQUE (tenant_id, role_id)
+);
+
+ALTER TABLE invitations ALTER COLUMN token_hash DROP NOT NULL;
+ALTER TABLE invitations ALTER COLUMN intended_email DROP NOT NULL;
+
+ALTER TABLE answer_revisions ADD COLUMN IF NOT EXISTS topic text;
+ALTER TABLE answer_revisions ADD COLUMN IF NOT EXISTS prompt text;
+
+-- v13 could not reconstruct the historical transition instant. Its row's own
+-- creation time is the truthful migration observation time; application
+-- creation time was an invented chronology.
+UPDATE application_status_events AS event
+SET occurred_at = event.created_at
+WHERE event.source = 'migration' AND event.id LIKE 'initial:%';
 `;

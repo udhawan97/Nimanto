@@ -48,16 +48,18 @@ type ApplicationActivityLike = {
   note: string;
   occurredAt: string | null;
 };
-type ApplicationLike = {
+export type ApplicationLike = {
   id: string;
   jobId?: string;
   status: ApplicationStatus;
   createdAt?: string;
+  updatedAt?: string;
   followUpOn?: string | null;
   outcomes?: OutcomeLike[];
   notes?: ApplicationNoteLike[];
   statusEvents?: ApplicationStatusEventLike[];
   activities?: ApplicationActivityLike[];
+  submissions?: Array<{ submittedAt: string; createdAt?: string }>;
   job?: { title: string; company: string };
 };
 type PacketLike = { status: string; applicationId?: string };

@@ -1,5 +1,5 @@
 import type { NimantoStore } from "@nimanto/database";
-import { canonicalHash, normalizeRoleObservation, type CurrentRole } from "@nimanto/domain";
+import { canonicalHash, normalizeRoleSnapshot, type CurrentRole } from "@nimanto/domain";
 import {
   fetchProviderJobsResult,
   type JobProvider,
@@ -25,8 +25,9 @@ export type ProviderJobsFetcher = (
 ) => Promise<ProviderFetchResult | ProviderJobLike[]>;
 
 function normalizeProviderRole(job: ProviderJobLike, board: string): CurrentRole {
-  return normalizeRoleObservation({
-    ...job,
+  const { contentHash: _providerFingerprint, ...observation } = job;
+  return normalizeRoleSnapshot({
+    ...observation,
     sourceRoleId: job.sourceJobId,
     sourceMeta: { ...job.sourceMeta, board: job.sourceMeta.board ?? board },
   });

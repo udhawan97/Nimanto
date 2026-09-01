@@ -7,6 +7,7 @@ describe("application dossier projection", () => {
       application: {
         id: "a1",
         jobId: "j1",
+        profileVersionId: "profile-current",
         submissions: [
           {
             id: "s1",
@@ -20,8 +21,15 @@ describe("application dossier projection", () => {
           },
         ],
       },
-      jobs: [{ id: "j1", title: "Engineer" }],
-      matches: [{ id: "m1", jobId: "j1" }],
+      jobs: [{ id: "j1", title: "Engineer", contentHash: "role-current" }],
+      matches: [
+        {
+          id: "m1",
+          jobId: "j1",
+          profileVersionId: "profile-current",
+          jobContentHash: "role-current",
+        },
+      ],
       packets: [
         { id: "p1", applicationId: "a1" },
         { id: "p2", applicationId: "a2" },
@@ -48,5 +56,40 @@ describe("application dossier projection", () => {
     expect(dossier.receipts).toEqual([{ id: "r1", material: { applicationId: "a1" } }]);
     expect(dossier.offers).toHaveLength(0);
     expect(dossier.submissions[0]?.id).toBe("s1");
+    expect(dossier.match?.id).toBe("m1");
+    expect(dossier.matchHistory).toEqual([]);
+  });
+
+  it("never promotes a stale Match and keeps it as labeled immutable history", () => {
+    const dossier = projectApplicationDossier({
+      application: {
+        id: "a1",
+        jobId: "j1",
+        profileVersionId: "profile-current",
+      },
+      jobs: [{ id: "j1", contentHash: "role-current" }],
+      matches: [
+        {
+          id: "old-role",
+          jobId: "j1",
+          profileVersionId: "profile-current",
+          jobContentHash: "role-old",
+        },
+        {
+          id: "old-profile",
+          jobId: "j1",
+          profileVersionId: "profile-old",
+          jobContentHash: "role-current",
+        },
+      ],
+      packets: [],
+      actionPackets: [],
+      actions: [],
+      receipts: [],
+      careerOperations: { activities: [], contacts: [], interviews: [], offers: [] },
+    });
+
+    expect(dossier.match).toBeNull();
+    expect(dossier.matchHistory.map((match) => match.id)).toEqual(["old-role", "old-profile"]);
   });
 });

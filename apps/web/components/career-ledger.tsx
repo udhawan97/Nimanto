@@ -27,11 +27,23 @@ import {
   LineChart,
   Save,
   UsersRound,
+  X,
 } from "lucide-react";
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useId, useMemo, useState } from "react";
 import { api } from "../lib/api-client.js";
 import type { ApplicationViewState } from "../lib/applications-workbench.js";
-import { changedApplicationsForView, filtersFromSavedView } from "../lib/career-ledger.js";
+import {
+  type CareerLedgerWorkbench,
+  type CareerLedgerTab,
+  emptyAnswerDraft,
+  emptyOfferDraft,
+  type OfferDraft,
+} from "../lib/career-ledger-workbench.js";
+import {
+  careerLedgerInsightCounts,
+  changedApplicationsForView,
+  filtersFromSavedView,
+} from "../lib/career-ledger.js";
 import type { WorkbenchMutations } from "../lib/workbench-mutations.js";
 
 type Application = {
@@ -49,6 +61,16 @@ type Application = {
 
 type Evidence = { id: string; value: string; status: string };
 type Job = { id: string; source: string; updatedAt: string };
+
+export type AnswerRevision = {
+  id: string;
+  revision: number;
+  topic: AnswerTopic | null;
+  prompt: string | null;
+  answerText: string;
+  evidenceIds: string[];
+  createdAt: string;
+};
 
 export type CareerOperationsSnapshot = {
   activities: Array<{
@@ -97,13 +119,7 @@ export type CareerOperationsSnapshot = {
     prompt: string;
     currentRevision: number;
     latest: { answerText: string; evidenceIds: string[]; createdAt: string };
-    revisions?: Array<{
-      id: string;
-      revision: number;
-      answerText: string;
-      evidenceIds: string[];
-      createdAt: string;
-    }>;
+    revisions?: AnswerRevision[];
     createdAt: string;
     updatedAt: string;
   }>;
@@ -133,9 +149,7 @@ export type CareerOperationsSnapshot = {
   }>;
 };
 
-type LedgerTab = "now" | "people" | "answers" | "reviews" | "insights" | "offers";
-
-const tabs: Array<{ id: LedgerTab; label: string; icon: typeof ClipboardList }> = [
+const tabs: Array<{ id: CareerLedgerTab; label: string; icon: typeof ClipboardList }> = [
   { id: "now", label: "Now", icon: CalendarDays },
   { id: "people", label: "People", icon: UsersRound },
   { id: "answers", label: "Answers", icon: BookOpenText },
@@ -183,6 +197,25 @@ function formatMoney(minor: number | null, currency: string): string {
   }
 }
 
+function offerDraftFromRecord(
+  offer: CareerOperationsSnapshot["offers"][number] | undefined,
+  applicationId = offer?.applicationId ?? "",
+): OfferDraft {
+  if (!offer) return emptyOfferDraft(applicationId);
+  return {
+    applicationId: offer.applicationId,
+    currency: offer.currency,
+    base: String(offer.baseMinor / 100),
+    bonus: offer.bonusMinor === null ? "" : String(offer.bonusMinor / 100),
+    equity: offer.equity,
+    benefits: offer.benefits,
+    startOn: offer.startOn ?? "",
+    expiresOn: offer.expiresOn ?? "",
+    workMode: offer.workMode,
+    notes: offer.notes,
+  };
+}
+
 export function CareerLedger({
   applications,
   jobs,
@@ -192,6 +225,7 @@ export function CareerLedger({
   onAct,
   currentView,
   onApplyView,
+  workbench,
 }: {
   applications: Application[];
   jobs: Job[];
@@ -201,8 +235,20 @@ export function CareerLedger({
   onAct: WorkbenchMutations;
   currentView: ApplicationViewState;
   onApplyView: (view: ApplicationViewState) => void;
+  workbench: CareerLedgerWorkbench;
 }) {
-  const [tab, setTab] = useState<LedgerTab>("now");
+  const { state, dispatch } = workbench;
+  const { tab } = state;
+  const applicationIdsKey = applications.map((application) => application.id).join("\u0000");
+  useEffect(() => {
+    const applicationIds = applicationIdsKey.split("\u0000").filter(Boolean);
+    const firstOffer = operations.offers.find((offer) => offer.applicationId === applicationIds[0]);
+    dispatch({
+      type: "applications_reconciled",
+      applicationIds,
+      initialOffer: firstOffer ? offerDraftFromRecord(firstOffer) : null,
+    });
+  }, [applicationIdsKey, dispatch, operations.offers]);
 
   return (
     <section className="career-ledger" aria-labelledby="career-ledger-title">
@@ -229,7 +275,7 @@ export function CareerLedger({
               aria-selected={tab === item.id}
               aria-controls={`career-panel-${item.id}`}
               tabIndex={tab === item.id ? 0 : -1}
-              onClick={() => setTab(item.id)}
+              onClick={() => dispatch({ type: "tab_changed", tab: item.id })}
               onKeyDown={(event) => {
                 const current = tabs.findIndex((entry) => entry.id === item.id);
                 const requested =
@@ -245,7 +291,7 @@ export function CareerLedger({
                 if (requested === null) return;
                 event.preventDefault();
                 const next = tabs[requested]!;
-                setTab(next.id);
+                dispatch({ type: "tab_changed", tab: next.id });
                 requestAnimationFrame(() =>
                   document.getElementById(`career-tab-${next.id}`)?.focus(),
                 );
@@ -263,7 +309,13 @@ export function CareerLedger({
         aria-labelledby={`career-tab-${tab}`}
       >
         {tab === "now" && (
-          <NowPanel applications={applications} operations={operations} busy={busy} onAct={onAct} />
+          <NowPanel
+            applications={applications}
+            operations={operations}
+            busy={busy}
+            onAct={onAct}
+            workbench={workbench}
+          />
         )}
         {tab === "people" && (
           <PeoplePanel
@@ -271,6 +323,7 @@ export function CareerLedger({
             contacts={operations.contacts}
             busy={busy}
             onAct={onAct}
+            workbench={workbench}
           />
         )}
         {tab === "answers" && (
@@ -279,6 +332,7 @@ export function CareerLedger({
             answers={operations.answerBlocks}
             busy={busy}
             onAct={onAct}
+            workbench={workbench}
           />
         )}
         {tab === "reviews" && (
@@ -286,10 +340,12 @@ export function CareerLedger({
             applications={applications}
             jobs={jobs}
             views={operations.savedViews}
+            operations={operations}
             currentView={currentView}
             onApplyView={onApplyView}
             busy={busy}
             onAct={onAct}
+            workbench={workbench}
           />
         )}
         {tab === "insights" && (
@@ -301,6 +357,7 @@ export function CareerLedger({
             offers={operations.offers}
             busy={busy}
             onAct={onAct}
+            workbench={workbench}
           />
         )}
       </div>
@@ -313,35 +370,18 @@ function NowPanel({
   operations,
   busy,
   onAct,
+  workbench,
 }: {
   applications: Application[];
   operations: CareerOperationsSnapshot;
   busy: boolean;
   onAct: WorkbenchMutations;
+  workbench: CareerLedgerWorkbench;
 }) {
-  const [activity, setActivity] = useState({
-    applicationId: applications[0]?.id ?? "",
-    kind: "follow_up" as ActivityKind,
-    title: "",
-    dueAt: "",
-    note: "",
-  });
-  const [interview, setInterview] = useState({
-    applicationId: applications[0]?.id ?? "",
-    kind: "recruiter_screen" as InterviewRoundKind,
-    scheduledAt: "",
-    format: "Video",
-    location: "",
-    participants: "",
-    prepNotes: "",
-  });
-  const [interviewOutcomes, setInterviewOutcomes] = useState<Record<string, string>>({});
-  useEffect(() => {
-    const first = applications[0]?.id;
-    if (!first) return;
-    setActivity((current) => ({ ...current, applicationId: current.applicationId || first }));
-    setInterview((current) => ({ ...current, applicationId: current.applicationId || first }));
-  }, [applications]);
+  const { state, dispatch } = workbench;
+  const { activity, interview, interviewOutcomes } = state;
+  const setActivity = (draft: typeof activity) => dispatch({ type: "activity_changed", draft });
+  const setInterview = (draft: typeof interview) => dispatch({ type: "interview_changed", draft });
 
   const submitActivity = (event: FormEvent) => {
     event.preventDefault();
@@ -357,7 +397,7 @@ function NowPanel({
         }),
       success: "Activity recorded in the candidate-owned ledger.",
       transient: true,
-      commit: () => setActivity((current) => ({ ...current, title: "", dueAt: "", note: "" })),
+      commit: () => dispatch({ type: "activity_committed", submitted }),
     });
   };
   const submitInterview = (event: FormEvent) => {
@@ -379,13 +419,7 @@ function NowPanel({
         }),
       success: "Interview round added to the application record.",
       transient: true,
-      commit: () =>
-        setInterview((current) => ({
-          ...current,
-          scheduledAt: "",
-          participants: "",
-          prepNotes: "",
-        })),
+      commit: () => dispatch({ type: "interview_committed", submitted }),
     });
   };
 
@@ -477,24 +511,44 @@ function NowPanel({
                 {item.note && <p>{item.note}</p>}
               </div>
               {item.state === "planned" && (
-                <button
-                  className="button mini quiet"
-                  type="button"
-                  disabled={busy}
-                  onClick={() =>
-                    void onAct.run({
-                      request: () =>
-                        api(`/v1/application-activities/${item.id}/state`, {
-                          method: "PUT",
-                          body: JSON.stringify({ state: "completed" }),
-                        }),
-                      success: "Activity marked complete.",
-                      transient: true,
-                    })
-                  }
-                >
-                  <Check size={14} /> Complete
-                </button>
+                <div className="ledger-row-actions">
+                  <button
+                    className="button mini quiet"
+                    type="button"
+                    disabled={busy}
+                    onClick={() =>
+                      void onAct.run({
+                        request: () =>
+                          api(`/v1/application-activities/${item.id}/state`, {
+                            method: "PUT",
+                            body: JSON.stringify({ state: "completed" }),
+                          }),
+                        success: "Activity marked complete.",
+                        transient: true,
+                      })
+                    }
+                  >
+                    <Check size={14} /> Complete
+                  </button>
+                  <button
+                    className="button mini quiet"
+                    type="button"
+                    disabled={busy}
+                    onClick={() =>
+                      void onAct.run({
+                        request: () =>
+                          api(`/v1/application-activities/${item.id}/state`, {
+                            method: "PUT",
+                            body: JSON.stringify({ state: "cancelled" }),
+                          }),
+                        success: "Activity marked cancelled.",
+                        transient: true,
+                      })
+                    }
+                  >
+                    <X size={14} /> Cancel
+                  </button>
+                </div>
               )}
             </li>
           ))}
@@ -617,10 +671,11 @@ function NowPanel({
                       maxLength={4_000}
                       value={interviewOutcomes[round.id] ?? ""}
                       onChange={(event) =>
-                        setInterviewOutcomes((current) => ({
-                          ...current,
-                          [round.id]: event.target.value,
-                        }))
+                        dispatch({
+                          type: "interview_outcome_changed",
+                          interviewId: round.id,
+                          notes: event.target.value,
+                        })
                       }
                     />
                   </label>
@@ -641,15 +696,33 @@ function NowPanel({
                         success: "Interview round marked complete.",
                         transient: true,
                         commit: () =>
-                          setInterviewOutcomes((current) => {
-                            const next = { ...current };
-                            delete next[round.id];
-                            return next;
+                          dispatch({
+                            type: "interview_outcome_committed",
+                            interviewId: round.id,
+                            submitted: interviewOutcomes[round.id] ?? "",
                           }),
                       })
                     }
                   >
                     <Check size={14} /> Complete
+                  </button>
+                  <button
+                    className="button mini quiet"
+                    type="button"
+                    disabled={busy}
+                    onClick={() =>
+                      void onAct.run({
+                        request: () =>
+                          api(`/v1/interview-rounds/${round.id}/state`, {
+                            method: "PUT",
+                            body: JSON.stringify({ state: "cancelled" }),
+                          }),
+                        success: "Interview round marked cancelled.",
+                        transient: true,
+                      })
+                    }
+                  >
+                    <X size={14} /> Cancel round
                   </button>
                 </div>
               )}
@@ -669,29 +742,17 @@ function PeoplePanel({
   contacts,
   busy,
   onAct,
+  workbench,
 }: {
   applications: Application[];
   contacts: CareerOperationsSnapshot["contacts"];
   busy: boolean;
   onAct: WorkbenchMutations;
+  workbench: CareerLedgerWorkbench;
 }) {
-  const [draft, setDraft] = useState({
-    name: "",
-    organization: "",
-    title: "",
-    email: "",
-    phone: "",
-    kind: "recruiter" as ContactKind,
-    notes: "",
-    applicationId: applications[0]?.id ?? "",
-  });
-  useEffect(() => {
-    if (applications[0])
-      setDraft((current) => ({
-        ...current,
-        applicationId: current.applicationId || applications[0]!.id,
-      }));
-  }, [applications]);
+  const { state, dispatch } = workbench;
+  const draft = state.contact;
+  const setDraft = (next: typeof draft) => dispatch({ type: "contact_changed", draft: next });
   const submit = (event: FormEvent) => {
     event.preventDefault();
     const submitted = { ...draft };
@@ -699,15 +760,7 @@ function PeoplePanel({
       request: () => api("/v1/contacts", { method: "POST", body: JSON.stringify(submitted) }),
       success: "Contact added to the manual relationship ledger.",
       transient: true,
-      commit: () =>
-        setDraft((current) => ({
-          ...current,
-          name: "",
-          title: "",
-          email: "",
-          phone: "",
-          notes: "",
-        })),
+      commit: () => dispatch({ type: "contact_committed", submitted }),
     });
   };
   return (
@@ -833,24 +886,87 @@ function PeoplePanel({
   );
 }
 
+export function AnswerRevisionHistory({
+  revisions,
+  onCopyEvidence,
+}: {
+  revisions: AnswerRevision[];
+  onCopyEvidence: (evidenceId: string, revision: number) => void;
+}) {
+  return (
+    <ol>
+      {revisions.map((revision) => {
+        const topicKnown = revision.topic !== null && revision.topic !== undefined;
+        const promptKnown = revision.prompt !== null && revision.prompt !== undefined;
+        return (
+          <li key={revision.id}>
+            <div className="answer-revision-heading">
+              <strong>Revision {revision.revision}</strong>
+              <time dateTime={revision.createdAt}>{localDateTime(revision.createdAt)}</time>
+            </div>
+            <div className="answer-revision-context">
+              <p>
+                <strong>Topic:</strong>{" "}
+                {revision.topic !== null && revision.topic !== undefined
+                  ? human(revision.topic)
+                  : "Unknown — not retained"}
+              </p>
+              <p>
+                <strong>Prompt:</strong> {promptKnown ? revision.prompt : "Unknown — not retained"}
+              </p>
+              {(!topicKnown || !promptKnown) && (
+                <p className="boundary-note">
+                  Legacy provenance limit: this revision did not retain all of its own context.
+                  Nimanto does not inherit context from the current Answer Block.
+                </p>
+              )}
+            </div>
+            <p>{revision.answerText}</p>
+            <div className="answer-revision-evidence">
+              <strong>Evidence IDs in saved order</strong>
+              {revision.evidenceIds.length > 0 ? (
+                <ol aria-label={`Evidence order for answer revision ${revision.revision}`}>
+                  {revision.evidenceIds.map((evidenceId) => (
+                    <li key={evidenceId}>
+                      <code>{evidenceId}</code>
+                      <button
+                        className="button mini quiet"
+                        type="button"
+                        aria-label={`Copy evidence ID ${evidenceId}`}
+                        onClick={() => onCopyEvidence(evidenceId, revision.revision)}
+                      >
+                        <Copy size={13} /> Copy ID
+                      </button>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <small>No evidence IDs were retained for this revision.</small>
+              )}
+            </div>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 function AnswersPanel({
   evidence,
   answers,
   busy,
   onAct,
+  workbench,
 }: {
   evidence: Evidence[];
   answers: CareerOperationsSnapshot["answerBlocks"];
   busy: boolean;
   onAct: WorkbenchMutations;
+  workbench: CareerLedgerWorkbench;
 }) {
-  const [draft, setDraft] = useState({
-    id: "",
-    topic: "why_role" as AnswerTopic,
-    prompt: "",
-    answerText: "",
-    evidenceIds: [] as string[],
-  });
+  const { state, dispatch } = workbench;
+  const draft = state.answer;
+  const setDraft = (next: typeof draft) => dispatch({ type: "answer_changed", draft: next });
   const [copyStatus, setCopyStatus] = useState("");
   const confirmedEvidence = evidence.filter((claim) => claim.status === "confirmed");
   const submit = (event: FormEvent) => {
@@ -866,8 +982,7 @@ function AnswersPanel({
         ? "A new immutable answer revision was saved."
         : "Reusable answer saved.",
       transient: true,
-      commit: () =>
-        setDraft({ id: "", topic: "why_role", prompt: "", answerText: "", evidenceIds: [] }),
+      commit: () => dispatch({ type: "answer_committed", submitted }),
     });
   };
   return (
@@ -943,15 +1058,7 @@ function AnswersPanel({
               <button
                 className="button mini quiet"
                 type="button"
-                onClick={() =>
-                  setDraft({
-                    id: "",
-                    topic: "why_role",
-                    prompt: "",
-                    answerText: "",
-                    evidenceIds: [],
-                  })
-                }
+                onClick={() => setDraft(emptyAnswerDraft())}
               >
                 Cancel revision
               </button>
@@ -1004,20 +1111,23 @@ function AnswersPanel({
               >
                 Revise
               </button>
-              {(answer.revisions?.length ?? 0) > 1 && (
+              {(answer.revisions?.length ?? 0) > 0 && (
                 <details className="answer-history">
-                  <summary>{answer.revisions!.length} retained revisions</summary>
-                  <ol>
-                    {answer.revisions!.map((revision) => (
-                      <li key={revision.id}>
-                        <strong>Revision {revision.revision}</strong>
-                        <time dateTime={revision.createdAt}>
-                          {localDateTime(revision.createdAt)}
-                        </time>
-                        <p>{revision.answerText}</p>
-                      </li>
-                    ))}
-                  </ol>
+                  <summary>
+                    {answer.revisions!.length} retained revision
+                    {answer.revisions!.length === 1 ? "" : "s"}
+                  </summary>
+                  <AnswerRevisionHistory
+                    revisions={answer.revisions!}
+                    onCopyEvidence={(evidenceId, revision) =>
+                      void navigator.clipboard
+                        .writeText(evidenceId)
+                        .then(() => setCopyStatus(`Copied evidence ID from revision ${revision}.`))
+                        .catch(() =>
+                          setCopyStatus("Copy failed. Select the full evidence ID and copy it."),
+                        )
+                    }
+                  />
                 </details>
               )}
             </div>
@@ -1035,20 +1145,25 @@ function ReviewsPanel({
   applications,
   jobs,
   views,
+  operations,
   currentView,
   onApplyView,
   busy,
   onAct,
+  workbench,
 }: {
   applications: Application[];
   jobs: Job[];
   views: CareerOperationsSnapshot["savedViews"];
+  operations: CareerOperationsSnapshot;
   currentView: ApplicationViewState;
   onApplyView: (view: ApplicationViewState) => void;
   busy: boolean;
   onAct: WorkbenchMutations;
+  workbench: CareerLedgerWorkbench;
 }) {
-  const [name, setName] = useState("");
+  const { state, dispatch } = workbench;
+  const name = state.reviewName;
   const save = (event: FormEvent) => {
     event.preventDefault();
     const submitted = name;
@@ -1060,7 +1175,7 @@ function ReviewsPanel({
         }),
       success: "Current application filters saved as a review view.",
       transient: true,
-      commit: () => setName(""),
+      commit: () => dispatch({ type: "review_name_committed", submitted }),
     });
   };
   return (
@@ -1077,7 +1192,9 @@ function ReviewsPanel({
               required
               maxLength={120}
               value={name}
-              onChange={(event) => setName(event.target.value)}
+              onChange={(event) =>
+                dispatch({ type: "review_name_changed", name: event.target.value })
+              }
               placeholder="Submitted roles awaiting a reply"
             />
           </label>
@@ -1086,9 +1203,9 @@ function ReviewsPanel({
           </button>
         </form>
         <p className="boundary-note">
-          “Changed” means a matching application record or its current role record has a newer
-          stored timestamp than your explicit review watermark. No push notification or
-          employer-event inference is made.
+          “Changed” means a matching candidate-visible Application, current Role, or
+          application-owned ledger record has a newer stored timestamp than your explicit review
+          watermark. No push notification or employer-event inference is made.
         </p>
       </div>
       <ul className="ledger-records ledger-records-tall">
@@ -1098,6 +1215,7 @@ function ReviewsPanel({
             jobs,
             filters: view.filters,
             lastReviewedAt: view.lastReviewedAt,
+            careerOperations: operations,
           });
           const changedApplications = changedIds.flatMap((id) => {
             const application = applications.find((candidate) => candidate.id === id);
@@ -1185,12 +1303,8 @@ function InsightsPanel({
       ),
     [applications],
   );
-  const plannedActivities = operations.activities.filter(
-    (activity) => activity.state === "planned",
-  ).length;
-  const completedActivities = operations.activities.filter(
-    (activity) => activity.state === "completed",
-  ).length;
+  const { plannedActivities, completedActivities, nonCancelledInterviews, completedInterviews } =
+    careerLedgerInsightCounts(operations);
   return (
     <div className="career-insights">
       <div className="ledger-section-heading">
@@ -1217,9 +1331,9 @@ function InsightsPanel({
           <p>Planned now · {completedActivities} completed</p>
         </article>
         <article>
-          <span>Interview rounds</span>
-          <strong>{operations.interviews.length}</strong>
-          <p>Candidate-recorded appointments</p>
+          <span>Recorded interview rounds</span>
+          <strong>{nonCancelledInterviews}</strong>
+          <p>Non-cancelled · {completedInterviews} completed</p>
         </article>
         <article>
           <span>Offer records</span>
@@ -1240,49 +1354,23 @@ function OffersPanel({
   offers,
   busy,
   onAct,
+  workbench,
 }: {
   applications: Application[];
   offers: CareerOperationsSnapshot["offers"];
   busy: boolean;
   onAct: WorkbenchMutations;
+  workbench: CareerLedgerWorkbench;
 }) {
-  const [draft, setDraft] = useState({
-    applicationId: applications[0]?.id ?? "",
-    currency: "USD",
-    base: "",
-    bonus: "",
-    equity: "",
-    benefits: "",
-    startOn: "",
-    expiresOn: "",
-    workMode: "",
-    notes: "",
-  });
-  useEffect(() => {
-    if (applications[0])
-      setDraft((current) => ({
-        ...current,
-        applicationId: current.applicationId || applications[0]!.id,
-      }));
-  }, [applications]);
-  useEffect(() => {
-    const offer = offers.find((record) => record.applicationId === draft.applicationId);
-    if (!offer) return;
-    setDraft((current) => ({
-      ...current,
-      currency: offer.currency,
-      base: String(offer.baseMinor / 100),
-      bonus: offer.bonusMinor === null ? "" : String(offer.bonusMinor / 100),
-      equity: offer.equity,
-      benefits: offer.benefits,
-      startOn: offer.startOn ?? "",
-      expiresOn: offer.expiresOn ?? "",
-      workMode: offer.workMode,
-      notes: offer.notes,
-    }));
-  }, [draft.applicationId, offers]);
+  const { state, dispatch } = workbench;
+  const draft = state.offer;
+  const setDraft = (next: OfferDraft) => dispatch({ type: "offer_changed", draft: next });
+  const baseHelpId = useId();
+  const bonusHelpId = useId();
   const baseMinor = amountToMinor(draft.base);
   const bonusMinor = draft.bonus ? amountToMinor(draft.bonus) : null;
+  const baseInvalid = draft.base.trim().length > 0 && baseMinor === null;
+  const bonusInvalid = draft.bonus.trim().length > 0 && bonusMinor === null;
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (baseMinor === null || (draft.bonus && bonusMinor === null)) return;
@@ -1312,20 +1400,15 @@ function OffersPanel({
           Application
           <select
             value={draft.applicationId}
-            onChange={(event) =>
-              setDraft({
-                ...draft,
-                applicationId: event.target.value,
-                base: "",
-                bonus: "",
-                equity: "",
-                benefits: "",
-                startOn: "",
-                expiresOn: "",
-                workMode: "",
-                notes: "",
-              })
-            }
+            onChange={(event) => {
+              const applicationId = event.target.value;
+              setDraft(
+                offerDraftFromRecord(
+                  offers.find((offer) => offer.applicationId === applicationId),
+                  applicationId,
+                ),
+              );
+            }}
           >
             {applications.map((application) => (
               <option key={application.id} value={application.id}>
@@ -1351,18 +1434,35 @@ function OffersPanel({
           <input
             required
             inputMode="decimal"
+            aria-invalid={baseInvalid}
+            aria-describedby={baseHelpId}
             value={draft.base}
             onChange={(event) => setDraft({ ...draft, base: event.target.value })}
-            placeholder="145000"
+            placeholder="145000 or 145000.00"
           />
+          <small id={baseHelpId} className={baseInvalid ? "field-note field-error" : "field-note"}>
+            {baseInvalid
+              ? "Enter digits with up to two decimal places; do not use commas or currency symbols."
+              : "Digits with up to two decimal places; no commas or currency symbols."}
+          </small>
         </label>
         <label>
           Annual bonus
           <input
             inputMode="decimal"
+            aria-invalid={bonusInvalid}
+            aria-describedby={bonusHelpId}
             value={draft.bonus}
             onChange={(event) => setDraft({ ...draft, bonus: event.target.value })}
           />
+          <small
+            id={bonusHelpId}
+            className={bonusInvalid ? "field-note field-error" : "field-note"}
+          >
+            {bonusInvalid
+              ? "Enter digits with up to two decimal places; do not use commas or currency symbols."
+              : "Optional; use digits with up to two decimal places."}
+          </small>
         </label>
         <label>
           Work mode
@@ -1414,7 +1514,7 @@ function OffersPanel({
         </label>
         <button
           className="button mini primary"
-          disabled={busy || baseMinor === null || Boolean(draft.bonus && bonusMinor === null)}
+          disabled={busy || baseMinor === null || bonusInvalid}
         >
           Save offer
         </button>

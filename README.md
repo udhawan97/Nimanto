@@ -4,6 +4,9 @@
 
 <h1 align="center">Nimanto</h1>
 
+<p align="center"><strong>Current source identity: 0.10.0-dev.0 (unreleased).</strong><br>
+The latest published source release remains v0.9.0; current-tree inventories are separate from that immutable release provenance.</p>
+
 <p align="center"><strong>Evidence first. Applications second.</strong></p>
 
 <p align="center">
@@ -115,8 +118,9 @@ today.
   an employer form.
 - **Saved review views with explicit watermarks.** A candidate can name the
   current Application lens, reopen it, and see which matching Application or
-  current Role records have a newer stored timestamp than the last explicit
-  “Mark reviewed” action. Opening a view never marks it reviewed.
+  current Role records, or application-owned ledger records, have a newer stored
+  timestamp than the last explicit “Mark reviewed” action. Opening a view never
+  marks it reviewed.
 - **Descriptive process observations.** Immutable Application status events
   support median elapsed-time observations with their sample sizes. The ledger
   also shows literal activity, interview, and offer counts; it does not compute
@@ -719,8 +723,8 @@ boundaries, provider allowlists, durable schedule leases, retries and dead
 letters, application transition legality, modern and ATS-safe packet formats,
 artifact tamper detection, assurance gating, resumable deletion, external-action
 transitions, literal history comparison, sensitive export confirmation,
-design-token contrast, API integration, twenty-two runnable sequential WebKit
-journeys, and one capability-gated intake journey.
+design-token contrast, API integration, sequential WebKit journeys, and one capability-gated intake
+journey.
 
 ## Beta boundaries
 

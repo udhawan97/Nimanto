@@ -2,7 +2,7 @@ services:
   nimanto:
     build:
       context: .
-    image: nimanto:0.9.0
+    image: nimanto:0.10.0-dev.0
     ports:
       - "127.0.0.1:4300:4300"
       - "127.0.0.1:4310:4310"
