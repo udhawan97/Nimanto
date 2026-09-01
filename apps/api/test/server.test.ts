@@ -2,7 +2,9 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { PGlite } from "@electric-sql/pglite";
 import type { FastifyInstance } from "fastify";
+import { NimantoStore } from "@nimanto/database";
 import {
   canonicalHash,
   governmentEvidenceLanguageContractChecksum,
@@ -2498,6 +2500,54 @@ describe("Nimanto beta API", () => {
     });
     expect(resumed.statusCode).toBe(200);
     expect(resumed.json().state).toBe("completed");
+  });
+
+  it("recovers incomplete deletion and prunes expired completed tombstones at startup", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "nimanto-api-deletion-startup-"));
+    const dataDirectory = path.join(root, "database");
+    const initial = await NimantoStore.open(dataDirectory);
+    const completedIdentity = await initial.createLocalTenant(
+      "startup-completed@example.test",
+      "Completed",
+    );
+    const completed = await initial.beginTenantDeletion(completedIdentity.tenantId);
+    await initial.purgeTenantForDeletion(completed.id, completedIdentity.tenantId);
+    await initial.completeDeletion(completed.id);
+    const runningIdentity = await initial.createLocalTenant(
+      "startup-running@example.test",
+      "Running",
+    );
+    const running = await initial.beginTenantDeletion(runningIdentity.tenantId);
+    await initial.close();
+
+    const raw = await PGlite.create(dataDirectory);
+    await raw.query("UPDATE deletion_runs SET expires_at = now() - interval '1 day'");
+    await raw.close();
+
+    const app = await buildServer({
+      dataDirectory,
+      artifactDirectory: path.join(root, "artifacts"),
+      outboxDirectory: path.join(root, "outbox"),
+      webOrigin: "http://127.0.0.1:4300",
+      demoMode: true,
+      externalActionsEnabled: false,
+      bootstrapSecret,
+      urlAllowlist: [],
+      port: 4310,
+      host: "127.0.0.1",
+    });
+    apps.push(app);
+    await app.ready();
+    await app.close();
+    apps.splice(apps.indexOf(app), 1);
+
+    const inspected = await PGlite.create(dataDirectory);
+    const retained = await inspected.query<{ id: string }>(
+      "SELECT id FROM deletion_runs WHERE id = $1 OR id = $2",
+      [completed.id, running.id],
+    );
+    await inspected.close();
+    expect(retained.rows).toEqual([]);
   });
   it("names the required order when a transition skips a stage", async () => {
     // The generic 400 ("The request needs attention...") is the right default

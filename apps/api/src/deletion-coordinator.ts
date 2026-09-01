@@ -23,6 +23,7 @@ export class DeletionCoordinator {
   ) {}
 
   async start(tenantId: string) {
+    await this.store.pruneCompletedDeletionRuns();
     this.clearTenantRuntime(tenantId);
     const run = await this.store.beginTenantDeletion(tenantId);
     try {
@@ -33,6 +34,7 @@ export class DeletionCoordinator {
   }
 
   async resume(token: string) {
+    await this.store.pruneCompletedDeletionRuns();
     const run = await this.store.deletionRunByToken(token);
     if (!run) throw new Error("DELETION_NOT_FOUND");
     this.clearTenantRuntime(run.tenantId);
@@ -60,6 +62,7 @@ export class DeletionCoordinator {
         pending += 1;
       }
     }
+    await this.store.pruneCompletedDeletionRuns();
     return { recovered, pending };
   }
 

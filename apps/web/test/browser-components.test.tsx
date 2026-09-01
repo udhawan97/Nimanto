@@ -3,6 +3,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CommandPalette } from "../components/command-palette.js";
 import { CopyLine } from "../components/copy-line.js";
+import { DeletionReceiptGuidance } from "../components/deletion-receipt-guidance.js";
 import { ErrorBoundary } from "../components/error-boundary.js";
 import { H1bEvidencePanel } from "../components/h1b-evidence.js";
 import {
@@ -78,6 +79,28 @@ describe("copy feedback", () => {
 
     expect(view.querySelector("button")?.textContent).toContain("Copy failed");
     expect(view.querySelector("button")?.dataset.state).toBe("failed");
+  });
+});
+
+describe("deletion receipt guidance", () => {
+  it("distinguishes public token recovery from internal startup cleanup", async () => {
+    const view = await render(
+      createElement(DeletionReceiptGuidance, { token: "private-deletion-token" }),
+    );
+
+    expect(view.textContent).toContain("only public credential");
+    expect(view.textContent).toContain("without a session");
+    expect(view.textContent).toContain("internally when its local service starts");
+    expect(view.textContent).toContain("does not require you to provide the token");
+    expect(view.textContent).toContain("Treat the token like a password");
+    expect([...view.querySelectorAll("code")].map((code) => code.textContent)).toEqual(
+      expect.arrayContaining([
+        "private-deletion-token",
+        "GET /v1/deletion/status?token=…",
+        "POST /v1/deletion/resume",
+        '{"token":"…"}',
+      ]),
+    );
   });
 });
 

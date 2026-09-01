@@ -55,8 +55,8 @@
     "semantic_hash": ""
   },
   "apps/api/test/server.test.ts": {
-    "mtime": 1788224564.9745636,
-    "ast_hash": "c67f2915ecd16ca7c61b0b8e598d8b8b",
+    "mtime": 1788227453.223959,
+    "ast_hash": "4aee05f470ac7ed25bce8eeaf942a8d1",
     "semantic_hash": ""
   },
   "apps/api/tsconfig.build.json": {
@@ -100,8 +100,8 @@
     "semantic_hash": "f8d493b6c925f9d3d7a6fc53bac435db"
   },
   "apps/web/components/workspace.tsx": {
-    "mtime": 1788224814.9686751,
-    "ast_hash": "5b56ebe4d7115f380a83cfb5ed839a3b",
+    "mtime": 1788227333.0351675,
+    "ast_hash": "4926fb28808efa56e891ed3a1a46de53",
     "semantic_hash": ""
   },
   "apps/web/next-env.d.ts": {
@@ -185,13 +185,13 @@
     "semantic_hash": ""
   },
   "packages/database/src/store.ts": {
-    "mtime": 1788224664.4345803,
-    "ast_hash": "4681ca09312630ee57ef50b5d1cdc6af",
+    "mtime": 1788227532.153032,
+    "ast_hash": "3576af11098f13330f304dce312db1c8",
     "semantic_hash": ""
   },
   "packages/database/test/store.test.ts": {
-    "mtime": 1788224664.4367793,
-    "ast_hash": "a527861a2bdf8503c63566de2178d9b3",
+    "mtime": 1788227413.938303,
+    "ast_hash": "5e7cab22e80021a50fb89a812567d3a7",
     "semantic_hash": ""
   },
   "packages/database/tsconfig.build.json": {
@@ -380,8 +380,8 @@
     "semantic_hash": "783fc4af8e3bca5b9225f0ef6ef714f6"
   },
   ".github/workflows/ci.yml": {
-    "mtime": 1788221680.0547464,
-    "ast_hash": "ef811fd81358dad8491570844a4f7fe7",
+    "mtime": 1788227592.3188186,
+    "ast_hash": "090a97998f4f3981c43d08f081ee3300",
     "semantic_hash": ""
   },
   ".github/workflows/codeql.yml": {
@@ -440,8 +440,8 @@
     "semantic_hash": ""
   },
   "docs/operations/local-beta.md": {
-    "mtime": 1788221680.0661557,
-    "ast_hash": "61bc5b039b0d76c86ddf37296c699690",
+    "mtime": 1788227514.1865036,
+    "ast_hash": "8bc83a24fc5d5cc2d5371e16de91e418",
     "semantic_hash": ""
   },
   "docs/operations/provider-setup.md": {
@@ -730,8 +730,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/deletion-coordinator.ts": {
-    "mtime": 1788221680.0580266,
-    "ast_hash": "bfbcb92b747c837ec5212b6ae6d366d7",
+    "mtime": 1788227387.995995,
+    "ast_hash": "931ece1321ab0e4a7bb02b83dd29352b",
     "semantic_hash": ""
   },
   "apps/api/src/discovery-cycle.ts": {
@@ -805,8 +805,8 @@
     "semantic_hash": "eabe2c15e8d13f3feb30bb2528b2ff5a"
   },
   "apps/api/test/external-action-lifecycle.test.ts": {
-    "mtime": 1788224463.7553735,
-    "ast_hash": "74d2427a46313f59decc7f6ac3f8b379",
+    "mtime": 1788227432.278758,
+    "ast_hash": "757d63067f5c8402f0fd4385440f7ba8",
     "semantic_hash": ""
   },
   "apps/api/test/packet-lifecycle.test.ts": {
@@ -895,8 +895,8 @@
     "semantic_hash": "1c6a4180c745193e7ff49b565ab37725"
   },
   "apps/web/test/browser-components.test.tsx": {
-    "mtime": 1788224788.6653373,
-    "ast_hash": "4e38b489e18f6b1cc21203f21aff2522",
+    "mtime": 1788227333.0355496,
+    "ast_hash": "1ced9aca7de6d91e6623790e9bccb001",
     "semantic_hash": ""
   },
   "docs/releases/nimanto-v0.5.1.cdx.json": {
@@ -1410,8 +1410,8 @@
     "semantic_hash": ""
   },
   "scripts/docker-context.test.mjs": {
-    "mtime": 1788221680.1316254,
-    "ast_hash": "d1dd66b8d6cf56aa23820b62b7cbae0f",
+    "mtime": 1788227683.5063033,
+    "ast_hash": "5e7a2a1d8222f2e61db671fa46b49080",
     "semantic_hash": ""
   },
   "docs/releases/nimanto-v0.10.0-dev.0-SHA256SUMS.txt": {
@@ -1432,6 +1432,11 @@
   "apps/web/components/role-identity-review.tsx": {
     "mtime": 1788224794.8767164,
     "ast_hash": "1c09d9816be5e37bb6808e8e76ef3c81",
+    "semantic_hash": ""
+  },
+  "apps/web/components/deletion-receipt-guidance.tsx": {
+    "mtime": 1788227333.0339017,
+    "ast_hash": "6fa72bd3e24cc125a9f12fc847f0bc48",
     "semantic_hash": ""
   }
 }

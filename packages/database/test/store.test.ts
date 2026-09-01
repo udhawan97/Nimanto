@@ -401,6 +401,77 @@ describe("tenant-scoped persistence public seam", () => {
     ]);
   });
 
+  it("prunes only completed deletion tombstones after the seven-day status window", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nimanto-store-deletion-pruning-"));
+    const data = join(root, "data");
+    const initial = await NimantoStore.open(data);
+
+    const runningIdentity = await initial.createLocalTenant("prune-running@example.test", "Run");
+    const running = await initial.beginTenantDeletion(runningIdentity.tenantId);
+    const databaseDeletedIdentity = await initial.createLocalTenant(
+      "prune-database@example.test",
+      "Database",
+    );
+    const databaseDeleted = await initial.beginTenantDeletion(databaseDeletedIdentity.tenantId);
+    await initial.purgeTenantForDeletion(databaseDeleted.id, databaseDeletedIdentity.tenantId);
+    const cleanupPendingIdentity = await initial.createLocalTenant(
+      "prune-cleanup@example.test",
+      "Cleanup",
+    );
+    const cleanupPending = await initial.beginTenantDeletion(cleanupPendingIdentity.tenantId);
+    await initial.markDeletionCleanupPending(cleanupPending.id, "FILESYSTEM_CLEANUP_FAILED");
+    const expiredCompletedIdentity = await initial.createLocalTenant(
+      "prune-completed@example.test",
+      "Completed",
+    );
+    const expiredCompleted = await initial.beginTenantDeletion(expiredCompletedIdentity.tenantId);
+    await initial.purgeTenantForDeletion(expiredCompleted.id, expiredCompletedIdentity.tenantId);
+    await initial.completeDeletion(expiredCompleted.id);
+    const liveCompletedIdentity = await initial.createLocalTenant(
+      "prune-live@example.test",
+      "Live",
+    );
+    const liveCompleted = await initial.beginTenantDeletion(liveCompletedIdentity.tenantId);
+    await initial.purgeTenantForDeletion(liveCompleted.id, liveCompletedIdentity.tenantId);
+    await initial.completeDeletion(liveCompleted.id);
+    await initial.close();
+
+    const raw = await PGlite.create(data);
+    const statusWindows = await raw.query<{ seconds: string | number }>(
+      "SELECT EXTRACT(EPOCH FROM (expires_at - requested_at)) AS seconds FROM deletion_runs",
+    );
+    expect(statusWindows.rows.every((row) => Number(row.seconds) === 7 * 24 * 60 * 60)).toBe(true);
+    for (const run of [running, databaseDeleted, cleanupPending, expiredCompleted]) {
+      await raw.query(
+        "UPDATE deletion_runs SET expires_at = now() - interval '1 day' WHERE id = $1",
+        [run.id],
+      );
+    }
+    await raw.close();
+
+    const reopened = await NimantoStore.open(data);
+    await expect(reopened.pruneCompletedDeletionRuns()).resolves.toBe(1);
+    await expect(reopened.deletionStatus(liveCompleted.token)).resolves.toMatchObject({
+      state: "completed",
+    });
+    await reopened.close();
+
+    const inspected = await PGlite.create(data);
+    const retained = await inspected.query<{ id: string; state: string }>(
+      "SELECT id, state FROM deletion_runs ORDER BY id",
+    );
+    await inspected.close();
+    expect(retained.rows).toEqual(
+      expect.arrayContaining([
+        { id: running.id, state: "running" },
+        { id: databaseDeleted.id, state: "database_deleted" },
+        { id: cleanupPending.id, state: "cleanup_pending" },
+        { id: liveCompleted.id, state: "completed" },
+      ]),
+    );
+    expect(retained.rows).toHaveLength(4);
+  });
+
   it("captures cleanup inventory atomically and fences every later tenant write", async () => {
     const root = await mkdtemp(join(tmpdir(), "nimanto-store-deletion-fence-"));
     const store = await NimantoStore.open(join(root, "data"));

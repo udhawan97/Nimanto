@@ -116,7 +116,7 @@ Stop the API before copying `.nimanto-data/`. Restore by replacing the entire di
 
 Use **Data controls → Delete all data** and type the exact confirmation phrase. The deletion transaction first fences later tenant writes and captures the exact outbox cleanup inventory, then removes database tenant rows, packet artifacts, local outbox files, and the session. An authenticated write or provider effect either finishes before that fence or fails; it cannot create an untracked file afterward.
 
-Deletion signs you out, so the receipt appears on the sign-in screen that follows. It states which outcome was reached and shows a seven-day status token with a copy control. Keep the token: it is the only way to check or resume this deletion, and it works without a session, so treat it like a password.
+Deletion signs you out, so the receipt appears on the sign-in screen that follows. It states which outcome was reached and shows a seven-day status token with a copy control. Keep the token: it is the only candidate-facing, public way to check or resume this deletion, and it works without a session, so treat it like a password.
 
 Copy it before you leave that screen. Nimanto deliberately stores nothing after deleting your workspace, so the token is held in the page only — reloading or closing the tab loses it. Keep it out of shell history too; the status route takes it as a query parameter.
 
@@ -139,7 +139,7 @@ curl --fail-with-body --silent --show-error \
   http://127.0.0.1:4310/v1/deletion/resume
 ```
 
-Both routes are deliberately reachable without a session, because deletion has already removed yours.
+Both routes are deliberately reachable without a session, because deletion has already removed yours. Separately, API startup and the authenticated internal worker reconciliation autonomously finish incomplete database and filesystem cleanup without a candidate bearer token. That internal recovery path does not expose status or a public resume capability. Completed deletion tombstones remain through the seven-day public token window, then are pruned; running or cleanup-pending work is never age-pruned.
 
 Starting a new local session after deletion creates a fresh labeled synthetic workspace.
 

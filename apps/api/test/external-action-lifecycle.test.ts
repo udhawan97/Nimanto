@@ -2,6 +2,7 @@ import { access, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { PGlite } from "@electric-sql/pglite";
 import { NimantoStore } from "@nimanto/database";
 import { matchJob } from "@nimanto/domain";
 import type { ActionResult } from "@nimanto/providers";
@@ -168,6 +169,42 @@ describe("external action lifecycle", () => {
     );
     await expect(coordinator.recoverPending()).resolves.toEqual({ recovered: 1, pending: 0 });
     await expect(store.deletionStatus(run.token)).resolves.toMatchObject({ state: "completed" });
+  });
+
+  it("recovers expired incomplete cleanup before pruning terminal tombstones", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nimanto-expired-deletion-reconciliation-"));
+    const data = join(root, "data");
+    const initial = await NimantoStore.open(data);
+    const completedIdentity = await initial.createLocalTenant(
+      "expired-completed@example.test",
+      "Completed",
+    );
+    const completed = await initial.beginTenantDeletion(completedIdentity.tenantId);
+    await initial.purgeTenantForDeletion(completed.id, completedIdentity.tenantId);
+    await initial.completeDeletion(completed.id);
+    const runningIdentity = await initial.createLocalTenant(
+      "expired-running@example.test",
+      "Running",
+    );
+    const running = await initial.beginTenantDeletion(runningIdentity.tenantId);
+    await initial.close();
+
+    const raw = await PGlite.create(data);
+    await raw.query("UPDATE deletion_runs SET expires_at = now() - interval '1 day'");
+    await raw.close();
+
+    const reopened = await NimantoStore.open(data);
+    stores.push(reopened);
+    const coordinator = new DeletionCoordinator(
+      reopened,
+      join(root, "artifacts"),
+      join(root, "outbox"),
+    );
+    await expect(coordinator.recoverPending()).resolves.toEqual({ recovered: 1, pending: 0 });
+    await expect(reopened.recoverableDeletionRuns()).resolves.toEqual([]);
+    await expect(reopened.pruneCompletedDeletionRuns()).resolves.toBe(0);
+    await expect(reopened.databaseContains(completed.id)).resolves.toBe(false);
+    await expect(reopened.databaseContains(running.id)).resolves.toBe(false);
   });
 
   it("rejects an approved packet after a newer packet replaces it", async () => {

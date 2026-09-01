@@ -81,6 +81,7 @@ export interface LocalIdentity {
 }
 
 export const INVITATION_TOMBSTONE_RETENTION_DAYS = 30;
+export const DELETION_STATUS_WINDOW_DAYS = 7;
 
 export interface SessionIdentity extends LocalIdentity {
   sessionId: string;
@@ -4923,7 +4924,7 @@ export class NimantoStore {
     const id = randomUUID();
     const token = randomBytes(24).toString("base64url");
     const now = new Date();
-    const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const expiresAt = new Date(now.getTime() + DELETION_STATUS_WINDOW_DAYS * 24 * 60 * 60 * 1000);
     const actionIds = await this.#db.transaction(async (tx) => {
       const tenant = await tx.query<{ id: string }>(
         `UPDATE tenants SET deletion_state = 'deleting'
@@ -5052,6 +5053,19 @@ export class NimantoStore {
           : [],
       };
     });
+  }
+
+  /** Completed deletion rows are public status tombstones only. Keep them for
+   * the complete candidate-facing token window, and never let pruning touch
+   * unfinished database or filesystem cleanup. */
+  async pruneCompletedDeletionRuns(now = new Date()): Promise<number> {
+    const result = await this.#db.query<{ id: string }>(
+      `DELETE FROM deletion_runs
+       WHERE state = 'completed' AND completed_at IS NOT NULL AND expires_at <= $1
+       RETURNING id`,
+      [now.toISOString()],
+    );
+    return result.rows.length;
   }
 
   async deletionStatus(

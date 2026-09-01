@@ -56,6 +56,7 @@ import { Brand } from "./brand.js";
 import { CommandPalette, type PaletteEntry } from "./command-palette.js";
 import { ConnectionBanner, ConnectionIndicator, useConnection } from "./connection.js";
 import { CopyLine } from "./copy-line.js";
+import { DeletionReceiptGuidance } from "./deletion-receipt-guidance.js";
 import { CareerLedger, type CareerOperationsSnapshot } from "./career-ledger.js";
 import { PacketComposer } from "./packet-composer.js";
 import { ApplicationSubmissionRecorder, createSubmissionDraft } from "./application-submission.js";
@@ -1848,15 +1849,7 @@ function WorkspaceStart({
               : "Database records removed — local file cleanup is still pending"}
           </h2>
           <p>{deletionReceipt.message}</p>
-          <p className="field-note">
-            This token is the only way to check or resume the deletion, and it works without a
-            session — treat it like a password.
-          </p>
-          <CopyLine command={deletionReceipt.token} />
-          <p className="field-note">
-            Check it with <code>GET /v1/deletion/status?token=…</code>; finish an interrupted
-            cleanup with <code>POST /v1/deletion/resume</code>.
-          </p>
+          <DeletionReceiptGuidance token={deletionReceipt.token} />
         </section>
       )}
       <form className="start-panel" onSubmit={submit}>

@@ -60,9 +60,43 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Build the digest-pinned local image
         run: |
-          printf '%s\n' 'NIMANTO_FICTIONAL_DOCKER_SECRET_CANARY' > .env.docker-canary
+          set -euo pipefail
+          canary_value='NIMANTO_FICTIONAL_DOCKER_SECRET_CANARY'
+          canary_dir="$(mktemp -d "${RUNNER_TEMP:-/tmp}/nimanto-docker-canary.XXXXXX")"
+          canary_container=''
+          cleanup() {
+            if [ -n "$canary_container" ]; then
+              docker rm --force "$canary_container" >/dev/null 2>&1 || true
+            fi
+            rm -f -- .env.docker-canary
+            rm -rf -- "$canary_dir"
+          }
+          trap cleanup EXIT
+          printf '%s\n' "$canary_value" > .env.docker-canary
           docker build --tag nimanto:${{ github.sha }} .
           docker run --rm --entrypoint sh nimanto:${{ github.sha }} -c \
-            '! grep -R -F NIMANTO_FICTIONAL_DOCKER_SECRET_CANARY /app /data 2>/dev/null'
-          ! docker history --no-trunc nimanto:${{ github.sha }} | \
-            grep -F NIMANTO_FICTIONAL_DOCKER_SECRET_CANARY
+            "! grep -R -F '$canary_value' /app /data 2>/dev/null"
+
+          canary_container="$(docker create nimanto:${{ github.sha }})"
+          docker export --output "$canary_dir/final-filesystem.tar" "$canary_container"
+          ! grep -a -q -F "$canary_value" "$canary_dir/final-filesystem.tar"
+          docker rm "$canary_container" >/dev/null
+          canary_container=''
+
+          docker save --output "$canary_dir/saved-image.tar" nimanto:${{ github.sha }}
+          mkdir "$canary_dir/saved-image"
+          tar -xf "$canary_dir/saved-image.tar" -C "$canary_dir/saved-image"
+          ! grep -a -q -F "$canary_value" "$canary_dir/saved-image.tar"
+          ! grep -R -a -q -F "$canary_value" "$canary_dir/saved-image"
+          mkdir "$canary_dir/saved-layers"
+          layer_index=0
+          while IFS= read -r -d '' archive_member; do
+            if tar -tf "$archive_member" >/dev/null 2>&1; then
+              layer_index=$((layer_index + 1))
+              tar -xOf "$archive_member" > "$canary_dir/saved-layers/$layer_index.contents"
+            fi
+          done < <(find "$canary_dir/saved-image" -type f -print0)
+          test "$layer_index" -gt 0
+          ! grep -R -a -q -F "$canary_value" "$canary_dir/saved-layers"
+
+          ! docker history --no-trunc nimanto:${{ github.sha }} | grep -F "$canary_value"
