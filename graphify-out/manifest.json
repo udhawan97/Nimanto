@@ -1410,8 +1410,8 @@
     "semantic_hash": ""
   },
   "scripts/docker-context.test.mjs": {
-    "mtime": 1788229919.0831833,
-    "ast_hash": "5e7a2a1d8222f2e61db671fa46b49080",
+    "mtime": 1788277089.0902245,
+    "ast_hash": "23020f490c75bab371b8bab342b28d72",
     "semantic_hash": ""
   },
   "docs/releases/nimanto-v0.10.0-dev.0-SHA256SUMS.txt": {
