@@ -18,6 +18,7 @@ COPY packages/providers/package.json packages/providers/package.json
 RUN pnpm install --frozen-lockfile
 
 FROM dependencies AS build
+COPY tokens.css tokens.css
 COPY apps/api/src apps/api/src
 COPY apps/api/tsconfig.json apps/api/tsconfig.build.json apps/api/
 COPY apps/web/app apps/web/app

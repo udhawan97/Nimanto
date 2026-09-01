@@ -14,8 +14,10 @@ test("Docker uses an allowlisted context and a source-free runtime stage", async
     readFile(path.join(repository, ".github/workflows/ci.yml"), "utf8"),
   ]);
   assert.match(dockerignore, /^\*\*$/mu);
+  assert.match(dockerignore, /^!tokens\.css$/mu);
   assert.match(dockerignore, /^\.env\.\*$/mu);
   assert.doesNotMatch(dockerfile, /COPY\s+\.\s+\./u);
+  assert.match(dockerfile, /^COPY tokens\.css tokens\.css$/mu);
   assert.match(dockerfile, /COPY --from=build --chown=node:node \/runtime \/app/u);
   assert.match(dockerfile, /NIMANTO_EXTERNAL_ACTIONS_ENABLED=off/u);
   assert.match(ci, /mktemp -d/u);
