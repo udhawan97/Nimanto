@@ -4003,6 +4003,51 @@ export class NimantoStore {
     return (await this.#readAnswerBlocks(tenantId, id, includeHistory))[0] ?? null;
   }
 
+  async listAnswerRevisions(
+    tenantId: string,
+    id: string,
+    options: { cursor?: string; limit?: number } = {},
+  ): Promise<HistoryPage<AnswerRevisionRecord>> {
+    const exists = await this.#db.query<{ id: string }>(
+      `SELECT id FROM answer_blocks WHERE tenant_id = $1 AND id = $2 LIMIT 1`,
+      [tenantId, id],
+    );
+    if (!exists.rows[0]) throw new Error("ANSWER_BLOCK_NOT_FOUND");
+    const limit = historyLimit(options.limit);
+    let anchorRevision: number | null = null;
+    if (options.cursor) {
+      const result = await this.#db.query<{ revision: string | number }>(
+        `SELECT revision FROM answer_revisions
+         WHERE tenant_id = $1 AND answer_block_id = $2 AND id = $3 LIMIT 1`,
+        [tenantId, id, options.cursor],
+      );
+      if (!result.rows[0]) throw new Error("INVALID_CURSOR");
+      anchorRevision = Number(result.rows[0].revision);
+    }
+    const result = await this.#db.query<any>(
+      `SELECT id, revision, topic, prompt, answer_text, evidence_ids, created_at
+       FROM answer_revisions
+       WHERE tenant_id = $1
+         AND answer_block_id = $2
+         AND ($3::bigint IS NULL OR revision < $3::bigint)
+       ORDER BY revision DESC LIMIT $4`,
+      [tenantId, id, anchorRevision, limit + 1],
+    );
+    const items = result.rows.slice(0, limit).map((row) => ({
+      id: row.id,
+      revision: Number(row.revision),
+      topic: row.topic,
+      prompt: row.prompt,
+      answerText: row.answer_text,
+      evidenceIds: row.evidence_ids,
+      createdAt: iso(row.created_at)!,
+    }));
+    return {
+      items,
+      nextCursor: result.rows.length > limit ? (items.at(-1)?.id ?? null) : null,
+    };
+  }
+
   async #readAnswerBlocks(
     tenantId: string,
     id: string | null,

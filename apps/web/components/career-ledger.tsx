@@ -958,28 +958,69 @@ export function AnswerHistoryDetails({
   answer: CareerOperationsSnapshot["answerBlocks"][number];
   onCopyEvidence: (evidenceId: string, revision: number) => void;
 }) {
+  type AnswerRevisionHistoryResponse = {
+    currentRevision: number;
+    revisions: AnswerRevision[];
+    nextCursor: string | null;
+  };
   const [history, setHistory] = useState<{
     revision: number;
     state: "loading" | "loaded" | "failed";
     revisions: AnswerRevision[];
+    nextCursor: string | null;
   } | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadMoreFailed, setLoadMoreFailed] = useState(false);
   const currentHistory = history?.revision === answer.currentRevision ? history : null;
+
   const loadHistory = () => {
     if (currentHistory?.state === "loading" || currentHistory?.state === "loaded") return;
-    setHistory({ revision: answer.currentRevision, state: "loading", revisions: [] });
-    void api<CareerOperationsSnapshot["answerBlocks"][number]>(
-      `/v1/answer-blocks/${answer.id}/revisions`,
-    )
+    setLoadingMore(false);
+    setLoadMoreFailed(false);
+    setHistory({ revision: answer.currentRevision, state: "loading", revisions: [], nextCursor: null });
+    void api<AnswerRevisionHistoryResponse>(`/v1/answer-blocks/${answer.id}/revisions`)
       .then((record) =>
         setHistory({
           revision: record.currentRevision,
           state: "loaded",
-          revisions: record.revisions ?? [],
+          revisions: record.revisions,
+          nextCursor: record.nextCursor ?? null,
         }),
       )
       .catch(() =>
-        setHistory({ revision: answer.currentRevision, state: "failed", revisions: [] }),
+        setHistory({
+          revision: answer.currentRevision,
+          state: "failed",
+          revisions: [],
+          nextCursor: null,
+        }),
       );
+  };
+
+  const loadMoreHistory = () => {
+    if (!currentHistory?.nextCursor || loadingMore) return;
+    const cursor = currentHistory.nextCursor;
+    setLoadingMore(true);
+    setLoadMoreFailed(false);
+    const search = new URLSearchParams({ cursor, limit: "20" });
+    void api<AnswerRevisionHistoryResponse>(
+      `/v1/answer-blocks/${answer.id}/revisions?${search.toString()}`,
+    )
+      .then((record) => {
+        if (record.currentRevision !== answer.currentRevision) return;
+        setHistory((previous) =>
+          previous?.revision === answer.currentRevision && previous.state === "loaded"
+            ? {
+                revision: record.currentRevision,
+                state: "loaded",
+                revisions: [...previous.revisions, ...record.revisions],
+                nextCursor: record.nextCursor ?? null,
+              }
+            : previous,
+        );
+      })
+      .catch(() => setLoadMoreFailed(true))
+      .finally(() => setLoadingMore(false));
   };
 
   return (
@@ -1002,10 +1043,21 @@ export function AnswerHistoryDetails({
         </div>
       )}
       {currentHistory?.state === "loaded" && (
-        <AnswerRevisionHistory
-          revisions={currentHistory.revisions}
-          onCopyEvidence={onCopyEvidence}
-        />
+        <div className="career-ledger-history">
+          <AnswerRevisionHistory
+            revisions={currentHistory.revisions}
+            onCopyEvidence={onCopyEvidence}
+          />
+          {currentHistory.nextCursor ? (
+            <button className="button mini quiet" type="button" onClick={loadMoreHistory}>
+              Load older revisions
+            </button>
+          ) : null}
+          {loadingMore && <p role="status">Loading older revisions…</p>}
+          {loadMoreFailed && (
+            <p role="alert">Older revisions could not be loaded. Try again.</p>
+          )}
+        </div>
       )}
     </details>
   );
