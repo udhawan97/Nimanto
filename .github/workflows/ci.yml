@@ -100,3 +100,30 @@ jobs:
           ! grep -R -a -q -F "$canary_value" "$canary_dir/saved-layers"
 
           ! docker history --no-trunc nimanto:${{ github.sha }} | grep -F "$canary_value"
+
+      - name: Assert the runtime image carries no build or test tooling
+        run: |
+          set -euo pipefail
+          docker run --rm --entrypoint sh nimanto:${{ github.sha }} -c \
+            'test ! -d /app/node_modules/vitest && test ! -d /app/node_modules/@playwright'
+
+      - name: Start the runtime image and reach /health
+        run: |
+          set -euo pipefail
+          health_container=''
+          cleanup() {
+            if [ -n "$health_container" ]; then
+              docker logs "$health_container" || true
+              docker rm --force "$health_container" >/dev/null 2>&1 || true
+            fi
+          }
+          trap cleanup EXIT
+          health_container="$(docker run --detach --publish 127.0.0.1:4310:4310 \
+            --env NIMANTO_DEMO_MODE=off nimanto:${{ github.sha }})"
+          for _ in $(seq 1 60); do
+            if curl --fail --silent --show-error http://127.0.0.1:4310/health >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          exit 1

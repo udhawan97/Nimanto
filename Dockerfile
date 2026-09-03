@@ -39,6 +39,10 @@ COPY packages/parsers/tsconfig.json packages/parsers/tsconfig.build.json package
 COPY packages/providers/src packages/providers/src
 COPY packages/providers/tsconfig.json packages/providers/tsconfig.build.json packages/providers/
 RUN pnpm build
+# Reshape node_modules to the production dependency set before it is copied into
+# /runtime, so the runtime image carries no build or test tooling. The lockfile
+# stays frozen and the packages come from the store this stage already populated.
+RUN pnpm install --prod --frozen-lockfile --offline
 RUN mkdir -p /runtime/apps/api /runtime/apps/web /runtime/apps/worker \
       /runtime/packages/database /runtime/packages/documents /runtime/packages/domain \
       /runtime/packages/parsers /runtime/packages/providers \
