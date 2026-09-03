@@ -59,6 +59,7 @@ import { CopyLine } from "./copy-line.js";
 import { DeletionReceiptGuidance } from "./deletion-receipt-guidance.js";
 import { CareerLedger, type CareerOperationsSnapshot } from "./career-ledger.js";
 import { PacketComposer } from "./packet-composer.js";
+import { profileVersionRebindReason } from "../lib/packet-composer.js";
 import { ApplicationSubmissionRecorder, createSubmissionDraft } from "./application-submission.js";
 import { H1bEvidencePanel, type RoleWordingReview } from "./h1b-evidence.js";
 import { MatchEvidenceLens } from "./match-evidence-lens.js";
@@ -6358,6 +6359,8 @@ function Applications({
                         }
                         draft={submissionDraft}
                         busy={busy}
+                        rebindReason={profileVersionRebindReason(application, dashboard.profile)}
+                        onRebind={() => rebindProfileVersion(onAct, application.id)}
                         onDraftChange={(draft) =>
                           dispatch({
                             type: "submission_changed",
@@ -6449,6 +6452,8 @@ function Applications({
                     }
                     draft={submissionDraft}
                     busy={busy}
+                    rebindReason={profileVersionRebindReason(application, dashboard.profile)}
+                    onRebind={() => rebindProfileVersion(onAct, application.id)}
                     onDraftChange={(draft) =>
                       dispatch({
                         type: "submission_changed",
@@ -7653,6 +7658,18 @@ function LocalDraftDisclosure({ dashboard }: { dashboard: Dashboard }) {
   );
 }
 
+/* One candidate-initiated rebind, defined once for every surface that can be
+ * stopped by a superseded Profile Version. The Application keeps its packets,
+ * assurance runs and Submission Records; only the binding moves, which is why
+ * the copy sends the candidate back through explain and compose. */
+function rebindProfileVersion(onAct: ActionRunner, applicationId: string): void {
+  void onAct.run({
+    request: () => api(`/v1/applications/${applicationId}/profile-version`, { method: "PUT" }),
+    success:
+      "Application now uses your current Profile Version. Explain the role again, then compose a new packet.",
+  });
+}
+
 function Packets({
   dashboard,
   onAct,
@@ -7663,9 +7680,16 @@ function Packets({
   busy: boolean;
 }) {
   const [historyFor, setHistoryFor] = useState<string | null>(null);
-  const packetByApplication = new Map(
-    dashboard.packets.map((packet) => [packet.applicationId, packet]),
-  );
+  /* Newest wins explicitly. The dashboard sends one packet per Application
+   * today, so this only stops the row from depending on array order - and it is
+   * what the approval guard below compares against. */
+  const packetByApplication = new Map<string, Packet>();
+  for (const packet of dashboard.packets) {
+    const held = packetByApplication.get(packet.applicationId);
+    if (!held || held.createdAt < packet.createdAt) {
+      packetByApplication.set(packet.applicationId, packet);
+    }
+  }
   return (
     <>
       <PageIntro
@@ -7694,6 +7718,14 @@ function Packets({
             packet !== undefined &&
             packet.status !== "assurance_passed" &&
             packet.status !== "approved";
+          /* The server refuses approval of a superseded packet with
+           * PACKET_NOT_CURRENT. Do not offer the control that earns that 409. */
+          const packetSuperseded =
+            packet !== undefined &&
+            dashboard.packets.some(
+              (other) =>
+                other.applicationId === application.id && other.createdAt > packet.createdAt,
+            );
           return (
             <article key={application.id} className="packet-row">
               <div className="packet-icon">
@@ -7726,6 +7758,7 @@ function Packets({
                     busy={busy}
                     compact
                     onGenerate={generate}
+                    onRebind={() => rebindProfileVersion(onAct, application.id)}
                   />
                 ) : (
                   <>
@@ -7739,6 +7772,7 @@ function Packets({
                       compact
                       primary={false}
                       onGenerate={generate}
+                      onRebind={() => rebindProfileVersion(onAct, application.id)}
                     />
                     <button
                       className={`button mini ${approvalNeedsAssurance ? "primary" : "quiet"}`}
@@ -7764,10 +7798,12 @@ function Packets({
                       supportingContent={<PacketApprovalContext packet={packet} />}
                       confirmLabel="Approve this packet"
                       cancelLabel="Cancel"
-                      disabled={busy || packet.status !== "assurance_passed"}
-                      {...(approvalNeedsAssurance
-                        ? { descriptionId: `approve-gate-${packet.id}` }
-                        : {})}
+                      disabled={busy || packetSuperseded || packet.status !== "assurance_passed"}
+                      {...(packetSuperseded
+                        ? { descriptionId: `packet-superseded-${packet.id}` }
+                        : approvalNeedsAssurance
+                          ? { descriptionId: `approve-gate-${packet.id}` }
+                          : {})}
                       onConfirm={() => {
                         void onAct.run({
                           request: () =>
@@ -7792,7 +7828,12 @@ function Packets({
                   </>
                 )}
               </div>
-              {approvalNeedsAssurance && packet && (
+              {packetSuperseded && packet && (
+                <small className="field-note" id={`packet-superseded-${packet.id}`}>
+                  A newer packet exists for this application. Review and approve the current packet.
+                </small>
+              )}
+              {approvalNeedsAssurance && packet && !packetSuperseded && (
                 <small className="field-note" id={`approve-gate-${packet.id}`}>
                   Approval opens once assurance passes on this exact packet.
                 </small>

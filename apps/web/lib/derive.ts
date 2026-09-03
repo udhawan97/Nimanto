@@ -786,7 +786,9 @@ const FAILURE_COPY: Record<string, string> = {
   LATEST_APPROVED_PACKET_REQUIRED:
     "A newer packet replaced the one selected for this action. Refresh, review and approve the current packet, then create and approve a replacement action.",
   ACTION_APPROVAL_STALE:
-    "A newer packet replaced the one approved for this action. Review and approve the current packet, then create and approve a replacement action.",
+    "This packet's Profile, Match, role, or evidence inputs changed since approval. Compose, assure, and approve a current packet.",
+  PACKET_NOT_CURRENT:
+    "A newer packet exists for this application. Review and approve the current packet.",
   PACKET_EVIDENCE_OUTSIDE_PROFILE:
     "Choose confirmed claims from the Profile Version bound to this application.",
   PROFILE_EVIDENCE_CHANGED:

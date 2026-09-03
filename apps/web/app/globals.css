@@ -4119,8 +4119,15 @@ textarea {
  * without merging their ownership. It is structural provenance, not ornament.
  */
 .packet-actions .packet-composer,
+/* The gate is a sentence and, when the binding can be repaired, the one control
+ * that repairs it. It stays full width so the reason never shares a line with
+ * the row's other actions. */
 .packet-composer-gate {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-sm);
   flex-basis: 100%;
+  min-width: 0;
 }
 .packet-composer {
   width: 100%;

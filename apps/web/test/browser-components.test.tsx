@@ -734,3 +734,73 @@ describe("answer history refresh", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 });
+
+describe("Profile Version rebinding", () => {
+  const staleBinding = {
+    application: {
+      id: "application-1",
+      jobId: "job-1",
+      profileVersionId: "aaaaaaaa-1111-4111-8111-111111111111",
+    },
+    profile: { id: "bbbbbbbb-2222-4222-8222-222222222222", claimIds: ["evidence-1"] },
+    job: { id: "job-1", contentHash: "role-hash" },
+    match: null,
+    evidence: [],
+    busy: false,
+  };
+  const reason =
+    "This Application is bound to Profile Version aaaaaaaa; your current Profile is bbbbbbbb.";
+
+  it("offers the composer a way out of a stale Profile Version binding", async () => {
+    const onRebind = vi.fn();
+    const view = await render(
+      createElement(PacketComposer, {
+        ...staleBinding,
+        onGenerate: vi.fn(),
+        onRebind,
+      }),
+    );
+
+    expect(view.textContent).toContain(reason);
+    const button = view.querySelector<HTMLButtonElement>("button.profile-rebind");
+    expect(button?.textContent).toContain("Use current Profile Version");
+    await act(async () => button?.click());
+    expect(onRebind).toHaveBeenCalledTimes(1);
+  });
+
+  it("states the dead end without a control when no rebind is possible", async () => {
+    const view = await render(
+      createElement(PacketComposer, {
+        ...staleBinding,
+        profile: null,
+        onGenerate: vi.fn(),
+        onRebind: vi.fn(),
+      }),
+    );
+
+    expect(view.textContent).toContain("Save the Application's exact Profile Version first.");
+    expect(view.querySelector("button.profile-rebind")).toBeNull();
+  });
+
+  it("offers the same sentence and control on the submission recorder", async () => {
+    const onRebind = vi.fn();
+    const view = await render(
+      createElement(ApplicationSubmissionRecorder, {
+        packet: null,
+        rebindReason: reason,
+        draft: createSubmissionDraft(null, new Date("2026-09-01T12:00:00.000Z")),
+        busy: false,
+        onDraftChange: vi.fn(),
+        onConfirm: vi.fn(),
+        onCancel: vi.fn(),
+        onRebind,
+      }),
+    );
+
+    expect(view.textContent).toContain(reason);
+    const button = view.querySelector<HTMLButtonElement>("button.profile-rebind");
+    expect(button?.textContent).toContain("Use current Profile Version");
+    await act(async () => button?.click());
+    expect(onRebind).toHaveBeenCalledTimes(1);
+  });
+});

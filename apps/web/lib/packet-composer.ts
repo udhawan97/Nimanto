@@ -25,8 +25,36 @@ export type PacketEvidenceOption = ComposerEvidence & {
 };
 
 export type PacketComposerProjection =
-  | { ready: false; reason: string; options: PacketEvidenceOption[]; matchId: null }
-  | { ready: true; reason: null; options: PacketEvidenceOption[]; matchId: string };
+  | {
+      ready: false;
+      reason: string;
+      rebindAvailable: boolean;
+      options: PacketEvidenceOption[];
+      matchId: null;
+    }
+  | {
+      ready: true;
+      reason: null;
+      rebindAvailable: false;
+      options: PacketEvidenceOption[];
+      matchId: string;
+    };
+
+/* An Application is pinned to the Profile Version it was created against. Once
+ * the candidate saves a newer one, every composer, action and submission path
+ * for that Application fails closed, so the gap has to name both versions and
+ * say which single recovery clears it. Null means the Application predates any
+ * Profile Version, which the same rebind fixes. */
+export function profileVersionRebindReason(
+  application: { profileVersionId: string | null },
+  profile: { id: string } | null,
+): string | null {
+  if (!profile || application.profileVersionId === profile.id) return null;
+  const current = `your current Profile is ${profile.id.slice(0, 8)}.`;
+  return application.profileVersionId
+    ? `This Application is bound to Profile Version ${application.profileVersionId.slice(0, 8)}; ${current}`
+    : `This Application is not bound to a Profile Version; ${current}`;
+}
 
 /**
  * Build the exact candidate-selectable evidence inventory for one Application.
@@ -41,10 +69,12 @@ export function projectPacketComposer(input: {
   evidence: ComposerEvidence[];
 }): PacketComposerProjection {
   const profile = input.profile;
-  if (!profile || input.application.profileVersionId !== profile.id) {
+  const rebindReason = profileVersionRebindReason(input.application, profile);
+  if (!profile || rebindReason) {
     return {
       ready: false,
-      reason: "Save the Application's exact Profile Version first.",
+      reason: rebindReason ?? "Save the Application's exact Profile Version first.",
+      rebindAvailable: rebindReason !== null,
       options: [],
       matchId: null,
     };
@@ -61,6 +91,7 @@ export function projectPacketComposer(input: {
     return {
       ready: false,
       reason: "Publish a current Match for this exact Role and Profile before composing.",
+      rebindAvailable: false,
       options: [],
       matchId: null,
     };
@@ -78,11 +109,12 @@ export function projectPacketComposer(input: {
     return {
       ready: false,
       reason: "This Profile has no confirmed evidence available for a Packet.",
+      rebindAvailable: false,
       options: [],
       matchId: null,
     };
   }
-  return { ready: true, reason: null, options, matchId: match.id };
+  return { ready: true, reason: null, rebindAvailable: false, options, matchId: match.id };
 }
 
 export function movePacketEvidence(

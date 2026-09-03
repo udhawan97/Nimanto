@@ -904,9 +904,9 @@ describe("failure messages", () => {
     );
   });
 
-  it("explains how to recover when a newer packet invalidates an approved action", () => {
+  it("names every input that can stale an approved action, not only a newer packet", () => {
     expect(failureMessage({ code: "ACTION_APPROVAL_STALE", message: "generic" })).toBe(
-      "A newer packet replaced the one approved for this action. Review and approve the current packet, then create and approve a replacement action.",
+      "This packet's Profile, Match, role, or evidence inputs changed since approval. Compose, assure, and approve a current packet.",
     );
   });
 
@@ -991,5 +991,13 @@ describe("funnel", () => {
       expect(Object.keys(stage)).toEqual(["id", "label", "count"]);
       expect(JSON.stringify(stage)).not.toMatch(/rate|percent|probability|%/i);
     }
+  });
+});
+
+describe("packet currentness failures", () => {
+  it("tells the candidate a newer packet exists rather than repeating the API code", () => {
+    expect(failureMessage({ code: "PACKET_NOT_CURRENT", message: "PACKET_NOT_CURRENT" })).toBe(
+      "A newer packet exists for this application. Review and approve the current packet.",
+    );
   });
 });

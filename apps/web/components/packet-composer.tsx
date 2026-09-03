@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, Check, FileOutput } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, FileOutput, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { movePacketEvidence, projectPacketComposer } from "../lib/packet-composer.js";
 
@@ -22,6 +22,28 @@ type Match = {
   result: { requirements: Array<{ requirement: string; state: string; evidenceIds: string[] }> };
 };
 
+/** The one recovery for an Application pinned to a superseded Profile Version.
+ * Shared by the composer gate, the packet row and the submission recorder so
+ * the candidate meets the same control wherever the binding stops them. */
+export function RebindProfileVersionButton({
+  busy,
+  onRebind,
+}: {
+  busy: boolean;
+  onRebind: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="button mini quiet profile-rebind"
+      disabled={busy}
+      onClick={onRebind}
+    >
+      <RefreshCw size={15} aria-hidden="true" /> Use current Profile Version
+    </button>
+  );
+}
+
 export function PacketComposer({
   application,
   profile,
@@ -32,6 +54,7 @@ export function PacketComposer({
   compact = false,
   primary = true,
   onGenerate,
+  onRebind,
 }: {
   application: Application;
   profile: Profile | null;
@@ -42,6 +65,7 @@ export function PacketComposer({
   compact?: boolean;
   primary?: boolean;
   onGenerate: (evidenceIds: string[]) => void;
+  onRebind?: () => void;
 }) {
   const projection = useMemo(
     () => projectPacketComposer({ application, profile, job, match, evidence }),
@@ -58,7 +82,14 @@ export function PacketComposer({
   }, [optionKey, projection.options]);
 
   if (!projection.ready) {
-    return <small className="field-note packet-composer-gate">{projection.reason}</small>;
+    return (
+      <div className="packet-composer-gate">
+        <small className="field-note">{projection.reason}</small>
+        {projection.rebindAvailable && onRebind && (
+          <RebindProfileVersionButton busy={busy} onRebind={onRebind} />
+        )}
+      </div>
+    );
   }
 
   const selectedOptions = selected.flatMap((id) => {

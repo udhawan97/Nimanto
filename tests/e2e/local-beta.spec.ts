@@ -2878,3 +2878,93 @@ test("the candidate career ledger carries the P1 and P2 application workflow", a
   await page.setViewportSize({ width: 375, height: 812 });
   await expectSurfaceContained(page, ledger, "career ledger at 375px");
 });
+
+/* DR-8056ce1f-001. An Application is pinned to the Profile Version it was
+ * created against, so saving a newer one used to close every composer, action
+ * and submission path for that Application with no way back. The recovery is
+ * one candidate-initiated rebind.
+ *
+ * The rebind route (PUT /v1/applications/:id/profile-version) is lane A's half
+ * of this finding. Until it is merged the journey below cannot run, so it skips
+ * itself rather than reporting a false pass. A path with no route reaches the error
+ * handler as a framework rejection and comes back as HTTP_404; the route itself
+ * answers an unknown id with APPLICATION_NOT_FOUND. */
+async function rebindRouteAvailable(page: Page): Promise<boolean> {
+  const response = await page.request.fetch(
+    `${TEST_API_ORIGIN}/v1/applications/00000000-0000-4000-8000-000000000000/profile-version`,
+    { method: "PUT", failOnStatusCode: false },
+  );
+  const body = (await response.json().catch(() => null)) as {
+    error?: { code?: string };
+  } | null;
+  return body?.error?.code === "APPLICATION_NOT_FOUND";
+}
+
+/** The pipeline column a card currently sits in. The status-labelled buttons on
+ * a card are the moves it offers, not the stage it is in. */
+function boardColumn(page: Page, label: string): Locator {
+  return page
+    .locator(".board-column")
+    .filter({ has: page.getByRole("heading", { level: 3, name: label, exact: true }) });
+}
+
+test("a superseded Profile Version is recoverable without abandoning the Application", async ({
+  page,
+}) => {
+  test.setTimeout(75_000);
+  await page.goto(`/workspace/#bootstrap=${bootstrapSecret}`);
+  await page.getByLabel("Your name").fill("Rebind Check");
+  await page.getByLabel("Your email").fill("rebind@example.test");
+  await page.getByRole("button", { name: "Start private workspace" }).click();
+  test.skip(
+    !(await rebindRouteAvailable(page)),
+    "PUT /v1/applications/:id/profile-version is not served by this build (lane A, DR-8056ce1f-001)",
+  );
+
+  await page.getByRole("button", { name: "Run starter matches" }).click();
+  await page.getByRole("button", { name: "Role discovery" }).click();
+  await page.getByRole("button", { name: "Track", exact: true }).first().click();
+  await page.getByRole("button", { name: "Review packets" }).click();
+  await generatePacket(page);
+  const packet = page.locator(".packet-row").first();
+  await packet.getByRole("button", { name: "Assure", exact: true }).click();
+  await approveExactPacket(packet);
+  await expect(page.getByText("Packet approved for export.")).toBeVisible();
+  await page.getByRole("button", { name: "Applications" }).click();
+  await expect(boardColumn(page, "Approved for export").locator("article")).toHaveCount(1);
+
+  // A newer Profile Version supersedes the one this Application is bound to.
+  await page.getByRole("button", { name: "Evidence vault" }).click();
+  await page
+    .getByLabel("Candidate-approved statement")
+    .fill("I require employer support for an H-1B transfer.");
+  await page.getByRole("button", { name: "Save profile version" }).click();
+  await expect(page.getByRole("button", { name: "No changes to save" })).toBeDisabled();
+
+  // The dead end now names both versions and offers the single recovery.
+  await page.getByRole("button", { name: "Review packets" }).click();
+  await expect(packet.locator(".packet-composer-gate")).toContainText(
+    /This Application is bound to Profile Version [0-9a-f]{8}; your current Profile is [0-9a-f]{8}\./,
+  );
+  await packet.getByRole("button", { name: "Use current Profile Version" }).first().click();
+  await expect(
+    page.getByText(
+      "Application now uses your current Profile Version. Explain the role again, then compose a new packet.",
+    ),
+  ).toBeVisible();
+
+  // The approval the old binding earned is withdrawn, not silently kept.
+  await page.getByRole("button", { name: "Applications" }).click();
+  await expect(boardColumn(page, "Prepared").locator("article")).toHaveCount(1);
+  await expect(boardColumn(page, "Approved for export").locator("article")).toHaveCount(0);
+
+  // Explain, compose, assure and approve all reopen against the current Profile.
+  await page.getByRole("button", { name: "Role discovery" }).click();
+  await page.locator(".job-row").first().getByRole("button", { name: "Explain fit" }).click();
+  await page.getByRole("button", { name: "Review packets" }).click();
+  await expect(packet.locator(".packet-composer-gate")).toHaveCount(0);
+  await generatePacket(page);
+  await packet.getByRole("button", { name: "Assure", exact: true }).click();
+  await approveExactPacket(packet);
+  await expect(page.getByText("Packet approved for export.")).toBeVisible();
+});
