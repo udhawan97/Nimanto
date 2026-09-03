@@ -3086,4 +3086,49 @@ describe("Nimanto beta API", () => {
     expect(errors).not.toHaveBeenCalled();
     expect(warnings).not.toHaveBeenCalled();
   });
+
+  it("never returns another workspace's answer history", async () => {
+    const { app, cookie } = await setup();
+    const saved = await app.inject({
+      method: "POST",
+      url: "/v1/answer-blocks",
+      headers: { cookie },
+      payload: {
+        topic: "why_role",
+        prompt: "Why this role?",
+        answerText: "Because the work matches my confirmed evidence.",
+        evidenceIds: [],
+      },
+    });
+    expect(saved.statusCode).toBe(200);
+    const answerBlockId = saved.json().id as string;
+    expect(
+      (
+        await app.inject({
+          method: "GET",
+          url: `/v1/answer-blocks/${answerBlockId}/revisions`,
+          headers: { cookie },
+        })
+      ).statusCode,
+    ).toBe(200);
+
+    const otherLogin = await app.inject({
+      method: "POST",
+      url: "/v1/auth/local",
+      headers: { "x-nimanto-bootstrap-secret": bootstrapSecret },
+      payload: { email: "other-answers@example.test", displayName: "Other" },
+    });
+    const header = otherLogin.headers["set-cookie"];
+    const otherCookie = (Array.isArray(header) ? header[0] : header)?.split(";")[0] ?? "";
+    const foreign = await app.inject({
+      method: "GET",
+      url: `/v1/answer-blocks/${answerBlockId}/revisions`,
+      headers: { cookie: otherCookie },
+    });
+    expect(foreign.statusCode).toBe(404);
+    expect(foreign.json().error.code).toBe("ANSWER_BLOCK_NOT_FOUND");
+    expect(foreign.json().error.message).toBe(
+      "The requested record was not found in this workspace.",
+    );
+  });
 });
