@@ -751,7 +751,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
   await app.register(swaggerUi, { routePrefix: "/docs" });
 
   app.addHook("onClose", async () => store.close());
-  app.setErrorHandler((error, _request, reply) => {
+  app.setErrorHandler((error, request, reply) => {
     /* A framework rejection already carries the right status and does not use
      * this codebase's SCREAMING_CASE message convention. Folding it into
      * INTERNAL_ERROR reported the local service as broken when it was healthy
@@ -777,6 +777,20 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
       return;
     }
     const safe = messageForError(raised);
+    /* A server fault leaves exactly one line, and only these keys. The route
+     * template is not request.url: no query string, body, cookie, or email is
+     * ever written to the operator's terminal. A 4xx stays silent. */
+    if (safe.status >= 500) {
+      console.error(
+        JSON.stringify({
+          level: "error",
+          code: safe.code,
+          method: request.method,
+          route: request.routeOptions?.url ?? null,
+          requestId: request.id,
+        }),
+      );
+    }
     void reply.code(safe.status).send({ error: { code: safe.code, message: safe.message } });
   });
   app.addHook("onSend", async (request, reply, payload) => {

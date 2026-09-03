@@ -14,6 +14,13 @@ type DeletionRun = {
   completedAt?: string | null;
 };
 
+/** Files are left on disk and only the operator can act on that. The run id is
+ * the whole line: the candidate's status token is in scope at both call sites
+ * and must never reach a log. */
+function warnCleanupPending(runId: string): void {
+  console.warn(JSON.stringify({ level: "warn", code: "FILESYSTEM_CLEANUP_PENDING", runId }));
+}
+
 export class DeletionCoordinator {
   constructor(
     private readonly store: NimantoStore,
@@ -30,6 +37,7 @@ export class DeletionCoordinator {
     try {
       return { run, completedAt: await this.finish(run), pending: false as const };
     } catch {
+      warnCleanupPending(run.id);
       return { run, completedAt: null, pending: true as const };
     }
   }
@@ -47,6 +55,7 @@ export class DeletionCoordinator {
     try {
       return { run, completedAt: await this.finish(run), pending: false as const };
     } catch {
+      warnCleanupPending(run.id);
       return { run, completedAt: null, pending: true as const };
     }
   }

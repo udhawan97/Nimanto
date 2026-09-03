@@ -1,7 +1,7 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { PGlite } from "@electric-sql/pglite";
 import type { FastifyInstance } from "fastify";
 import { NimantoStore } from "@nimanto/database";
@@ -22,6 +22,7 @@ import { NIMANTO_VERSION } from "../src/version.js";
 const apps: FastifyInstance[] = [];
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   await Promise.all(apps.splice(0).map((app) => app.close()));
 });
 
@@ -2480,6 +2481,7 @@ describe("Nimanto beta API", () => {
   });
 
   it("keeps deletion resumable when filesystem cleanup fails", async () => {
+    const warnings = vi.spyOn(console, "warn").mockImplementation(() => {});
     let attempts = 0;
     const { app, cookie } = await setup({
       removePath: async (target, settings) => {
@@ -2498,6 +2500,18 @@ describe("Nimanto beta API", () => {
     expect(first.json()).toMatchObject({ state: "cleanup_pending" });
     expect(first.json().message).not.toContain("All workspace data was deleted");
     const token = first.json().token as string;
+    /* Pending cleanup is the operator's only signal that files are left behind,
+     * and the status token is in scope at that call site. It stays out of the
+     * line, and so does every address. */
+    expect(warnings).toHaveBeenCalledTimes(1);
+    const pendingLine = warnings.mock.calls[0]?.[0] as string;
+    expect(JSON.parse(pendingLine)).toEqual({
+      level: "warn",
+      code: "FILESYSTEM_CLEANUP_PENDING",
+      runId: expect.any(String),
+    });
+    expect(pendingLine).not.toContain(token);
+    expect(pendingLine).not.toContain("@");
     const pending = await app.inject({ method: "GET", url: `/v1/deletion/status?token=${token}` });
     expect(pending.json().state).toBe("cleanup_pending");
 
@@ -3022,5 +3036,54 @@ describe("Nimanto beta API", () => {
     });
     expect(resumed.statusCode).toBe(200);
     expect(resumed.json()).toMatchObject({ state: "completed", completedAt });
+  });
+
+  it("logs one keyed line for a server fault and stays silent for a client error", async () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    const warnings = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { app, cookie } = await setup({
+      urlAllowlist: ["jobs.example.test"],
+      urlTermsReviewedAt: "2026-08-01T00:00:00.000Z",
+      allowlistedJobPageFetcher: async () => {
+        throw new Error("INJECTED_UNMAPPED_INTAKE_FAULT");
+      },
+    });
+
+    const faulted = await app.inject({
+      method: "POST",
+      url: "/v1/jobs/url-import?candidate=someone@example.test",
+      headers: { cookie },
+      payload: {
+        url: "https://jobs.example.test/roles/1",
+        title: "Platform Engineer",
+        company: "Northwind",
+        requirements: ["TypeScript"],
+      },
+    });
+    expect(faulted.statusCode).toBe(500);
+    expect(errors).toHaveBeenCalledTimes(1);
+    const line = errors.mock.calls[0]?.[0] as string;
+    expect(JSON.parse(line)).toEqual({
+      level: "error",
+      code: "INJECTED_UNMAPPED_INTAKE_FAULT",
+      method: "POST",
+      route: "/v1/jobs/url-import",
+      requestId: expect.any(String),
+    });
+    // The route template is logged, never the request URL, its query, a body,
+    // an email, or a cookie.
+    expect(line).not.toContain("?");
+    expect(line).not.toContain("@");
+    expect(line).not.toContain("nimanto_session");
+    expect(line).not.toContain("Northwind");
+
+    errors.mockClear();
+    const clientError = await app.inject({
+      method: "GET",
+      url: "/v1/deletion/status?token=a&token=b",
+    });
+    expect(clientError.statusCode).toBe(400);
+    expect(errors).not.toHaveBeenCalled();
+    expect(warnings).not.toHaveBeenCalled();
   });
 });
