@@ -29,7 +29,7 @@ import {
   UsersRound,
   X,
 } from "lucide-react";
-import { type FormEvent, useEffect, useId, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useId, useMemo, useRef, useState } from "react";
 import { api } from "../lib/api-client.js";
 import type { ApplicationViewState } from "../lib/applications-workbench.js";
 import {
@@ -963,6 +963,7 @@ export function AnswerHistoryDetails({
     state: "loading" | "loaded" | "failed";
     revisions: AnswerRevision[];
   } | null>(null);
+  const details = useRef<HTMLDetailsElement>(null);
   const currentHistory = history?.revision === answer.currentRevision ? history : null;
   const loadHistory = () => {
     if (currentHistory?.state === "loading" || currentHistory?.state === "loaded") return;
@@ -982,9 +983,16 @@ export function AnswerHistoryDetails({
       );
   };
 
+  // A revision saved while the panel is open advances currentRevision, which
+  // discards currentHistory. Reload so the open panel does not go blank.
+  useEffect(() => {
+    if (details.current?.open) loadHistory();
+  }, [answer.currentRevision]);
+
   return (
     <details
       className="answer-history"
+      ref={details}
       onToggle={(event) => {
         if (event.currentTarget.open) loadHistory();
       }}

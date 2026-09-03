@@ -627,3 +627,109 @@ describe("candidate-controlled packet and submission forms", () => {
     expect(view.textContent).toContain("First answer");
   });
 });
+
+describe("answer history refresh", () => {
+  function answerAt(currentRevision: number) {
+    return {
+      id: "answer-1",
+      topic: "why_role" as const,
+      prompt: "Why this role?",
+      currentRevision,
+      latest: {
+        answerText: `Answer at revision ${currentRevision}`,
+        evidenceIds: [],
+        createdAt: "2026-09-01T12:00:00.000Z",
+      },
+      createdAt: "2026-08-31T12:00:00.000Z",
+      updatedAt: "2026-09-01T12:00:00.000Z",
+    };
+  }
+
+  function serveRevisions(state: { current: number }) {
+    return vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
+      const currentRevision = state.current;
+      const record = {
+        ...answerAt(currentRevision),
+        revisions: Array.from({ length: currentRevision }, (_unused, index) => {
+          const revision = currentRevision - index;
+          return {
+            id: `revision-${revision}`,
+            revision,
+            topic: "why_role",
+            prompt: "Why this role?",
+            answerText: `Answer at revision ${revision}`,
+            evidenceIds: [],
+            createdAt: "2026-09-01T12:00:00.000Z",
+          };
+        }),
+      };
+      return { ok: true, json: async () => record } as Response;
+    });
+  }
+
+  async function openDetails(view: HTMLDivElement) {
+    const details = view.querySelector("details")!;
+    await act(async () => {
+      details.open = true;
+      details.dispatchEvent(new Event("toggle"));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+  }
+
+  it("reloads history when a revision lands while the panel is open", async () => {
+    const served = { current: 2 };
+    const fetch = serveRevisions(served);
+    const view = await render(
+      createElement(AnswerHistoryDetails, {
+        answer: answerAt(2),
+        onCopyEvidence: vi.fn(),
+      }),
+    );
+
+    expect(fetch).not.toHaveBeenCalled();
+    await openDetails(view);
+    expect(view.textContent).toContain("Answer at revision 2");
+    expect(view.textContent).not.toContain("Answer at revision 3");
+
+    fetch.mockClear();
+    served.current = 3;
+    await act(async () => {
+      root?.render(
+        createElement(AnswerHistoryDetails, {
+          answer: answerAt(3),
+          onCopyEvidence: vi.fn(),
+        }),
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(fetch).toHaveBeenCalled();
+    expect(view.textContent).toContain("Answer at revision 3");
+  });
+
+  it("does not fetch history for a revision that lands while the panel is closed", async () => {
+    const served = { current: 2 };
+    const fetch = serveRevisions(served);
+    await render(
+      createElement(AnswerHistoryDetails, {
+        answer: answerAt(2),
+        onCopyEvidence: vi.fn(),
+      }),
+    );
+
+    served.current = 3;
+    await act(async () => {
+      root?.render(
+        createElement(AnswerHistoryDetails, {
+          answer: answerAt(3),
+          onCopyEvidence: vi.fn(),
+        }),
+      );
+      await Promise.resolve();
+    });
+
+    expect(fetch).not.toHaveBeenCalled();
+  });
+});
