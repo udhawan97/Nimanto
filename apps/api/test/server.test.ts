@@ -2725,4 +2725,206 @@ describe("Nimanto beta API", () => {
       after.json().evidence.some((claim: { value: string }) => claim.value.includes("versioned")),
     ).toBe(false);
   });
+
+  it("rebinds an Application to the current Profile Version and retires its approved packet", async () => {
+    const { app, cookie } = await setup();
+    const dashboard = async () =>
+      (await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } })).json();
+    const applicationOf = (body: { applications: Array<{ id: string }> }, id: string) =>
+      body.applications.find((application) => application.id === id) as {
+        id: string;
+        status: string;
+        profileVersionId: string;
+        statusEvents: Array<{ fromStatus: string | null; toStatus: string; source: string }>;
+      };
+
+    const initial = await dashboard();
+    const jobId = initial.jobs[0].id as string;
+    const evidenceIds = initial.profile.claimIds.slice(0, 1) as string[];
+    expect(
+      (await app.inject({ method: "POST", url: `/v1/jobs/${jobId}/match`, headers: { cookie } }))
+        .statusCode,
+    ).toBe(200);
+    const tracked = await app.inject({
+      method: "POST",
+      url: "/v1/applications",
+      headers: { cookie },
+      payload: { jobId },
+    });
+    const applicationId = tracked.json().id as string;
+
+    const compose = async (contactEmail: string) => {
+      const created = await app.inject({
+        method: "POST",
+        url: "/v1/packets",
+        headers: { cookie },
+        payload: { applicationId, contactEmail, evidenceIds },
+      });
+      expect(created.statusCode).toBe(200);
+      const id = created.json().id as string;
+      expect(
+        (
+          await app.inject({ method: "POST", url: `/v1/packets/${id}/assure`, headers: { cookie } })
+        ).json().status,
+      ).toBe("passed");
+      expect(
+        (
+          await app.inject({
+            method: "POST",
+            url: `/v1/packets/${id}/approve`,
+            headers: { cookie },
+          })
+        ).json().status,
+      ).toBe("approved");
+      return id;
+    };
+    const stalePacketId = await compose("jobs@example.test");
+    expect(applicationOf(await dashboard(), applicationId).status).toBe("approved_for_export");
+
+    const newProfile = await app.inject({
+      method: "POST",
+      url: "/v1/profile/versions",
+      headers: { cookie },
+      payload: { authorizationWording: "I would require H-1B transfer sponsorship." },
+    });
+    expect(newProfile.json().created).toBe(true);
+    const profileVersionId = newProfile.json().id as string;
+    expect(profileVersionId).not.toBe(initial.profile.id);
+
+    const rebound = await app.inject({
+      method: "PUT",
+      url: `/v1/applications/${applicationId}/profile-version`,
+      headers: { cookie },
+    });
+    expect(rebound.statusCode).toBe(200);
+    expect(rebound.json()).toMatchObject({
+      id: applicationId,
+      profileVersionId,
+      status: "prepared",
+    });
+
+    const afterRebind = await dashboard();
+    const application = applicationOf(afterRebind, applicationId);
+    expect(
+      application.statusEvents.filter((event) => event.fromStatus === "approved_for_export"),
+    ).toEqual([
+      expect.objectContaining({
+        fromStatus: "approved_for_export",
+        toStatus: "prepared",
+        source: "packet",
+      }),
+    ]);
+    const reboundReceipts = (body: { receipts: Array<{ type: string }> }) =>
+      body.receipts.filter((receipt) => receipt.type === "application.profile_rebound");
+    expect(reboundReceipts(afterRebind)).toHaveLength(1);
+    // The approved packet is history, not a rewrite target.
+    expect(
+      afterRebind.actionPackets
+        .concat(afterRebind.packets)
+        .filter((packet: { id: string }) => packet.id === stalePacketId)
+        .every(
+          (packet: { status: string; profileVersionId: string }) =>
+            packet.status === "approved" && packet.profileVersionId === initial.profile.id,
+        ),
+    ).toBe(true);
+
+    const repeated = await app.inject({
+      method: "PUT",
+      url: `/v1/applications/${applicationId}/profile-version`,
+      headers: { cookie },
+    });
+    expect(repeated.statusCode).toBe(200);
+    expect(repeated.json()).toMatchObject({ profileVersionId, status: "prepared" });
+    expect(reboundReceipts(await dashboard())).toHaveLength(1);
+
+    const staleAction = await app.inject({
+      method: "POST",
+      url: "/v1/actions",
+      headers: { cookie },
+      payload: {
+        packetId: stalePacketId,
+        provider: "test_outbox",
+        to: "stale@example.test",
+        subject: "Retired packet",
+        body: "This packet was approved against the previous Profile Version.",
+      },
+    });
+    expect(staleAction.statusCode).toBe(409);
+    expect(staleAction.json().error.code).toBe("ACTION_APPROVAL_STALE");
+
+    const staleSubmission = await app.inject({
+      method: "PUT",
+      url: `/v1/applications/${applicationId}/status`,
+      headers: { cookie },
+      payload: {
+        status: "submitted_externally",
+        confirmed: true,
+        submission: {
+          materialsCaptured: true,
+          packetId: stalePacketId,
+          artifactFormats: ["ats_docx"],
+          channel: "employer_portal",
+          destination: "https://careers.example.test/apply",
+          submittedAt: "2026-08-29T12:00:00.000Z",
+        },
+      },
+    });
+    /* The rebind already returned the Application to prepared, so a Submission
+     * Record against the retired packet is refused one step earlier than the
+     * packet-binding guard: submitted_externally is not reachable from prepared. */
+    expect(staleSubmission.statusCode).toBe(409);
+    expect(staleSubmission.json().error.code).toBe("INVALID_APPLICATION_TRANSITION");
+
+    expect(
+      (await app.inject({ method: "POST", url: `/v1/jobs/${jobId}/match`, headers: { cookie } }))
+        .statusCode,
+    ).toBe(200);
+    const currentPacketId = await compose("current@example.test");
+    const currentAction = await app.inject({
+      method: "POST",
+      url: "/v1/actions",
+      headers: { cookie },
+      payload: {
+        packetId: currentPacketId,
+        provider: "test_outbox",
+        to: "jobs@example.test",
+        subject: "Application",
+        body: "Please find my reviewed packet attached separately.",
+      },
+    });
+    expect(currentAction.statusCode).toBe(200);
+    const currentSubmission = await app.inject({
+      method: "PUT",
+      url: `/v1/applications/${applicationId}/status`,
+      headers: { cookie },
+      payload: {
+        status: "submitted_externally",
+        confirmed: true,
+        submission: {
+          materialsCaptured: true,
+          packetId: currentPacketId,
+          artifactFormats: ["ats_docx"],
+          channel: "employer_portal",
+          destination: "https://careers.example.test/apply",
+          submittedAt: "2026-08-29T12:00:00.000Z",
+        },
+      },
+    });
+    expect(currentSubmission.statusCode).toBe(200);
+
+    const exported = await app.inject({ method: "GET", url: "/v1/export", headers: { cookie } });
+    expect(exported.json().exportVersion).toBe("nimanto-local-beta-v10");
+    expect(
+      exported
+        .json()
+        .workspace.applications.find((record: { id: string }) => record.id === applicationId),
+    ).toMatchObject({ profileVersionId });
+    expect(
+      exported
+        .json()
+        .workspace.receipts.filter(
+          (receipt: { type: string }) => receipt.type === "application.profile_rebound",
+        ),
+    ).toHaveLength(1);
+  });
 });

@@ -3243,6 +3243,55 @@ export class NimantoStore {
     });
   }
 
+  /** Candidate-initiated rebind of an Application to the current Profile
+   * Version. Packets, assurance runs, Submission Records, and match runs are
+   * never touched; the caller records the status consequence and the receipt. */
+  async rebindApplicationProfileVersion(
+    tenantId: string,
+    applicationId: string,
+  ): Promise<{
+    application: ApplicationRecord;
+    rebound: boolean;
+    fromProfileVersionId: string | null;
+    toProfileVersionId: string;
+  }> {
+    return this.transaction(async (database) => {
+      await database.lockTenantActive(tenantId);
+      const current = await database.#db.query<any>(
+        `SELECT id, job_id, profile_version_id, status, submitted_at, follow_up_on,
+           created_at, updated_at
+         FROM applications WHERE tenant_id = $1 AND id = $2 FOR UPDATE`,
+        [tenantId, applicationId],
+      );
+      if (!current.rows[0]) throw new Error("APPLICATION_NOT_FOUND");
+      const latest = await database.latestProfileVersion(tenantId);
+      if (!latest) throw new Error("PROFILE_VERSION_REQUIRED");
+      const fromProfileVersionId = (current.rows[0].profile_version_id ?? null) as string | null;
+      if (fromProfileVersionId === latest.id) {
+        return {
+          application: database.#mapApplication(current.rows[0]),
+          rebound: false,
+          fromProfileVersionId,
+          toProfileVersionId: latest.id,
+        };
+      }
+      const result = await database.#db.query<any>(
+        `UPDATE applications
+         SET profile_version_id = $3, updated_at = now()
+         WHERE tenant_id = $1 AND id = $2
+         RETURNING id, job_id, profile_version_id, status, submitted_at, follow_up_on,
+           created_at, updated_at`,
+        [tenantId, applicationId, latest.id],
+      );
+      return {
+        application: database.#mapApplication(result.rows[0]),
+        rebound: true,
+        fromProfileVersionId,
+        toProfileVersionId: latest.id,
+      };
+    });
+  }
+
   async setApplicationFollowUp(
     tenantId: string,
     id: string,

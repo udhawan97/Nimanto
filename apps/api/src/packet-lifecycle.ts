@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, rm } from "node:fs/promises";
 import path from "node:path";
-import type { NimantoStore, PacketRecord } from "@nimanto/database";
+import type { ApplicationRecord, NimantoStore, PacketRecord } from "@nimanto/database";
 import {
   inspectPacketArtifacts,
   type CanonicalPacket,
@@ -79,11 +79,45 @@ export class PacketLifecycle {
     applicationId: string,
     currentStatus: ApplicationStatus,
     effect: PacketApplicationEffect,
-  ): Promise<void> {
+  ): Promise<ApplicationRecord | null> {
     const decision = applicationTransitions.packet(currentStatus, effect);
-    if (decision.kind === "candidate_status_preserved") return;
+    if (decision.kind === "candidate_status_preserved" || decision.kind === "unchanged") {
+      return null;
+    }
     const application = await database.setApplicationStatus(tenantId, applicationId, decision.to);
     if (!application) throw new Error("APPLICATION_NOT_FOUND");
+    return application;
+  }
+
+  /** Candidate-initiated rebind of an Application to the current Profile
+   * Version. One tenant lock covers the rebind, its status consequence, and its
+   * receipt; packets, assurance runs, and Submission Records stay untouched and
+   * an already-current Application is a no-op. */
+  async rebindProfileVersion(tenantId: string, applicationId: string): Promise<ApplicationRecord> {
+    return this.store.transaction(async (database) => {
+      const outcome = await database.rebindApplicationProfileVersion(tenantId, applicationId);
+      if (!outcome.rebound) return outcome.application;
+      const moved = await this.applyApplicationEffect(
+        database,
+        tenantId,
+        applicationId,
+        outcome.application.status,
+        "profile_rebound",
+      );
+      const receipt = createReceipt({
+        id: randomUUID(),
+        type: "application.profile_rebound",
+        occurredAt: new Date().toISOString(),
+        input: {
+          applicationId,
+          fromProfileVersionId: outcome.fromProfileVersionId,
+          toProfileVersionId: outcome.toProfileVersionId,
+        },
+        artifact: { profileVersionId: outcome.toProfileVersionId },
+      });
+      await database.saveReceipt(tenantId, receipt, { applicationId });
+      return moved ?? outcome.application;
+    });
   }
 
   private async inputs(

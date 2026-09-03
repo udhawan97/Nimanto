@@ -33,14 +33,15 @@ export type CandidateApplicationDecision =
   | { kind: "confirmation_required"; to: ApplicationStatus }
   | { kind: "illegal"; code: "INVALID_APPLICATION_TRANSITION" };
 
-export type PacketApplicationEffect = "packet_generated" | "packet_approved";
+export type PacketApplicationEffect = "packet_generated" | "packet_approved" | "profile_rebound";
 
 export type PacketApplicationDecision =
   | { kind: "system_consequence"; to: "prepared" | "approved_for_export" }
   | {
       kind: "candidate_status_preserved";
       status: "submitted_externally" | "withdrawn";
-    };
+    }
+  | { kind: "unchanged"; status: ApplicationStatus };
 
 function isStatus(value: unknown): value is ApplicationStatus {
   return typeof value === "string" && APPLICATION_STATUSES.includes(value as ApplicationStatus);
@@ -90,11 +91,23 @@ export const applicationTransitions = {
 
   packet(from: ApplicationStatus, effect: PacketApplicationEffect): PacketApplicationDecision {
     if (!isStatus(from)) throw new Error("INVALID_PACKET_APPLICATION_STATUS");
-    if (effect !== "packet_generated" && effect !== "packet_approved") {
+    if (
+      effect !== "packet_generated" &&
+      effect !== "packet_approved" &&
+      effect !== "profile_rebound"
+    ) {
       throw new Error("INVALID_PACKET_APPLICATION_EFFECT");
     }
     if (from === "submitted_externally" || from === "withdrawn") {
       return { kind: "candidate_status_preserved", status: from };
+    }
+    /* Rebinding an Application to the current Profile Version retires an
+     * approved packet, so an Application that was approved for export goes back
+     * to prepared. Nothing else moves. */
+    if (effect === "profile_rebound") {
+      return from === "approved_for_export"
+        ? { kind: "system_consequence", to: "prepared" }
+        : { kind: "unchanged", status: from };
     }
     return {
       kind: "system_consequence" as const,

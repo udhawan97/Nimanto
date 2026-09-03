@@ -1704,6 +1704,63 @@ describe("beta workflow persistence", () => {
     expect((await store.listApplications(identity.tenantId))[0]?.outcomes).toHaveLength(1);
   });
 
+  it("rebinds an Application to the current Profile Version and fails closed otherwise", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nimanto-store-rebind-"));
+    const store = await NimantoStore.open(join(root, "data"));
+    stores.push(store);
+    const identity = await store.createLocalTenant("rebind@example.test", "Rebind");
+    const other = await store.createLocalTenant("rebind-other@example.test", "Other");
+    const job = await store.upsertJob(identity.tenantId, {
+      source: "manual",
+      sourceJobId: "rebind-job",
+      title: "Platform Engineer",
+      company: "Northwind",
+      description: "Build TypeScript services",
+      location: "Remote",
+      workMode: "remote",
+      url: "https://example.test/jobs/rebind",
+      requirements: ["TypeScript"],
+      capability: "deep_link",
+      sourceMeta: {},
+      contentHash: "rebind-content",
+    });
+
+    const unbound = await store.createApplication(identity.tenantId, job.id, null);
+    await expect(
+      store.rebindApplicationProfileVersion(identity.tenantId, unbound.id),
+    ).rejects.toThrow("PROFILE_VERSION_REQUIRED");
+
+    const first = await store.createProfileVersion(identity.tenantId, "First wording.");
+    const application = await store.createApplication(identity.tenantId, job.id, first.id);
+    const second = await store.createProfileVersion(identity.tenantId, "Second wording.");
+    expect(second.id).not.toBe(first.id);
+
+    const rebound = await store.rebindApplicationProfileVersion(identity.tenantId, application.id);
+    expect(rebound).toMatchObject({
+      rebound: true,
+      fromProfileVersionId: first.id,
+      toProfileVersionId: second.id,
+    });
+    expect(rebound.application).toMatchObject({
+      id: application.id,
+      profileVersionId: second.id,
+      status: "tracked",
+    });
+
+    const repeated = await store.rebindApplicationProfileVersion(identity.tenantId, application.id);
+    expect(repeated).toMatchObject({ rebound: false, toProfileVersionId: second.id });
+    expect(repeated.application.updatedAt).toBe(rebound.application.updatedAt);
+
+    await expect(
+      store.rebindApplicationProfileVersion(other.tenantId, application.id),
+    ).rejects.toThrow("APPLICATION_NOT_FOUND");
+
+    await store.beginTenantDeletion(identity.tenantId, []);
+    await expect(
+      store.rebindApplicationProfileVersion(identity.tenantId, application.id),
+    ).rejects.toThrow("TENANT_NOT_ACTIVE");
+  });
+
   it("binds candidate wording review to the latest exact role snapshot", async () => {
     const root = await mkdtemp(join(tmpdir(), "nimanto-store-role-wording-review-"));
     const store = await NimantoStore.open(join(root, "data"));

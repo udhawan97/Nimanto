@@ -1372,6 +1372,13 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     if (!record) throw new Error("APPLICATION_NOT_FOUND");
     return record;
   });
+  app.put("/v1/applications/:id/profile-version", async (request) => {
+    const person = identity(request);
+    return packetLifecycle.rebindProfileVersion(
+      person.tenantId,
+      (request.params as { id: string }).id,
+    );
+  });
   app.put("/v1/applications/:id/follow-up", async (request) => {
     const person = identity(request);
     const body = object(request.body);
