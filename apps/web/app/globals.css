@@ -3127,8 +3127,24 @@ svg {
   grid-column: 2 / -1;
 }
 
+/* The column headers are a screen-reader-only row: the visual grammar is a
+ * stack of cards, but the table role above it needs real column headers.
+ * Hidden with the sr-only pattern rather than display:none, which would take
+ * them out of the accessibility tree as well. */
 .table-head {
-  display: none;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+/* The "Next step" cell groups the row's controls for assistive technology
+ * without becoming a box, so the row's wrapping flex layout is unchanged. */
+.table-row-actions {
+  display: contents;
 }
 
 .blocker {
@@ -3755,7 +3771,7 @@ textarea {
   border-radius: var(--radius-md);
   background: var(--surface-raised);
 }
-.table-row > .outcome-form {
+.table-row .outcome-form {
   flex-basis: 100%;
 }
 .outcome-form .button-group {

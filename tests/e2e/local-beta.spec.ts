@@ -1157,6 +1157,20 @@ test("one guarded control owns every status change, and the two views are exclus
   await expect(page.locator(".board")).toHaveCount(0);
   await expect(page.locator(".application-table")).toBeVisible();
 
+  // The table view must reach assistive technology as a table: a screen reader
+  // that cannot hear the column a value sits in cannot read this view.
+  const applicationTable = page.getByRole("table", { name: "Tracked applications" });
+  await expect(applicationTable).toBeVisible();
+  await expect(applicationTable.getByRole("columnheader")).toHaveText([
+    "Role",
+    "Status",
+    "Outcomes",
+    "Next step",
+  ]);
+  const firstApplicationRow = applicationTable.getByRole("row").nth(1);
+  await expect(firstApplicationRow.getByRole("cell")).toHaveCount(4);
+  await expect(firstApplicationRow.getByRole("combobox", { name: /^Status for / })).toBeVisible();
+
   for (const width of [320, 375, 1280]) {
     await page.setViewportSize({ width, height: 900 });
     const metadata = await page

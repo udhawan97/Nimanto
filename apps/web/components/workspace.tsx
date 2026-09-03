@@ -6362,12 +6362,15 @@ function Applications({
       )}
 
       {view === "table" && visibleApplications.length > 0 && (
-        <section className="application-table" aria-label="Tracked applications">
-          <div className="table-head" aria-hidden="true">
-            <span>Role</span>
-            <span>Status</span>
-            <span>Outcomes</span>
-            <span>Next step</span>
+        <section className="application-table" role="table" aria-label="Tracked applications">
+          {/* The head is hidden from sight, not from assistive technology: a
+           * screen reader that cannot hear which column a value sits in cannot
+           * read this view at all. */}
+          <div className="table-head" role="row">
+            <span role="columnheader">Role</span>
+            <span role="columnheader">Status</span>
+            <span role="columnheader">Outcomes</span>
+            <span role="columnheader">Next step</span>
           </div>
           {visibleApplications.map((application) => {
             const note = followUpNote(application, now);
@@ -6376,9 +6379,10 @@ function Applications({
                 key={application.id}
                 id={`application-row-${application.id}`}
                 className="table-row"
+                role="row"
                 tabIndex={-1}
               >
-                <div className="application-identity">
+                <div className="application-identity" role="cell">
                   <strong>{application.job?.title ?? "Unknown role"}</strong>
                   <small>{application.job?.company}</small>
                   {note && (
@@ -6388,7 +6392,7 @@ function Applications({
                     </span>
                   )}
                 </div>
-                <label>
+                <label role="cell">
                   <span className="sr-only">Status for {application.job?.title}</span>
                   {/* Same guard as the board, and only the moves the domain allows.
                    * Listing all five taught the candidate about illegal transitions
@@ -6442,7 +6446,7 @@ function Applications({
                     onCancel={cancelPendingMove}
                   />
                 ) : null}
-                <div className="outcome-chips">
+                <div className="outcome-chips" role="cell">
                   {application.outcomes?.length ? (
                     application.outcomes.map((outcome) => (
                       <span key={outcome.id}>{human(outcome.type)}</span>
@@ -6452,104 +6456,109 @@ function Applications({
                   )}
                   <RecordedTimeline application={application} />
                 </div>
-                <button
-                  id={`dossier-trigger-table-${application.id}`}
-                  className="button mini quiet"
-                  type="button"
-                  aria-expanded={dossierFor === application.id}
-                  aria-controls="application-dossier"
-                  onClick={() => toggleDossier(application.id)}
-                >
-                  <FolderSearch2 size={15} /> Open dossier
-                </button>
-                <button
-                  id={`outcome-trigger-table-${application.id}`}
-                  className="button mini quiet"
-                  type="button"
-                  disabled={busy}
-                  aria-expanded={outcomeFor === application.id}
-                  aria-controls={
-                    outcomeFor === application.id ? `outcome-editor-${application.id}` : undefined
-                  }
-                  onClick={() => openOutcome(application.id)}
-                >
-                  <Plus size={15} /> Record outcome
-                </button>
-                {outcomeFor === application.id && (
-                  <OutcomeEditor
-                    application={application}
-                    onAct={onAct}
-                    busy={busy}
-                    draft={outcomeDraft!}
-                    onDraftChange={changeOutcomeDraft}
-                    onRecorded={(submitted) => dispatch({ type: "outcome_committed", submitted })}
-                    onFocusTrigger={() => focusOutcomeTrigger(application.id)}
-                    onClose={() => closeOutcome(application.id)}
-                  />
-                )}
-                {(application.status !== "withdrawn" || application.followUpOn) && (
-                  <>
-                    <button
-                      id={`reminder-trigger-table-${application.id}`}
-                      className="button mini quiet"
-                      type="button"
-                      disabled={busy}
-                      aria-expanded={reminderFor === application.id}
-                      aria-controls={
-                        reminderFor === application.id
-                          ? `reminder-editor-${application.id}`
-                          : undefined
-                      }
-                      onClick={() => openReminder(application)}
-                    >
-                      <CalendarClock size={15} aria-hidden="true" />
-                      {application.status === "withdrawn"
-                        ? "Review follow-up"
-                        : application.followUpOn
-                          ? "Change follow-up"
-                          : "Set follow-up"}
-                    </button>
-                    {reminderFor === application.id && (
-                      <ReminderEditor
-                        application={application}
-                        onAct={onAct}
-                        busy={busy}
-                        draft={reminderDraft!}
-                        onDraftChange={changeReminderDraft}
-                        onCommitted={(submitted) =>
-                          dispatch({ type: "reminder_committed", submitted })
+                {/* The "Next step" column. display:contents keeps the row's
+                 * existing wrapping flex layout byte-for-byte while giving the
+                 * controls a single cell to belong to. */}
+                <div className="table-row-actions" role="cell">
+                  <button
+                    id={`dossier-trigger-table-${application.id}`}
+                    className="button mini quiet"
+                    type="button"
+                    aria-expanded={dossierFor === application.id}
+                    aria-controls="application-dossier"
+                    onClick={() => toggleDossier(application.id)}
+                  >
+                    <FolderSearch2 size={15} /> Open dossier
+                  </button>
+                  <button
+                    id={`outcome-trigger-table-${application.id}`}
+                    className="button mini quiet"
+                    type="button"
+                    disabled={busy}
+                    aria-expanded={outcomeFor === application.id}
+                    aria-controls={
+                      outcomeFor === application.id ? `outcome-editor-${application.id}` : undefined
+                    }
+                    onClick={() => openOutcome(application.id)}
+                  >
+                    <Plus size={15} /> Record outcome
+                  </button>
+                  {outcomeFor === application.id && (
+                    <OutcomeEditor
+                      application={application}
+                      onAct={onAct}
+                      busy={busy}
+                      draft={outcomeDraft!}
+                      onDraftChange={changeOutcomeDraft}
+                      onRecorded={(submitted) => dispatch({ type: "outcome_committed", submitted })}
+                      onFocusTrigger={() => focusOutcomeTrigger(application.id)}
+                      onClose={() => closeOutcome(application.id)}
+                    />
+                  )}
+                  {(application.status !== "withdrawn" || application.followUpOn) && (
+                    <>
+                      <button
+                        id={`reminder-trigger-table-${application.id}`}
+                        className="button mini quiet"
+                        type="button"
+                        disabled={busy}
+                        aria-expanded={reminderFor === application.id}
+                        aria-controls={
+                          reminderFor === application.id
+                            ? `reminder-editor-${application.id}`
+                            : undefined
                         }
-                        onFocusTrigger={() => focusReminderOrigin(application.id)}
-                        onClose={() => closeReminder(application.id)}
-                      />
-                    )}
-                  </>
-                )}
-                <button
-                  id={`note-trigger-table-${application.id}`}
-                  className="button mini quiet"
-                  type="button"
-                  disabled={busy}
-                  aria-expanded={noteFor === application.id}
-                  aria-controls={
-                    noteFor === application.id ? `note-editor-${application.id}` : undefined
-                  }
-                  onClick={() => openNote(application.id)}
-                >
-                  <NotebookPen size={15} /> Add private note
-                </button>
-                {noteFor === application.id && (
-                  <ApplicationNoteEditor
-                    application={application}
-                    onAct={onAct}
-                    busy={busy}
-                    draft={noteDraft!}
-                    onDraftChange={changeNoteDraft}
-                    onRecorded={(submitted) => dispatch({ type: "note_committed", submitted })}
-                    onFocusTrigger={() => focusNoteTrigger(application.id)}
-                    onClose={() => closeNote(application.id)}
-                  />
-                )}
+                        onClick={() => openReminder(application)}
+                      >
+                        <CalendarClock size={15} aria-hidden="true" />
+                        {application.status === "withdrawn"
+                          ? "Review follow-up"
+                          : application.followUpOn
+                            ? "Change follow-up"
+                            : "Set follow-up"}
+                      </button>
+                      {reminderFor === application.id && (
+                        <ReminderEditor
+                          application={application}
+                          onAct={onAct}
+                          busy={busy}
+                          draft={reminderDraft!}
+                          onDraftChange={changeReminderDraft}
+                          onCommitted={(submitted) =>
+                            dispatch({ type: "reminder_committed", submitted })
+                          }
+                          onFocusTrigger={() => focusReminderOrigin(application.id)}
+                          onClose={() => closeReminder(application.id)}
+                        />
+                      )}
+                    </>
+                  )}
+                  <button
+                    id={`note-trigger-table-${application.id}`}
+                    className="button mini quiet"
+                    type="button"
+                    disabled={busy}
+                    aria-expanded={noteFor === application.id}
+                    aria-controls={
+                      noteFor === application.id ? `note-editor-${application.id}` : undefined
+                    }
+                    onClick={() => openNote(application.id)}
+                  >
+                    <NotebookPen size={15} /> Add private note
+                  </button>
+                  {noteFor === application.id && (
+                    <ApplicationNoteEditor
+                      application={application}
+                      onAct={onAct}
+                      busy={busy}
+                      draft={noteDraft!}
+                      onDraftChange={changeNoteDraft}
+                      onRecorded={(submitted) => dispatch({ type: "note_committed", submitted })}
+                      onFocusTrigger={() => focusNoteTrigger(application.id)}
+                      onClose={() => closeNote(application.id)}
+                    />
+                  )}
+                </div>
               </article>
             );
           })}
