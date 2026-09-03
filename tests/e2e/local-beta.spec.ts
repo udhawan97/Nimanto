@@ -2716,6 +2716,18 @@ test("an Application Dossier records the candidate's exact external submission",
   await expect(dossier.getByText(/JSON · packet/)).toBeVisible();
 });
 
+/** The class of the nearest enclosing form of whatever holds focus, or a
+ * description of the element itself, so a focus regression names where focus
+ * actually went. */
+async function describeFocus(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    const active = document.activeElement;
+    if (!(active instanceof HTMLElement)) return "none";
+    const form = active.closest("form");
+    return form ? form.className : `outside a form: ${active.className || active.tagName}`;
+  });
+}
+
 test("the candidate career ledger carries the P1 and P2 application workflow", async ({ page }) => {
   await installClipboardRecorder(page);
   await page.goto(`/workspace/#bootstrap=${bootstrapSecret}`);
@@ -2740,7 +2752,15 @@ test("the candidate career ledger carries the P1 and P2 application workflow", a
   await activity.getByRole("button", { name: "Complete" }).click();
   await expect(activity).toContainText("Follow up · Completed");
   await now.getByLabel("Action").fill("Cancel a superseded follow-up");
-  await now.getByRole("button", { name: "Add activity" }).click();
+  // Keyboard save: the submit control returns to disabled once the form
+  // resets, so focus must land back in the form the candidate was using.
+  await now.getByRole("button", { name: "Add activity" }).press("Enter");
+  await expect(
+    now.locator("li").filter({ hasText: "Cancel a superseded follow-up" }),
+  ).toBeVisible();
+  expect(await describeFocus(page), "focus after a keyboard Add activity").toBe(
+    "career-ledger-form",
+  );
   const cancelledActivity = now.locator("li").filter({ hasText: "Cancel a superseded follow-up" });
   await cancelledActivity.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(cancelledActivity).toContainText("Follow up · Cancelled");
@@ -2776,9 +2796,12 @@ test("the candidate career ledger carries the P1 and P2 application workflow", a
   await answers
     .getByLabel("Your answer")
     .fill("I chose this role because the recorded scope matches my evidence.");
-  await answers.getByRole("button", { name: "Save answer" }).click();
+  await answers.getByRole("button", { name: "Save answer" }).press("Enter");
   const answer = answers.locator(".ledger-records > li").filter({ hasText: "Why this role?" });
   await expect(answer).toBeVisible();
+  expect(await describeFocus(page), "focus after a keyboard Save answer").toBe(
+    "career-ledger-form",
+  );
   await answer.getByRole("button", { name: "Revise" }).click();
   await answers
     .getByLabel("Your answer")

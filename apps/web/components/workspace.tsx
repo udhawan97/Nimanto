@@ -1365,6 +1365,21 @@ export function Workspace() {
             target.focus();
             return;
           }
+          /* A form's submit control goes back to disabled the moment the commit
+           * clears the fields it required, so it never comes back and the
+           * container fallback below strands the candidate a whole page above
+           * the form they were using. Return them to the top of that form. */
+          const form =
+            target instanceof HTMLButtonElement || target instanceof HTMLInputElement
+              ? target.form
+              : null;
+          const field = form?.querySelector<HTMLElement>(
+            "input:not([disabled]), select:not([disabled]), textarea:not([disabled])",
+          );
+          if (field) {
+            field.focus();
+            return;
+          }
           contentHeading.current?.focus({ preventScroll: true });
         },
         clearNotice: () => setNotice(null),
