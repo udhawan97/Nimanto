@@ -11,6 +11,10 @@ overrides:
 importers:
 
   .:
+    dependencies:
+      concurrently:
+        specifier: 10.0.5
+        version: 10.0.5
     devDependencies:
       '@cyclonedx/cdxgen':
         specifier: 12.8.4
@@ -21,9 +25,6 @@ importers:
       '@types/node':
         specifier: 26.2.0
         version: 26.2.0
-      concurrently:
-        specifier: 10.0.5
-        version: 10.0.5
       cspell:
         specifier: 10.0.1
         version: 10.0.1

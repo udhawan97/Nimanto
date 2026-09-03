@@ -13,6 +13,17 @@ export const workspacePackages = [
   "packages/providers/package.json",
 ];
 
+export const SCHEMA_VERSION_SOURCE = "packages/database/src/migrations.ts";
+
+export async function currentSchemaVersion(root) {
+  const source = await readFile(path.join(root, SCHEMA_VERSION_SOURCE), "utf8");
+  return /CURRENT_SCHEMA_VERSION = (?<version>\d+)/u.exec(source)?.groups?.version;
+}
+
+export function schemaVersionTextChecks(schemaVersion) {
+  return [{ file: "docs/operations/local-beta.md", expected: `schema version ${schemaVersion}` }];
+}
+
 export function versionTextChecks(version) {
   const tag = `v${version}`;
   if (version.includes("-")) {
@@ -153,19 +164,32 @@ export async function validateVersionSync(root) {
     }
   }
 
-  for (const check of versionTextChecks(version)) {
-    const text = await readFile(path.join(root, check.file), "utf8");
-    const scope = check.section ? markdownSection(text, check.section) : text;
-    const actual = countOccurrences(scope, check.expected);
-    const failed = check.occurrences === undefined ? actual === 0 : actual !== check.occurrences;
-    if (failed) {
-      const requirement =
-        check.occurrences === undefined ? "at least 1" : String(check.occurrences);
-      const location = check.section ? ` in section ${JSON.stringify(check.section)}` : "";
-      failures.push(
-        `${check.file}: expected ${requirement} occurrence(s) of ${JSON.stringify(check.expected)}${location}, found ${actual}`,
-      );
+  const runTextChecks = async (checks) => {
+    for (const check of checks) {
+      const text = await readFile(path.join(root, check.file), "utf8");
+      const scope = check.section ? markdownSection(text, check.section) : text;
+      const actual = countOccurrences(scope, check.expected);
+      const failed = check.occurrences === undefined ? actual === 0 : actual !== check.occurrences;
+      if (failed) {
+        const requirement =
+          check.occurrences === undefined ? "at least 1" : String(check.occurrences);
+        const location = check.section ? ` in section ${JSON.stringify(check.section)}` : "";
+        failures.push(
+          `${check.file}: expected ${requirement} occurrence(s) of ${JSON.stringify(check.expected)}${location}, found ${actual}`,
+        );
+      }
     }
+  };
+
+  await runTextChecks(versionTextChecks(version));
+
+  // The operations guide names the schema version a fresh database is advanced to.
+  // Only the migrations module knows that number, so the doc is checked against it.
+  const schemaVersion = await currentSchemaVersion(root);
+  if (schemaVersion === undefined) {
+    failures.push(`${SCHEMA_VERSION_SOURCE}: CURRENT_SCHEMA_VERSION is not declared`);
+  } else {
+    await runTextChecks(schemaVersionTextChecks(schemaVersion));
   }
 
   for (const relativePath of releaseAssetPaths(version)) {
