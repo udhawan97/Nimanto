@@ -46,7 +46,7 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-Current main advances the database to schema version 14. Version 6
+Current main advances the database to schema version 15. Version 6
 transactionally backfills canonical hashes for legacy Packet manifests and
 Action Intents; version 7 adds tenant-scoped role dispositions and private
 Application notes. Versions 8–12 retain the discovery and government-evidence
@@ -54,7 +54,13 @@ trust records described below. Version 13 adds the candidate Career Ledger and
 one clearly labeled current-status migration marker for each existing
 Application without reconstructing earlier transitions. Version 14 adds
 tenant-owned, append-only Submission Records with optional exact approved-Packet
-and artifact-format bindings. A
+and artifact-format bindings. Version 15 adds a manual-role operation ledger so
+a repeated manual Role creation resolves to the Role it already created, flags
+manual Roles whose identity came from a legacy partial content hash for
+candidate identity review, records the topic and prompt on each Answer Block
+revision, and corrects the version 13 migration markers to their own observation
+time instead of the Application's creation time. That operation ledger is
+internal idempotency bookkeeping: it is not part of export v10. A
 migration version is recorded only after its work commits, so an interrupted
 upgrade resumes from the last complete step. Startup refuses a database created
 by a newer Nimanto runtime rather than guessing how to open it. On every open,
