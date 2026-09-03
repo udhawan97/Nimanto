@@ -11,6 +11,7 @@ type DeletionRun = {
   tenantId: string;
   state: string;
   actionIds: string[];
+  completedAt?: string | null;
 };
 
 export class DeletionCoordinator {
@@ -38,7 +39,11 @@ export class DeletionCoordinator {
     const run = await this.store.deletionRunByToken(token);
     if (!run) throw new Error("DELETION_NOT_FOUND");
     this.clearTenantRuntime(run.tenantId);
-    if (run.state === "completed") return { run, completedAt: null, pending: false as const };
+    /* A completed run reports the timestamp it already recorded. Reporting null
+     * made resume contradict the status route for the same token. */
+    if (run.state === "completed") {
+      return { run, completedAt: run.completedAt ?? null, pending: false as const };
+    }
     try {
       return { run, completedAt: await this.finish(run), pending: false as const };
     } catch {

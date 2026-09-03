@@ -2998,4 +2998,29 @@ describe("Nimanto beta API", () => {
     expect(unknown.statusCode).toBe(404);
     expect(unknown.json().error.code).toBe("DELETION_NOT_FOUND");
   });
+
+  it("reports the same completion time from deletion status and deletion resume", async () => {
+    const { app, cookie } = await setup();
+    const deleted = await app.inject({
+      method: "DELETE",
+      url: "/v1/data",
+      headers: { cookie },
+      payload: { confirmation: "DELETE MY NIMANTO DATA" },
+    });
+    expect(deleted.statusCode).toBe(200);
+    const token = deleted.json().token as string;
+    const completedAt = deleted.json().completedAt as string;
+    expect(completedAt).toEqual(expect.any(String));
+
+    const status = await app.inject({ method: "GET", url: `/v1/deletion/status?token=${token}` });
+    expect(status.json()).toMatchObject({ state: "completed", completedAt });
+
+    const resumed = await app.inject({
+      method: "POST",
+      url: "/v1/deletion/resume",
+      payload: { token },
+    });
+    expect(resumed.statusCode).toBe(200);
+    expect(resumed.json()).toMatchObject({ state: "completed", completedAt });
+  });
 });

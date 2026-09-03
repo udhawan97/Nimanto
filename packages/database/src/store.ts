@@ -5077,14 +5077,16 @@ export class NimantoStore {
     tenantId: string;
     state: string;
     actionIds: string[];
+    completedAt: string | null;
   } | null> {
     const result = await this.#db.query<{
       id: string;
       tenant_id: string;
       state: string;
       cleanup_inventory: { actionIds?: unknown };
+      completed_at: string | Date | null;
     }>(
-      `SELECT id, tenant_id, state, cleanup_inventory FROM deletion_runs
+      `SELECT id, tenant_id, state, cleanup_inventory, completed_at FROM deletion_runs
        WHERE status_token_hash = $1 AND expires_at > now() LIMIT 1`,
       [sha256(token)],
     );
@@ -5098,6 +5100,7 @@ export class NimantoStore {
           actionIds: Array.isArray(values)
             ? values.filter((value): value is string => typeof value === "string")
             : [],
+          completedAt: iso(row.completed_at),
         }
       : null;
   }
