@@ -2968,4 +2968,34 @@ describe("Nimanto beta API", () => {
     expect(mismatch.statusCode).toBe(422);
     expect(mismatch.json().error.code).toBe("FILE_TYPE_MISMATCH");
   });
+
+  it("refuses a repeated deletion status token instead of failing as a server fault", async () => {
+    const { app, cookie } = await setup();
+    const deleted = await app.inject({
+      method: "DELETE",
+      url: "/v1/data",
+      headers: { cookie },
+      payload: { confirmation: "DELETE MY NIMANTO DATA" },
+    });
+    expect(deleted.statusCode).toBe(200);
+    const token = deleted.json().token as string;
+
+    const repeated = await app.inject({
+      method: "GET",
+      url: `/v1/deletion/status?token=${token}&token=other`,
+    });
+    expect(repeated.statusCode).toBe(400);
+    expect(repeated.json().error.code).toBe("INVALID_TOKEN");
+
+    const valid = await app.inject({ method: "GET", url: `/v1/deletion/status?token=${token}` });
+    expect(valid.statusCode).toBe(200);
+    expect(valid.json().state).toBe("completed");
+
+    const unknown = await app.inject({
+      method: "GET",
+      url: "/v1/deletion/status?token=00000000-0000-4000-8000-000000000000",
+    });
+    expect(unknown.statusCode).toBe(404);
+    expect(unknown.json().error.code).toBe("DELETION_NOT_FOUND");
+  });
 });

@@ -903,9 +903,12 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
   });
 
   app.get("/v1/deletion/status", async (request) => {
-    const query = request.query as { token?: string };
-    if (!query.token) throw new Error("INVALID_TOKEN");
-    const status = await store.deletionStatus(query.token);
+    /* A repeated ?token= gives Fastify an array, which is not a token. This is
+     * an unauthenticated public route, so anything but one non-empty string is
+     * refused here rather than hashed. */
+    const token = (request.query as { token?: unknown }).token;
+    if (typeof token !== "string" || token.length === 0) throw new Error("INVALID_TOKEN");
+    const status = await store.deletionStatus(token);
     if (!status) throw new Error("DELETION_NOT_FOUND");
     return status;
   });
