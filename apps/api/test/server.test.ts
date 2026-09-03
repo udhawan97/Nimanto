@@ -16,7 +16,7 @@ import {
 } from "@nimanto/domain";
 import type { ProviderJobVerificationResult } from "@nimanto/providers";
 import type { GovernmentDatasetTrust } from "../src/config.js";
-import { buildServer } from "../src/server.js";
+import { buildServer, messageForError } from "../src/server.js";
 import { NIMANTO_VERSION } from "../src/version.js";
 
 const apps: FastifyInstance[] = [];
@@ -2926,5 +2926,46 @@ describe("Nimanto beta API", () => {
           (receipt: { type: string }) => receipt.type === "application.profile_rebound",
         ),
     ).toHaveLength(1);
+  });
+
+  it("answers every parser and Submission Record rejection with a client error", async () => {
+    const sources = await Promise.all(
+      ["../../../packages/parsers/src/index.ts", "../../../packages/domain/src/submissions.ts"].map(
+        (relative) => readFile(new URL(relative, import.meta.url), "utf8"),
+      ),
+    );
+    const codes = [
+      ...new Set(
+        [...sources.join("\n").matchAll(/throw new Error\("([A-Z0-9_]+)"\)/g)].map(
+          (match) => match[1] as string,
+        ),
+      ),
+    ];
+    expect(codes.length).toBeGreaterThan(20);
+    expect(
+      codes
+        .map((code) => ({ code, status: messageForError(new Error(code)).status }))
+        .filter((mapped) => mapped.status >= 500),
+    ).toEqual([]);
+    // An unrecognized code stays a 500 that says nothing about internals.
+    expect(messageForError(new Error("NOT_A_REAL_CODE_FROM_A_PARSER"))).toEqual({
+      code: "NOT_A_REAL_CODE_FROM_A_PARSER",
+      status: 500,
+      message: "Nimanto could not complete that operation.",
+    });
+
+    const { app, cookie } = await setup();
+    const mismatch = await app.inject({
+      method: "POST",
+      url: "/v1/evidence/preview",
+      headers: { cookie },
+      payload: {
+        filename: "cv.pdf",
+        mimeType: "application/pdf",
+        contentBase64: Buffer.from("This is plain text, not a PDF.", "utf8").toString("base64"),
+      },
+    });
+    expect(mismatch.statusCode).toBe(422);
+    expect(mismatch.json().error.code).toBe("FILE_TYPE_MISMATCH");
   });
 });

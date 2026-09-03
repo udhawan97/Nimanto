@@ -311,7 +311,23 @@ async function secureRuntimeDirectory(directory: string): Promise<void> {
   await chmod(directory, 0o700);
 }
 
-function messageForError(error: Error): { code: string; status: number; message: string } {
+/* Deterministic intake refusals. Each is a readable file that Nimanto declines
+ * to parse, which is the candidate's problem to fix and never a server fault. */
+const UNREADABLE_DOCUMENT_MESSAGES: Record<string, string> = {
+  FILE_TYPE_MISMATCH: "That file's contents do not match its file type, so nothing was imported.",
+  PDF_PAGE_LIMIT_EXCEEDED: "That PDF has more pages than the reviewed import limit.",
+  DOCX_EXPANSION_LIMIT_EXCEEDED: "That DOCX expands past the reviewed import limit.",
+  ARCHIVE_EXPANSION_LIMIT_EXCEEDED: "That archive expands past the reviewed import limit.",
+  ACTIVE_DOCUMENT_CONTENT: "That document carries active content, so nothing was imported.",
+  AMBIGUOUS_LINKEDIN_ARCHIVE:
+    "That LinkedIn archive has no single readable export, so nothing was imported.",
+  LINKEDIN_ARCHIVE_LIMIT_EXCEEDED: "That LinkedIn archive is past the reviewed import limit.",
+  LINKEDIN_ALLOWLIST_EMPTY: "No file in that LinkedIn archive is on the reviewed import allowlist.",
+};
+
+/** Exported for the guard test that asserts every code raised by the parsers
+ * and the Submission Record policy is answered as a client error. */
+export function messageForError(error: Error): { code: string; status: number; message: string } {
   const code = /^[A-Z0-9_]+$/.test(error.message) ? error.message : "INTERNAL_ERROR";
   if (code === "AUTHENTICATION_REQUIRED")
     return { code, status: 401, message: "Start or resume a local Nimanto session." };
@@ -500,6 +516,14 @@ function messageForError(error: Error): { code: string; status: number; message:
       code,
       status: 409,
       message: "A newer packet exists. Review and choose the current approved packet.",
+    };
+  if (UNREADABLE_DOCUMENT_MESSAGES[code])
+    return { code, status: 422, message: UNREADABLE_DOCUMENT_MESSAGES[code] };
+  if (code === "SUBMISSION_MATERIALS_CONFLICT")
+    return {
+      code,
+      status: 400,
+      message: "Choose either the exact formats used or 'Materials were not captured', not both.",
     };
   if (code === "PACKET_NOT_CURRENT")
     return {
