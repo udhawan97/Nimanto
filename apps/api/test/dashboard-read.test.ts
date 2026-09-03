@@ -205,4 +205,56 @@ describe("DashboardRead", () => {
     expect(dashboard.personalFunnel.sampleSize).toBe(1);
     expect(await store.listApplications(local.tenantId)).toHaveLength(2);
   });
+
+  it("assembles the Dashboard from a read-only snapshot", async () => {
+    const store = await NimantoStore.open("memory://dashboard-read-only");
+    stores.push(store);
+    const local = await store.createLocalTenant("snapshot@example.test", "Snapshot Candidate");
+    const session = await store.createSession(local.userId, local.tenantId);
+    const person: SessionIdentity = { ...local, sessionId: session.id };
+
+    /* A write attempted from inside the Dashboard's own database view must be
+     * refused by the transaction itself, not merely by convention. */
+    const writeDuringRead = (open: "transaction" | "readSnapshot") =>
+      new Proxy(store, {
+        get(target, property) {
+          if (property === open) {
+            return async <T>(work: (database: NimantoStore) => Promise<T>) =>
+              (target[open] as NimantoStore["transaction"])((database) =>
+                work(
+                  new Proxy(database, {
+                    get(inner, innerProperty) {
+                      if (innerProperty === "listReceipts") {
+                        return async (tenantId: string) => {
+                          await database.createEvidence(tenantId, {
+                            kind: "skill",
+                            value: "Written from inside a Dashboard read",
+                            status: "pending",
+                            confidence: "high",
+                            sourceName: "Synthetic",
+                            locator: "line:1",
+                          });
+                          return [];
+                        };
+                      }
+                      const value = Reflect.get(inner, innerProperty, inner) as unknown;
+                      return typeof value === "function" ? value.bind(inner) : value;
+                    },
+                  }) as NimantoStore,
+                ),
+              );
+          }
+          const value = Reflect.get(target, property, target) as unknown;
+          return typeof value === "function" ? value.bind(target) : value;
+        },
+      }) as NimantoStore;
+
+    await expect(
+      new DashboardRead(writeDuringRead("readSnapshot"), disabledRuntime).read(person),
+    ).rejects.toThrow(/read-only/i);
+    expect(await store.listEvidence(local.tenantId)).toEqual([]);
+    await expect(new DashboardRead(store, disabledRuntime).read(person)).resolves.toMatchObject({
+      identity: person,
+    });
+  });
 });

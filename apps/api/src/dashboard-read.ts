@@ -13,9 +13,11 @@ export class DashboardRead {
 
   /** Assemble one tenant-scoped Dashboard from a coherent database view. Exact
    * latest-record selection stays in persistence; this module owns query
-   * orchestration, enrichment, and counts-only candidate outcome aggregation. */
+   * orchestration, enrichment, and counts-only candidate outcome aggregation.
+   * The read uses the same REPEATABLE READ READ ONLY snapshot seam as export,
+   * so no Dashboard query can write. */
   read(person: SessionIdentity) {
-    return this.store.transaction(async (database) => {
+    return this.store.readSnapshot(async (database) => {
       const [
         evidence,
         jobs,
