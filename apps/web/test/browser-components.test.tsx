@@ -93,6 +93,7 @@ describe("deletion receipt guidance", () => {
     expect(view.textContent).toContain("internally when its local service starts");
     expect(view.textContent).toContain("does not require you to provide the token");
     expect(view.textContent).toContain("Treat the token like a password");
+    expect(view.textContent).toContain("Not shown again after you leave this screen.");
     expect([...view.querySelectorAll("code")].map((code) => code.textContent)).toEqual(
       expect.arrayContaining([
         "private-deletion-token",
@@ -625,5 +626,181 @@ describe("candidate-controlled packet and submission forms", () => {
     );
     expect(view.textContent).toContain("Revision 2");
     expect(view.textContent).toContain("First answer");
+  });
+});
+
+describe("answer history refresh", () => {
+  function answerAt(currentRevision: number) {
+    return {
+      id: "answer-1",
+      topic: "why_role" as const,
+      prompt: "Why this role?",
+      currentRevision,
+      latest: {
+        answerText: `Answer at revision ${currentRevision}`,
+        evidenceIds: [],
+        createdAt: "2026-09-01T12:00:00.000Z",
+      },
+      createdAt: "2026-08-31T12:00:00.000Z",
+      updatedAt: "2026-09-01T12:00:00.000Z",
+    };
+  }
+
+  function serveRevisions(state: { current: number }) {
+    return vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
+      const currentRevision = state.current;
+      const record = {
+        ...answerAt(currentRevision),
+        revisions: Array.from({ length: currentRevision }, (_unused, index) => {
+          const revision = currentRevision - index;
+          return {
+            id: `revision-${revision}`,
+            revision,
+            topic: "why_role",
+            prompt: "Why this role?",
+            answerText: `Answer at revision ${revision}`,
+            evidenceIds: [],
+            createdAt: "2026-09-01T12:00:00.000Z",
+          };
+        }),
+      };
+      return { ok: true, json: async () => record } as Response;
+    });
+  }
+
+  async function openDetails(view: HTMLDivElement) {
+    const details = view.querySelector("details")!;
+    await act(async () => {
+      details.open = true;
+      details.dispatchEvent(new Event("toggle"));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+  }
+
+  it("reloads history when a revision lands while the panel is open", async () => {
+    const served = { current: 2 };
+    const fetch = serveRevisions(served);
+    const view = await render(
+      createElement(AnswerHistoryDetails, {
+        answer: answerAt(2),
+        onCopyEvidence: vi.fn(),
+      }),
+    );
+
+    expect(fetch).not.toHaveBeenCalled();
+    await openDetails(view);
+    expect(view.textContent).toContain("Answer at revision 2");
+    expect(view.textContent).not.toContain("Answer at revision 3");
+
+    fetch.mockClear();
+    served.current = 3;
+    await act(async () => {
+      root?.render(
+        createElement(AnswerHistoryDetails, {
+          answer: answerAt(3),
+          onCopyEvidence: vi.fn(),
+        }),
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(fetch).toHaveBeenCalled();
+    expect(view.textContent).toContain("Answer at revision 3");
+  });
+
+  it("does not fetch history for a revision that lands while the panel is closed", async () => {
+    const served = { current: 2 };
+    const fetch = serveRevisions(served);
+    await render(
+      createElement(AnswerHistoryDetails, {
+        answer: answerAt(2),
+        onCopyEvidence: vi.fn(),
+      }),
+    );
+
+    served.current = 3;
+    await act(async () => {
+      root?.render(
+        createElement(AnswerHistoryDetails, {
+          answer: answerAt(3),
+          onCopyEvidence: vi.fn(),
+        }),
+      );
+      await Promise.resolve();
+    });
+
+    expect(fetch).not.toHaveBeenCalled();
+  });
+});
+
+describe("Profile Version rebinding", () => {
+  const staleBinding = {
+    application: {
+      id: "application-1",
+      jobId: "job-1",
+      profileVersionId: "aaaaaaaa-1111-4111-8111-111111111111",
+    },
+    profile: { id: "bbbbbbbb-2222-4222-8222-222222222222", claimIds: ["evidence-1"] },
+    job: { id: "job-1", contentHash: "role-hash" },
+    match: null,
+    evidence: [],
+    busy: false,
+  };
+  const reason =
+    "This Application is bound to Profile Version aaaaaaaa; your current Profile is bbbbbbbb.";
+
+  it("offers the composer a way out of a stale Profile Version binding", async () => {
+    const onRebind = vi.fn();
+    const view = await render(
+      createElement(PacketComposer, {
+        ...staleBinding,
+        onGenerate: vi.fn(),
+        onRebind,
+      }),
+    );
+
+    expect(view.textContent).toContain(reason);
+    const button = view.querySelector<HTMLButtonElement>("button.profile-rebind");
+    expect(button?.textContent).toContain("Use current Profile Version");
+    await act(async () => button?.click());
+    expect(onRebind).toHaveBeenCalledTimes(1);
+  });
+
+  it("states the dead end without a control when no rebind is possible", async () => {
+    const view = await render(
+      createElement(PacketComposer, {
+        ...staleBinding,
+        profile: null,
+        onGenerate: vi.fn(),
+        onRebind: vi.fn(),
+      }),
+    );
+
+    expect(view.textContent).toContain("Save the Application's exact Profile Version first.");
+    expect(view.querySelector("button.profile-rebind")).toBeNull();
+  });
+
+  it("offers the same sentence and control on the submission recorder", async () => {
+    const onRebind = vi.fn();
+    const view = await render(
+      createElement(ApplicationSubmissionRecorder, {
+        packet: null,
+        rebindReason: reason,
+        draft: createSubmissionDraft(null, new Date("2026-09-01T12:00:00.000Z")),
+        busy: false,
+        onDraftChange: vi.fn(),
+        onConfirm: vi.fn(),
+        onCancel: vi.fn(),
+        onRebind,
+      }),
+    );
+
+    expect(view.textContent).toContain(reason);
+    const button = view.querySelector<HTMLButtonElement>("button.profile-rebind");
+    expect(button?.textContent).toContain("Use current Profile Version");
+    await act(async () => button?.click());
+    expect(onRebind).toHaveBeenCalledTimes(1);
   });
 });

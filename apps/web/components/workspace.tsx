@@ -59,6 +59,7 @@ import { CopyLine } from "./copy-line.js";
 import { DeletionReceiptGuidance } from "./deletion-receipt-guidance.js";
 import { CareerLedger, type CareerOperationsSnapshot } from "./career-ledger.js";
 import { PacketComposer } from "./packet-composer.js";
+import { profileVersionRebindReason } from "../lib/packet-composer.js";
 import { ApplicationSubmissionRecorder, createSubmissionDraft } from "./application-submission.js";
 import { H1bEvidencePanel, type RoleWordingReview } from "./h1b-evidence.js";
 import { MatchEvidenceLens } from "./match-evidence-lens.js";
@@ -1365,6 +1366,21 @@ export function Workspace() {
             target.focus();
             return;
           }
+          /* A form's submit control goes back to disabled the moment the commit
+           * clears the fields it required, so it never comes back and the
+           * container fallback below strands the candidate a whole page above
+           * the form they were using. Return them to the top of that form. */
+          const form =
+            target instanceof HTMLButtonElement || target instanceof HTMLInputElement
+              ? target.form
+              : null;
+          const field = form?.querySelector<HTMLElement>(
+            "input:not([disabled]), select:not([disabled]), textarea:not([disabled])",
+          );
+          if (field) {
+            field.focus();
+            return;
+          }
           contentHeading.current?.focus({ preventScroll: true });
         },
         clearNotice: () => setNotice(null),
@@ -1776,6 +1792,16 @@ export function Workspace() {
               busy={busy}
               onDeleted={(receipt) => {
                 applyIdentityTransition({ kind: "deletion_recorded", receipt });
+                /* The section this hash names was deleted with the workspace,
+                 * so the next sign-in opens on Overview from a clean URL.
+                 * replaceState, not location.hash = "", which leaves a bare
+                 * "#" behind in the address bar and the back stack. */
+                setSection("overview");
+                window.history.replaceState(
+                  null,
+                  "",
+                  `${window.location.pathname}${window.location.search}`,
+                );
               }}
             />
           )}
@@ -2263,7 +2289,7 @@ function Overview({
               <strong>Your starter roles are ready.</strong>
               <small>
                 Run both deterministic explanations—no model is used; only confirmed career evidence
-                is scored.
+                is explained.
               </small>
             </span>
           </div>
@@ -2717,7 +2743,7 @@ function EvidenceVault({
               <div>
                 <strong>
                   {countedNoun(unscoredClaims, "confirmed claim")}{" "}
-                  {unscoredClaims === 1 ? "is" : "are"} not scored yet.
+                  {unscoredClaims === 1 ? "is" : "are"} not explained yet.
                 </strong>
                 <span>Matching uses your last saved profile version.</span>
               </div>
@@ -4467,8 +4493,8 @@ function Jobs({
                 })
               }
             >
-              <option value="recommended">Recommended by profile</option>
-              <option value="excluded">Outside recommendations</option>
+              <option value="recommended">Within discovery profile</option>
+              <option value="excluded">Outside discovery profile</option>
               <option value="all">All searchable roles</option>
             </select>
           </label>
@@ -4710,7 +4736,7 @@ function Jobs({
                       <summary>
                         {assessment.included
                           ? "Why this role is shown"
-                          : "Why this role is outside recommendations"}
+                          : "Why this role is outside the discovery profile"}
                       </summary>
                       <p>
                         <span>Replayed from approved profile </span>
@@ -4779,7 +4805,7 @@ function Jobs({
                             body: JSON.stringify({ matchRunId, blockerCode, reviewed }),
                           }),
                         success: reviewed
-                          ? "Exact role wording acknowledged. Fit and recommendations are unchanged."
+                          ? "Exact role wording acknowledged. Fit is unchanged."
                           : "Role-wording acknowledgement cleared.",
                         transient: true,
                       });
@@ -4939,9 +4965,9 @@ function Jobs({
                     </div>
                     <p className="coverage-explanation">
                       Coverage: {supportedRequirementCount} of {match.result.requirements.length}{" "}
-                      known requirements supported. At least 0.60 is required for a scored band.
+                      known requirements supported. At least 0.60 is required for a fit band.
                       {match.result.coverage === "coverage_low"
-                        ? " This result is not scored."
+                        ? " This result has no fit band."
                         : " This result meets the coverage floor."}
                     </p>
                     <MatchEvidenceLens result={match.result} />
@@ -4961,7 +4987,7 @@ function Jobs({
                         <p className="explanation-freshness" role="status">
                           {freshness === "confirmed_evidence_unsaved"
                             ? "Confirmed evidence is not in any saved profile version yet, so explaining again returns the same result. Save a profile version in the evidence vault first."
-                            : "This explanation was scored against an earlier profile version. Explain again to use your current confirmed evidence."}
+                            : "This explanation used an earlier profile version. Explain again to use your current confirmed evidence."}
                         </p>
                       );
                     })()}
@@ -4981,11 +5007,11 @@ function Jobs({
                       ))}
                     </div>
                     <p className="boundary-note match-boundary">
-                      Coverage below 0.60, including roles without known requirements, remains not
-                      scored. At or above that floor, the four weighted dimensions determine the
-                      scored band; explicit blockers remain separate and are never averaged away.
-                      Evidence source mix remains a separate, currently unweighted ordinal and
-                      cannot change that band.
+                      Coverage below 0.60, including roles without known requirements, has no fit
+                      band. At or above that floor, the four weighted dimensions determine the fit
+                      band; explicit blockers remain separate and are never averaged away. Evidence
+                      source mix remains a separate, currently unweighted ordinal and cannot change
+                      that band.
                     </p>
                     {match.result.blockers.map((blocker) => (
                       <p className="blocker" key={blocker.code}>
@@ -6333,6 +6359,8 @@ function Applications({
                         }
                         draft={submissionDraft}
                         busy={busy}
+                        rebindReason={profileVersionRebindReason(application, dashboard.profile)}
+                        onRebind={() => rebindProfileVersion(onAct, application.id)}
                         onDraftChange={(draft) =>
                           dispatch({
                             type: "submission_changed",
@@ -6362,12 +6390,15 @@ function Applications({
       )}
 
       {view === "table" && visibleApplications.length > 0 && (
-        <section className="application-table" aria-label="Tracked applications">
-          <div className="table-head" aria-hidden="true">
-            <span>Role</span>
-            <span>Status</span>
-            <span>Outcomes</span>
-            <span>Next step</span>
+        <section className="application-table" role="table" aria-label="Tracked applications">
+          {/* The head is hidden from sight, not from assistive technology: a
+           * screen reader that cannot hear which column a value sits in cannot
+           * read this view at all. */}
+          <div className="table-head" role="row">
+            <span role="columnheader">Role</span>
+            <span role="columnheader">Status</span>
+            <span role="columnheader">Outcomes</span>
+            <span role="columnheader">Next step</span>
           </div>
           {visibleApplications.map((application) => {
             const note = followUpNote(application, now);
@@ -6376,9 +6407,10 @@ function Applications({
                 key={application.id}
                 id={`application-row-${application.id}`}
                 className="table-row"
+                role="row"
                 tabIndex={-1}
               >
-                <div className="application-identity">
+                <div className="application-identity" role="cell">
                   <strong>{application.job?.title ?? "Unknown role"}</strong>
                   <small>{application.job?.company}</small>
                   {note && (
@@ -6388,7 +6420,7 @@ function Applications({
                     </span>
                   )}
                 </div>
-                <label>
+                <label role="cell">
                   <span className="sr-only">Status for {application.job?.title}</span>
                   {/* Same guard as the board, and only the moves the domain allows.
                    * Listing all five taught the candidate about illegal transitions
@@ -6420,6 +6452,8 @@ function Applications({
                     }
                     draft={submissionDraft}
                     busy={busy}
+                    rebindReason={profileVersionRebindReason(application, dashboard.profile)}
+                    onRebind={() => rebindProfileVersion(onAct, application.id)}
                     onDraftChange={(draft) =>
                       dispatch({
                         type: "submission_changed",
@@ -6442,7 +6476,7 @@ function Applications({
                     onCancel={cancelPendingMove}
                   />
                 ) : null}
-                <div className="outcome-chips">
+                <div className="outcome-chips" role="cell">
                   {application.outcomes?.length ? (
                     application.outcomes.map((outcome) => (
                       <span key={outcome.id}>{human(outcome.type)}</span>
@@ -6452,104 +6486,109 @@ function Applications({
                   )}
                   <RecordedTimeline application={application} />
                 </div>
-                <button
-                  id={`dossier-trigger-table-${application.id}`}
-                  className="button mini quiet"
-                  type="button"
-                  aria-expanded={dossierFor === application.id}
-                  aria-controls="application-dossier"
-                  onClick={() => toggleDossier(application.id)}
-                >
-                  <FolderSearch2 size={15} /> Open dossier
-                </button>
-                <button
-                  id={`outcome-trigger-table-${application.id}`}
-                  className="button mini quiet"
-                  type="button"
-                  disabled={busy}
-                  aria-expanded={outcomeFor === application.id}
-                  aria-controls={
-                    outcomeFor === application.id ? `outcome-editor-${application.id}` : undefined
-                  }
-                  onClick={() => openOutcome(application.id)}
-                >
-                  <Plus size={15} /> Record outcome
-                </button>
-                {outcomeFor === application.id && (
-                  <OutcomeEditor
-                    application={application}
-                    onAct={onAct}
-                    busy={busy}
-                    draft={outcomeDraft!}
-                    onDraftChange={changeOutcomeDraft}
-                    onRecorded={(submitted) => dispatch({ type: "outcome_committed", submitted })}
-                    onFocusTrigger={() => focusOutcomeTrigger(application.id)}
-                    onClose={() => closeOutcome(application.id)}
-                  />
-                )}
-                {(application.status !== "withdrawn" || application.followUpOn) && (
-                  <>
-                    <button
-                      id={`reminder-trigger-table-${application.id}`}
-                      className="button mini quiet"
-                      type="button"
-                      disabled={busy}
-                      aria-expanded={reminderFor === application.id}
-                      aria-controls={
-                        reminderFor === application.id
-                          ? `reminder-editor-${application.id}`
-                          : undefined
-                      }
-                      onClick={() => openReminder(application)}
-                    >
-                      <CalendarClock size={15} aria-hidden="true" />
-                      {application.status === "withdrawn"
-                        ? "Review follow-up"
-                        : application.followUpOn
-                          ? "Change follow-up"
-                          : "Set follow-up"}
-                    </button>
-                    {reminderFor === application.id && (
-                      <ReminderEditor
-                        application={application}
-                        onAct={onAct}
-                        busy={busy}
-                        draft={reminderDraft!}
-                        onDraftChange={changeReminderDraft}
-                        onCommitted={(submitted) =>
-                          dispatch({ type: "reminder_committed", submitted })
+                {/* The "Next step" column. display:contents keeps the row's
+                 * existing wrapping flex layout byte-for-byte while giving the
+                 * controls a single cell to belong to. */}
+                <div className="table-row-actions" role="cell">
+                  <button
+                    id={`dossier-trigger-table-${application.id}`}
+                    className="button mini quiet"
+                    type="button"
+                    aria-expanded={dossierFor === application.id}
+                    aria-controls="application-dossier"
+                    onClick={() => toggleDossier(application.id)}
+                  >
+                    <FolderSearch2 size={15} /> Open dossier
+                  </button>
+                  <button
+                    id={`outcome-trigger-table-${application.id}`}
+                    className="button mini quiet"
+                    type="button"
+                    disabled={busy}
+                    aria-expanded={outcomeFor === application.id}
+                    aria-controls={
+                      outcomeFor === application.id ? `outcome-editor-${application.id}` : undefined
+                    }
+                    onClick={() => openOutcome(application.id)}
+                  >
+                    <Plus size={15} /> Record outcome
+                  </button>
+                  {outcomeFor === application.id && (
+                    <OutcomeEditor
+                      application={application}
+                      onAct={onAct}
+                      busy={busy}
+                      draft={outcomeDraft!}
+                      onDraftChange={changeOutcomeDraft}
+                      onRecorded={(submitted) => dispatch({ type: "outcome_committed", submitted })}
+                      onFocusTrigger={() => focusOutcomeTrigger(application.id)}
+                      onClose={() => closeOutcome(application.id)}
+                    />
+                  )}
+                  {(application.status !== "withdrawn" || application.followUpOn) && (
+                    <>
+                      <button
+                        id={`reminder-trigger-table-${application.id}`}
+                        className="button mini quiet"
+                        type="button"
+                        disabled={busy}
+                        aria-expanded={reminderFor === application.id}
+                        aria-controls={
+                          reminderFor === application.id
+                            ? `reminder-editor-${application.id}`
+                            : undefined
                         }
-                        onFocusTrigger={() => focusReminderOrigin(application.id)}
-                        onClose={() => closeReminder(application.id)}
-                      />
-                    )}
-                  </>
-                )}
-                <button
-                  id={`note-trigger-table-${application.id}`}
-                  className="button mini quiet"
-                  type="button"
-                  disabled={busy}
-                  aria-expanded={noteFor === application.id}
-                  aria-controls={
-                    noteFor === application.id ? `note-editor-${application.id}` : undefined
-                  }
-                  onClick={() => openNote(application.id)}
-                >
-                  <NotebookPen size={15} /> Add private note
-                </button>
-                {noteFor === application.id && (
-                  <ApplicationNoteEditor
-                    application={application}
-                    onAct={onAct}
-                    busy={busy}
-                    draft={noteDraft!}
-                    onDraftChange={changeNoteDraft}
-                    onRecorded={(submitted) => dispatch({ type: "note_committed", submitted })}
-                    onFocusTrigger={() => focusNoteTrigger(application.id)}
-                    onClose={() => closeNote(application.id)}
-                  />
-                )}
+                        onClick={() => openReminder(application)}
+                      >
+                        <CalendarClock size={15} aria-hidden="true" />
+                        {application.status === "withdrawn"
+                          ? "Review follow-up"
+                          : application.followUpOn
+                            ? "Change follow-up"
+                            : "Set follow-up"}
+                      </button>
+                      {reminderFor === application.id && (
+                        <ReminderEditor
+                          application={application}
+                          onAct={onAct}
+                          busy={busy}
+                          draft={reminderDraft!}
+                          onDraftChange={changeReminderDraft}
+                          onCommitted={(submitted) =>
+                            dispatch({ type: "reminder_committed", submitted })
+                          }
+                          onFocusTrigger={() => focusReminderOrigin(application.id)}
+                          onClose={() => closeReminder(application.id)}
+                        />
+                      )}
+                    </>
+                  )}
+                  <button
+                    id={`note-trigger-table-${application.id}`}
+                    className="button mini quiet"
+                    type="button"
+                    disabled={busy}
+                    aria-expanded={noteFor === application.id}
+                    aria-controls={
+                      noteFor === application.id ? `note-editor-${application.id}` : undefined
+                    }
+                    onClick={() => openNote(application.id)}
+                  >
+                    <NotebookPen size={15} /> Add private note
+                  </button>
+                  {noteFor === application.id && (
+                    <ApplicationNoteEditor
+                      application={application}
+                      onAct={onAct}
+                      busy={busy}
+                      draft={noteDraft!}
+                      onDraftChange={changeNoteDraft}
+                      onRecorded={(submitted) => dispatch({ type: "note_committed", submitted })}
+                      onFocusTrigger={() => focusNoteTrigger(application.id)}
+                      onClose={() => closeNote(application.id)}
+                    />
+                  )}
+                </div>
               </article>
             );
           })}
@@ -7619,6 +7658,18 @@ function LocalDraftDisclosure({ dashboard }: { dashboard: Dashboard }) {
   );
 }
 
+/* One candidate-initiated rebind, defined once for every surface that can be
+ * stopped by a superseded Profile Version. The Application keeps its packets,
+ * assurance runs and Submission Records; only the binding moves, which is why
+ * the copy sends the candidate back through explain and compose. */
+function rebindProfileVersion(onAct: ActionRunner, applicationId: string): void {
+  void onAct.run({
+    request: () => api(`/v1/applications/${applicationId}/profile-version`, { method: "PUT" }),
+    success:
+      "Application now uses your current Profile Version. Explain the role again, then compose a new packet.",
+  });
+}
+
 function Packets({
   dashboard,
   onAct,
@@ -7629,9 +7680,16 @@ function Packets({
   busy: boolean;
 }) {
   const [historyFor, setHistoryFor] = useState<string | null>(null);
-  const packetByApplication = new Map(
-    dashboard.packets.map((packet) => [packet.applicationId, packet]),
-  );
+  /* Newest wins explicitly. The dashboard sends one packet per Application
+   * today, so this only stops the row from depending on array order - and it is
+   * what the approval guard below compares against. */
+  const packetByApplication = new Map<string, Packet>();
+  for (const packet of dashboard.packets) {
+    const held = packetByApplication.get(packet.applicationId);
+    if (!held || held.createdAt < packet.createdAt) {
+      packetByApplication.set(packet.applicationId, packet);
+    }
+  }
   return (
     <>
       <PageIntro
@@ -7660,6 +7718,14 @@ function Packets({
             packet !== undefined &&
             packet.status !== "assurance_passed" &&
             packet.status !== "approved";
+          /* The server refuses approval of a superseded packet with
+           * PACKET_NOT_CURRENT. Do not offer the control that earns that 409. */
+          const packetSuperseded =
+            packet !== undefined &&
+            dashboard.packets.some(
+              (other) =>
+                other.applicationId === application.id && other.createdAt > packet.createdAt,
+            );
           return (
             <article key={application.id} className="packet-row">
               <div className="packet-icon">
@@ -7692,6 +7758,7 @@ function Packets({
                     busy={busy}
                     compact
                     onGenerate={generate}
+                    onRebind={() => rebindProfileVersion(onAct, application.id)}
                   />
                 ) : (
                   <>
@@ -7705,6 +7772,7 @@ function Packets({
                       compact
                       primary={false}
                       onGenerate={generate}
+                      onRebind={() => rebindProfileVersion(onAct, application.id)}
                     />
                     <button
                       className={`button mini ${approvalNeedsAssurance ? "primary" : "quiet"}`}
@@ -7730,10 +7798,12 @@ function Packets({
                       supportingContent={<PacketApprovalContext packet={packet} />}
                       confirmLabel="Approve this packet"
                       cancelLabel="Cancel"
-                      disabled={busy || packet.status !== "assurance_passed"}
-                      {...(approvalNeedsAssurance
-                        ? { descriptionId: `approve-gate-${packet.id}` }
-                        : {})}
+                      disabled={busy || packetSuperseded || packet.status !== "assurance_passed"}
+                      {...(packetSuperseded
+                        ? { descriptionId: `packet-superseded-${packet.id}` }
+                        : approvalNeedsAssurance
+                          ? { descriptionId: `approve-gate-${packet.id}` }
+                          : {})}
                       onConfirm={() => {
                         void onAct.run({
                           request: () =>
@@ -7758,7 +7828,12 @@ function Packets({
                   </>
                 )}
               </div>
-              {approvalNeedsAssurance && packet && (
+              {packetSuperseded && packet && (
+                <small className="field-note" id={`packet-superseded-${packet.id}`}>
+                  A newer packet exists for this application. Review and approve the current packet.
+                </small>
+              )}
+              {approvalNeedsAssurance && packet && !packetSuperseded && (
                 <small className="field-note" id={`approve-gate-${packet.id}`}>
                   Approval opens once assurance passes on this exact packet.
                 </small>
@@ -8684,7 +8759,8 @@ function DataControls({
             <h2>Delete this workspace</h2>
             <p>
               This cannot be undone. Packet files and local outbox files should also be removed from
-              the data directory.
+              the data directory. You will be shown a status token once, on the sign-in screen. Copy
+              it before leaving that screen.
             </p>
           </div>
           <label>

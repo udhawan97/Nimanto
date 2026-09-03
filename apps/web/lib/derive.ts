@@ -214,7 +214,7 @@ export function nextSteps(
     steps.push({
       id: "confirm-evidence",
       title: `Confirm ${pending} imported claim${pending === 1 ? "" : "s"}`,
-      detail: "Imported claims stay pending until you decide. Nothing scores until then.",
+      detail: "Imported claims stay pending until you decide. Nothing is explained until then.",
       section: "evidence",
       tone: "live",
     });
@@ -226,7 +226,7 @@ export function nextSteps(
     steps.push({
       id: "run-matches",
       title: `Explain ${unmatched} role${unmatched === 1 ? "" : "s"}`,
-      detail: "Deterministic scoring against confirmed evidence only. No model is used.",
+      detail: "Deterministic explanation against confirmed evidence only. No model is used.",
       section: "jobs",
       tone: "idle",
     });
@@ -786,7 +786,9 @@ const FAILURE_COPY: Record<string, string> = {
   LATEST_APPROVED_PACKET_REQUIRED:
     "A newer packet replaced the one selected for this action. Refresh, review and approve the current packet, then create and approve a replacement action.",
   ACTION_APPROVAL_STALE:
-    "A newer packet replaced the one approved for this action. Review and approve the current packet, then create and approve a replacement action.",
+    "This packet's Profile, Match, role, or evidence inputs changed since approval. Compose, assure, and approve a current packet.",
+  PACKET_NOT_CURRENT:
+    "A newer packet exists for this application. Review and approve the current packet.",
   PACKET_EVIDENCE_OUTSIDE_PROFILE:
     "Choose confirmed claims from the Profile Version bound to this application.",
   PROFILE_EVIDENCE_CHANGED:

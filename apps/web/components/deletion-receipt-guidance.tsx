@@ -9,7 +9,7 @@ export function DeletionReceiptGuidance({ token }: { token: string }) {
         For candidate-facing access, this token is the only public credential that can check or
         resume the deletion without a session. Nimanto may still continue pending file cleanup
         internally when its local service starts; that recovery does not require you to provide the
-        token. Treat the token like a password.
+        token. Treat the token like a password. Not shown again after you leave this screen.
       </p>
       <CopyLine command={token} />
       <p className="field-note">

@@ -3127,8 +3127,24 @@ svg {
   grid-column: 2 / -1;
 }
 
+/* The column headers are a screen-reader-only row: the visual grammar is a
+ * stack of cards, but the table role above it needs real column headers.
+ * Hidden with the sr-only pattern rather than display:none, which would take
+ * them out of the accessibility tree as well. */
 .table-head {
-  display: none;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+/* The "Next step" cell groups the row's controls for assistive technology
+ * without becoming a box, so the row's wrapping flex layout is unchanged. */
+.table-row-actions {
+  display: contents;
 }
 
 .blocker {
@@ -3755,7 +3771,7 @@ textarea {
   border-radius: var(--radius-md);
   background: var(--surface-raised);
 }
-.table-row > .outcome-form {
+.table-row .outcome-form {
   flex-basis: 100%;
 }
 .outcome-form .button-group {
@@ -4103,8 +4119,15 @@ textarea {
  * without merging their ownership. It is structural provenance, not ornament.
  */
 .packet-actions .packet-composer,
+/* The gate is a sentence and, when the binding can be repaired, the one control
+ * that repairs it. It stays full width so the reason never shares a line with
+ * the row's other actions. */
 .packet-composer-gate {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-sm);
   flex-basis: 100%;
+  min-width: 0;
 }
 .packet-composer {
   width: 100%;
@@ -4292,6 +4315,9 @@ textarea {
 .application-dossier {
   position: relative;
   display: grid;
+  /* Opening the dossier scrolls it to block start. Clear the measured sticky
+   * header so its title and Close control are not covered. */
+  scroll-margin-block-start: calc(var(--workspace-header-height, 5rem) + var(--space-lg));
   flex-basis: 100%;
   gap: var(--space-xl);
   width: 100%;

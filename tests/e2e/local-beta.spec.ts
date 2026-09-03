@@ -1157,6 +1157,20 @@ test("one guarded control owns every status change, and the two views are exclus
   await expect(page.locator(".board")).toHaveCount(0);
   await expect(page.locator(".application-table")).toBeVisible();
 
+  // The table view must reach assistive technology as a table: a screen reader
+  // that cannot hear the column a value sits in cannot read this view.
+  const applicationTable = page.getByRole("table", { name: "Tracked applications" });
+  await expect(applicationTable).toBeVisible();
+  await expect(applicationTable.getByRole("columnheader")).toHaveText([
+    "Role",
+    "Status",
+    "Outcomes",
+    "Next step",
+  ]);
+  const firstApplicationRow = applicationTable.getByRole("row").nth(1);
+  await expect(firstApplicationRow.getByRole("cell")).toHaveCount(4);
+  await expect(firstApplicationRow.getByRole("combobox", { name: /^Status for / })).toBeVisible();
+
   for (const width of [320, 375, 1280]) {
     await page.setViewportSize({ width, height: 900 });
     const metadata = await page
@@ -1316,7 +1330,7 @@ test("evidence-rich review features stay literal, local, and inspectable", async
   await expect(
     role.getByText(/Coverage below 0\.60, including roles without known requirements/),
   ).toBeVisible();
-  await expect(role.getByText(/At least 0\.60 is required for a scored band/)).toBeVisible();
+  await expect(role.getByText(/At least 0\.60 is required for a fit band/)).toBeVisible();
   await expect(role.getByText(/explicit blockers remain separate/)).toBeVisible();
   await expect(role.getByText(/Evidence source mix remains a separate/)).toBeVisible();
   await expect(role.getByRole("region", { name: "Match evidence lens" })).toContainText(
@@ -1425,7 +1439,7 @@ test("the full discovery contract is candidate-approved, replayed, and explained
   await page.getByLabel("Discovery contract view").selectOption("excluded");
   await expect(page.locator(".job-row")).toHaveCount(1);
   const excluded = page.locator(".job-row").first();
-  await excluded.getByText("Why this role is outside recommendations").click();
+  await excluded.getByText("Why this role is outside the discovery profile").click();
   await expect(excluded.locator(".discovery-rationale")).toContainText("Excluded");
   await page.getByLabel("Discovery contract view").selectOption("recommended");
 
@@ -2200,6 +2214,12 @@ test("deletion hands back a receipt that outlives the session, and does not outl
   await page.getByRole("button", { name: "Data controls" }).click();
   await page.setViewportSize({ width: 320, height: 900 });
 
+  // The status token is shown once and never again. The danger zone has to say
+  // so before the candidate commits, not only after.
+  await expect(page.locator(".danger-zone")).toContainText(
+    "You will be shown a status token once, on the sign-in screen. Copy it before leaving that screen.",
+  );
+
   const deletionConfirmation = page.getByRole("textbox", {
     name: /DELETE MY NIMANTO DATA/,
   });
@@ -2240,10 +2260,12 @@ test("deletion hands back a receipt that outlives the session, and does not outl
   await page.getByLabel("Your name").fill("Someone Else");
   await page.getByLabel("Your email").fill("someone@example.test");
   await page.getByRole("button", { name: "Start private workspace" }).click();
-  // Section-agnostic on purpose: the hash still reads #data from before the
-  // deletion, and restoring that section is the routing fix working.
+  // The deleted workspace's #data section is gone with it, so the replacement
+  // workspace opens on Overview from a clean URL - and with no trailing "#".
   await expect(page.locator(".workspace-shell")).toBeVisible();
   await expect(page.getByText("someone@example.test")).toBeVisible();
+  expect(await page.evaluate(() => window.location.hash)).toBe("");
+  await expect(page.getByRole("heading", { name: "Good to see you, Someone." })).toBeVisible();
 
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.getByRole("button", { name: "Sign out" }).click();
@@ -2597,6 +2619,23 @@ test("an Application Dossier records the candidate's exact external submission",
   const dossier = page.locator("#application-dossier");
   await expect(dossier).toBeFocused();
   await expect(dossier.getByText("Candidate case file")).toBeVisible();
+  // The dossier scrolls itself into view under a sticky header. Its title and
+  // Close control must clear that header at every supported width.
+  for (const width of [375, 768, 1280]) {
+    await page.setViewportSize({ width, height: 800 });
+    await dossier.evaluate((node) => node.scrollIntoView({ block: "start" }));
+    const headerBox = (await page.locator(".workspace-header").boundingBox())!;
+    const headerBottom = headerBox.y + headerBox.height;
+    const titleBox = (await dossier.locator(".dossier-header h3").boundingBox())!;
+    const closeBox = (await dossier.getByRole("button", { name: "Close dossier" }).boundingBox())!;
+    expect(titleBox.y, `dossier title must clear the sticky header at ${width}px`).toBeGreaterThan(
+      headerBottom,
+    );
+    expect(closeBox.y, `Close dossier must clear the sticky header at ${width}px`).toBeGreaterThan(
+      headerBottom,
+    );
+  }
+  await page.setViewportSize({ width: 1280, height: 800 });
   await expect(dossier.getByRole("region", { name: "Match evidence lens" })).toContainText(
     "evidence_strength_unweighted_v1",
   );
@@ -2685,6 +2724,18 @@ test("an Application Dossier records the candidate's exact external submission",
   await expect(dossier.getByText(/JSON · packet/)).toBeVisible();
 });
 
+/** The class of the nearest enclosing form of whatever holds focus, or a
+ * description of the element itself, so a focus regression names where focus
+ * actually went. */
+async function describeFocus(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    const active = document.activeElement;
+    if (!(active instanceof HTMLElement)) return "none";
+    const form = active.closest("form");
+    return form ? form.className : `outside a form: ${active.className || active.tagName}`;
+  });
+}
+
 test("the candidate career ledger carries the P1 and P2 application workflow", async ({ page }) => {
   await installClipboardRecorder(page);
   await page.goto(`/workspace/#bootstrap=${bootstrapSecret}`);
@@ -2709,7 +2760,15 @@ test("the candidate career ledger carries the P1 and P2 application workflow", a
   await activity.getByRole("button", { name: "Complete" }).click();
   await expect(activity).toContainText("Follow up · Completed");
   await now.getByLabel("Action").fill("Cancel a superseded follow-up");
-  await now.getByRole("button", { name: "Add activity" }).click();
+  // Keyboard save: the submit control returns to disabled once the form
+  // resets, so focus must land back in the form the candidate was using.
+  await now.getByRole("button", { name: "Add activity" }).press("Enter");
+  await expect(
+    now.locator("li").filter({ hasText: "Cancel a superseded follow-up" }),
+  ).toBeVisible();
+  expect(await describeFocus(page), "focus after a keyboard Add activity").toBe(
+    "career-ledger-form",
+  );
   const cancelledActivity = now.locator("li").filter({ hasText: "Cancel a superseded follow-up" });
   await cancelledActivity.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(cancelledActivity).toContainText("Follow up · Cancelled");
@@ -2745,9 +2804,12 @@ test("the candidate career ledger carries the P1 and P2 application workflow", a
   await answers
     .getByLabel("Your answer")
     .fill("I chose this role because the recorded scope matches my evidence.");
-  await answers.getByRole("button", { name: "Save answer" }).click();
+  await answers.getByRole("button", { name: "Save answer" }).press("Enter");
   const answer = answers.locator(".ledger-records > li").filter({ hasText: "Why this role?" });
   await expect(answer).toBeVisible();
+  expect(await describeFocus(page), "focus after a keyboard Save answer").toBe(
+    "career-ledger-form",
+  );
   await answer.getByRole("button", { name: "Revise" }).click();
   await answers
     .getByLabel("Your answer")
@@ -2815,4 +2877,94 @@ test("the candidate career ledger carries the P1 and P2 application workflow", a
   await ledger.getByRole("tab", { name: "Now" }).click();
   await page.setViewportSize({ width: 375, height: 812 });
   await expectSurfaceContained(page, ledger, "career ledger at 375px");
+});
+
+/* DR-8056ce1f-001. An Application is pinned to the Profile Version it was
+ * created against, so saving a newer one used to close every composer, action
+ * and submission path for that Application with no way back. The recovery is
+ * one candidate-initiated rebind.
+ *
+ * The rebind route (PUT /v1/applications/:id/profile-version) is lane A's half
+ * of this finding. Until it is merged the journey below cannot run, so it skips
+ * itself rather than reporting a false pass. A path with no route reaches the error
+ * handler as a framework rejection and comes back as HTTP_404; the route itself
+ * answers an unknown id with APPLICATION_NOT_FOUND. */
+async function rebindRouteAvailable(page: Page): Promise<boolean> {
+  const response = await page.request.fetch(
+    `${TEST_API_ORIGIN}/v1/applications/00000000-0000-4000-8000-000000000000/profile-version`,
+    { method: "PUT", failOnStatusCode: false },
+  );
+  const body = (await response.json().catch(() => null)) as {
+    error?: { code?: string };
+  } | null;
+  return body?.error?.code === "APPLICATION_NOT_FOUND";
+}
+
+/** The pipeline column a card currently sits in. The status-labelled buttons on
+ * a card are the moves it offers, not the stage it is in. */
+function boardColumn(page: Page, label: string): Locator {
+  return page
+    .locator(".board-column")
+    .filter({ has: page.getByRole("heading", { level: 3, name: label, exact: true }) });
+}
+
+test("a superseded Profile Version is recoverable without abandoning the Application", async ({
+  page,
+}) => {
+  test.setTimeout(75_000);
+  await page.goto(`/workspace/#bootstrap=${bootstrapSecret}`);
+  await page.getByLabel("Your name").fill("Rebind Check");
+  await page.getByLabel("Your email").fill("rebind@example.test");
+  await page.getByRole("button", { name: "Start private workspace" }).click();
+  test.skip(
+    !(await rebindRouteAvailable(page)),
+    "PUT /v1/applications/:id/profile-version is not served by this build (lane A, DR-8056ce1f-001)",
+  );
+
+  await page.getByRole("button", { name: "Run starter matches" }).click();
+  await page.getByRole("button", { name: "Role discovery" }).click();
+  await page.getByRole("button", { name: "Track", exact: true }).first().click();
+  await page.getByRole("button", { name: "Review packets" }).click();
+  await generatePacket(page);
+  const packet = page.locator(".packet-row").first();
+  await packet.getByRole("button", { name: "Assure", exact: true }).click();
+  await approveExactPacket(packet);
+  await expect(page.getByText("Packet approved for export.")).toBeVisible();
+  await page.getByRole("button", { name: "Applications" }).click();
+  await expect(boardColumn(page, "Approved for export").locator("article")).toHaveCount(1);
+
+  // A newer Profile Version supersedes the one this Application is bound to.
+  await page.getByRole("button", { name: "Evidence vault" }).click();
+  await page
+    .getByLabel("Candidate-approved statement")
+    .fill("I require employer support for an H-1B transfer.");
+  await page.getByRole("button", { name: "Save profile version" }).click();
+  await expect(page.getByRole("button", { name: "No changes to save" })).toBeDisabled();
+
+  // The dead end now names both versions and offers the single recovery.
+  await page.getByRole("button", { name: "Review packets" }).click();
+  await expect(packet.locator(".packet-composer-gate")).toContainText(
+    /This Application is bound to Profile Version [0-9a-f]{8}; your current Profile is [0-9a-f]{8}\./,
+  );
+  await packet.getByRole("button", { name: "Use current Profile Version" }).first().click();
+  await expect(
+    page.getByText(
+      "Application now uses your current Profile Version. Explain the role again, then compose a new packet.",
+    ),
+  ).toBeVisible();
+
+  // The approval the old binding earned is withdrawn, not silently kept.
+  await page.getByRole("button", { name: "Applications" }).click();
+  await expect(boardColumn(page, "Prepared").locator("article")).toHaveCount(1);
+  await expect(boardColumn(page, "Approved for export").locator("article")).toHaveCount(0);
+
+  // Explain, compose, assure and approve all reopen against the current Profile.
+  await page.getByRole("button", { name: "Role discovery" }).click();
+  await page.locator(".job-row").first().getByRole("button", { name: "Explain fit" }).click();
+  await page.getByRole("button", { name: "Review packets" }).click();
+  await expect(packet.locator(".packet-composer-gate")).toHaveCount(0);
+  await generatePacket(page);
+  await packet.getByRole("button", { name: "Assure", exact: true }).click();
+  await approveExactPacket(packet);
+  await expect(page.getByText("Packet approved for export.")).toBeVisible();
 });

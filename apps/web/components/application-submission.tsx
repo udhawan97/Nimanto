@@ -1,6 +1,7 @@
 import { FileCheck2, FileQuestion, Send } from "lucide-react";
 import { useId, useRef, useState } from "react";
 import type { SubmissionDraft } from "../lib/applications-workbench.js";
+import { RebindProfileVersionButton } from "./packet-composer.js";
 
 type Packet = {
   id: string;
@@ -33,16 +34,23 @@ export function ApplicationSubmissionRecorder({
   packet,
   draft,
   busy,
+  rebindReason = null,
   onDraftChange,
   onConfirm,
   onCancel,
+  onRebind,
 }: {
   packet: Packet | null;
   draft: SubmissionDraft;
   busy: boolean;
+  /* A superseded Profile Version blocks the packet this recorder would bind, so
+   * the gap is named here rather than leaving the packet option silently
+   * unavailable. */
+  rebindReason?: string | null;
   onDraftChange: (draft: SubmissionDraft) => void;
   onConfirm: (draft: SubmissionDraft) => void;
   onCancel: () => void;
+  onRebind?: () => void;
 }) {
   const usablePacket =
     packet?.status === "approved" && packet.canonicalContent.schemaVersion === "packet_v2"
@@ -94,6 +102,12 @@ export function ApplicationSubmissionRecorder({
           </p>
         </div>
       </header>
+      {rebindReason && (
+        <div className="packet-composer-gate">
+          <small className="field-note">{rebindReason}</small>
+          {onRebind && <RebindProfileVersionButton busy={busy} onRebind={onRebind} />}
+        </div>
+      )}
       <fieldset>
         <legend>Materials</legend>
         <label className="submission-material-choice">
