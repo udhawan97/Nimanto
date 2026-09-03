@@ -501,6 +501,12 @@ function messageForError(error: Error): { code: string; status: number; message:
       status: 409,
       message: "A newer packet exists. Review and choose the current approved packet.",
     };
+  if (code === "PACKET_NOT_CURRENT")
+    return {
+      code,
+      status: 409,
+      message: "A newer packet exists for this application. Review and approve the current packet.",
+    };
   if (
     code.includes("REQUIRED") ||
     code.startsWith("INVALID_") ||

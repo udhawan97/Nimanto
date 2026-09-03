@@ -250,6 +250,44 @@ describe("packet lifecycle staging", () => {
     );
   });
 
+  it("refuses to approve a packet that is no longer the latest for its Application", async () => {
+    const { store, identity, application, evidenceIds, artifactDirectory } =
+      await packetFixture("packet-not-current");
+    const lifecycle = new PacketLifecycle(store, artifactDirectory);
+    const compose = async (label: string) =>
+      lifecycle.create({
+        tenantId: identity.tenantId,
+        applicationId: application.id,
+        candidateName: label,
+        evidenceIds,
+      });
+
+    const first = await compose("Packet Not Current A");
+    await expect(lifecycle.assure(identity.tenantId, first.id)).resolves.toMatchObject({
+      status: "passed",
+    });
+    await compose("Packet Not Current B");
+    const latest = await compose("Packet Not Current C");
+    expect(latest.id).not.toBe(first.id);
+
+    await expect(lifecycle.approve(identity.tenantId, first.id)).rejects.toThrow(
+      "PACKET_NOT_CURRENT",
+    );
+    await expect(store.getPacket(identity.tenantId, first.id)).resolves.toMatchObject({
+      status: "assurance_passed",
+    });
+    await expect(store.listApplications(identity.tenantId)).resolves.toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: application.id, status: "prepared" })]),
+    );
+
+    await expect(lifecycle.assure(identity.tenantId, latest.id)).resolves.toMatchObject({
+      status: "passed",
+    });
+    await expect(lifecycle.approve(identity.tenantId, latest.id)).resolves.toMatchObject({
+      status: "approved",
+    });
+  });
+
   it("removes promoted artifacts when the database transaction fails", async () => {
     const fixture = await packetFixture("packet-transaction-failure");
     stores.pop();

@@ -382,6 +382,8 @@ export class PacketLifecycle {
       await database.lockTenantActive(tenantId);
       const pending = await database.getPacket(tenantId, packetId);
       if (!pending) throw new Error("PACKET_NOT_FOUND");
+      const latest = await database.getLatestPacketForApplication(tenantId, pending.applicationId);
+      if (latest?.id !== packetId) throw new Error("PACKET_NOT_CURRENT");
       const application = (await database.listApplications(tenantId)).find(
         (candidate) => candidate.id === pending.applicationId,
       );
