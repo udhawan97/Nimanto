@@ -4292,6 +4292,9 @@ textarea {
 .application-dossier {
   position: relative;
   display: grid;
+  /* Opening the dossier scrolls it to block start. Clear the measured sticky
+   * header so its title and Close control are not covered. */
+  scroll-margin-block-start: calc(var(--workspace-header-height, 5rem) + var(--space-lg));
   flex-basis: 100%;
   gap: var(--space-xl);
   width: 100%;

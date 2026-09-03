@@ -2597,6 +2597,23 @@ test("an Application Dossier records the candidate's exact external submission",
   const dossier = page.locator("#application-dossier");
   await expect(dossier).toBeFocused();
   await expect(dossier.getByText("Candidate case file")).toBeVisible();
+  // The dossier scrolls itself into view under a sticky header. Its title and
+  // Close control must clear that header at every supported width.
+  for (const width of [375, 768, 1280]) {
+    await page.setViewportSize({ width, height: 800 });
+    await dossier.evaluate((node) => node.scrollIntoView({ block: "start" }));
+    const headerBox = (await page.locator(".workspace-header").boundingBox())!;
+    const headerBottom = headerBox.y + headerBox.height;
+    const titleBox = (await dossier.locator(".dossier-header h3").boundingBox())!;
+    const closeBox = (await dossier.getByRole("button", { name: "Close dossier" }).boundingBox())!;
+    expect(titleBox.y, `dossier title must clear the sticky header at ${width}px`).toBeGreaterThan(
+      headerBottom,
+    );
+    expect(closeBox.y, `Close dossier must clear the sticky header at ${width}px`).toBeGreaterThan(
+      headerBottom,
+    );
+  }
+  await page.setViewportSize({ width: 1280, height: 800 });
   await expect(dossier.getByRole("region", { name: "Match evidence lens" })).toContainText(
     "evidence_strength_unweighted_v1",
   );
