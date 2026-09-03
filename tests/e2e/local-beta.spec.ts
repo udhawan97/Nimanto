@@ -2214,6 +2214,12 @@ test("deletion hands back a receipt that outlives the session, and does not outl
   await page.getByRole("button", { name: "Data controls" }).click();
   await page.setViewportSize({ width: 320, height: 900 });
 
+  // The status token is shown once and never again. The danger zone has to say
+  // so before the candidate commits, not only after.
+  await expect(page.locator(".danger-zone")).toContainText(
+    "You will be shown a status token once, on the sign-in screen. Copy it before leaving that screen.",
+  );
+
   const deletionConfirmation = page.getByRole("textbox", {
     name: /DELETE MY NIMANTO DATA/,
   });
@@ -2254,10 +2260,12 @@ test("deletion hands back a receipt that outlives the session, and does not outl
   await page.getByLabel("Your name").fill("Someone Else");
   await page.getByLabel("Your email").fill("someone@example.test");
   await page.getByRole("button", { name: "Start private workspace" }).click();
-  // Section-agnostic on purpose: the hash still reads #data from before the
-  // deletion, and restoring that section is the routing fix working.
+  // The deleted workspace's #data section is gone with it, so the replacement
+  // workspace opens on Overview from a clean URL - and with no trailing "#".
   await expect(page.locator(".workspace-shell")).toBeVisible();
   await expect(page.getByText("someone@example.test")).toBeVisible();
+  expect(await page.evaluate(() => window.location.hash)).toBe("");
+  await expect(page.getByRole("heading", { name: "Good to see you, Someone." })).toBeVisible();
 
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.getByRole("button", { name: "Sign out" }).click();

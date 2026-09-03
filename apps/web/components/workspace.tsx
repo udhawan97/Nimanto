@@ -1791,6 +1791,16 @@ export function Workspace() {
               busy={busy}
               onDeleted={(receipt) => {
                 applyIdentityTransition({ kind: "deletion_recorded", receipt });
+                /* The section this hash names was deleted with the workspace,
+                 * so the next sign-in opens on Overview from a clean URL.
+                 * replaceState, not location.hash = "", which leaves a bare
+                 * "#" behind in the address bar and the back stack. */
+                setSection("overview");
+                window.history.replaceState(
+                  null,
+                  "",
+                  `${window.location.pathname}${window.location.search}`,
+                );
               }}
             />
           )}
@@ -8708,7 +8718,8 @@ function DataControls({
             <h2>Delete this workspace</h2>
             <p>
               This cannot be undone. Packet files and local outbox files should also be removed from
-              the data directory.
+              the data directory. You will be shown a status token once, on the sign-in screen. Copy
+              it before leaving that screen.
             </p>
           </div>
           <label>

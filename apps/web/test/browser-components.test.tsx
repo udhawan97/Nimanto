@@ -93,6 +93,7 @@ describe("deletion receipt guidance", () => {
     expect(view.textContent).toContain("internally when its local service starts");
     expect(view.textContent).toContain("does not require you to provide the token");
     expect(view.textContent).toContain("Treat the token like a password");
+    expect(view.textContent).toContain("Not shown again after you leave this screen.");
     expect([...view.querySelectorAll("code")].map((code) => code.textContent)).toEqual(
       expect.arrayContaining([
         "private-deletion-token",
