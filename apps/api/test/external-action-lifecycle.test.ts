@@ -1,7 +1,7 @@
 import { access, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { PGlite } from "@electric-sql/pglite";
 import { NimantoStore } from "@nimanto/database";
 import { matchJob } from "@nimanto/domain";
@@ -12,6 +12,7 @@ import { ExternalActionLifecycle } from "../src/external-action-lifecycle.js";
 const stores: NimantoStore[] = [];
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   await Promise.all(stores.splice(0).map((store) => store.close()));
 });
 
@@ -436,5 +437,63 @@ describe("external action lifecycle", () => {
       result: { errorCode: "EXECUTION_INTERRUPTED" },
     });
     await expect(access(join(outboxDirectory, `${action.id}.json`))).rejects.toThrow();
+  });
+
+  it("warns with the action id alone when a delivered action cannot be recorded", async () => {
+    const warnings = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { store, identity, action, outboxDirectory } =
+      await approvedActionFixture("action-ambiguous");
+    const delivered: ActionResult = {
+      status: "sent",
+      provider: "test_outbox",
+      providerReference: "outbox:action-ambiguous",
+    };
+    // The provider succeeded; only the outcome write fails.
+    const failingReceipts = new Proxy(store, {
+      get(target, property) {
+        if (property === "transaction") {
+          return async <T>(work: (database: NimantoStore) => Promise<T>) =>
+            store.transaction((database) =>
+              work(
+                new Proxy(database, {
+                  get(inner, innerProperty) {
+                    if (innerProperty === "saveReceipt") {
+                      return async () => {
+                        throw new Error("INJECTED_RECEIPT_FAILURE");
+                      };
+                    }
+                    const value = Reflect.get(inner, innerProperty, inner) as unknown;
+                    return typeof value === "function" ? value.bind(inner) : value;
+                  },
+                }) as NimantoStore,
+              ),
+            );
+        }
+        const value = Reflect.get(target, property, target) as unknown;
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    }) as NimantoStore;
+    const lifecycle = new ExternalActionLifecycle(
+      failingReceipts,
+      outboxDirectory,
+      async () => delivered,
+      true,
+    );
+    lifecycle.setTenantOptIn(identity.tenantId, true);
+
+    await expect(lifecycle.execute(identity.tenantId, action.id)).rejects.toThrow(
+      "ACTION_OUTCOME_AMBIGUOUS",
+    );
+    expect(warnings).toHaveBeenCalledTimes(1);
+    const line = warnings.mock.calls[0]?.[0] as string;
+    expect(JSON.parse(line)).toEqual({
+      level: "warn",
+      code: "ACTION_OUTCOME_AMBIGUOUS",
+      actionId: action.id,
+    });
+    // Never the recipient, the subject, the body, or the tenant.
+    expect(line).not.toContain("@");
+    expect(line).not.toContain("Application");
+    expect(line).not.toContain(identity.tenantId);
   });
 });

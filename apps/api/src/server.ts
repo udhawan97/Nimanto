@@ -311,7 +311,23 @@ async function secureRuntimeDirectory(directory: string): Promise<void> {
   await chmod(directory, 0o700);
 }
 
-function messageForError(error: Error): { code: string; status: number; message: string } {
+/* Deterministic intake refusals. Each is a readable file that Nimanto declines
+ * to parse, which is the candidate's problem to fix and never a server fault. */
+const UNREADABLE_DOCUMENT_MESSAGES: Record<string, string> = {
+  FILE_TYPE_MISMATCH: "That file's contents do not match its file type, so nothing was imported.",
+  PDF_PAGE_LIMIT_EXCEEDED: "That PDF has more pages than the reviewed import limit.",
+  DOCX_EXPANSION_LIMIT_EXCEEDED: "That DOCX expands past the reviewed import limit.",
+  ARCHIVE_EXPANSION_LIMIT_EXCEEDED: "That archive expands past the reviewed import limit.",
+  ACTIVE_DOCUMENT_CONTENT: "That document carries active content, so nothing was imported.",
+  AMBIGUOUS_LINKEDIN_ARCHIVE:
+    "That LinkedIn archive has no single readable export, so nothing was imported.",
+  LINKEDIN_ARCHIVE_LIMIT_EXCEEDED: "That LinkedIn archive is past the reviewed import limit.",
+  LINKEDIN_ALLOWLIST_EMPTY: "No file in that LinkedIn archive is on the reviewed import allowlist.",
+};
+
+/** Exported for the guard test that asserts every code raised by the parsers
+ * and the Submission Record policy is answered as a client error. */
+export function messageForError(error: Error): { code: string; status: number; message: string } {
   const code = /^[A-Z0-9_]+$/.test(error.message) ? error.message : "INTERNAL_ERROR";
   if (code === "AUTHENTICATION_REQUIRED")
     return { code, status: 401, message: "Start or resume a local Nimanto session." };
@@ -500,6 +516,20 @@ function messageForError(error: Error): { code: string; status: number; message:
       code,
       status: 409,
       message: "A newer packet exists. Review and choose the current approved packet.",
+    };
+  if (UNREADABLE_DOCUMENT_MESSAGES[code])
+    return { code, status: 422, message: UNREADABLE_DOCUMENT_MESSAGES[code] };
+  if (code === "SUBMISSION_MATERIALS_CONFLICT")
+    return {
+      code,
+      status: 400,
+      message: "Choose either the exact formats used or 'Materials were not captured', not both.",
+    };
+  if (code === "PACKET_NOT_CURRENT")
+    return {
+      code,
+      status: 409,
+      message: "A newer packet exists for this application. Review and approve the current packet.",
     };
   if (
     code.includes("REQUIRED") ||
@@ -721,7 +751,7 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
   await app.register(swaggerUi, { routePrefix: "/docs" });
 
   app.addHook("onClose", async () => store.close());
-  app.setErrorHandler((error, _request, reply) => {
+  app.setErrorHandler((error, request, reply) => {
     /* A framework rejection already carries the right status and does not use
      * this codebase's SCREAMING_CASE message convention. Folding it into
      * INTERNAL_ERROR reported the local service as broken when it was healthy
@@ -747,6 +777,20 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
       return;
     }
     const safe = messageForError(raised);
+    /* A server fault leaves exactly one line, and only these keys. The route
+     * template is not request.url: no query string, body, cookie, or email is
+     * ever written to the operator's terminal. A 4xx stays silent. */
+    if (safe.status >= 500) {
+      console.error(
+        JSON.stringify({
+          level: "error",
+          code: safe.code,
+          method: request.method,
+          route: request.routeOptions?.url ?? null,
+          requestId: request.id,
+        }),
+      );
+    }
     void reply.code(safe.status).send({ error: { code: safe.code, message: safe.message } });
   });
   app.addHook("onSend", async (request, reply, payload) => {
@@ -873,9 +917,12 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
   });
 
   app.get("/v1/deletion/status", async (request) => {
-    const query = request.query as { token?: string };
-    if (!query.token) throw new Error("INVALID_TOKEN");
-    const status = await store.deletionStatus(query.token);
+    /* A repeated ?token= gives Fastify an array, which is not a token. This is
+     * an unauthenticated public route, so anything but one non-empty string is
+     * refused here rather than hashed. */
+    const token = (request.query as { token?: unknown }).token;
+    if (typeof token !== "string" || token.length === 0) throw new Error("INVALID_TOKEN");
+    const status = await store.deletionStatus(token);
     if (!status) throw new Error("DELETION_NOT_FOUND");
     return status;
   });
@@ -1365,6 +1412,13 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
     );
     if (!record) throw new Error("APPLICATION_NOT_FOUND");
     return record;
+  });
+  app.put("/v1/applications/:id/profile-version", async (request) => {
+    const person = identity(request);
+    return packetLifecycle.rebindProfileVersion(
+      person.tenantId,
+      (request.params as { id: string }).id,
+    );
   });
   app.put("/v1/applications/:id/follow-up", async (request) => {
     const person = identity(request);

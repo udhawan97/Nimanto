@@ -266,6 +266,12 @@ export class ExternalActionLifecycle {
           // The executing state itself remains an explicit do-not-retry marker
           // and is recovered as ambiguous on restart.
         }
+        /* The provider already delivered but the outcome could not be recorded.
+         * The action id is the whole line: never the target, subject, body, or
+         * tenant. */
+        console.warn(
+          JSON.stringify({ level: "warn", code: "ACTION_OUTCOME_AMBIGUOUS", actionId: id }),
+        );
         throw new Error("ACTION_OUTCOME_AMBIGUOUS");
       }
       throw error;

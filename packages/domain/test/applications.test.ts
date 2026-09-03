@@ -66,6 +66,25 @@ describe("application transition policy", () => {
     }
   });
 
+  it("returns an Application at approved for export to prepared when its Profile is rebound", () => {
+    expect(applicationTransitions.packet("approved_for_export", "profile_rebound")).toEqual({
+      kind: "system_consequence",
+      to: "prepared",
+    });
+    for (const status of ["tracked", "prepared"] as const) {
+      expect(applicationTransitions.packet(status, "profile_rebound")).toEqual({
+        kind: "unchanged",
+        status,
+      });
+    }
+    for (const status of ["submitted_externally", "withdrawn"] as const) {
+      expect(applicationTransitions.packet(status, "profile_rebound")).toEqual({
+        kind: "candidate_status_preserved",
+        status,
+      });
+    }
+  });
+
   it("rejects unknown statuses without throwing from ordinary policy decisions", () => {
     expect(applicationTransitions.isStatus("hired")).toBe(false);
     expect(applicationTransitions.isStatus("tracked")).toBe(true);
