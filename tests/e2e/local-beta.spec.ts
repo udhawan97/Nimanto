@@ -1330,7 +1330,7 @@ test("evidence-rich review features stay literal, local, and inspectable", async
   await expect(
     role.getByText(/Coverage below 0\.60, including roles without known requirements/),
   ).toBeVisible();
-  await expect(role.getByText(/At least 0\.60 is required for a scored band/)).toBeVisible();
+  await expect(role.getByText(/At least 0\.60 is required for a fit band/)).toBeVisible();
   await expect(role.getByText(/explicit blockers remain separate/)).toBeVisible();
   await expect(role.getByText(/Evidence source mix remains a separate/)).toBeVisible();
   await expect(role.getByRole("region", { name: "Match evidence lens" })).toContainText(
@@ -1439,7 +1439,7 @@ test("the full discovery contract is candidate-approved, replayed, and explained
   await page.getByLabel("Discovery contract view").selectOption("excluded");
   await expect(page.locator(".job-row")).toHaveCount(1);
   const excluded = page.locator(".job-row").first();
-  await excluded.getByText("Why this role is outside recommendations").click();
+  await excluded.getByText("Why this role is outside the discovery profile").click();
   await expect(excluded.locator(".discovery-rationale")).toContainText("Excluded");
   await page.getByLabel("Discovery contract view").selectOption("recommended");
 

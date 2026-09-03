@@ -214,7 +214,7 @@ export function nextSteps(
     steps.push({
       id: "confirm-evidence",
       title: `Confirm ${pending} imported claim${pending === 1 ? "" : "s"}`,
-      detail: "Imported claims stay pending until you decide. Nothing scores until then.",
+      detail: "Imported claims stay pending until you decide. Nothing is explained until then.",
       section: "evidence",
       tone: "live",
     });
@@ -226,7 +226,7 @@ export function nextSteps(
     steps.push({
       id: "run-matches",
       title: `Explain ${unmatched} role${unmatched === 1 ? "" : "s"}`,
-      detail: "Deterministic scoring against confirmed evidence only. No model is used.",
+      detail: "Deterministic explanation against confirmed evidence only. No model is used.",
       section: "jobs",
       tone: "idle",
     });

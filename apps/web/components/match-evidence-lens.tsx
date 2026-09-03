@@ -22,7 +22,6 @@ export function MatchEvidenceLens({
           <span>Evidence lens</span>
           <strong>How this explanation is grounded</strong>
         </div>
-        <span className="state muted">No probability</span>
       </header>
       <div className="match-evidence-grid">
         <article>

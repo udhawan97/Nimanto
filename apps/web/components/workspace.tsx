@@ -2288,7 +2288,7 @@ function Overview({
               <strong>Your starter roles are ready.</strong>
               <small>
                 Run both deterministic explanations—no model is used; only confirmed career evidence
-                is scored.
+                is explained.
               </small>
             </span>
           </div>
@@ -2742,7 +2742,7 @@ function EvidenceVault({
               <div>
                 <strong>
                   {countedNoun(unscoredClaims, "confirmed claim")}{" "}
-                  {unscoredClaims === 1 ? "is" : "are"} not scored yet.
+                  {unscoredClaims === 1 ? "is" : "are"} not explained yet.
                 </strong>
                 <span>Matching uses your last saved profile version.</span>
               </div>
@@ -4492,8 +4492,8 @@ function Jobs({
                 })
               }
             >
-              <option value="recommended">Recommended by profile</option>
-              <option value="excluded">Outside recommendations</option>
+              <option value="recommended">Within discovery profile</option>
+              <option value="excluded">Outside discovery profile</option>
               <option value="all">All searchable roles</option>
             </select>
           </label>
@@ -4735,7 +4735,7 @@ function Jobs({
                       <summary>
                         {assessment.included
                           ? "Why this role is shown"
-                          : "Why this role is outside recommendations"}
+                          : "Why this role is outside the discovery profile"}
                       </summary>
                       <p>
                         <span>Replayed from approved profile </span>
@@ -4804,7 +4804,7 @@ function Jobs({
                             body: JSON.stringify({ matchRunId, blockerCode, reviewed }),
                           }),
                         success: reviewed
-                          ? "Exact role wording acknowledged. Fit and recommendations are unchanged."
+                          ? "Exact role wording acknowledged. Fit is unchanged."
                           : "Role-wording acknowledgement cleared.",
                         transient: true,
                       });
@@ -4964,9 +4964,9 @@ function Jobs({
                     </div>
                     <p className="coverage-explanation">
                       Coverage: {supportedRequirementCount} of {match.result.requirements.length}{" "}
-                      known requirements supported. At least 0.60 is required for a scored band.
+                      known requirements supported. At least 0.60 is required for a fit band.
                       {match.result.coverage === "coverage_low"
-                        ? " This result is not scored."
+                        ? " This result has no fit band."
                         : " This result meets the coverage floor."}
                     </p>
                     <MatchEvidenceLens result={match.result} />
@@ -4986,7 +4986,7 @@ function Jobs({
                         <p className="explanation-freshness" role="status">
                           {freshness === "confirmed_evidence_unsaved"
                             ? "Confirmed evidence is not in any saved profile version yet, so explaining again returns the same result. Save a profile version in the evidence vault first."
-                            : "This explanation was scored against an earlier profile version. Explain again to use your current confirmed evidence."}
+                            : "This explanation used an earlier profile version. Explain again to use your current confirmed evidence."}
                         </p>
                       );
                     })()}
@@ -5006,11 +5006,11 @@ function Jobs({
                       ))}
                     </div>
                     <p className="boundary-note match-boundary">
-                      Coverage below 0.60, including roles without known requirements, remains not
-                      scored. At or above that floor, the four weighted dimensions determine the
-                      scored band; explicit blockers remain separate and are never averaged away.
-                      Evidence source mix remains a separate, currently unweighted ordinal and
-                      cannot change that band.
+                      Coverage below 0.60, including roles without known requirements, has no fit
+                      band. At or above that floor, the four weighted dimensions determine the fit
+                      band; explicit blockers remain separate and are never averaged away. Evidence
+                      source mix remains a separate, currently unweighted ordinal and cannot change
+                      that band.
                     </p>
                     {match.result.blockers.map((blocker) => (
                       <p className="blocker" key={blocker.code}>
