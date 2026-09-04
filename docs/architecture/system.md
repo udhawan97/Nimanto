@@ -59,6 +59,15 @@ stateDiagram-v2
   Succeeded --> Receipt
 ```
 
+A candidate may rebind an Application to the current Profile Version through
+`PUT /v1/applications/:id/profile-version`. The rebind runs under the tenant
+lock, writes only the Application's Profile Version binding plus one receipt,
+and never touches Packets, assurance runs, Submission Records, or Match
+Publications. An Application at `approved_for_export` returns to `prepared`,
+while `submitted_externally` and `withdrawn` are preserved. The previously
+approved Packet becomes historical and remains refused for actions and
+Submission Records.
+
 The `SubmissionRecord` path records only an action the candidate says they
 performed outside Nimanto. It can bind the exact current approved Packet and
 formats used, or explicitly state that materials were not captured; it never

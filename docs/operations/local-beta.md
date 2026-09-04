@@ -348,6 +348,19 @@ failed service. If a different process owns port 4310, stop it or set matching `
 
 Run assurance and read its required findings. Common causes are no confirmed evidence, missing authorization wording, changed locked wording, or a prohibited outcome promise.
 
+### The composer says the Application is on an older Profile Version
+
+An Application is bound to the exact Profile Version it was created against, so
+saving a newer one closes packet composition, action creation, and Submission
+Records for that Application until you rebind it. The packet row names both
+versions and offers **Use current Profile Version**, which rebinds that one
+Application and nothing else. An Application already at Approved for export
+returns to Prepared, because the approval its old Packet earned no longer
+applies; a candidate-recorded external submission or withdrawal is preserved.
+Explain the role again to publish a current Match, then compose, assure, and
+approve a new Packet. The earlier Packet stays historical and is still refused
+for actions and Submission Records.
+
 ### A Submission Record is blocked
 
 Refresh the dossier. If materials were captured, the selected Packet must still

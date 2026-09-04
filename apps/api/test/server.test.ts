@@ -1,4 +1,5 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -652,14 +653,25 @@ describe("Nimanto beta API", () => {
     });
     expect(revision.statusCode).toBe(200);
     expect(revision.json().currentRevision).toBe(2);
-    const revisionHistory = await app.inject({
+    const firstPage = await app.inject({
       method: "GET",
-      url: `/v1/answer-blocks/${answer.json().id}/revisions`,
+      url: `/v1/answer-blocks/${answer.json().id}/revisions?limit=1`,
       headers: { cookie },
     });
-    expect(revisionHistory.statusCode).toBe(200);
-    expect(revisionHistory.json().revisions).toHaveLength(2);
-    expect(revisionHistory.json().revisions[0].answerText).toContain("retained the revision");
+    expect(firstPage.statusCode).toBe(200);
+    expect(firstPage.json().currentRevision).toBe(2);
+    expect(firstPage.json().revisions).toHaveLength(1);
+    expect(firstPage.json().nextCursor).toBeTruthy();
+    expect(firstPage.json().revisions[0].answerText).toContain("retained the revision");
+    const secondPage = await app.inject({
+      method: "GET",
+      url: `/v1/answer-blocks/${answer.json().id}/revisions?cursor=${firstPage.json().nextCursor}&limit=1`,
+      headers: { cookie },
+    });
+    expect(secondPage.statusCode).toBe(200);
+    expect(secondPage.json().revisions).toHaveLength(1);
+    expect(secondPage.json().nextCursor).toBe(null);
+    expect(secondPage.json().revisions[0].revision).toBe(1);
     const pendingEvidence = await app.inject({
       method: "POST",
       url: "/v1/evidence",
@@ -754,6 +766,42 @@ describe("Nimanto beta API", () => {
     expect(dashboard.applications[0].statusEvents).toEqual([
       expect.objectContaining({ fromStatus: null, toStatus: "tracked", source: "candidate" }),
     ]);
+  });
+
+  it("validates answer revision history cursors and not-found answers", async () => {
+    const { app, cookie } = await setup();
+    const answer = await app.inject({
+      method: "POST",
+      url: "/v1/answer-blocks",
+      headers: { cookie },
+      payload: {
+        topic: "accomplishment",
+        prompt: "Tell me about a result.",
+        answerText: "A short recorded answer for cursor checks.",
+      },
+    });
+    expect(answer.statusCode).toBe(200);
+    const malformedCursor = await app.inject({
+      method: "GET",
+      url: `/v1/answer-blocks/${answer.json().id}/revisions?cursor=not-a-uuid`,
+      headers: { cookie },
+    });
+    expect(malformedCursor.statusCode).toBe(400);
+    expect(malformedCursor.json().error.code).toBe("INVALID_CURSOR");
+    const invalidCursor = await app.inject({
+      method: "GET",
+      url: `/v1/answer-blocks/${answer.json().id}/revisions?cursor=${randomUUID()}`,
+      headers: { cookie },
+    });
+    expect(invalidCursor.statusCode).toBe(400);
+    expect(invalidCursor.json().error.code).toBe("INVALID_CURSOR");
+    const missing = await app.inject({
+      method: "GET",
+      url: "/v1/answer-blocks/no-such-answer/revisions",
+      headers: { cookie },
+    });
+    expect(missing.statusCode).toBe(404);
+    expect(missing.json().error.code).toBe("ANSWER_BLOCK_NOT_FOUND");
   });
 
   it("drafts locally from only the candidate-selected confirmed evidence", async () => {

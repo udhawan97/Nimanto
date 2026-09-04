@@ -563,6 +563,7 @@ describe("candidate-controlled packet and submission forms", () => {
         topic: "why_role",
         prompt: "Why this role?",
         currentRevision: 2,
+        nextCursor: null,
         latest: {
           answerText: "Current answer",
           evidenceIds: [],
@@ -625,6 +626,99 @@ describe("candidate-controlled packet and submission forms", () => {
       expect.objectContaining({ credentials: "include" }),
     );
     expect(view.textContent).toContain("Revision 2");
+    expect(view.textContent).toContain("First answer");
+  });
+
+  it("loads older answer revisions when asked", async () => {
+    const fetch = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          id: "answer-1",
+          topic: "why_role",
+          prompt: "Why this role?",
+          currentRevision: 2,
+          nextCursor: "revision-2",
+          latest: {
+            answerText: "Current answer",
+            evidenceIds: [],
+            createdAt: "2026-09-01T12:00:00.000Z",
+          },
+          revisions: [
+            {
+              id: "revision-2",
+              revision: 2,
+              topic: "why_role",
+              prompt: "Why this role?",
+              answerText: "Current answer",
+              evidenceIds: [],
+              createdAt: "2026-09-01T12:00:00.000Z",
+            },
+          ],
+          createdAt: "2026-08-31T12:00:00.000Z",
+          updatedAt: "2026-09-01T12:00:00.000Z",
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          currentRevision: 2,
+          nextCursor: null,
+          revisions: [
+            {
+              id: "revision-1",
+              revision: 1,
+              topic: "why_role",
+              prompt: "Why this role?",
+              answerText: "First answer",
+              evidenceIds: [],
+              createdAt: "2026-08-31T12:00:00.000Z",
+            },
+          ],
+        }),
+      } as Response);
+    const view = await render(
+      createElement(AnswerHistoryDetails, {
+        answer: {
+          id: "answer-1",
+          topic: "why_role",
+          prompt: "Why this role?",
+          currentRevision: 2,
+          latest: {
+            answerText: "Current answer",
+            evidenceIds: [],
+            createdAt: "2026-09-01T12:00:00.000Z",
+          },
+          createdAt: "2026-08-31T12:00:00.000Z",
+          updatedAt: "2026-09-01T12:00:00.000Z",
+        },
+        onCopyEvidence: vi.fn(),
+      }),
+    );
+
+    const details = view.querySelector("details")!;
+    await act(async () => {
+      details.open = true;
+      details.dispatchEvent(new Event("toggle"));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const loadMore = view.querySelector<HTMLElement>('button[type="button"]')!;
+    expect(loadMore.textContent).toContain("Load older revisions");
+    await act(async () => {
+      await loadMore.click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining("/v1/answer-blocks/answer-1/revisions?cursor=revision-2&limit=20"),
+      expect.objectContaining({ credentials: "include" }),
+    );
     expect(view.textContent).toContain("First answer");
   });
 });
