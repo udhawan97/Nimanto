@@ -2882,23 +2882,8 @@ test("the candidate career ledger carries the P1 and P2 application workflow", a
 /* DR-8056ce1f-001. An Application is pinned to the Profile Version it was
  * created against, so saving a newer one used to close every composer, action
  * and submission path for that Application with no way back. The recovery is
- * one candidate-initiated rebind.
- *
- * The rebind route (PUT /v1/applications/:id/profile-version) is lane A's half
- * of this finding. Until it is merged the journey below cannot run, so it skips
- * itself rather than reporting a false pass. A path with no route reaches the error
- * handler as a framework rejection and comes back as HTTP_404; the route itself
- * answers an unknown id with APPLICATION_NOT_FOUND. */
-async function rebindRouteAvailable(page: Page): Promise<boolean> {
-  const response = await page.request.fetch(
-    `${TEST_API_ORIGIN}/v1/applications/00000000-0000-4000-8000-000000000000/profile-version`,
-    { method: "PUT", failOnStatusCode: false },
-  );
-  const body = (await response.json().catch(() => null)) as {
-    error?: { code?: string };
-  } | null;
-  return body?.error?.code === "APPLICATION_NOT_FOUND";
-}
+ * one candidate-initiated rebind through
+ * PUT /v1/applications/:id/profile-version. */
 
 /** The pipeline column a card currently sits in. The status-labelled buttons on
  * a card are the moves it offers, not the stage it is in. */
@@ -2916,10 +2901,6 @@ test("a superseded Profile Version is recoverable without abandoning the Applica
   await page.getByLabel("Your name").fill("Rebind Check");
   await page.getByLabel("Your email").fill("rebind@example.test");
   await page.getByRole("button", { name: "Start private workspace" }).click();
-  test.skip(
-    !(await rebindRouteAvailable(page)),
-    "PUT /v1/applications/:id/profile-version is not served by this build (lane A, DR-8056ce1f-001)",
-  );
 
   await page.getByRole("button", { name: "Run starter matches" }).click();
   await page.getByRole("button", { name: "Role discovery" }).click();
