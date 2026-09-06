@@ -1,4 +1,4 @@
-import { chmod, mkdir, mkdtemp, readdir, stat } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -153,6 +153,61 @@ async function expectPrivateTree(directory: string): Promise<void> {
 afterEach(async () => {
   vi.restoreAllMocks();
   await Promise.all(stores.splice(0).map((store) => store.close()));
+});
+
+describe("single-instance data-directory lock", () => {
+  it("refuses a second open of the same data directory and frees it on close", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nimanto-store-lock-"));
+    const data = join(root, "data");
+    const first = await NimantoStore.open(data);
+    await expect(NimantoStore.open(data)).rejects.toThrow("DATA_DIRECTORY_IN_USE");
+    await first.close();
+    // Once the holder releases the lock, the directory opens again.
+    const reopened = await NimantoStore.open(data);
+    stores.push(reopened);
+    expect(await reopened.listApplications((await reopened.createLocalTenant("a@b.test", "A")).tenantId)).toEqual(
+      [],
+    );
+  });
+
+  it("reclaims a lock left by a crashed process (dead pid or an earlier boot)", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nimanto-store-stale-lock-"));
+    const data = join(root, "data");
+    await mkdir(data, { recursive: true });
+    // A dead PID from the current boot: reclaimable.
+    await writeFile(
+      join(data, ".nimanto-lock"),
+      JSON.stringify({ pid: 2 ** 31 - 1, bootEpoch: Math.floor(Date.now() / 1000) }),
+    );
+    const afterDeadPid = await NimantoStore.open(data);
+    stores.push(afterDeadPid);
+    await afterDeadPid.close();
+    stores.splice(stores.indexOf(afterDeadPid), 1);
+
+    // A live PID (this process) but from a pre-reboot boot epoch: also stale,
+    // so a reboot that recycled the PID cannot brick the directory.
+    await writeFile(
+      join(data, ".nimanto-lock"),
+      JSON.stringify({ pid: process.pid, bootEpoch: 1 }),
+    );
+    const afterReboot = await NimantoStore.open(data);
+    stores.push(afterReboot);
+    // The lock is present again while held, and gone after close.
+    await expect(readFile(join(data, ".nimanto-lock"), "utf8")).resolves.toContain("pid");
+    await afterReboot.close();
+    stores.splice(stores.indexOf(afterReboot), 1);
+    await expect(readFile(join(data, ".nimanto-lock"), "utf8")).rejects.toThrow();
+  });
+
+  it("does not lock in-memory stores", async () => {
+    const a = await NimantoStore.open("memory://lock-a");
+    stores.push(a);
+    const b = await NimantoStore.open("memory://lock-a");
+    stores.push(b);
+    await expect(a.createLocalTenant("m@b.test", "M")).resolves.toBeTruthy();
+    await expect(b.createLocalTenant("n@b.test", "N")).resolves.toBeTruthy();
+  });
+
 });
 
 describe("tenant-scoped persistence public seam", () => {

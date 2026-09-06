@@ -1,5 +1,6 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import { chmod, mkdir, readdir } from "node:fs/promises";
+import { chmod, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { uptime } from "node:os";
 import path from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import {
@@ -744,32 +745,103 @@ function mapEvidence(row: EvidenceRow): EvidenceClaim {
   };
 }
 
+/** Seconds since the epoch at which the machine last booted. All PIDs reset on
+ * a reboot, so a lock written before the current boot cannot still be held. */
+function currentBootEpoch(): number {
+  return Math.floor(Date.now() / 1000 - uptime());
+}
+
+function processIsAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    // ESRCH => no such process (dead). EPERM => alive but owned by another user.
+    return (error as NodeJS.ErrnoException).code === "EPERM";
+  }
+}
+
+async function acquireDataDirectoryLock(dataDirectory: string): Promise<string> {
+  const lockPath = path.join(dataDirectory, ".nimanto-lock");
+  const payload = JSON.stringify({ pid: process.pid, bootEpoch: currentBootEpoch() });
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      await writeFile(lockPath, payload, { flag: "wx", mode: 0o600 });
+      return lockPath;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+      let holder: { pid?: unknown; bootEpoch?: unknown } | null = null;
+      try {
+        holder = JSON.parse(await readFile(lockPath, "utf8"));
+      } catch {
+        holder = null;
+      }
+      const pid = typeof holder?.pid === "number" ? holder.pid : null;
+      const bootEpoch = typeof holder?.bootEpoch === "number" ? holder.bootEpoch : null;
+      // A lock is stale if it is unreadable, was written before the current boot
+      // (so its PID is meaningless now — this is what prevents a reboot plus PID
+      // reuse from bricking the directory), or names a PID that is no longer
+      // alive. Otherwise a live sibling genuinely holds it.
+      const rebooted = bootEpoch === null || Math.abs(bootEpoch - currentBootEpoch()) > 3;
+      const stale = pid === null || rebooted || !processIsAlive(pid);
+      if (!stale) {
+        throw new Error(
+          `DATA_DIRECTORY_IN_USE: another Nimanto process (pid ${pid}) already has this data ` +
+            `directory open. Stop it before starting another, or delete ${lockPath} if it is stale.`,
+        );
+      }
+      await rm(lockPath, { force: true });
+    }
+  }
+  throw new Error(
+    `DATA_DIRECTORY_IN_USE: could not claim ${lockPath}. Delete it if no Nimanto process is running.`,
+  );
+}
+
 export class NimantoStore {
   readonly #db: PGlite;
   readonly #transactional: boolean;
+  readonly #lockPath: string | null;
 
-  private constructor(db: PGlite, transactional = false) {
+  private constructor(db: PGlite, transactional = false, lockPath: string | null = null) {
     this.#db = db;
     this.#transactional = transactional;
+    this.#lockPath = lockPath;
   }
 
   static async open(dataDirectory: string): Promise<NimantoStore> {
-    if (!dataDirectory.startsWith("memory://")) {
+    const inMemory = dataDirectory.startsWith("memory://");
+    // PGlite is a single-writer engine backed by a directory: two processes
+    // that both open one data dir each flush their whole image on close, and the
+    // last to close silently overwrites the other's workspace. A single-instance
+    // advisory lock in open() covers every opener (API, worker, tooling) because
+    // they all route through here. In-memory stores are per-process and exempt.
+    let lockPath: string | null = null;
+    if (!inMemory) {
       await tightenPosixPermissions(dataDirectory);
+      lockPath = await acquireDataDirectoryLock(dataDirectory);
     }
-    const db = await PGlite.create(dataDirectory);
+    let db: PGlite;
+    try {
+      db = await PGlite.create(dataDirectory);
+    } catch (error) {
+      if (lockPath) await rm(lockPath, { force: true });
+      throw error;
+    }
     try {
       await migrateDatabase(db);
-      if (!dataDirectory.startsWith("memory://")) await tightenPosixPermissions(dataDirectory);
-      return new NimantoStore(db);
+      if (!inMemory) await tightenPosixPermissions(dataDirectory);
+      return new NimantoStore(db, false, lockPath);
     } catch (error) {
       await db.close();
+      if (lockPath) await rm(lockPath, { force: true });
       throw error;
     }
   }
 
   async close(): Promise<void> {
     await this.#db.close();
+    if (this.#lockPath) await rm(this.#lockPath, { force: true });
   }
 
   async transaction<T>(work: (store: NimantoStore) => Promise<T>): Promise<T> {
