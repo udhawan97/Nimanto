@@ -7683,13 +7683,6 @@ function Packets({
   /* Newest wins explicitly. The dashboard sends one packet per Application
    * today, so this only stops the row from depending on array order - and it is
    * what the approval guard below compares against. */
-  const packetByApplication = new Map<string, Packet>();
-  for (const packet of dashboard.packets) {
-    const held = packetByApplication.get(packet.applicationId);
-    if (!held || held.createdAt < packet.createdAt) {
-      packetByApplication.set(packet.applicationId, packet);
-    }
-  }
   return (
     <>
       <PageIntro
@@ -7699,7 +7692,9 @@ function Packets({
       />
       <div className="packet-list">
         {dashboard.applications.map((application) => {
-          const packet = packetByApplication.get(application.id);
+          const packet = dashboard.packets.find(
+            (candidate) => candidate.applicationId === application.id,
+          );
           const job =
             dashboard.jobs.find((candidate) => candidate.id === application.jobId) ?? null;
           const match =
@@ -7718,14 +7713,13 @@ function Packets({
             packet !== undefined &&
             packet.status !== "assurance_passed" &&
             packet.status !== "approved";
-          /* The server refuses approval of a superseded packet with
-           * PACKET_NOT_CURRENT. Do not offer the control that earns that 409. */
-          const packetSuperseded =
-            packet !== undefined &&
-            dashboard.packets.some(
-              (other) =>
-                other.applicationId === application.id && other.createdAt > packet.createdAt,
-            );
+          /* The server refuses approval of a packet whose Profile Version or
+           * Match has been superseded with PACKET_NOT_CURRENT, because every
+           * consumer of the approval checks the deeper currency rule. Do not
+           * offer the control that earns that 409; the composer above renders
+           * the "Use current Profile Version" rebind in the same state. */
+          const packetProfileStale =
+            packet !== undefined && profileVersionRebindReason(application, dashboard.profile) !== null;
           return (
             <article key={application.id} className="packet-row">
               <div className="packet-icon">
@@ -7798,9 +7792,9 @@ function Packets({
                       supportingContent={<PacketApprovalContext packet={packet} />}
                       confirmLabel="Approve this packet"
                       cancelLabel="Cancel"
-                      disabled={busy || packetSuperseded || packet.status !== "assurance_passed"}
-                      {...(packetSuperseded
-                        ? { descriptionId: `packet-superseded-${packet.id}` }
+                      disabled={busy || packetProfileStale || packet.status !== "assurance_passed"}
+                      {...(packetProfileStale
+                        ? { descriptionId: `packet-stale-profile-${packet.id}` }
                         : approvalNeedsAssurance
                           ? { descriptionId: `approve-gate-${packet.id}` }
                           : {})}
@@ -7828,12 +7822,13 @@ function Packets({
                   </>
                 )}
               </div>
-              {packetSuperseded && packet && (
-                <small className="field-note" id={`packet-superseded-${packet.id}`}>
-                  A newer packet exists for this application. Review and approve the current packet.
+              {packetProfileStale && packet && (
+                <small className="field-note" id={`packet-stale-profile-${packet.id}`}>
+                  This packet was built from an earlier Profile Version. Rebind to the current
+                  Profile Version above, then recompose before approving.
                 </small>
               )}
-              {approvalNeedsAssurance && packet && !packetSuperseded && (
+              {approvalNeedsAssurance && packet && !packetProfileStale && (
                 <small className="field-note" id={`approve-gate-${packet.id}`}>
                   Approval opens once assurance passes on this exact packet.
                 </small>

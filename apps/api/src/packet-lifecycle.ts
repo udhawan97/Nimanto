@@ -418,6 +418,13 @@ export class PacketLifecycle {
       if (!pending) throw new Error("PACKET_NOT_FOUND");
       const latest = await database.getLatestPacketForApplication(tenantId, pending.applicationId);
       if (latest?.id !== packetId) throw new Error("PACKET_NOT_CURRENT");
+      // Being the newest packet is not enough: every consumer of the approval
+      // (external actions, submissions) checks the deeper currency rule, so
+      // approving a packet whose Profile Version or Match has been superseded
+      // would move the Application to approved_for_export and then be refused
+      // downstream. Gate on the same rule the consumers use.
+      if (!(await database.isPacketCurrent(tenantId, packetId)))
+        throw new Error("PACKET_NOT_CURRENT");
       const application = (await database.listApplications(tenantId)).find(
         (candidate) => candidate.id === pending.applicationId,
       );

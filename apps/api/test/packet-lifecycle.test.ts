@@ -288,6 +288,54 @@ describe("packet lifecycle staging", () => {
     });
   });
 
+  it("refuses to approve a packet whose Profile Version was superseded, and recovers after a rebind", async () => {
+    const { store, identity, application, evidenceIds, artifactDirectory } =
+      await packetFixture("packet-stale-profile");
+    const lifecycle = new PacketLifecycle(store, artifactDirectory);
+
+    const packet = await lifecycle.create({
+      tenantId: identity.tenantId,
+      applicationId: application.id,
+      candidateName: "Packet Stale Profile",
+      evidenceIds,
+    });
+    await expect(lifecycle.assure(identity.tenantId, packet.id)).resolves.toMatchObject({
+      status: "passed",
+    });
+
+    // A new Profile Version supersedes the one the packet froze. The packet is
+    // still the latest packet for the Application, so the old newest-packet
+    // check would let it through; the deeper currency rule must not.
+    await store.saveProfileVersion(identity.tenantId, "Authorized to work. Revised.");
+
+    await expect(lifecycle.approve(identity.tenantId, packet.id)).rejects.toThrow(
+      "PACKET_NOT_CURRENT",
+    );
+    await expect(store.getPacket(identity.tenantId, packet.id)).resolves.toMatchObject({
+      status: "assurance_passed",
+    });
+    await expect(store.listApplications(identity.tenantId)).resolves.toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: application.id, status: "prepared" })]),
+    );
+
+    // The documented recovery: rebind to the current Profile Version, republish
+    // the Match, recompose and assure, then approve succeeds.
+    await lifecycle.rebindProfileVersion(identity.tenantId, application.id);
+    await publishMatch(store, identity.tenantId, application.jobId, "manual");
+    const recomposed = await lifecycle.create({
+      tenantId: identity.tenantId,
+      applicationId: application.id,
+      candidateName: "Packet Stale Profile Recomposed",
+      evidenceIds,
+    });
+    await expect(lifecycle.assure(identity.tenantId, recomposed.id)).resolves.toMatchObject({
+      status: "passed",
+    });
+    await expect(lifecycle.approve(identity.tenantId, recomposed.id)).resolves.toMatchObject({
+      status: "approved",
+    });
+  });
+
   it("removes promoted artifacts when the database transaction fails", async () => {
     const fixture = await packetFixture("packet-transaction-failure");
     stores.pop();
