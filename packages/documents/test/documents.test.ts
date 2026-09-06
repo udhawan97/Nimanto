@@ -27,7 +27,9 @@ async function mkdtempTracked(prefix: string): Promise<string> {
   return root;
 }
 afterEach(async () => {
-  await Promise.all(temporaryRoots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
+  await Promise.all(
+    temporaryRoots.splice(0).map((root) => rm(root, { recursive: true, force: true })),
+  );
 });
 
 describe("packet documents", () => {

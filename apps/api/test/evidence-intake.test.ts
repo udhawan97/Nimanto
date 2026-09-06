@@ -15,7 +15,9 @@ async function mkdtempTracked(prefix: string): Promise<string> {
 }
 afterEach(async () => {
   await Promise.all(stores.splice(0).map((store) => store.close()));
-  await Promise.all(temporaryRoots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
+  await Promise.all(
+    temporaryRoots.splice(0).map((root) => rm(root, { recursive: true, force: true })),
+  );
 });
 
 async function fixture() {

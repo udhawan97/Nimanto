@@ -176,9 +176,9 @@ describe("single-instance data-directory lock", () => {
     // Once the holder releases the lock, the directory opens again.
     const reopened = await NimantoStore.open(data);
     stores.push(reopened);
-    expect(await reopened.listApplications((await reopened.createLocalTenant("a@b.test", "A")).tenantId)).toEqual(
-      [],
-    );
+    expect(
+      await reopened.listApplications((await reopened.createLocalTenant("a@b.test", "A")).tenantId),
+    ).toEqual([]);
   });
 
   it("reclaims a lock left by a crashed process (dead pid or an earlier boot)", async () => {
@@ -218,7 +218,6 @@ describe("single-instance data-directory lock", () => {
     await expect(a.createLocalTenant("m@b.test", "M")).resolves.toBeTruthy();
     await expect(b.createLocalTenant("n@b.test", "N")).resolves.toBeTruthy();
   });
-
 });
 
 describe("tenant-scoped persistence public seam", () => {

@@ -68,7 +68,16 @@ async function scopedFiles(): Promise<string[]> {
 /* packages/domain/src/matching.ts is a logic file (it computes with a `score`
  * variable), so the sentence scan would false-positive on code identifiers.
  * Its candidate-facing copy lives only in string literals — scan those. */
-const domainCopyFile = path.join(here, "..", "..", "..", "packages", "domain", "src", "matching.ts");
+const domainCopyFile = path.join(
+  here,
+  "..",
+  "..",
+  "..",
+  "packages",
+  "domain",
+  "src",
+  "matching.ts",
+);
 
 function copyLiterals(source: string): string[] {
   const out: string[] = [];
@@ -85,7 +94,10 @@ describe("candidate-facing vocabulary", () => {
     for (const literal of copyLiterals(await readFile(domainCopyFile, "utf8"))) {
       const lowered = literal.toLocaleLowerCase("en-US");
       if (DISCLAIMER_MARKERS.some((marker) => lowered.includes(marker))) continue;
-      for (const match of [...literal.matchAll(FORBIDDEN), ...literal.matchAll(FORBIDDEN_PHRASES)]) {
+      for (const match of [
+        ...literal.matchAll(FORBIDDEN),
+        ...literal.matchAll(FORBIDDEN_PHRASES),
+      ]) {
         offenders.push(`matching.ts · ${match[0]} · …${literal.slice(0, 90)}…`);
       }
     }
@@ -99,7 +111,10 @@ describe("candidate-facing vocabulary", () => {
       for (const sentence of sentences(source)) {
         const lowered = sentence.toLocaleLowerCase("en-US");
         if (DISCLAIMER_MARKERS.some((marker) => lowered.includes(marker))) continue;
-        for (const match of [...sentence.matchAll(FORBIDDEN), ...sentence.matchAll(FORBIDDEN_PHRASES)]) {
+        for (const match of [
+          ...sentence.matchAll(FORBIDDEN),
+          ...sentence.matchAll(FORBIDDEN_PHRASES),
+        ]) {
           const from = Math.max(0, match.index - 60);
           offenders.push(
             `${path.basename(file)} · ${match[0]} · …${sentence.slice(from, match.index + 60)}…`,

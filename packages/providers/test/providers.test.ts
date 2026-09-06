@@ -24,7 +24,9 @@ async function mkdtempTracked(prefix: string): Promise<string> {
   return root;
 }
 afterEach(async () => {
-  await Promise.all(temporaryRoots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
+  await Promise.all(
+    temporaryRoots.splice(0).map((root) => rm(root, { recursive: true, force: true })),
+  );
 });
 
 describe("job providers", () => {
@@ -363,9 +365,9 @@ describe("job providers", () => {
       );
 
     // A public global-unicast address is accepted and the socket pins to it.
-    await expect(
-      attempt("2606:4700:4700::1111").then((result) => result.text),
-    ).resolves.toContain("Remote Role");
+    await expect(attempt("2606:4700:4700::1111").then((result) => result.text)).resolves.toContain(
+      "Remote Role",
+    );
 
     // Loopback, link-local, unique-local, and unspecified are rejected, and so
     // are the wrappers that embed a private IPv4 target: IPv4-mapped, 6to4,
