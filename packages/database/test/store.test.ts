@@ -1620,10 +1620,9 @@ describe("beta workflow persistence", () => {
     await expect(overlappingClaim).resolves.toBeNull();
   });
 
-  it("rejects a receipt whose integrity hash does not match its canonical fields", async () => {
+  it("rejects saving a receipt whose integrity hash does not match its canonical fields", async () => {
     const root = await mkdtemp(join(tmpdir(), "nimanto-store-"));
-    const data = join(root, "data");
-    const store = await NimantoStore.open(data);
+    const store = await NimantoStore.open(join(root, "data"));
     stores.push(store);
     const identity = await store.createLocalTenant("receipt@example.test", "Receipt");
     const receipt = createReceipt({
@@ -1637,18 +1636,48 @@ describe("beta workflow persistence", () => {
     await expect(
       store.saveReceipt(identity.tenantId, { ...receipt, receiptHash: "tampered" }, {}),
     ).rejects.toThrow("RECEIPT_INTEGRITY_INVALID");
+  });
 
-    await store.saveReceipt(identity.tenantId, receipt, {});
+  it("reports a tampered receipt as failed at read without aborting the whole list", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nimanto-store-"));
+    const data = join(root, "data");
+    const store = await NimantoStore.open(data);
+    stores.push(store);
+    const identity = await store.createLocalTenant("receipt-read@example.test", "Receipt");
+    const good = createReceipt({
+      id: "receipt-good",
+      type: "match.published",
+      occurredAt: "2026-08-05T12:00:00.000Z",
+      input: { jobId: "job-good" },
+      artifact: { band: "mixed" },
+    });
+    const corrupted = createReceipt({
+      id: "receipt-corrupt",
+      type: "match.published",
+      occurredAt: "2026-08-06T12:00:00.000Z",
+      input: { jobId: "job-corrupt" },
+      artifact: { band: "supported" },
+    });
+    await store.saveReceipt(identity.tenantId, good, {});
+    await store.saveReceipt(identity.tenantId, corrupted, {});
     await store.close();
     stores.splice(stores.indexOf(store), 1);
+
     const raw = await PGlite.create(data);
-    await raw.query("UPDATE receipts SET artifact_hash = 'tampered' WHERE id = $1", [receipt.id]);
+    await raw.query("UPDATE receipts SET artifact_hash = 'tampered' WHERE id = $1", [corrupted.id]);
     await raw.close();
+
     const reopened = await NimantoStore.open(data);
     stores.push(reopened);
-    await expect(reopened.listReceipts(identity.tenantId)).rejects.toThrow(
-      "RECEIPT_INTEGRITY_INVALID",
-    );
+    // One corrupted provenance row must not take the whole ledger down: the read
+    // succeeds, lists every receipt, and marks exactly the tampered one failed
+    // while the intact one stays verified. A failed receipt is never verified.
+    const receipts = await reopened.listReceipts(identity.tenantId);
+    expect(receipts).toHaveLength(2);
+    const byId = new Map(receipts.map((entry) => [entry.id, entry.integrity]));
+    expect(byId.get("receipt-good")).toBe("verified");
+    expect(byId.get("receipt-corrupt")).toBe("failed");
+    expect(receipts.filter((entry) => entry.integrity === "failed")).toHaveLength(1);
   });
 
   it("stores jobs, deterministic matches, applications, and outcomes", async () => {

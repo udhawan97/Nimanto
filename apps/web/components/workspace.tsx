@@ -557,6 +557,7 @@ type Receipt = {
   inputHash: string;
   artifactHash: string;
   receiptHash: string;
+  integrity: "verified" | "failed";
   material: Record<string, unknown>;
 };
 type SourceSchedule = {
@@ -8628,10 +8629,17 @@ function ActivityLedger({ dashboard }: { dashboard: Dashboard }) {
       />
       <div className="activity-ledger">
         {visibleReceipts.map((receipt) => (
-          <article className="receipt-row" key={receipt.id}>
+          <article
+            className={`receipt-row ${receipt.integrity === "failed" ? "receipt-failed" : ""}`}
+            key={receipt.id}
+          >
             <span className="receipt-knot" aria-hidden="true" />
             <div className="receipt-heading">
-              <span>Internal hash checked</span>
+              {receipt.integrity === "failed" ? (
+                <span role="alert">Internal hash no longer matches</span>
+              ) : (
+                <span>Internal hash checked</span>
+              )}
               <h2>{human(receipt.type)}</h2>
               <time dateTime={receipt.occurredAt}>{localDateTime(receipt.occurredAt)}</time>
             </div>

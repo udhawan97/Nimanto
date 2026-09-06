@@ -128,6 +128,15 @@ export interface AnswerRevisionPage {
   nextCursor: string | null;
 }
 
+/** A stored receipt with its material and a read-time integrity verdict. A
+ * "failed" verdict means the row no longer verifies against its own hashes and
+ * must be surfaced as such — never presented as verified, and never allowed to
+ * abort the whole read. */
+export type ReceiptWithIntegrity = ExecutionReceipt & {
+  material: unknown;
+  integrity: "verified" | "failed";
+};
+
 export interface JobRecord {
   id: string;
   source: string;
@@ -4928,7 +4937,7 @@ export class NimantoStore {
     return receipt;
   }
 
-  async listReceipts(tenantId: string): Promise<Array<ExecutionReceipt & { material: unknown }>> {
+  async listReceipts(tenantId: string): Promise<Array<ReceiptWithIntegrity>> {
     const result = await this.#db.query<any>(
       `SELECT id, type, occurred_at, input_hash, artifact_hash, receipt_hash, material
        FROM receipts WHERE tenant_id = $1 ORDER BY occurred_at DESC, id`,
@@ -4944,8 +4953,15 @@ export class NimantoStore {
         artifactHash: row.artifact_hash,
         receiptHash: row.receipt_hash,
       };
-      if (!verifyReceipt(receipt)) throw new Error("RECEIPT_INTEGRITY_INVALID");
-      return { ...receipt, material: row.material };
+      // A row that no longer verifies is reported as integrity "failed" rather
+      // than throwing, so one corrupted provenance row cannot make the whole
+      // Dashboard and the export the candidate would use to recover fail with a
+      // 500. It is never presented as verified.
+      return {
+        ...receipt,
+        material: row.material,
+        integrity: verifyReceipt(receipt) ? ("verified" as const) : ("failed" as const),
+      };
     });
   }
 
