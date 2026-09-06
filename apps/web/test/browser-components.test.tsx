@@ -648,7 +648,7 @@ describe("candidate-controlled packet and submission forms", () => {
     // the cursored page ends the history. This mirrors the real paginated route
     // (currentRevision + revisions + nextCursor) so the test cannot silently
     // drift from the server contract, and it is robust to how many times the
-    // panel refetches the first page.
+    // panel reloads the first page.
     const page = (revision: number, answerText: string) => ({
       id: `revision-${revision}`,
       revision,
