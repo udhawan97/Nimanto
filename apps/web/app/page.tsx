@@ -24,7 +24,7 @@ const METHOD = [
   {
     step: "02",
     title: "Discover",
-    body: "Approve one discovery profile, then search manual, allowlisted URL, Greenhouse, Lever, and Ashby roles without erasing source identity. Every recommendation replays the exact matched, excluded, and unresolved inputs; two current roles can still share one neutral comparison.",
+    body: "Approve one discovery profile, then search manual, allowlisted URL, Greenhouse, Lever, and Ashby roles without erasing source identity. Every explanation replays the exact matched, excluded, and unresolved inputs; two current roles can still share one neutral comparison.",
   },
   {
     step: "03",
@@ -96,7 +96,7 @@ export default function Home() {
             <h1 id="hero-title">Nimanto</h1>
             <h2>Build the evidence. Work the application. Keep the truth yours.</h2>
             <p className="hero-line">
-              Approve the search, inspect each recommendation, and control every handoff in one
+              Approve the search, inspect each explanation, and control every handoff in one
               local-first workbench for H-1B professionals.
             </p>
             <ul className="hero-boundaries" aria-label="Product boundaries">

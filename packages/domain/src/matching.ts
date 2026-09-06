@@ -278,11 +278,11 @@ export function matchJob(input: { evidence: EvidenceClaim[]; job: JobForMatching
     dimensions,
     blockers: [...blockerText(input.job), ...locationBlockers(input.job, evidence)],
     exclusions: [
-      "Pronouns, standalone year cues, and a conventional name prefix before an em dash are removed from the normalized free-text scoring projection.",
-      "This local beta does not claim comprehensive de-identification: do not import sensitive identity details as scoring evidence.",
+      "Pronouns, standalone year cues, and a conventional name prefix before an em dash are removed from the normalized free-text match projection.",
+      "This local beta does not claim comprehensive de-identification: do not import sensitive identity details as match evidence.",
       "The band is not a hiring probability or immigration determination.",
       ...(!roleFamilyValidated
-        ? ["This role family is experimental_unvalidated and is not fit-scored."]
+        ? ["This role family is experimental_unvalidated and is not given a fit band."]
         : []),
     ],
   };

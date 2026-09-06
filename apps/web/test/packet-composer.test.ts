@@ -89,7 +89,7 @@ describe("Profile Version rebinding", () => {
       ready: false,
       rebindAvailable: true,
       reason:
-        "This Application is bound to Profile Version aaaaaaaa; your current Profile is bbbbbbbb.",
+        "This Application is bound to Profile Version aaaaaaaa; the latest Profile Version is bbbbbbbb.",
     });
   });
 
@@ -106,7 +106,7 @@ describe("Profile Version rebinding", () => {
       ready: false,
       rebindAvailable: true,
       reason:
-        "This Application is not bound to a Profile Version; your current Profile is bbbbbbbb.",
+        "This Application is not bound to a Profile Version; the latest Profile Version is bbbbbbbb.",
     });
   });
 

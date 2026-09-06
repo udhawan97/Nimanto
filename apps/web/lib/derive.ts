@@ -585,6 +585,28 @@ export const APPLICATION_MATCH_BUCKETS = [
 ] as const;
 export type ApplicationMatchBucket = (typeof APPLICATION_MATCH_BUCKETS)[number];
 
+/* Candidate-facing labels for the match band. The persisted enum value
+ * "not_scored" is a contract and must not be renamed, but deriving its display
+ * text from the enum via human() rendered "Not scored" — a forbidden word
+ * (CONTEXT.md) directly above copy saying the result has no fit band. This map
+ * is the single place a band becomes candidate copy; route every render site
+ * through bandLabel so the enum is never shown verbatim. */
+const APPLICATION_MATCH_BUCKET_LABELS: Record<ApplicationMatchBucket, string> = {
+  strong_evidence: "Strong evidence",
+  promising_evidence: "Promising evidence",
+  partial_evidence: "Partial evidence",
+  weak_evidence: "Weak evidence",
+  not_scored: "No fit band",
+  unmatched: "Unmatched",
+  unknown: "Unknown",
+};
+
+export function bandLabel(band: string): string {
+  return (
+    APPLICATION_MATCH_BUCKET_LABELS[band as ApplicationMatchBucket] ?? band.replaceAll("_", " ")
+  );
+}
+
 type CohortJobLike = { id: string; source: string };
 type CohortMatchLike = { jobId: string; result: { band: string } };
 

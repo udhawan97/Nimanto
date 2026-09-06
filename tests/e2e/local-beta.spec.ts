@@ -2932,7 +2932,7 @@ test("a superseded Profile Version is recoverable without abandoning the Applica
   // The dead end now names both versions and offers the single recovery.
   await page.getByRole("button", { name: "Review packets" }).click();
   await expect(packet.locator(".packet-composer-gate")).toContainText(
-    /This Application is bound to Profile Version [0-9a-f]{8}; your current Profile is [0-9a-f]{8}\./,
+    /This Application is bound to Profile Version [0-9a-f]{8}; the latest Profile Version is [0-9a-f]{8}\./,
   );
   await packet.getByRole("button", { name: "Use current Profile Version" }).first().click();
   await expect(

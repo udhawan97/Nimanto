@@ -50,10 +50,10 @@ export function profileVersionRebindReason(
   profile: { id: string } | null,
 ): string | null {
   if (!profile || application.profileVersionId === profile.id) return null;
-  const current = `your current Profile is ${profile.id.slice(0, 8)}.`;
+  const latest = `the latest Profile Version is ${profile.id.slice(0, 8)}.`;
   return application.profileVersionId
-    ? `This Application is bound to Profile Version ${application.profileVersionId.slice(0, 8)}; ${current}`
-    : `This Application is not bound to a Profile Version; ${current}`;
+    ? `This Application is bound to Profile Version ${application.profileVersionId.slice(0, 8)}; ${latest}`
+    : `This Application is not bound to a Profile Version; ${latest}`;
 }
 
 /**

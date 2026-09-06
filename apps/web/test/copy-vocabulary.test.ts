@@ -3,6 +3,7 @@ import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { APPLICATION_MATCH_BUCKETS, bandLabel } from "../lib/derive.js";
 
 /* CONTEXT.md forbids "score", "recommendation", and "probability" in
  * candidate-facing copy: Nimanto explains a deterministic result against
@@ -17,6 +18,11 @@ import { describe, expect, it } from "vitest";
  *    cannot say it without saying the word.
  */
 const FORBIDDEN = /\b(scor\w*|recommend\w*|probabilit\w*)\b/giu;
+
+/* Phrases CONTEXT.md forbids that are not a single word: "current profile" is
+ * the Avoid entry for Profile Version. "current Profile Version" is the defined
+ * term and stays allowed, so the lookahead exempts it. */
+const FORBIDDEN_PHRASES = /current profile(?! version)/giu;
 
 const DISCLAIMER_MARKERS = ["not a", "are not", "is not an", "never", "no hiring", "does not"];
 
@@ -44,14 +50,48 @@ function sentences(source: string): string[] {
 
 async function scopedFiles(): Promise<string[]> {
   const components = path.join(here, "..", "components");
-  const names = await readdir(components);
+  const app = path.join(here, "..", "app");
+  const [componentNames, appNames] = await Promise.all([readdir(components), readdir(app)]);
   return [
-    ...names.filter((name) => name.endsWith(".tsx")).map((name) => path.join(components, name)),
+    ...componentNames
+      .filter((name) => name.endsWith(".tsx"))
+      .map((name) => path.join(components, name)),
+    // The public site and every page's social metadata render candidate copy too,
+    // and they were the highest-visibility violations the guard could not see.
+    ...appNames.filter((name) => name.endsWith(".tsx")).map((name) => path.join(app, name)),
     path.join(here, "..", "lib", "derive.ts"),
+    // Copy that the web renders verbatim but that lives outside components/.
+    path.join(here, "..", "lib", "packet-composer.ts"),
   ].sort();
 }
 
+/* packages/domain/src/matching.ts is a logic file (it computes with a `score`
+ * variable), so the sentence scan would false-positive on code identifiers.
+ * Its candidate-facing copy lives only in string literals — scan those. */
+const domainCopyFile = path.join(here, "..", "..", "..", "packages", "domain", "src", "matching.ts");
+
+function copyLiterals(source: string): string[] {
+  const out: string[] = [];
+  for (const match of stripComments(source).matchAll(/(["'`])((?:\\.|(?!\1).)*)\1/gsu)) {
+    const value = match[2] ?? "";
+    if (/\s/u.test(value)) out.push(value);
+  }
+  return out;
+}
+
 describe("candidate-facing vocabulary", () => {
+  it("keeps forbidden vocabulary out of domain-authored copy the web renders", async () => {
+    const offenders: string[] = [];
+    for (const literal of copyLiterals(await readFile(domainCopyFile, "utf8"))) {
+      const lowered = literal.toLocaleLowerCase("en-US");
+      if (DISCLAIMER_MARKERS.some((marker) => lowered.includes(marker))) continue;
+      for (const match of [...literal.matchAll(FORBIDDEN), ...literal.matchAll(FORBIDDEN_PHRASES)]) {
+        offenders.push(`matching.ts · ${match[0]} · …${literal.slice(0, 90)}…`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
   it("keeps score, recommendation, and probability out of rendered copy", async () => {
     const offenders: string[] = [];
     for (const file of await scopedFiles()) {
@@ -59,7 +99,7 @@ describe("candidate-facing vocabulary", () => {
       for (const sentence of sentences(source)) {
         const lowered = sentence.toLocaleLowerCase("en-US");
         if (DISCLAIMER_MARKERS.some((marker) => lowered.includes(marker))) continue;
-        for (const match of sentence.matchAll(FORBIDDEN)) {
+        for (const match of [...sentence.matchAll(FORBIDDEN), ...sentence.matchAll(FORBIDDEN_PHRASES)]) {
           const from = Math.max(0, match.index - 60);
           offenders.push(
             `${path.basename(file)} · ${match[0]} · …${sentence.slice(from, match.index + 60)}…`,
@@ -67,6 +107,16 @@ describe("candidate-facing vocabulary", () => {
         }
       }
     }
+    expect(offenders).toEqual([]);
+  });
+
+  it("keeps forbidden vocabulary out of the derived match-band labels", async () => {
+    // The band label is produced at render time from a persisted enum, so the
+    // source-scan above can never see it. Check the map itself.
+    const forbidden = new RegExp(FORBIDDEN.source, "iu");
+    const offenders = APPLICATION_MATCH_BUCKETS.map((bucket) => bandLabel(bucket)).filter((label) =>
+      forbidden.test(label),
+    );
     expect(offenders).toEqual([]);
   });
 });

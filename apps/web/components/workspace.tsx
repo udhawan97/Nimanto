@@ -72,6 +72,7 @@ import {
 import {
   BOARD_COLUMNS,
   APPLICATION_MATCH_BUCKETS,
+  bandLabel,
   applicationCohortCounts,
   boardColumns,
   canMove,
@@ -2375,7 +2376,7 @@ function Overview({
                   <span>{match.job.company}</span>
                 </div>
                 <span className={`state ${match.result.blockers.length ? "warning" : "supported"}`}>
-                  {human(match.result.band)}
+                  {bandLabel(match.result.band)}
                 </span>
               </div>
             ))
@@ -2500,7 +2501,7 @@ function RoleComparison({
       source: human(role.source),
       location: role.location || "Not specified",
       tracking: role.tracked ? "Application tracked" : "Not tracked",
-      fit: role.match ? human(role.match.result.band) : "Not explained",
+      fit: role.match ? bandLabel(role.match.result.band) : "Not explained",
       coverage: role.match
         ? `${human(role.match.result.coverage)} · ${supported}/${role.match.result.requirements.length} requirements supported`
         : "Not explained",
@@ -4840,7 +4841,7 @@ function Jobs({
                     <span
                       className={`state ${match.result.blockers.length ? "warning" : "supported"}`}
                     >
-                      {human(match.result.band)}
+                      {bandLabel(match.result.band)}
                     </span>
                     <small>
                       {supportedRequirementCount}/{match.result.requirements.length} requirements
@@ -5546,7 +5547,7 @@ function StoredHistory() {
                         {[beforeRun, afterRun].map((run, index) => (
                           <article key={run.id + "-" + index}>
                             <span>{index === 0 ? "Stored run A" : "Stored run B"}</span>
-                            <h3>{human(run.result.band)}</h3>
+                            <h3>{bandLabel(run.result.band)}</h3>
                             <time dateTime={run.createdAt}>{localDateTime(run.createdAt)}</time>
                             <dl>
                               <div>
@@ -6792,7 +6793,7 @@ function Applications({
               <option value="all">All classifications</option>
               {APPLICATION_MATCH_BUCKETS.map((bucket) => (
                 <option key={bucket} value={bucket}>
-                  {human(bucket)}
+                  {bandLabel(bucket)}
                 </option>
               ))}
             </select>
@@ -6816,7 +6817,7 @@ function Applications({
         <div className="cohort-bands">
           {APPLICATION_MATCH_BUCKETS.map((bucket) => (
             <span key={bucket}>
-              <strong>{cohort.byMatchBucket[bucket]}</strong> {human(bucket)}
+              <strong>{cohort.byMatchBucket[bucket]}</strong> {bandLabel(bucket)}
             </span>
           ))}
         </div>
@@ -7245,7 +7246,7 @@ function ApplicationDossier({
               <dl>
                 <div>
                   <dt>Match band</dt>
-                  <dd>{human(dossier.match.result.band)}</dd>
+                  <dd>{bandLabel(dossier.match.result.band)}</dd>
                 </div>
                 <div>
                   <dt>Publication</dt>
@@ -7275,7 +7276,7 @@ function ApplicationDossier({
               <ol>
                 {dossier.matchHistory.map((match) => (
                   <li key={match.id}>
-                    <strong>{human(match.result.band)} · not current</strong>
+                    <strong>{bandLabel(match.result.band)} · not current</strong>
                     <small>
                       Publication <code>{match.id}</code>
                     </small>

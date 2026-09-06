@@ -838,7 +838,7 @@ describe("Profile Version rebinding", () => {
     busy: false,
   };
   const reason =
-    "This Application is bound to Profile Version aaaaaaaa; your current Profile is bbbbbbbb.";
+    "This Application is bound to Profile Version aaaaaaaa; the latest Profile Version is bbbbbbbb.";
 
   it("offers the composer a way out of a stale Profile Version binding", async () => {
     const onRebind = vi.fn();
