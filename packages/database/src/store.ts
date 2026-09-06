@@ -118,6 +118,16 @@ export interface HistoryPage<T> {
   nextCursor: string | null;
 }
 
+/** The answer-revision route binds the current revision to the page so an open
+ * history panel can tell whether it is still showing the latest answer. The
+ * shape is `revisions` rather than the generic `items` because the web client
+ * and the API contract test both read it by that name. */
+export interface AnswerRevisionPage {
+  currentRevision: number;
+  revisions: AnswerRevisionRecord[];
+  nextCursor: string | null;
+}
+
 export interface JobRecord {
   id: string;
   source: string;
@@ -4056,12 +4066,13 @@ export class NimantoStore {
     tenantId: string,
     id: string,
     options: { cursor?: string; limit?: number } = {},
-  ): Promise<HistoryPage<AnswerRevisionRecord>> {
-    const exists = await this.#db.query<{ id: string }>(
-      `SELECT id FROM answer_blocks WHERE tenant_id = $1 AND id = $2 LIMIT 1`,
+  ): Promise<AnswerRevisionPage> {
+    const exists = await this.#db.query<{ id: string; current_revision: number }>(
+      `SELECT id, current_revision FROM answer_blocks WHERE tenant_id = $1 AND id = $2 LIMIT 1`,
       [tenantId, id],
     );
     if (!exists.rows[0]) throw new Error("ANSWER_BLOCK_NOT_FOUND");
+    const currentRevision = Number(exists.rows[0].current_revision);
     const limit = historyLimit(options.limit);
     let anchorRevision: number | null = null;
     if (options.cursor) {
@@ -4092,7 +4103,8 @@ export class NimantoStore {
       createdAt: iso(row.created_at)!,
     }));
     return {
-      items,
+      currentRevision,
+      revisions: items,
       nextCursor: result.rows.length > limit ? (items.at(-1)?.id ?? null) : null,
     };
   }

@@ -2817,6 +2817,13 @@ test("the candidate career ledger carries the P1 and P2 application workflow", a
   await answers.getByRole("button", { name: "Save revision" }).click();
   await expect(answer).toContainText("revision 2");
   await expect(answer.getByText("2 retained revisions")).toBeVisible();
+  // Opening the disclosure must actually render the retained revisions. The
+  // paginated route returns { currentRevision, revisions, nextCursor }; when it
+  // regresses to the generic { items } envelope the panel renders empty.
+  await answer.getByText("2 retained revisions").click();
+  const history = answer.locator(".career-ledger-history");
+  await expect(history.getByText("Revision 1")).toBeVisible();
+  await expect(history).toContainText("the recorded scope matches my evidence");
   await answer.getByRole("button", { name: "Copy" }).click();
   await expect(answers.getByText("Copied answer for Why this role?.")).toBeVisible();
   await expect

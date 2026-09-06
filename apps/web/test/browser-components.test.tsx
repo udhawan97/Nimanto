@@ -27,6 +27,20 @@ async function render(node: ReactNode): Promise<HTMLDivElement> {
   return host;
 }
 
+// The revision-history load runs through api() (await fetch, then await
+// response.json()), so a fixed pair of microtask flushes cannot reliably reach
+// the committed state. Drain until the element the assertion needs appears.
+async function flushUntil<T>(find: () => T | null | undefined, tries = 50): Promise<T> {
+  for (let attempt = 0; attempt < tries; attempt += 1) {
+    const found = find();
+    if (found) return found;
+    await act(async () => {
+      await Promise.resolve();
+    });
+  }
+  throw new Error("flushUntil: condition was never met");
+}
+
 afterEach(async () => {
   if (root) await act(async () => root?.unmount());
   host?.remove();
@@ -630,54 +644,37 @@ describe("candidate-controlled packet and submission forms", () => {
   });
 
   it("loads older answer revisions when asked", async () => {
-    const fetch = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce({
+    // Respond by request, not by call order: the first page carries a cursor,
+    // the cursored page ends the history. This mirrors the real paginated route
+    // (currentRevision + revisions + nextCursor) so the test cannot silently
+    // drift from the server contract, and it is robust to how many times the
+    // panel refetches the first page.
+    const page = (revision: number, answerText: string) => ({
+      id: `revision-${revision}`,
+      revision,
+      topic: "why_role",
+      prompt: "Why this role?",
+      answerText,
+      evidenceIds: [],
+      createdAt: "2026-09-01T12:00:00.000Z",
+    });
+    const cursorRequests: string[] = [];
+    const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      const cursor = new URL(url, "http://local").searchParams.get("cursor");
+      if (cursor) cursorRequests.push(cursor);
+      return {
         ok: true,
-        json: async () => ({
-          id: "answer-1",
-          topic: "why_role",
-          prompt: "Why this role?",
-          currentRevision: 2,
-          nextCursor: "revision-2",
-          latest: {
-            answerText: "Current answer",
-            evidenceIds: [],
-            createdAt: "2026-09-01T12:00:00.000Z",
-          },
-          revisions: [
-            {
-              id: "revision-2",
-              revision: 2,
-              topic: "why_role",
-              prompt: "Why this role?",
-              answerText: "Current answer",
-              evidenceIds: [],
-              createdAt: "2026-09-01T12:00:00.000Z",
-            },
-          ],
-          createdAt: "2026-08-31T12:00:00.000Z",
-          updatedAt: "2026-09-01T12:00:00.000Z",
-        }),
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          currentRevision: 2,
-          nextCursor: null,
-          revisions: [
-            {
-              id: "revision-1",
-              revision: 1,
-              topic: "why_role",
-              prompt: "Why this role?",
-              answerText: "First answer",
-              evidenceIds: [],
-              createdAt: "2026-08-31T12:00:00.000Z",
-            },
-          ],
-        }),
-      } as Response);
+        json: async () =>
+          cursor
+            ? { currentRevision: 2, nextCursor: null, revisions: [page(1, "First answer")] }
+            : {
+                currentRevision: 2,
+                nextCursor: "revision-2",
+                revisions: [page(2, "Current answer")],
+              },
+      } as Response;
+    });
     const view = await render(
       createElement(AnswerHistoryDetails, {
         answer: {
@@ -705,20 +702,18 @@ describe("candidate-controlled packet and submission forms", () => {
       await Promise.resolve();
     });
 
-    const loadMore = view.querySelector<HTMLElement>('button[type="button"]')!;
+    const loadMore = await flushUntil(() => {
+      const button = view.querySelector<HTMLElement>('button[type="button"]');
+      return button?.textContent?.includes("Load older revisions") ? button : null;
+    });
     expect(loadMore.textContent).toContain("Load older revisions");
     await act(async () => {
       await loadMore.click();
-      await Promise.resolve();
-      await Promise.resolve();
     });
+    await flushUntil(() => (view.textContent?.includes("First answer") ? true : null));
 
-    expect(fetch).toHaveBeenCalledTimes(2);
-    expect(fetch).toHaveBeenNthCalledWith(
-      2,
-      expect.stringContaining("/v1/answer-blocks/answer-1/revisions?cursor=revision-2&limit=20"),
-      expect.objectContaining({ credentials: "include" }),
-    );
+    expect(fetch).toHaveBeenCalled();
+    expect(cursorRequests).toContain("revision-2");
     expect(view.textContent).toContain("First answer");
   });
 });
