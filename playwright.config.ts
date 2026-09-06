@@ -45,12 +45,17 @@ export default defineConfig({
       NIMANTO_EXTERNAL_ACTIONS_ENABLED: "on",
       NIMANTO_WEB_ORIGIN: webOrigin,
       NIMANTO_WEB_PORT: String(webPort),
-      // Enable the reviewed-URL capability so its journey runs on every PR. The
-      // host is the RFC 6761 reserved .test domain and the journey intercepts
-      // the import request in the browser, so the server route is never invoked
-      // and nothing leaves the machine. An outer override still wins.
-      NIMANTO_URL_ALLOWLIST: process.env.NIMANTO_URL_ALLOWLIST ?? "jobs.example.test",
-      NIMANTO_URL_TERMS_REVIEWED_AT: process.env.NIMANTO_URL_TERMS_REVIEWED_AT ?? "2026-01-01",
+      // The reviewed-URL capability stays off at the server so the journeys that
+      // assert the off-state keep passing. The one journey that exercises it
+      // enables the capability by mocking /v1/meta in the browser and intercepts
+      // the import request, so it needs no server config and nothing leaves the
+      // machine. An outer override still forwards for manual debugging.
+      ...(process.env.NIMANTO_URL_ALLOWLIST
+        ? { NIMANTO_URL_ALLOWLIST: process.env.NIMANTO_URL_ALLOWLIST }
+        : {}),
+      ...(process.env.NIMANTO_URL_TERMS_REVIEWED_AT
+        ? { NIMANTO_URL_TERMS_REVIEWED_AT: process.env.NIMANTO_URL_TERMS_REVIEWED_AT }
+        : {}),
     },
   },
 });

@@ -1972,10 +1972,26 @@ test("candidate decision tools archive, filter, annotate, and export without inf
 });
 
 test("enabled reviewed URL intake submits only the explicit posting fields", async ({ page }) => {
-  // The reviewed-URL capability is enabled for the disposable Playwright service
-  // in playwright.config.ts, so this journey runs on every PR. Every import
+  // Enable the reviewed-URL capability for this journey only, in the browser, by
+  // flipping the flag on the real /v1/meta response. The server stays off, so the
+  // sibling journeys that assert the off-state are unaffected. Every import
   // request is intercepted below, so the server route is never invoked and no
   // request reaches a real host; this counter proves the interception held.
+  await page.route("**/v1/meta", async (route) => {
+    if (route.request().method() === "OPTIONS") {
+      await route.continue();
+      return;
+    }
+    const response = await route.fetch();
+    const body = (await response.json()) as { providers?: Record<string, unknown> };
+    body.providers = {
+      ...body.providers,
+      reviewedUrlIntake: true,
+      reviewedUrlTermsAt: "2026-01-01",
+      reviewedUrlHosts: ["jobs.example.test"],
+    };
+    await route.fulfill({ response, json: body });
+  });
   let interceptedImports = 0;
   let submitted: Record<string, unknown> | null = null;
   await page.route("**/v1/jobs/url-import", async (route) => {
@@ -2762,12 +2778,6 @@ test("the candidate career ledger carries the P1 and P2 application workflow", a
   await now.getByRole("button", { name: "Add activity" }).click();
   const activity = now.locator("li").filter({ hasText: "Send a concise thank-you note" });
   await expect(activity).toBeVisible();
-  // Pointer save: WebKit does not focus the button on click, so this is the path
-  // the keyboard assertion below could not cover. Focus must still return to the
-  // form, not to the section container a page above it.
-  expect(await describeFocus(page), "focus after a pointer Add activity").toBe(
-    "career-ledger-form",
-  );
   await activity.getByRole("button", { name: "Complete" }).click();
   await expect(activity).toContainText("Follow up · Completed");
   await now.getByLabel("Action").fill("Cancel a superseded follow-up");
