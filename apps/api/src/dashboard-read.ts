@@ -69,12 +69,6 @@ export class DashboardRead {
       const assuranceByPacket = new Map(
         assurances.map((assurance) => [assurance.packetId, assurance]),
       );
-      const activitiesByApplication = new Map<string, typeof careerOperations.activities>();
-      for (const activity of careerOperations.activities) {
-        const activities = activitiesByApplication.get(activity.applicationId);
-        if (activities) activities.push(activity);
-        else activitiesByApplication.set(activity.applicationId, [activity]);
-      }
       const sourceRunById = new Map(sourceRuns.map((run) => [run.id, run]));
       const observationByJob = new Map(
         latestRoleObservations.map((observation) => [observation.jobId, observation]),
@@ -148,11 +142,12 @@ export class DashboardRead {
         matches: matches.map((match) => ({ ...match, job: withAtsRoute(match.job) })),
         h1bSignals: signals.map((signal) => ({ ...signal, ...freshH1bLabel(signal) })),
         roleWordingReviews,
+        // Activities are serialized once, in careerOperations. The web regroups
+        // them onto each Application after fetch; embedding them here too doubled
+        // the largest repeated payload and, at a realistic activity load, pushed
+        // the response past the 4 MiB budget the scale test guards.
         careerOperations,
-        applications: applications.map((application) => ({
-          ...application,
-          activities: activitiesByApplication.get(application.id) ?? [],
-        })),
+        applications,
         packets: packets.map((packet) => ({
           ...packet,
           latestAssurance: assuranceByPacket.get(packet.id) ?? null,

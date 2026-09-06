@@ -13,6 +13,10 @@ const temporaryRoots: string[] = [];
 const APPLICATION_COUNT = 1_000;
 const ANSWER_BLOCK_COUNT = 1_000;
 const REVISIONS_PER_ANSWER = 10;
+// More than one activity per Application: with the old duplicated payload this
+// density pushed the response past the 4 MiB gate, so the gate could only ever
+// pass because the fixture stopped at one. It now exercises the real load.
+const ACTIVITIES_PER_APPLICATION = 5;
 const MAX_SERIALIZED_BYTES = 4 * 1024 * 1024;
 
 const disabledRuntime = async () => ({
@@ -91,13 +95,16 @@ describe("DashboardRead large-tenant budget", () => {
            created_at, updated_at
          )
          SELECT
-           'scale-activity-' || ordinal, $1, 'scale-application-' || ordinal,
-           'follow_up', 'planned', 'Synthetic follow-up ' || ordinal, '',
+           'scale-activity-' || ordinal || '-' || activity_ordinal, $1,
+           'scale-application-' || ordinal,
+           'follow_up', 'completed',
+           'Synthetic follow-up ' || ordinal || '.' || activity_ordinal, '',
            '2026-03-01T00:00:00.000Z'::timestamptz + ordinal * interval '1 minute',
            '2026-02-01T00:00:00.000Z'::timestamptz + ordinal * interval '1 second',
            '2026-02-01T00:00:00.000Z'::timestamptz + ordinal * interval '1 second'
-         FROM generate_series(1, $2::integer) AS ordinal`,
-      [identity.tenantId, APPLICATION_COUNT],
+         FROM generate_series(1, $2::integer) AS ordinal
+         CROSS JOIN generate_series(1, $3::integer) AS activity_ordinal`,
+      [identity.tenantId, APPLICATION_COUNT, ACTIVITIES_PER_APPLICATION],
     );
     await database.query(
       `INSERT INTO answer_blocks(
@@ -156,9 +163,17 @@ describe("DashboardRead large-tenant budget", () => {
     );
 
     expect(cold.applications).toHaveLength(APPLICATION_COUNT);
-    expect(cold.applications.every((application) => application.activities.length === 1)).toBe(
-      true,
+    // Activities are carried once, in careerOperations, not duplicated onto each
+    // Application. The payload budget below is what proves the de-duplication:
+    // at this activity density the old duplicated payload exceeded 4 MiB.
+    expect(cold.careerOperations.activities).toHaveLength(
+      APPLICATION_COUNT * ACTIVITIES_PER_APPLICATION,
     );
+    expect(
+      (cold.applications as Array<{ activities?: unknown }>).every(
+        (application) => application.activities === undefined,
+      ),
+    ).toBe(true);
     expect(cold.careerOperations.answerBlocks).toHaveLength(ANSWER_BLOCK_COUNT);
     expect(cold.careerOperations.answerBlocks.every((answer) => !answer.revisions)).toBe(true);
     const targetedHistory = await store.getAnswerBlock(identity.tenantId, "scale-answer-1", true);

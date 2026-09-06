@@ -363,6 +363,29 @@ describe("follow-up observation", () => {
     ).toBe(daysAgo(3));
   });
 
+  it("counts a completed activity as a recorded moment", () => {
+    // Activities are re-grouped onto each Application on the client after the
+    // Dashboard de-duplicates them; follow-up timing must still see them.
+    expect(
+      lastRecordedAt(
+        app({
+          createdAt: daysAgo(40),
+          outcomes: [],
+          activities: [
+            {
+              id: "a1",
+              kind: "follow_up",
+              state: "completed",
+              title: "Followed up",
+              note: "",
+              occurredAt: daysAgo(2),
+            },
+          ],
+        }),
+      ),
+    ).toBe(daysAgo(2));
+  });
+
   it("falls back to creation when no outcome exists", () => {
     expect(daysSinceLastRecord(app({ outcomes: [] }), NOW)).toBe(40);
   });

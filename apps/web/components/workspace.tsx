@@ -653,6 +653,26 @@ type RuntimeMeta = {
     reviewedUrlHosts: string[];
   };
 };
+
+/** The Dashboard payload serializes activities once, in careerOperations. Regroup
+ * them onto each Application so every consumer that reads application.activities
+ * (the per-application timeline, follow-up timing) keeps working, without the
+ * server sending the same objects twice. */
+function withApplicationActivities(dashboard: Dashboard): Dashboard {
+  const byApplication = new Map<string, CareerOperationsSnapshot["activities"]>();
+  for (const activity of dashboard.careerOperations.activities) {
+    const grouped = byApplication.get(activity.applicationId);
+    if (grouped) grouped.push(activity);
+    else byApplication.set(activity.applicationId, [activity]);
+  }
+  return {
+    ...dashboard,
+    applications: dashboard.applications.map((application) => ({
+      ...application,
+      activities: byApplication.get(application.id) ?? [],
+    })),
+  };
+}
 type ActionRunner = WorkbenchMutations;
 type EvidenceImportPreview = {
   filename: string;
@@ -1295,7 +1315,7 @@ export function Workspace() {
       }
       dashboardIdentity.current = incomingIdentity;
       fenceApiWritesToSession(incomingIdentity);
-      setDashboard(value);
+      setDashboard(withApplicationActivities(value));
       setRuntimeMeta(meta);
       setAuthRequired(false);
       return "ready";
