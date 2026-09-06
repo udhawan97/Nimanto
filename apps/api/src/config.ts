@@ -47,6 +47,12 @@ export interface NimantoApiOptions {
   /** Operator ceiling. A tenant opt-in can never raise this capability. */
   externalActionsEnabled: boolean;
   bootstrapSecret: string;
+  /** True when the launch secret was generated for this workspace rather than
+   * supplied through NIMANTO_BOOTSTRAP_SECRET. Governs whether the startup
+   * banner may print the one-click link (a fresh local secret) or must not
+   * echo a secret the operator already holds. Optional so buildServer callers
+   * that never print a banner need not set it. */
+  bootstrapSecretGenerated?: boolean;
   assuranceModel?: string;
   urlAllowlist: string[];
   urlTermsReviewedAt?: string;
@@ -174,6 +180,7 @@ export function loadOptions(environment: NodeJS.ProcessEnv = process.env): Niman
     demoMode,
     externalActionsEnabled,
     bootstrapSecret: localBootstrapSecret(root, environment),
+    bootstrapSecretGenerated: !environment.NIMANTO_BOOTSTRAP_SECRET?.trim(),
     ...(environment.NIMANTO_ASSURANCE_MODEL?.trim()
       ? { assuranceModel: environment.NIMANTO_ASSURANCE_MODEL.trim() }
       : {}),

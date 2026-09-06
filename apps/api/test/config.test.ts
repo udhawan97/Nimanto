@@ -30,6 +30,17 @@ describe("API configuration", () => {
     expect(() => loadOptions({ NIMANTO_DEMO_MODE: "false" })).toThrow(/NIMANTO_DEMO_MODE/u);
   });
 
+  it("records whether the launch secret was generated, so the banner never echoes a supplied one", async () => {
+    const supplied = loadOptions(await environment());
+    expect(supplied.bootstrapSecretGenerated).toBe(false);
+
+    const withoutSecret = await environment();
+    delete withoutSecret.NIMANTO_BOOTSTRAP_SECRET;
+    const generated = loadOptions(withoutSecret);
+    expect(generated.bootstrapSecretGenerated).toBe(true);
+    expect(generated.bootstrapSecret.length).toBeGreaterThanOrEqual(32);
+  });
+
   it("keeps fail-closed defaults and refuses demo mode on a public bind", async () => {
     const defaults = loadOptions(await environment());
     expect(defaults).toMatchObject({
