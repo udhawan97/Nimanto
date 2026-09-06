@@ -1,4 +1,4 @@
-import { chmod, mkdir, mkdtemp, readdir, readFile, stat, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -16,6 +16,14 @@ import { CURRENT_SCHEMA_VERSION } from "../src/migrations.js";
 import { NimantoStore } from "../src/store.js";
 
 const stores: NimantoStore[] = [];
+const temporaryRoots: string[] = [];
+/** mkdtemp that records the root so afterEach can remove it. The suite created
+ * ~46 PGlite directories per run and never deleted them, filling temp space. */
+async function mkdtempTracked(prefix: string): Promise<string> {
+  const root = await mkdtemp(prefix);
+  temporaryRoots.push(root);
+  return root;
+}
 
 const v041FixtureSql = String.raw`
 CREATE TABLE schema_versions (
@@ -153,11 +161,14 @@ async function expectPrivateTree(directory: string): Promise<void> {
 afterEach(async () => {
   vi.restoreAllMocks();
   await Promise.all(stores.splice(0).map((store) => store.close()));
+  await Promise.all(
+    temporaryRoots.splice(0).map((root) => rm(root, { recursive: true, force: true })),
+  );
 });
 
 describe("single-instance data-directory lock", () => {
   it("refuses a second open of the same data directory and frees it on close", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-lock-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-lock-"));
     const data = join(root, "data");
     const first = await NimantoStore.open(data);
     await expect(NimantoStore.open(data)).rejects.toThrow("DATA_DIRECTORY_IN_USE");
@@ -171,7 +182,7 @@ describe("single-instance data-directory lock", () => {
   });
 
   it("reclaims a lock left by a crashed process (dead pid or an earlier boot)", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-stale-lock-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-stale-lock-"));
     const data = join(root, "data");
     await mkdir(data, { recursive: true });
     // A dead PID from the current boot: reclaimable.
@@ -212,7 +223,7 @@ describe("single-instance data-directory lock", () => {
 
 describe("tenant-scoped persistence public seam", () => {
   it("creates private database paths and tightens an existing permissive directory", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-permissions-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-permissions-"));
     const data = join(root, "data");
     await mkdir(data, { mode: 0o755 });
     await chmod(data, 0o755);
@@ -222,7 +233,7 @@ describe("tenant-scoped persistence public seam", () => {
   });
 
   it("round-trips the complete normalized role snapshot hash", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-role-snapshot-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-role-snapshot-"));
     const store = await NimantoStore.open(join(root, "data"));
     stores.push(store);
     const identity = await store.createLocalTenant("role-snapshot@example.test", "Snapshot");
@@ -254,7 +265,7 @@ describe("tenant-scoped persistence public seam", () => {
   });
 
   it("never returns another tenant's evidence even when a foreign ID is supplied", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-"));
     const store = await NimantoStore.open(join(root, "data"));
     stores.push(store);
 
@@ -277,7 +288,7 @@ describe("tenant-scoped persistence public seam", () => {
   });
 
   it("creates a profile version only when normalized tenant input changes", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-profile-version-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-profile-version-"));
     const store = await NimantoStore.open(join(root, "data"));
     stores.push(store);
     const alpha = await store.createLocalTenant("profile-alpha@example.test", "Profile Alpha");
@@ -334,7 +345,7 @@ describe("tenant-scoped persistence public seam", () => {
   });
 
   it("serializes profile saves with tenant deletion and rejects every later save", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-profile-deletion-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-profile-deletion-"));
     const store = await NimantoStore.open(join(root, "data"));
     stores.push(store);
     const identity = await store.createLocalTenant("profile-delete@example.test", "Profile Delete");
@@ -357,7 +368,7 @@ describe("tenant-scoped persistence public seam", () => {
   });
 
   it("revokes a local session and never stores its raw token", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-"));
     const store = await NimantoStore.open(join(root, "data"));
     stores.push(store);
 
@@ -373,7 +384,7 @@ describe("tenant-scoped persistence public seam", () => {
   });
 
   it("accepts only a matching single-use, unexpired, unrevoked invitation", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-"));
     const store = await NimantoStore.open(join(root, "data"));
     stores.push(store);
 
@@ -421,7 +432,7 @@ describe("tenant-scoped persistence public seam", () => {
   });
 
   it("revokes tenant access as soon as resumable deletion begins", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-"));
     const store = await NimantoStore.open(join(root, "data"));
     stores.push(store);
 
@@ -434,7 +445,7 @@ describe("tenant-scoped persistence public seam", () => {
   });
 
   it("discovers crash-left running deletion work after its candidate token expires", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-expired-deletion-recovery-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-expired-deletion-recovery-"));
     const data = join(root, "data");
     const initial = await NimantoStore.open(data);
     const identity = await initial.createLocalTenant("expired-delete@example.test", "Delete");
@@ -457,7 +468,7 @@ describe("tenant-scoped persistence public seam", () => {
   });
 
   it("prunes only completed deletion tombstones after the seven-day status window", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-deletion-pruning-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-deletion-pruning-"));
     const data = join(root, "data");
     const initial = await NimantoStore.open(data);
 
@@ -528,7 +539,7 @@ describe("tenant-scoped persistence public seam", () => {
   });
 
   it("captures cleanup inventory atomically and fences every later tenant write", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-deletion-fence-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-deletion-fence-"));
     const store = await NimantoStore.open(join(root, "data"));
     stores.push(store);
     const identity = await store.createLocalTenant("fence@example.test", "Fence");
@@ -553,7 +564,7 @@ describe("tenant-scoped persistence public seam", () => {
   });
 
   it("waits for an in-flight tenant write before capturing deletion cleanup inventory", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-deletion-race-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-deletion-race-"));
     const store = await NimantoStore.open(join(root, "data"));
     stores.push(store);
     const identity = await store.createLocalTenant("race@example.test", "Race");
@@ -595,7 +606,7 @@ describe("tenant-scoped persistence public seam", () => {
 
 describe("beta workflow persistence", () => {
   it("records the complete migration ledger for a fresh database exactly once", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-fresh-migrations-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-fresh-migrations-"));
     const data = join(root, "data");
 
     const fresh = await NimantoStore.open(data);
@@ -622,7 +633,7 @@ describe("beta workflow persistence", () => {
   });
 
   it("upgrades a genuine v0.4.1 schema twice without losing data or approval safety", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-v041-upgrade-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-v041-upgrade-"));
     const data = join(root, "data");
     const legacy = await PGlite.create(data);
     await legacy.exec(v041FixtureSql);
@@ -735,7 +746,7 @@ describe("beta workflow persistence", () => {
   });
 
   it("records an integrity migration only after its backfill commits and resumes safely", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-interrupted-migration-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-interrupted-migration-"));
     const data = join(root, "data");
     const legacy = await PGlite.create(data);
     await legacy.exec(v041FixtureSql);
@@ -793,7 +804,7 @@ describe("beta workflow persistence", () => {
   });
 
   it("fails closed before opening a database from a newer runtime", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-future-schema-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-future-schema-"));
     const data = join(root, "data");
     const future = await PGlite.create(data);
     await future.exec(String.raw`
@@ -808,7 +819,7 @@ describe("beta workflow persistence", () => {
   });
 
   it("backfills the exact source employer when upgrading a schema-9 H-1B signal", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-h1b-source-company-upgrade-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-h1b-source-company-upgrade-"));
     const data = join(root, "data");
     const legacy = await PGlite.create(data);
     await legacy.exec(String.raw`
@@ -861,7 +872,7 @@ describe("beta workflow persistence", () => {
   });
 
   it("preserves a schema-10 dataset edition as explicitly unverified provenance", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-dataset-provenance-upgrade-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-dataset-provenance-upgrade-"));
     const data = join(root, "data");
     const legacy = await PGlite.create(data);
     await legacy.exec(String.raw`
@@ -913,7 +924,7 @@ describe("beta workflow persistence", () => {
   });
 
   it("persists only checksum-consistent government provenance with its edition", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-dataset-provenance-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-dataset-provenance-"));
     const store = await NimantoStore.open(join(root, "data"));
     stores.push(store);
     const owner = await store.createLocalTenant("provenance@example.test", "Provenance Owner");
@@ -976,7 +987,7 @@ describe("beta workflow persistence", () => {
   });
 
   it("pages tenant-owned history without exposing another tenant or a global assurance sequence", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-history-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-history-"));
     const store = await NimantoStore.open(join(root, "data"));
     stores.push(store);
     const alpha = await store.createLocalTenant("alpha-history@example.test", "Alpha History");
@@ -1302,7 +1313,7 @@ describe("beta workflow persistence", () => {
   });
 
   it("backfills assurance order when reopening a pre-sequence workspace", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-upgrade-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-upgrade-"));
     const data = join(root, "data");
     const store = await NimantoStore.open(data);
     stores.push(store);
@@ -1386,7 +1397,7 @@ describe("beta workflow persistence", () => {
   });
 
   it("upgrades v0.5.3 packet history and makes every later generation exact", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-packet-sequence-upgrade-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-packet-sequence-upgrade-"));
     const data = join(root, "data");
     const store = await NimantoStore.open(data);
     stores.push(store);
@@ -1471,7 +1482,7 @@ describe("beta workflow persistence", () => {
   });
 
   it("rejects a schedule that its provider adapter could never execute", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-"));
     const store = await NimantoStore.open(join(root, "data"));
     stores.push(store);
     const owner = await store.createLocalTenant("invalid-board@example.test", "Owner");
@@ -1486,7 +1497,7 @@ describe("beta workflow persistence", () => {
   });
 
   it("deduplicates concurrent creation of the same active source schedule", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-"));
     const store = await NimantoStore.open(join(root, "data"));
     stores.push(store);
     const owner = await store.createLocalTenant("duplicate-schedule@example.test", "Owner");
@@ -1505,7 +1516,7 @@ describe("beta workflow persistence", () => {
   });
 
   it("leases each tenant schedule once and returns it to its recurring cadence", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-"));
     const data = join(root, "data");
     const store = await NimantoStore.open(data);
     stores.push(store);
@@ -1551,7 +1562,7 @@ describe("beta workflow persistence", () => {
   });
 
   it("lets the owning tenant recover retries while cancellation remains terminal", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-"));
     const store = await NimantoStore.open(join(root, "data"));
     stores.push(store);
     const owner = await store.createLocalTenant("schedule-owner@example.test", "Owner");
@@ -1597,7 +1608,7 @@ describe("beta workflow persistence", () => {
   });
 
   it("recovers an expired lease without allowing a duplicate active claim", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-"));
     const store = await NimantoStore.open(join(root, "data"));
     stores.push(store);
     const owner = await store.createLocalTenant("lease-owner@example.test", "Lease owner");
@@ -1637,7 +1648,7 @@ describe("beta workflow persistence", () => {
   });
 
   it("holds the lease row while scheduled writes commit so an expiry recovery cannot overlap", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-"));
     const store = await NimantoStore.open(join(root, "data"));
     stores.push(store);
     const owner = await store.createLocalTenant("lease-lock@example.test", "Lease lock");
@@ -1676,7 +1687,7 @@ describe("beta workflow persistence", () => {
   });
 
   it("rejects saving a receipt whose integrity hash does not match its canonical fields", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-"));
     const store = await NimantoStore.open(join(root, "data"));
     stores.push(store);
     const identity = await store.createLocalTenant("receipt@example.test", "Receipt");
@@ -1694,7 +1705,7 @@ describe("beta workflow persistence", () => {
   });
 
   it("reports a tampered receipt as failed at read without aborting the whole list", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-"));
     const data = join(root, "data");
     const store = await NimantoStore.open(data);
     stores.push(store);
@@ -1736,7 +1747,7 @@ describe("beta workflow persistence", () => {
   });
 
   it("stores jobs, deterministic matches, applications, and outcomes", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-"));
     const store = await NimantoStore.open(join(root, "data"));
     stores.push(store);
     const identity = await store.createLocalTenant("priya@example.test", "Priya");
@@ -1789,7 +1800,7 @@ describe("beta workflow persistence", () => {
   });
 
   it("rebinds an Application to the current Profile Version and fails closed otherwise", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-rebind-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-rebind-"));
     const store = await NimantoStore.open(join(root, "data"));
     stores.push(store);
     const identity = await store.createLocalTenant("rebind@example.test", "Rebind");
@@ -1846,7 +1857,7 @@ describe("beta workflow persistence", () => {
   });
 
   it("binds candidate wording review to the latest exact role snapshot", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-role-wording-review-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-role-wording-review-"));
     const store = await NimantoStore.open(join(root, "data"));
     stores.push(store);
     const owner = await store.createLocalTenant("wording@example.test", "Wording Owner");
@@ -1945,7 +1956,7 @@ describe("beta workflow persistence", () => {
   });
 
   it("persists reviewed employer aliases, preserves collisions, and removes them explicitly", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-employer-aliases-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-employer-aliases-"));
     const store = await NimantoStore.open(join(root, "data"));
     stores.push(store);
     const owner = await store.createLocalTenant("aliases@example.test", "Alias Owner");
@@ -2060,7 +2071,7 @@ describe("beta workflow persistence", () => {
   });
 
   it("keeps candidate role disposition separate from refreshed source facts", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-role-disposition-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-role-disposition-"));
     const store = await NimantoStore.open(join(root, "data"));
     stores.push(store);
     const owner = await store.createLocalTenant("archive@example.test", "Archive Owner");
@@ -2100,7 +2111,7 @@ describe("beta workflow persistence", () => {
   });
 
   it("groups only unambiguous cross-source role variants without merging records", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-role-clusters-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-role-clusters-"));
     const store = await NimantoStore.open(join(root, "data"));
     stores.push(store);
     const owner = await store.createLocalTenant("clusters@example.test", "Cluster Owner");
@@ -2151,7 +2162,7 @@ describe("beta workflow persistence", () => {
   });
 
   it("records method-qualified source observations and closes only after spaced complete misses", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-role-verification-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-role-verification-"));
     const store = await NimantoStore.open(join(root, "data"));
     stores.push(store);
     const owner = await store.createLocalTenant("verification@example.test", "Verification Owner");
@@ -2276,7 +2287,7 @@ describe("beta workflow persistence", () => {
   });
 
   it("records candidate-requested ATS checks without weakening closure evidence", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-ats-recheck-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-ats-recheck-"));
     const store = await NimantoStore.open(join(root, "data"));
     stores.push(store);
     const owner = await store.createLocalTenant("ats-recheck@example.test", "ATS Recheck Owner");
@@ -2360,7 +2371,7 @@ describe("beta workflow persistence", () => {
   }, 30_000);
 
   it("stores only candidate-approved, idempotent discovery profile versions", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-discovery-profile-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-discovery-profile-"));
     const store = await NimantoStore.open(join(root, "data"));
     stores.push(store);
     const owner = await store.createLocalTenant("discovery@example.test", "Discovery Owner");
@@ -2437,7 +2448,7 @@ describe("beta workflow persistence", () => {
   });
 
   it("stores private application notes without creating outcomes or changing status", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-application-note-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-application-note-"));
     const store = await NimantoStore.open(join(root, "data"));
     stores.push(store);
     const owner = await store.createLocalTenant("notes@example.test", "Notes Owner");
@@ -2476,7 +2487,7 @@ describe("beta workflow persistence", () => {
   });
 
   it("stores and clears a candidate follow-up date without changing application state", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-"));
     const store = await NimantoStore.open(join(root, "data"));
     stores.push(store);
     const owner = await store.createLocalTenant("reminder@example.test", "Reminder Owner");
@@ -2539,7 +2550,7 @@ describe("beta workflow persistence", () => {
   });
 
   it("clears the submission timestamp when an application leaves submitted_externally", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-"));
     const store = await NimantoStore.open(join(root, "data"));
     stores.push(store);
     const identity = await store.createLocalTenant("dev@example.test", "Dev");
@@ -2579,7 +2590,7 @@ describe("beta workflow persistence", () => {
   });
 
   it("owns candidate policy and timestamp changes in one persistence transaction", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-"));
     const store = await NimantoStore.open(join(root, "data"));
     stores.push(store);
     const identity = await store.createLocalTenant("candidate@example.test", "Candidate");
@@ -2626,7 +2637,7 @@ describe("beta workflow persistence", () => {
   });
 
   it("records immutable tenant-scoped submissions against the exact current Packet v2", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-submission-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-submission-"));
     const store = await NimantoStore.open(join(root, "data"));
     stores.push(store);
     const owner = await store.createLocalTenant("submission@example.test", "Submission Owner");
@@ -2813,7 +2824,7 @@ describe("beta workflow persistence", () => {
     // PacketLifecycle decides its named system consequence inside its owning
     // transaction. This low-level write deliberately does not run candidate
     // confirmation policy or own the lifecycle's authority decision.
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-"));
     const store = await NimantoStore.open(join(root, "data"));
     stores.push(store);
     const identity = await store.createLocalTenant("ops@example.test", "Ops");
@@ -2842,7 +2853,7 @@ describe("beta workflow persistence", () => {
   });
 
   it("requires assurance before packet approval and records action transitions", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-"));
     const store = await NimantoStore.open(join(root, "data"));
     stores.push(store);
     const identity = await store.createLocalTenant("owner@example.test", "Owner");
@@ -2941,7 +2952,7 @@ describe("beta workflow persistence", () => {
   });
 
   it("keeps the candidate career ledger tenant-scoped, versioned, and exportable", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-store-career-ledger-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-store-career-ledger-"));
     const store = await NimantoStore.open(join(root, "data"));
     stores.push(store);
     const owner = await store.createLocalTenant("ledger@example.test", "Ledger Owner");

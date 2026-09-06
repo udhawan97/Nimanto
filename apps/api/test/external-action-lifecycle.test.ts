@@ -10,14 +10,24 @@ import { DeletionCoordinator } from "../src/deletion-coordinator.js";
 import { ExternalActionLifecycle } from "../src/external-action-lifecycle.js";
 
 const stores: NimantoStore[] = [];
+const temporaryRoots: string[] = [];
+async function mkdtempTracked(prefix: string): Promise<string> {
+  const root = await mkdtemp(prefix);
+  temporaryRoots.push(root);
+  return root;
+}
+async function cleanTemporaryRoots(): Promise<void> {
+  await Promise.all(temporaryRoots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
+}
 
 afterEach(async () => {
   vi.restoreAllMocks();
   await Promise.all(stores.splice(0).map((store) => store.close()));
+  await cleanTemporaryRoots();
 });
 
 async function approvedActionFixture(label: string) {
-  const root = await mkdtemp(join(tmpdir(), `nimanto-action-${label}-`));
+  const root = await mkdtempTracked(join(tmpdir(), `nimanto-action-${label}-`));
   const dataDirectory = join(root, "data");
   const artifactDirectory = join(root, "artifacts");
   const outboxDirectory = join(root, "outbox");
@@ -129,7 +139,7 @@ describe("external action lifecycle", () => {
   });
 
   it("recovers pending deletion cleanup through the internal operator path", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-deletion-recovery-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-deletion-recovery-"));
     const store = await NimantoStore.open(join(root, "data"));
     stores.push(store);
     const identity = await store.createLocalTenant("cleanup@example.test", "Cleanup");
@@ -156,7 +166,7 @@ describe("external action lifecycle", () => {
   });
 
   it("recovers a crash-left running deletion without a candidate bearer", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-running-deletion-recovery-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-running-deletion-recovery-"));
     const store = await NimantoStore.open(join(root, "data"));
     stores.push(store);
     const identity = await store.createLocalTenant("running-cleanup@example.test", "Cleanup");
@@ -173,7 +183,7 @@ describe("external action lifecycle", () => {
   });
 
   it("recovers expired incomplete cleanup before pruning terminal tombstones", async () => {
-    const root = await mkdtemp(join(tmpdir(), "nimanto-expired-deletion-reconciliation-"));
+    const root = await mkdtempTracked(join(tmpdir(), "nimanto-expired-deletion-reconciliation-"));
     const data = join(root, "data");
     const initial = await NimantoStore.open(data);
     const completedIdentity = await initial.createLocalTenant(

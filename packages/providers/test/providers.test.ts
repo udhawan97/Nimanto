@@ -1,7 +1,7 @@
-import { chmod, mkdtemp, readFile, stat } from "node:fs/promises";
+import { chmod, mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   buildDeepLink,
   draftLocalSummary,
@@ -16,6 +16,16 @@ import {
   routeAtsLink,
   verifyProviderJob,
 } from "../src/index.js";
+
+const temporaryRoots: string[] = [];
+async function mkdtempTracked(prefix: string): Promise<string> {
+  const root = await mkdtemp(prefix);
+  temporaryRoots.push(root);
+  return root;
+}
+afterEach(async () => {
+  await Promise.all(temporaryRoots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
+});
 
 describe("job providers", () => {
   it("routes provider-owned and exact candidate-entered ATS links without fetching them", () => {
@@ -503,7 +513,7 @@ describe("external action providers", () => {
   });
 
   it("writes only to the local test outbox", async () => {
-    const directory = await mkdtemp(path.join(tmpdir(), "nimanto-outbox-"));
+    const directory = await mkdtempTracked(path.join(tmpdir(), "nimanto-outbox-"));
     await chmod(directory, 0o755);
     const result = await executeProviderAction(
       {
@@ -523,7 +533,7 @@ describe("external action providers", () => {
   });
 
   it("rejects header injection and unbounded payloads before preparing any action", async () => {
-    const directory = await mkdtemp(path.join(tmpdir(), "nimanto-outbox-"));
+    const directory = await mkdtempTracked(path.join(tmpdir(), "nimanto-outbox-"));
     await expect(
       executeProviderAction(
         {

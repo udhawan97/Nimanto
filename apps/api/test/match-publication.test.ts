@@ -1,4 +1,4 @@
-import { mkdtemp } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -7,9 +7,19 @@ import { canonicalHash } from "@nimanto/domain";
 import { publishMatch } from "../src/match-publication.js";
 
 const stores: NimantoStore[] = [];
+const temporaryRoots: string[] = [];
+async function mkdtempTracked(prefix: string): Promise<string> {
+  const root = await mkdtemp(prefix);
+  temporaryRoots.push(root);
+  return root;
+}
+async function cleanTemporaryRoots(): Promise<void> {
+  await Promise.all(temporaryRoots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
+}
 
 afterEach(async () => {
   await Promise.all(stores.splice(0).map((store) => store.close()));
+  await cleanTemporaryRoots();
 });
 
 async function fixture(): Promise<{
@@ -18,7 +28,7 @@ async function fixture(): Promise<{
   jobId: string;
   originalClaimId: string;
 }> {
-  const root = await mkdtemp(path.join(tmpdir(), "nimanto-match-publication-"));
+  const root = await mkdtempTracked(path.join(tmpdir(), "nimanto-match-publication-"));
   const store = await NimantoStore.open(path.join(root, "database"));
   stores.push(store);
   const identity = await store.createLocalTenant("publisher@example.test", "Publisher");

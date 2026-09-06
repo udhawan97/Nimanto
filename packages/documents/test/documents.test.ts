@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   inspectPacketArtifacts,
   packetText,
@@ -20,6 +20,16 @@ const packet: CanonicalPacket = {
   generatedAt: "2026-08-05T12:00:00.000Z",
 };
 
+const temporaryRoots: string[] = [];
+async function mkdtempTracked(prefix: string): Promise<string> {
+  const root = await mkdtemp(prefix);
+  temporaryRoots.push(root);
+  return root;
+}
+afterEach(async () => {
+  await Promise.all(temporaryRoots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
+});
+
 describe("packet documents", () => {
   it("renders a stable plain-text packet", () => {
     expect(packetText(packet)).toContain("EVIDENCE-BACKED HIGHLIGHTS");
@@ -27,7 +37,7 @@ describe("packet documents", () => {
   });
 
   it("writes shared JSON/text plus synchronized modern and ATS-safe DOCX/PDF artifacts", async () => {
-    const directory = await mkdtemp(path.join(tmpdir(), "nimanto-packet-"));
+    const directory = await mkdtempTracked(path.join(tmpdir(), "nimanto-packet-"));
     const artifacts = await renderPacketArtifacts("p1", packet, directory);
     expect(artifacts.map((artifact) => artifact.format)).toEqual([
       "json",

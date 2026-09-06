@@ -21,10 +21,20 @@ import { buildServer, messageForError } from "../src/server.js";
 import { NIMANTO_VERSION } from "../src/version.js";
 
 const apps: FastifyInstance[] = [];
+const temporaryRoots: string[] = [];
+async function mkdtempTracked(prefix: string): Promise<string> {
+  const root = await mkdtemp(prefix);
+  temporaryRoots.push(root);
+  return root;
+}
+async function cleanTemporaryRoots(): Promise<void> {
+  await Promise.all(temporaryRoots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
+}
 
 afterEach(async () => {
   vi.restoreAllMocks();
   await Promise.all(apps.splice(0).map((app) => app.close()));
+  await cleanTemporaryRoots();
 });
 
 const bootstrapSecret = "test-bootstrap-secret-with-at-least-32-characters";
@@ -82,7 +92,7 @@ async function setup(options?: {
   tenantId: string;
   sessionId: string;
 }> {
-  const root = await mkdtemp(path.join(tmpdir(), "nimanto-api-"));
+  const root = await mkdtempTracked(path.join(tmpdir(), "nimanto-api-"));
   const app = await buildServer({
     dataDirectory: path.join(root, "database"),
     artifactDirectory: path.join(root, "artifacts"),
@@ -2573,7 +2583,7 @@ describe("Nimanto beta API", () => {
   });
 
   it("recovers incomplete deletion and prunes expired completed tombstones at startup", async () => {
-    const root = await mkdtemp(path.join(tmpdir(), "nimanto-api-deletion-startup-"));
+    const root = await mkdtempTracked(path.join(tmpdir(), "nimanto-api-deletion-startup-"));
     const dataDirectory = path.join(root, "database");
     const initial = await NimantoStore.open(dataDirectory);
     const completedIdentity = await initial.createLocalTenant(
@@ -3088,7 +3098,7 @@ describe("Nimanto beta API", () => {
 
   it("answers a sign-in attempt on a demo-disabled service with 409, not a logged 500", async () => {
     const errors = vi.spyOn(console, "error").mockImplementation(() => {});
-    const root = await mkdtemp(path.join(tmpdir(), "nimanto-api-"));
+    const root = await mkdtempTracked(path.join(tmpdir(), "nimanto-api-"));
     const app = await buildServer({
       dataDirectory: path.join(root, "database"),
       artifactDirectory: path.join(root, "artifacts"),

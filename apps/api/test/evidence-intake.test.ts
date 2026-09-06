@@ -1,4 +1,4 @@
-import { mkdtemp } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -7,10 +7,19 @@ import { NimantoStore } from "@nimanto/database";
 import { EvidenceIntake } from "../src/evidence-intake.js";
 
 const stores: NimantoStore[] = [];
-afterEach(async () => Promise.all(stores.splice(0).map((store) => store.close())));
+const temporaryRoots: string[] = [];
+async function mkdtempTracked(prefix: string): Promise<string> {
+  const root = await mkdtemp(prefix);
+  temporaryRoots.push(root);
+  return root;
+}
+afterEach(async () => {
+  await Promise.all(stores.splice(0).map((store) => store.close()));
+  await Promise.all(temporaryRoots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
+});
 
 async function fixture() {
-  const root = await mkdtemp(path.join(tmpdir(), "nimanto-evidence-intake-"));
+  const root = await mkdtempTracked(path.join(tmpdir(), "nimanto-evidence-intake-"));
   const store = await NimantoStore.open(path.join(root, "database"));
   stores.push(store);
   const identity = await store.createLocalTenant("intake@example.test", "Intake");
@@ -55,7 +64,7 @@ describe("candidate-approved evidence intake", () => {
   });
 
   it("rolls back the entire reviewed batch when a later claim insert fails", async () => {
-    const root = await mkdtemp(path.join(tmpdir(), "nimanto-evidence-intake-fault-"));
+    const root = await mkdtempTracked(path.join(tmpdir(), "nimanto-evidence-intake-fault-"));
     const data = path.join(root, "database");
     const setupStore = await NimantoStore.open(data);
     const faultIdentity = await setupStore.createLocalTenant("fault@example.test", "Fault");

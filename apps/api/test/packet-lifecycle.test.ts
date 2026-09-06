@@ -1,4 +1,4 @@
-import { access, mkdir, mkdtemp, readdir, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -10,13 +10,23 @@ import { publishMatch } from "../src/match-publication.js";
 import { PacketLifecycle, type PacketArtifactRenderer } from "../src/packet-lifecycle.js";
 
 const stores: NimantoStore[] = [];
+const temporaryRoots: string[] = [];
+async function mkdtempTracked(prefix: string): Promise<string> {
+  const root = await mkdtemp(prefix);
+  temporaryRoots.push(root);
+  return root;
+}
+async function cleanTemporaryRoots(): Promise<void> {
+  await Promise.all(temporaryRoots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
+}
 
 afterEach(async () => {
   await Promise.all(stores.splice(0).map((store) => store.close()));
+  await cleanTemporaryRoots();
 });
 
 async function packetFixture(label: string) {
-  const root = await mkdtemp(join(tmpdir(), `nimanto-packet-${label}-`));
+  const root = await mkdtempTracked(join(tmpdir(), `nimanto-packet-${label}-`));
   const artifactDirectory = join(root, "artifacts");
   const outboxDirectory = join(root, "outbox");
   const dataDirectory = join(root, "data");

@@ -1972,16 +1972,18 @@ test("candidate decision tools archive, filter, annotate, and export without inf
 });
 
 test("enabled reviewed URL intake submits only the explicit posting fields", async ({ page }) => {
-  test.skip(
-    !process.env.NIMANTO_URL_ALLOWLIST,
-    "requires the reviewed URL capability in the disposable Playwright service",
-  );
+  // The reviewed-URL capability is enabled for the disposable Playwright service
+  // in playwright.config.ts, so this journey runs on every PR. Every import
+  // request is intercepted below, so the server route is never invoked and no
+  // request reaches a real host; this counter proves the interception held.
+  let interceptedImports = 0;
   let submitted: Record<string, unknown> | null = null;
   await page.route("**/v1/jobs/url-import", async (route) => {
     if (route.request().method() === "OPTIONS") {
       await route.continue();
       return;
     }
+    interceptedImports += 1;
     submitted = route.request().postDataJSON() as Record<string, unknown>;
     await route.fulfill({
       status: 200,
@@ -2016,6 +2018,9 @@ test("enabled reviewed URL intake submits only the explicit posting fields", asy
     workMode: "remote",
     requirements: ["TypeScript", "WCAG"],
   });
+  // The import was handled entirely by the interceptor: the server never fetched
+  // the host, so the journey stays offline on every runner.
+  expect(interceptedImports).toBe(1);
 });
 
 test("available local model drafts and copies only the selected evidence", async ({ page }) => {
