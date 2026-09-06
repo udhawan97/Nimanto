@@ -333,6 +333,57 @@ describe("job providers", () => {
     ).rejects.toThrow("SOURCE_URL_UNSAFE_ADDRESS");
   });
 
+  it("accepts a global-unicast IPv6 host and rejects private, embedded, and reserved v6", async () => {
+    const attempt = (address: string) =>
+      fetchAllowlistedJobPage(
+        { url: "https://careers.example.test/jobs/7", allowedHosts: ["careers.example.test"] },
+        {
+          resolve: async () => [{ address, family: 6 }],
+          request: async (_url, target) => {
+            expect(target.address).toBe(address);
+            return {
+              status: 200,
+              contentType: "text/html; charset=utf-8",
+              body: new TextEncoder().encode(
+                "<html><body><h1>Remote Role</h1><p>Build typed services.</p></body></html>",
+              ),
+            };
+          },
+        },
+      );
+
+    // A public global-unicast address is accepted and the socket pins to it.
+    await expect(
+      attempt("2606:4700:4700::1111").then((result) => result.text),
+    ).resolves.toContain("Remote Role");
+
+    // Loopback, link-local, unique-local, and unspecified are rejected, and so
+    // are the wrappers that embed a private IPv4 target: IPv4-mapped, 6to4,
+    // NAT64, and IPv4-compatible. Each of these would slip past a naive
+    // "reject nothing / accept nothing" v6 rule.
+    for (const address of [
+      "::1",
+      "fe80::1",
+      "fc00::1",
+      "ff02::1",
+      "fec0::1",
+      "::",
+      "::ffff:127.0.0.1",
+      "::ffff:169.254.169.254",
+      "2002:7f00:0001::", // 6to4 wrapping 127.0.0.1
+      "64:ff9b::a9fe:a9fe", // NAT64 wrapping 169.254.169.254
+      "::7f00:1", // IPv4-compatible ::127.0.0.1
+    ]) {
+      await expect(
+        fetchAllowlistedJobPage(
+          { url: "https://careers.example.test/jobs/7", allowedHosts: ["careers.example.test"] },
+          { resolve: async () => [{ address, family: 6 }] },
+        ),
+        `expected ${address} to be rejected`,
+      ).rejects.toThrow("SOURCE_URL_UNSAFE_ADDRESS");
+    }
+  });
+
   it("rejects identifiers that could escape the provider allowlist", async () => {
     await expect(fetchProviderJobs({ provider: "lever", board: "../../internal" })).rejects.toThrow(
       "INVALID_BOARD_IDENTIFIER",
