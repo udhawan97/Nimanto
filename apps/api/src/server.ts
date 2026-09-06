@@ -536,7 +536,8 @@ export function messageForError(error: Error): { code: string; status: number; m
     return {
       code,
       status: 409,
-      message: "A newer packet exists for this application. Review and approve the current packet.",
+      message:
+        "This packet is no longer current for its Application. Rebind to the latest Profile Version and recompose before approving.",
     };
   if (
     code.includes("REQUIRED") ||

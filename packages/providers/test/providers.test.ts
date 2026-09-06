@@ -385,6 +385,7 @@ describe("job providers", () => {
       "2002:7f00:0001::", // 6to4 wrapping 127.0.0.1
       "64:ff9b::a9fe:a9fe", // NAT64 wrapping 169.254.169.254
       "::7f00:1", // IPv4-compatible ::127.0.0.1
+      "2001:0:0:0:0:0:80ff:fffe", // Teredo tunnelling client 127.0.0.1 (last 32 bits XOR 0xffff)
     ]) {
       await expect(
         fetchAllowlistedJobPage(

@@ -88,6 +88,12 @@ function isPrivateAddress(address: string): boolean {
     if (groups[0] === 0x2002) {
       return embeddedIPv4(groups[1]!, groups[2]!); // 2002::/16 6to4
     }
+    // Teredo 2001:0000::/32 sits inside global unicast and tunnels an embedded
+    // client IPv4 (the last 32 bits, XOR 0xffff per word). Decode and re-check it
+    // against the IPv4 rules so a Teredo-wrapped private target cannot be reached.
+    if (groups[0] === 0x2001 && groups[1] === 0x0000) {
+      return embeddedIPv4(groups[6]! ^ 0xffff, groups[7]! ^ 0xffff);
+    }
     if ((groups[0]! & 0xe000) === 0x2000) return false; // 2000::/3 global unicast
     return true; // link-local, ULA, multicast, site-local, and all else
   }

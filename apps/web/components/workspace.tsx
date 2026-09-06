@@ -7702,9 +7702,6 @@ function Packets({
   busy: boolean;
 }) {
   const [historyFor, setHistoryFor] = useState<string | null>(null);
-  /* Newest wins explicitly. The dashboard sends one packet per Application
-   * today, so this only stops the row from depending on array order - and it is
-   * what the approval guard below compares against. */
   return (
     <>
       <PageIntro
