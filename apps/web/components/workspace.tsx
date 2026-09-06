@@ -7741,7 +7741,8 @@ function Packets({
            * offer the control that earns that 409; the composer above renders
            * the "Use current Profile Version" rebind in the same state. */
           const packetProfileStale =
-            packet !== undefined && profileVersionRebindReason(application, dashboard.profile) !== null;
+            packet !== undefined &&
+            profileVersionRebindReason(application, dashboard.profile) !== null;
           return (
             <article key={application.id} className="packet-row">
               <div className="packet-icon">
