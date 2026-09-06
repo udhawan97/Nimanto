@@ -3086,6 +3086,40 @@ describe("Nimanto beta API", () => {
     expect(resumed.json()).toMatchObject({ state: "completed", completedAt });
   });
 
+  it("answers a sign-in attempt on a demo-disabled service with 409, not a logged 500", async () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    const root = await mkdtemp(path.join(tmpdir(), "nimanto-api-"));
+    const app = await buildServer({
+      dataDirectory: path.join(root, "database"),
+      artifactDirectory: path.join(root, "artifacts"),
+      outboxDirectory: path.join(root, "outbox"),
+      webOrigin: "http://127.0.0.1:4300",
+      demoMode: false,
+      externalActionsEnabled: false,
+      bootstrapSecret,
+      urlAllowlist: [],
+      port: 4310,
+      host: "127.0.0.1",
+    });
+    apps.push(app);
+    await app.ready();
+
+    const attempted = await app.inject({
+      method: "POST",
+      url: "/v1/auth/local",
+      payload: { email: "someone@example.test", displayName: "Someone" },
+    });
+    expect(attempted.statusCode).toBe(409);
+    expect(attempted.json()).toMatchObject({
+      error: { code: "DEMO_MODE_DISABLED" },
+    });
+    // A disabled sign-up is a configuration refusal, not a server fault: the
+    // candidate is told where the private invitation comes from, and an
+    // unauthenticated caller cannot drive the operator error log.
+    expect(attempted.json().error.message).toContain("invitation");
+    expect(errors).not.toHaveBeenCalled();
+  });
+
   it("logs one keyed line for a server fault and stays silent for a client error", async () => {
     const errors = vi.spyOn(console, "error").mockImplementation(() => {});
     const warnings = vi.spyOn(console, "warn").mockImplementation(() => {});

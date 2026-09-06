@@ -337,6 +337,13 @@ export function messageForError(error: Error): { code: string; status: number; m
       status: 401,
       message: "Use the private workspace link from the local launcher.",
     };
+  if (code === "DEMO_MODE_DISABLED")
+    return {
+      code,
+      status: 409,
+      message:
+        "Public sign-up is disabled on this service. Open the private invitation link from your local administrator.",
+    };
   if (code.startsWith("INVITATION_"))
     return {
       code,
