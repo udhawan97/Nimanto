@@ -2757,6 +2757,12 @@ test("the candidate career ledger carries the P1 and P2 application workflow", a
   await now.getByRole("button", { name: "Add activity" }).click();
   const activity = now.locator("li").filter({ hasText: "Send a concise thank-you note" });
   await expect(activity).toBeVisible();
+  // Pointer save: WebKit does not focus the button on click, so this is the path
+  // the keyboard assertion below could not cover. Focus must still return to the
+  // form, not to the section container a page above it.
+  expect(await describeFocus(page), "focus after a pointer Add activity").toBe(
+    "career-ledger-form",
+  );
   await activity.getByRole("button", { name: "Complete" }).click();
   await expect(activity).toContainText("Follow up · Completed");
   await now.getByLabel("Action").fill("Cancel a superseded follow-up");

@@ -1063,6 +1063,23 @@ export function Workspace() {
   /* The control that started the current mutation. It is about to be disabled
    * for the duration, which is what drops focus to <body>. */
   const focusOrigin = useRef<HTMLElement | null>(null);
+  /* WebKit (and therefore Safari) does not move focus to a <button> on click,
+   * so at capture time document.activeElement is <body> and the originating
+   * control is lost — the focus-restoration fix then never runs on the pointer
+   * path. Remember the interactive element the pointer last acted on so capture
+   * has something to fall back to. */
+  const lastPointerTarget = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      lastPointerTarget.current =
+        target instanceof Element
+          ? target.closest<HTMLElement>("button, input, select, textarea, a")
+          : null;
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => document.removeEventListener("pointerdown", onPointerDown, true);
+  }, []);
 
   const focusSectionContent = useCallback(() => {
     focusSectionBelowHeader({
@@ -1372,8 +1389,15 @@ export function Workspace() {
         setBusy,
         captureFocus: () => {
           const active = document.activeElement;
-          focusOrigin.current =
-            active instanceof HTMLElement && active !== document.body ? active : null;
+          if (active instanceof HTMLElement && active !== document.body) {
+            focusOrigin.current = active;
+            return;
+          }
+          // The keyboard path focuses the activating control, but a pointer
+          // click in WebKit does not: fall back to the control the pointer last
+          // acted on so restoreFocus can still return focus to its form.
+          const pointer = lastPointerTarget.current;
+          focusOrigin.current = pointer?.isConnected ? pointer : null;
         },
         /* Only when nothing else has claimed focus. A control that survived the
          * commit takes focus back; one the commit replaced — Track becoming
