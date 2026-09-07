@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { access, mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -74,7 +75,134 @@ async function packetFixture(label: string) {
   };
 }
 
+async function reviewedPacket(store: NimantoStore, tenantId: string, packetId: string) {
+  const packet = await store.getPacket(tenantId, packetId);
+  const assurance = await store.latestAssurance(tenantId, packetId);
+  if (!packet || !assurance) throw new Error("Missing synthetic reviewed packet");
+  return {
+    reviewedAssuranceId: assurance.id,
+    reviewedArtifactHash: packet.artifactHash,
+    reviewedManifestHash: packet.manifestHash,
+  };
+}
+
 describe("packet lifecycle staging", () => {
+  it("refuses a reviewed passing run when a newer run blocks assurance", async () => {
+    const { store, identity, application, evidenceIds, artifactDirectory } =
+      await packetFixture("reviewed-blocked");
+    const lifecycle = new PacketLifecycle(store, artifactDirectory);
+    const packet = await lifecycle.create({
+      tenantId: identity.tenantId,
+      applicationId: application.id,
+      candidateName: "Synthetic Blocked Review",
+      evidenceIds,
+    });
+    await lifecycle.assure(identity.tenantId, packet.id);
+    const reviewed = await reviewedPacket(store, identity.tenantId, packet.id);
+    await store.saveAssurance(identity.tenantId, packet.id, {
+      status: "blocked",
+      ruleVersion: "synthetic_blocked_v1",
+      findings: [],
+    });
+    const receipts = await store.listReceipts(identity.tenantId);
+    await expect(lifecycle.approve(identity.tenantId, packet.id, reviewed)).rejects.toThrow(
+      "ASSURANCE_REQUIRED",
+    );
+    expect(await store.getPacket(identity.tenantId, packet.id)).toMatchObject({
+      status: "assurance_blocked",
+      approvedAt: null,
+    });
+    expect(await store.listReceipts(identity.tenantId)).toEqual(receipts);
+  });
+
+  it("binds approval to the reviewed Assurance Run and exact hashes, atomically rejecting superseded approval", async () => {
+    const { store, identity, application, evidenceIds, artifactDirectory } =
+      await packetFixture("reviewed-approval");
+    const lifecycle = new PacketLifecycle(store, artifactDirectory);
+    const packet = await lifecycle.create({
+      tenantId: identity.tenantId,
+      applicationId: application.id,
+      candidateName: "Synthetic Reviewed Candidate",
+      evidenceIds,
+    });
+    const first = await lifecycle.assure(identity.tenantId, packet.id);
+    const reviewed = {
+      reviewedAssuranceId: first.id,
+      reviewedArtifactHash: packet.artifactHash,
+      reviewedManifestHash: packet.manifestHash,
+    };
+    const replacement = await lifecycle.assure(identity.tenantId, packet.id);
+    expect(replacement.status).toBe("passed");
+    const receiptsBefore = await store.listReceipts(identity.tenantId);
+    await expect(lifecycle.approve(identity.tenantId, packet.id, reviewed)).rejects.toThrow(
+      "PACKET_APPROVAL_STALE",
+    );
+    expect(await store.getPacket(identity.tenantId, packet.id)).toMatchObject({
+      status: "assurance_passed",
+      approvedAt: null,
+    });
+    expect(await store.listReceipts(identity.tenantId)).toEqual(receiptsBefore);
+    const other = await store.createLocalTenant("foreign-review@example.test", "Synthetic Other");
+    const otherProfile = await store.createProfileVersion(
+      other.tenantId,
+      "Synthetic other authorization.",
+    );
+    const sourceJob = (await store.listJobs(identity.tenantId))[0]!;
+    const otherJob = await store.upsertJob(other.tenantId, {
+      ...sourceJob,
+      id: randomUUID(),
+      sourceJobId: "foreign-review-job",
+    });
+    const otherApplication = await store.createApplication(
+      other.tenantId,
+      otherJob.id,
+      otherProfile.id,
+    );
+    const otherPacket = await store.createPacket(other.tenantId, {
+      applicationId: otherApplication.id,
+      profileVersionId: otherProfile.id,
+      canonicalContent: {},
+      artifactManifest: {},
+    });
+    const foreign = await store.saveAssurance(other.tenantId, otherPacket.id, {
+      status: "passed",
+      ruleVersion: "synthetic_other_v1",
+      findings: [],
+    });
+    for (const changed of [
+      { reviewedAssuranceId: foreign.id },
+      { reviewedAssuranceId: "00000000-0000-4000-8000-000000000000" },
+      { reviewedArtifactHash: "0".repeat(64) },
+      { reviewedManifestHash: "0".repeat(64) },
+    ]) {
+      await expect(
+        lifecycle.approve(identity.tenantId, packet.id, {
+          ...reviewed,
+          reviewedAssuranceId: replacement.id,
+          ...changed,
+        }),
+      ).rejects.toThrow("PACKET_APPROVAL_STALE");
+      expect(await store.listReceipts(identity.tenantId)).toEqual(receiptsBefore);
+    }
+    await expect(
+      lifecycle.approve(identity.tenantId, packet.id, {
+        ...reviewed,
+        reviewedAssuranceId: replacement.id,
+      }),
+    ).resolves.toMatchObject({ status: "approved" });
+    const receipts = await store.listReceipts(identity.tenantId);
+    expect(receipts).toHaveLength(receiptsBefore.length + 1);
+    expect(receipts.find((receipt) => receipt.type === "packet.approved")?.material).toMatchObject({
+      assuranceId: replacement.id,
+    });
+    await expect(
+      lifecycle.approve(identity.tenantId, packet.id, {
+        ...reviewed,
+        reviewedAssuranceId: replacement.id,
+      }),
+    ).rejects.toThrow("PACKET_APPROVAL_STALE");
+  });
+
   it("cleans render failures and serializes tenant staging with deletion", async () => {
     const { store, identity, application, evidenceIds, artifactDirectory, outboxDirectory } =
       await packetFixture("packet-staging");
@@ -252,7 +380,13 @@ describe("packet lifecycle staging", () => {
         true,
       ),
     ).resolves.toMatchObject({ status: "withdrawn" });
-    await expect(lifecycle.approve(identity.tenantId, packet.id)).resolves.toMatchObject({
+    await expect(
+      lifecycle.approve(
+        identity.tenantId,
+        packet.id,
+        await reviewedPacket(store, identity.tenantId, packet.id),
+      ),
+    ).resolves.toMatchObject({
       status: "approved",
     });
     await expect(store.listApplications(identity.tenantId)).resolves.toEqual(
@@ -282,9 +416,13 @@ describe("packet lifecycle staging", () => {
     const latest = await compose("Packet Not Current C");
     expect(latest.id).not.toBe(first.id);
 
-    await expect(lifecycle.approve(identity.tenantId, first.id)).rejects.toThrow(
-      "PACKET_NOT_CURRENT",
-    );
+    await expect(
+      lifecycle.approve(
+        identity.tenantId,
+        first.id,
+        await reviewedPacket(store, identity.tenantId, first.id),
+      ),
+    ).rejects.toThrow("PACKET_NOT_CURRENT");
     await expect(store.getPacket(identity.tenantId, first.id)).resolves.toMatchObject({
       status: "assurance_passed",
     });
@@ -295,7 +433,13 @@ describe("packet lifecycle staging", () => {
     await expect(lifecycle.assure(identity.tenantId, latest.id)).resolves.toMatchObject({
       status: "passed",
     });
-    await expect(lifecycle.approve(identity.tenantId, latest.id)).resolves.toMatchObject({
+    await expect(
+      lifecycle.approve(
+        identity.tenantId,
+        latest.id,
+        await reviewedPacket(store, identity.tenantId, latest.id),
+      ),
+    ).resolves.toMatchObject({
       status: "approved",
     });
   });
@@ -320,9 +464,13 @@ describe("packet lifecycle staging", () => {
     // check would let it through; the deeper currency rule must not.
     await store.saveProfileVersion(identity.tenantId, "Authorized to work. Revised.");
 
-    await expect(lifecycle.approve(identity.tenantId, packet.id)).rejects.toThrow(
-      "PACKET_NOT_CURRENT",
-    );
+    await expect(
+      lifecycle.approve(
+        identity.tenantId,
+        packet.id,
+        await reviewedPacket(store, identity.tenantId, packet.id),
+      ),
+    ).rejects.toThrow("PACKET_NOT_CURRENT");
     await expect(store.getPacket(identity.tenantId, packet.id)).resolves.toMatchObject({
       status: "assurance_passed",
     });
@@ -343,7 +491,13 @@ describe("packet lifecycle staging", () => {
     await expect(lifecycle.assure(identity.tenantId, recomposed.id)).resolves.toMatchObject({
       status: "passed",
     });
-    await expect(lifecycle.approve(identity.tenantId, recomposed.id)).resolves.toMatchObject({
+    await expect(
+      lifecycle.approve(
+        identity.tenantId,
+        recomposed.id,
+        await reviewedPacket(store, identity.tenantId, recomposed.id),
+      ),
+    ).resolves.toMatchObject({
       status: "approved",
     });
   });

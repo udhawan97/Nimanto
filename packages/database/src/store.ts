@@ -1,6 +1,5 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { chmod, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
-import { uptime } from "node:os";
 import path from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import {
@@ -55,6 +54,7 @@ import {
   transitionScheduledJob,
 } from "@nimanto/domain";
 import { migrateDatabase } from "./migrations.js";
+import { acquireDataDirectoryLock } from "./data-directory-lock.js";
 
 interface EvidenceRow {
   id: string;
@@ -745,68 +745,16 @@ function mapEvidence(row: EvidenceRow): EvidenceClaim {
   };
 }
 
-/** Seconds since the epoch at which the machine last booted. All PIDs reset on
- * a reboot, so a lock written before the current boot cannot still be held. */
-function currentBootEpoch(): number {
-  return Math.floor(Date.now() / 1000 - uptime());
-}
-
-function processIsAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (error) {
-    // ESRCH => no such process (dead). EPERM => alive but owned by another user.
-    return (error as NodeJS.ErrnoException).code === "EPERM";
-  }
-}
-
-async function acquireDataDirectoryLock(dataDirectory: string): Promise<string> {
-  const lockPath = path.join(dataDirectory, ".nimanto-lock");
-  const payload = JSON.stringify({ pid: process.pid, bootEpoch: currentBootEpoch() });
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    try {
-      await writeFile(lockPath, payload, { flag: "wx", mode: 0o600 });
-      return lockPath;
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-      let holder: { pid?: unknown; bootEpoch?: unknown } | null = null;
-      try {
-        holder = JSON.parse(await readFile(lockPath, "utf8"));
-      } catch {
-        holder = null;
-      }
-      const pid = typeof holder?.pid === "number" ? holder.pid : null;
-      const bootEpoch = typeof holder?.bootEpoch === "number" ? holder.bootEpoch : null;
-      // A lock is stale if it is unreadable, was written before the current boot
-      // (so its PID is meaningless now — this is what prevents a reboot plus PID
-      // reuse from bricking the directory), or names a PID that is no longer
-      // alive. Otherwise a live sibling genuinely holds it.
-      const rebooted = bootEpoch === null || Math.abs(bootEpoch - currentBootEpoch()) > 3;
-      const stale = pid === null || rebooted || !processIsAlive(pid);
-      if (!stale) {
-        throw new Error(
-          `DATA_DIRECTORY_IN_USE: another Nimanto process (pid ${pid}) already has this data ` +
-            `directory open. Stop it before starting another, or delete ${lockPath} if it is stale.`,
-        );
-      }
-      await rm(lockPath, { force: true });
-    }
-  }
-  throw new Error(
-    `DATA_DIRECTORY_IN_USE: could not claim ${lockPath}. Delete it if no Nimanto process is running.`,
-  );
-}
-
 export class NimantoStore {
   readonly #db: PGlite;
   readonly #transactional: boolean;
-  readonly #lockPath: string | null;
+  readonly #releaseLock: (() => void) | null;
+  #closePromise: Promise<void> | null = null;
 
-  private constructor(db: PGlite, transactional = false, lockPath: string | null = null) {
+  private constructor(db: PGlite, transactional = false, releaseLock: (() => void) | null = null) {
     this.#db = db;
     this.#transactional = transactional;
-    this.#lockPath = lockPath;
+    this.#releaseLock = releaseLock;
   }
 
   static async open(dataDirectory: string): Promise<NimantoStore> {
@@ -816,32 +764,34 @@ export class NimantoStore {
     // last to close silently overwrites the other's workspace. A single-instance
     // advisory lock in open() covers every opener (API, worker, tooling) because
     // they all route through here. In-memory stores are per-process and exempt.
-    let lockPath: string | null = null;
+    let releaseLock: (() => void) | null = null;
     if (!inMemory) {
-      await tightenPosixPermissions(dataDirectory);
-      lockPath = await acquireDataDirectoryLock(dataDirectory);
+      await mkdir(dataDirectory, { recursive: true, mode: 0o700 });
+      await chmod(dataDirectory, 0o700);
+      releaseLock = acquireDataDirectoryLock(dataDirectory);
     }
     let db: PGlite;
     try {
+      if (!inMemory) await tightenPosixPermissions(dataDirectory);
       db = await PGlite.create(dataDirectory);
     } catch (error) {
-      if (lockPath) await rm(lockPath, { force: true });
+      releaseLock?.();
       throw error;
     }
     try {
       await migrateDatabase(db);
       if (!inMemory) await tightenPosixPermissions(dataDirectory);
-      return new NimantoStore(db, false, lockPath);
+      return new NimantoStore(db, false, releaseLock);
     } catch (error) {
       await db.close();
-      if (lockPath) await rm(lockPath, { force: true });
+      releaseLock?.();
       throw error;
     }
   }
 
-  async close(): Promise<void> {
-    await this.#db.close();
-    if (this.#lockPath) await rm(this.#lockPath, { force: true });
+  close(): Promise<void> {
+    this.#closePromise ??= this.#db.close().then(() => this.#releaseLock?.());
+    return this.#closePromise;
   }
 
   async transaction<T>(work: (store: NimantoStore) => Promise<T>): Promise<T> {
@@ -4148,6 +4098,9 @@ export class NimantoStore {
     id: string,
     options: { cursor?: string; limit?: number } = {},
   ): Promise<AnswerRevisionPage> {
+    if (!this.#transactional) {
+      return this.readSnapshot((database) => database.listAnswerRevisions(tenantId, id, options));
+    }
     const exists = await this.#db.query<{ id: string; current_revision: number }>(
       `SELECT id, current_revision FROM answer_blocks WHERE tenant_id = $1 AND id = $2 LIMIT 1`,
       [tenantId, id],
@@ -4951,6 +4904,9 @@ export class NimantoStore {
       if (packet?.status !== "approved") throw new Error("APPROVED_PACKET_REQUIRED");
       const latest = await database.getLatestPacketForApplication(tenantId, packet.applicationId);
       if (latest?.id !== packet.id) throw new Error("LATEST_APPROVED_PACKET_REQUIRED");
+      if (!(await database.isPacketCurrent(tenantId, packet.id))) {
+        throw new Error("ACTION_APPROVAL_STALE");
+      }
       const currentIntentHash = canonicalHash({
         packetId: action.packetId,
         provider: action.provider,

@@ -104,10 +104,87 @@ async function approvedActionFixture(label: string) {
     idempotencyKey: `${label}-action`,
   });
   await store.approveExternalActionExact(identity.tenantId, action.id);
-  return { store, identity, application, packet, action, artifactDirectory, outboxDirectory };
+  return {
+    store,
+    identity,
+    job,
+    profile,
+    application,
+    packet,
+    action,
+    artifactDirectory,
+    outboxDirectory,
+  };
 }
 
 describe("external action lifecycle", () => {
+  it.each(["Profile", "Match"])(
+    "rejects a newer %s saved after the initial approval check",
+    async (change) => {
+      const { store, identity, job, profile, packet, action, outboxDirectory } =
+        await approvedActionFixture(`approval-${change.toLowerCase()}-race`);
+      const pending = await store.createExternalAction(identity.tenantId, {
+        packetId: packet.id,
+        provider: "test_outbox",
+        target: { to: "jobs@example.test" },
+        payload: { subject: "Synthetic pending approval", body: "Reviewed synthetic packet" },
+        idempotencyKey: `pending-${change}`,
+      });
+      const original = store.approveExternalActionExact.bind(store);
+      vi.spyOn(store, "approveExternalActionExact").mockImplementationOnce(async (tenantId, id) => {
+        if (change === "Profile")
+          await store.saveProfileVersion(tenantId, "Synthetic revised wording");
+        else await store.saveMatch(tenantId, job.id, profile.id, matchJob({ job, evidence: [] }));
+        return original(tenantId, id);
+      });
+      const executeAction = vi.fn().mockRejectedValue(new Error("UNEXPECTED_PROVIDER_EFFECT"));
+      const lifecycle = new ExternalActionLifecycle(store, outboxDirectory, executeAction, true);
+      lifecycle.setTenantOptIn(identity.tenantId, true);
+      await expect(lifecycle.approve(identity.tenantId, pending.id)).rejects.toThrow(
+        "ACTION_APPROVAL_STALE",
+      );
+      expect(await store.getExternalAction(identity.tenantId, pending.id)).toMatchObject({
+        state: "pending_approval",
+        approvedAt: null,
+        approvedIntentHash: null,
+        approvedPacketHash: null,
+      });
+      // The earlier valid approval is now stale too; execution must still stop
+      // before the injected provider can observe any payload.
+      await expect(lifecycle.execute(identity.tenantId, action.id)).rejects.toThrow(
+        "ACTION_APPROVAL_STALE",
+      );
+      expect(executeAction).not.toHaveBeenCalled();
+      await expect(access(outboxDirectory)).rejects.toThrow();
+    },
+  );
+
+  it("approves the current exact Packet and refuses a foreign tenant", async () => {
+    const { store, identity, packet, outboxDirectory } =
+      await approvedActionFixture("current-approval");
+    const pending = await store.createExternalAction(identity.tenantId, {
+      packetId: packet.id,
+      provider: "test_outbox",
+      target: { to: "jobs@example.test" },
+      payload: { subject: "Current synthetic action", body: "Reviewed synthetic packet" },
+      idempotencyKey: "current-pending",
+    });
+    const foreign = await store.createLocalTenant("foreign-approval@example.test", "Foreign");
+    const lifecycle = new ExternalActionLifecycle(store, outboxDirectory);
+    await expect(lifecycle.approve(foreign.tenantId, pending.id)).rejects.toThrow(
+      "ACTION_NOT_FOUND",
+    );
+    await expect(store.approveExternalActionExact(foreign.tenantId, pending.id)).rejects.toThrow(
+      "ACTION_NOT_FOUND",
+    );
+    expect(await lifecycle.approve(identity.tenantId, pending.id)).toMatchObject({
+      state: "approved",
+      approvedAt: expect.any(String),
+      approvedIntentHash: pending.intentHash,
+      approvedPacketHash: packet.artifactHash,
+    });
+  });
+
   it("keeps readiness tenant-scoped in memory and resets it for a new lifecycle", async () => {
     const { store, identity, action, artifactDirectory, outboxDirectory } =
       await approvedActionFixture("tenant-runtime");

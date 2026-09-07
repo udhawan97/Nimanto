@@ -60,13 +60,20 @@ export function ApplicationSubmissionRecorder({
   const formatGroup = useRef<HTMLFieldSetElement>(null);
   const formatRequirementId = useId();
   const artifacts = usablePacket?.artifactManifest.artifacts ?? [];
+  const selectedPacketAvailable = usablePacket !== null && usablePacket.id === draft.packetId;
+  const selectionUnavailable = draft.materialsCaptured && !selectedPacketAvailable;
   const submittedAtMs = Date.parse(draft.submittedAt);
   const recordFieldsValid =
     draft.destination.trim().length > 0 &&
     Number.isFinite(submittedAtMs) &&
     submittedAtMs <= Date.now() + 5 * 60_000;
   const formatMissing =
-    draft.materialsCaptured && (!Boolean(usablePacket) || draft.artifactFormats.length === 0);
+    draft.materialsCaptured &&
+    (!selectedPacketAvailable ||
+      draft.artifactFormats.length === 0 ||
+      draft.artifactFormats.some(
+        (format) => !artifacts.some((artifact) => artifact.format === format),
+      ));
   const valid = recordFieldsValid && !formatMissing;
 
   return (
@@ -79,11 +86,11 @@ export function ApplicationSubmissionRecorder({
           formatGroup.current?.focus();
           return;
         }
-        if (!valid) return;
+        if (!valid || busy) return;
         setFormatAttempted(false);
         onConfirm({
           materialsCaptured: draft.materialsCaptured,
-          packetId: draft.materialsCaptured ? usablePacket!.id : null,
+          packetId: draft.materialsCaptured ? draft.packetId : null,
           artifactFormats: draft.materialsCaptured ? [...draft.artifactFormats] : [],
           channel: draft.channel,
           destination: draft.destination,
@@ -114,13 +121,14 @@ export function ApplicationSubmissionRecorder({
           <input
             type="radio"
             name="materials"
-            checked={draft.materialsCaptured}
-            disabled={!usablePacket}
+            checked={draft.materialsCaptured && selectedPacketAvailable}
+            disabled={!usablePacket || selectionUnavailable}
             onChange={() => {
               onDraftChange({
                 ...draft,
                 materialsCaptured: true,
                 packetId: usablePacket!.id,
+                artifactFormats: [],
               });
               setFormatAttempted(false);
             }}
@@ -157,7 +165,30 @@ export function ApplicationSubmissionRecorder({
           </span>
         </label>
       </fieldset>
-      {draft.materialsCaptured && usablePacket && (
+      {selectionUnavailable && (
+        <fieldset className="packet-composer-gate" ref={formatGroup} tabIndex={-1}>
+          <legend>Review Packet selection</legend>
+          <p id={formatRequirementId} className="field-note field-error" role="alert">
+            Your selected Packet {draft.packetId?.slice(0, 8) ?? "(unknown)"} is no longer available
+            for this record. Review the current approved Packet before replacing your selection, or
+            record that materials were not captured.
+          </p>
+          {usablePacket && (
+            <button
+              type="button"
+              className="button mini quiet"
+              disabled={busy}
+              onClick={() => {
+                onDraftChange({ ...draft, packetId: usablePacket.id, artifactFormats: [] });
+                setFormatAttempted(false);
+              }}
+            >
+              Use this approved Packet {usablePacket.id.slice(0, 8)}
+            </button>
+          )}
+        </fieldset>
+      )}
+      {draft.materialsCaptured && selectedPacketAvailable && (
         <fieldset
           ref={formatGroup}
           className="submission-formats"

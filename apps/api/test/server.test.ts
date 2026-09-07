@@ -142,7 +142,125 @@ async function setup(options?: {
   };
 }
 
+async function reviewedPacket(app: FastifyInstance, cookie: string, packetId: string) {
+  const dashboard = (
+    await app.inject({ method: "GET", url: "/v1/dashboard", headers: { cookie } })
+  ).json();
+  const packet = dashboard.packets.find((item: { id: string }) => item.id === packetId);
+  return {
+    reviewedAssuranceId: packet.latestAssurance.id,
+    reviewedArtifactHash: packet.artifactHash,
+    reviewedManifestHash: packet.manifestHash,
+  };
+}
+
 describe("Nimanto beta API", () => {
+  it("binds an opted-in export to the displayed session before serialization, preserving clients without the header", async () => {
+    const { app, sessionId } = await setup();
+    const replacement = await app.inject({
+      method: "POST",
+      url: "/v1/auth/local",
+      headers: { "x-nimanto-bootstrap-secret": bootstrapSecret },
+      payload: { displayName: "Export Replacement", email: "export-replacement@example.test" },
+    });
+    const header = replacement.headers["set-cookie"];
+    const cookie = (Array.isArray(header) ? header[0] : header)?.split(";")[0] ?? "";
+    const replacementSessionId = replacement.json().identity.sessionId as string;
+    const serialize = vi.spyOn(NimantoStore.prototype, "exportTenant");
+    for (const expected of [sessionId, ""]) {
+      const stale = await app.inject({
+        method: "GET",
+        url: "/v1/export",
+        headers: { cookie, "x-nimanto-expected-session-id": expected },
+      });
+      expect(stale.statusCode).toBe(409);
+      expect(stale.json().error.code).toBe("IDENTITY_CHANGED");
+      expect(serialize).not.toHaveBeenCalled();
+    }
+    for (const expected of [replacementSessionId, undefined]) {
+      const result = await app.inject({
+        method: "GET",
+        url: "/v1/export",
+        headers: {
+          cookie,
+          ...(expected === undefined ? {} : { "x-nimanto-expected-session-id": expected }),
+        },
+      });
+      expect(result.statusCode).toBe(200);
+      expect(result.json().identity.email).toBe("export-replacement@example.test");
+      expect(result.headers["content-disposition"]).toContain("nimanto-export.json");
+    }
+    const completedSerializationCalls = serialize.mock.calls.length;
+    expect(completedSerializationCalls).toBeGreaterThan(0);
+    const signedOut = await app.inject({
+      method: "GET",
+      url: "/v1/export",
+      headers: { "x-nimanto-expected-session-id": replacementSessionId },
+    });
+    expect(signedOut.statusCode).toBe(401);
+    expect(signedOut.json().error.code).toBe("AUTHENTICATION_REQUIRED");
+    expect(serialize).toHaveBeenCalledTimes(completedSerializationCalls);
+    const ordinaryRead = await app.inject({
+      method: "GET",
+      url: "/v1/dashboard",
+      headers: { cookie, "x-nimanto-expected-session-id": sessionId },
+    });
+    expect(ordinaryRead.statusCode).toBe(200);
+    const preflight = await app.inject({
+      method: "OPTIONS",
+      url: "/v1/export",
+      headers: {
+        origin: "http://127.0.0.1:4300",
+        "access-control-request-method": "GET",
+        "access-control-request-headers": "x-nimanto-expected-session-id",
+      },
+    });
+    expect(preflight.statusCode).toBe(204);
+    expect(preflight.headers["access-control-allow-headers"]).toContain(
+      "x-nimanto-expected-session-id",
+    );
+  });
+
+  it("rejects foreign and opaque browser Origins without a Profile Version write, retaining local CLI access", async () => {
+    const { app, cookie, sessionId } = await setup();
+    const versions = async () =>
+      (
+        await app.inject({
+          method: "GET",
+          url: "/v1/history/profile-versions",
+          headers: { cookie },
+        })
+      ).json();
+    const before = await versions();
+    for (const origin of ["http://127.0.0.1:4399", "null"]) {
+      for (const expected of [undefined, sessionId]) {
+        const result = await app.inject({
+          method: "POST",
+          url: "/v1/profile/versions",
+          headers: {
+            cookie,
+            origin,
+            ...(expected ? { "x-nimanto-expected-session-id": expected } : {}),
+          },
+        });
+        expect(result.statusCode).toBe(403);
+        expect(result.json().error.code).toBe("UNTRUSTED_ORIGIN");
+        expect(await versions()).toEqual(before);
+      }
+    }
+    const cli = await app.inject({
+      method: "POST",
+      url: "/v1/profile/versions",
+      headers: { cookie },
+      payload: { authorizationWording: "Synthetic CLI wording." },
+    });
+    expect(cli.statusCode).toBe(200);
+    expect(cli.json()).toMatchObject({
+      authorizationWording: "Synthetic CLI wording.",
+      created: true,
+    });
+  });
+
   it("rejects a browser write when a sibling tab replaced the rendered session", async () => {
     const { app, sessionId } = await setup();
     const replacement = await app.inject({
@@ -2090,10 +2208,42 @@ describe("Nimanto beta API", () => {
       headers: { cookie },
     });
     expect(assurance.json()).toMatchObject({ status: "passed", findings: [] });
+    const reviewed = await reviewedPacket(app, cookie, packetId);
+    for (const payload of [
+      undefined,
+      {},
+      { ...reviewed, reviewedAssuranceId: "invalid" },
+      { ...reviewed, reviewedArtifactHash: "invalid" },
+      { ...reviewed, reviewedManifestHash: "invalid" },
+    ]) {
+      const missingReview = await app.inject({
+        method: "POST",
+        url: `/v1/packets/${packetId}/approve`,
+        headers: { cookie },
+        ...(payload === undefined ? {} : { payload }),
+      });
+      expect(missingReview.statusCode).toBe(409);
+      expect(missingReview.json().error.code).toBe("PACKET_REVIEW_REQUIRED");
+    }
+    const replacementReview = await app.inject({
+      method: "POST",
+      url: `/v1/packets/${packetId}/assure`,
+      headers: { cookie },
+    });
+    expect(replacementReview.json().status).toBe("passed");
+    const staleReview = await app.inject({
+      method: "POST",
+      url: `/v1/packets/${packetId}/approve`,
+      headers: { cookie },
+      payload: reviewed,
+    });
+    expect(staleReview.statusCode).toBe(409);
+    expect(staleReview.json().error.code).toBe("PACKET_APPROVAL_STALE");
     const approval = await app.inject({
       method: "POST",
       url: `/v1/packets/${packetId}/approve`,
       headers: { cookie },
+      payload: await reviewedPacket(app, cookie, packetId),
     });
     expect(approval.json().status).toBe("approved");
 
@@ -2183,7 +2333,7 @@ describe("Nimanto beta API", () => {
     expect(assuranceHistory.statusCode).toBe(200);
     expect(assuranceHistory.json().items[0]).toMatchObject({
       packetId,
-      packetOrdinal: 1,
+      packetOrdinal: 2,
       status: "passed",
     });
     expect(assuranceHistory.body).not.toContain("runSequence");
@@ -2264,6 +2414,7 @@ describe("Nimanto beta API", () => {
           method: "POST",
           url: `/v1/packets/${replacementPacketId}/approve`,
           headers: { cookie },
+          payload: await reviewedPacket(app, cookie, replacementPacketId),
         })
       ).json().status,
     ).toBe("approved");
@@ -2489,6 +2640,7 @@ describe("Nimanto beta API", () => {
       method: "POST",
       url: `/v1/packets/${packet.id}/approve`,
       headers: { cookie },
+      payload: await reviewedPacket(app, cookie, packet.id),
     });
     expect(approval.statusCode).toBe(409);
     expect(approval.json().error.code).toBe("ARTIFACT_INTEGRITY_FAILED");
@@ -2847,6 +2999,7 @@ describe("Nimanto beta API", () => {
             method: "POST",
             url: `/v1/packets/${id}/approve`,
             headers: { cookie },
+            payload: await reviewedPacket(app, cookie, id),
           })
         ).json().status,
       ).toBe("approved");

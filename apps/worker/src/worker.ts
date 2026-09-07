@@ -31,12 +31,14 @@ export async function runCycle(input: {
   const apiOrigin = loopbackApiOrigin(input.apiOrigin);
   const fetcher = input.fetcher ?? fetch;
   const health = await fetcher(`${apiOrigin}/health`, {
+    redirect: "error",
     headers: { accept: "application/json" },
     signal: AbortSignal.timeout(5_000),
   });
   if (!health.ok) throw new Error(`API_HEALTH_${health.status}`);
   if (!input.bootstrapSecret) throw new Error("WORKER_BOOTSTRAP_SECRET_MISSING");
   const cycle = await fetcher(`${apiOrigin}/v1/worker/cycle`, {
+    redirect: "error",
     method: "POST",
     headers: {
       accept: "application/json",

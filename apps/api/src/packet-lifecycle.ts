@@ -411,7 +411,21 @@ export class PacketLifecycle {
     });
   }
 
-  async approve(tenantId: string, packetId: string) {
+  async approve(
+    tenantId: string,
+    packetId: string,
+    reviewed: {
+      reviewedAssuranceId: string;
+      reviewedArtifactHash: string;
+      reviewedManifestHash: string;
+    },
+  ) {
+    if (
+      !reviewed?.reviewedAssuranceId ||
+      !reviewed.reviewedArtifactHash ||
+      !reviewed.reviewedManifestHash
+    )
+      throw new Error("PACKET_REVIEW_REQUIRED");
     return this.store.transaction(async (database) => {
       await database.lockTenantActive(tenantId);
       const pending = await database.getPacket(tenantId, packetId);
@@ -440,9 +454,9 @@ export class PacketLifecycle {
       const packet = await database.approvePacketExact(
         tenantId,
         packetId,
-        assurance.id,
-        pending.artifactHash,
-        pending.manifestHash,
+        reviewed.reviewedAssuranceId,
+        reviewed.reviewedArtifactHash,
+        reviewed.reviewedManifestHash,
       );
       await this.applyApplicationEffect(
         database,
@@ -455,7 +469,7 @@ export class PacketLifecycle {
         id: randomUUID(),
         type: "packet.approved",
         occurredAt: new Date().toISOString(),
-        input: { packetId, assuranceId: assurance.id },
+        input: { packetId, assuranceId: reviewed.reviewedAssuranceId },
         artifact: {
           packetHash: packet.artifactHash,
           manifestHash: packet.manifestHash,
@@ -464,7 +478,7 @@ export class PacketLifecycle {
       });
       await database.saveReceipt(tenantId, receipt, {
         packetId,
-        assuranceId: assurance.id,
+        assuranceId: reviewed.reviewedAssuranceId,
         artifactManifest: packet.artifactManifest,
       });
       return packet;

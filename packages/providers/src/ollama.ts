@@ -15,6 +15,7 @@ export async function localModelInventory(
   fetcher: typeof fetch = fetch,
 ): Promise<LocalModelDescriptor[]> {
   const response = await fetcher(`${OLLAMA_ORIGIN}/api/tags`, {
+    redirect: "error",
     headers: { accept: "application/json" },
     signal: AbortSignal.timeout(2_000),
   });
@@ -76,6 +77,7 @@ export async function reviewLocalPacket(
     "</UNTRUSTED_PACKET_JSON>",
   ].join("\n");
   const response = await fetcher(`${OLLAMA_ORIGIN}/api/generate`, {
+    redirect: "error",
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
@@ -141,6 +143,7 @@ export async function draftLocalSummary(
     evidence,
   ].join("\n");
   const response = await fetcher(`${OLLAMA_ORIGIN}/api/generate`, {
+    redirect: "error",
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({

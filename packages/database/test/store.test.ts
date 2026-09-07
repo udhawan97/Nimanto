@@ -2870,11 +2870,29 @@ describe("beta workflow persistence", () => {
       sourceMeta: {},
       contentHash: "content-2",
     });
-    const application = await store.createApplication(identity.tenantId, job.id, null);
+    const profile = await store.createProfileVersion(identity.tenantId, "Synthetic wording");
+    const match = await store.saveMatch(
+      identity.tenantId,
+      job.id,
+      profile.id,
+      matchJob({ job, evidence: [] }),
+    );
+    const application = await store.createApplication(identity.tenantId, job.id, profile.id);
     const packet = await store.createPacket(identity.tenantId, {
       applicationId: application.id,
-      profileVersionId: null,
-      canonicalContent: { claims: [] },
+      profileVersionId: profile.id,
+      canonicalContent: {
+        schemaVersion: "packet_v2",
+        composition: {
+          profileVersionId: profile.id,
+          matchRunId: match.id,
+          matchInputHash: match.inputHash,
+          matchArtifactHash: match.artifactHash,
+          jobContentHash: job.contentHash,
+          evidenceIds: [],
+        },
+        claims: [],
+      },
       artifactManifest: {},
     });
     const olderPassing = await store.saveAssurance(identity.tenantId, packet.id, {

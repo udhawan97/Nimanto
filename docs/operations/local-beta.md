@@ -33,6 +33,27 @@ screen names `.nimanto-data/launch-secret` as the file that holds it.
 
 The API binds to loopback by default. Do not change `NIMANTO_API_HOST` to a public interface without adding production authentication, secure cookies, TLS, and a reviewed deployment configuration.
 
+## Database ownership on current main
+
+Current main holds a single-writer lock using Node's built-in SQLite API. The
+private `.nimanto-lock.sqlite` sidecar stays in the database directory after
+close; the operating system releases its exclusive lock when the process exits,
+including after a crash. Never delete, replace, or restore that file while any
+Nimanto process is running. Keep the entire directory together in stopped
+backups. The database remains PGlite; the sidecar contains no candidate records.
+
+Stop **all** Nimanto processes before upgrading to this locking protocol, and
+do not run older and newer versions against the same directory. The complete
+`.nimanto-lock` JSON marker remains present while open for older clients, but
+older versions do not serialize stale-marker recovery. A known dead legacy
+owner is recoverable; an empty, malformed, or live legacy marker blocks startup.
+If a legacy marker is unreadable, confirm every Nimanto process is stopped before
+removing only `.nimanto-lock` and restarting. An ordinary `DATA_DIRECTORY_IN_USE`
+error means stop the existing owner; deleting the SQLite sidecar is not a remedy.
+The built-in API is available throughout the supported Node 24–26 range; its
+[Node 24 documentation](https://nodejs.org/download/release/latest-v24.x/docs/api/sqlite.html)
+still labels it release candidate.
+
 ## Upgrade to v0.9.0
 
 Stop the API, copy the complete `.nimanto-data/` directory, update to the exact

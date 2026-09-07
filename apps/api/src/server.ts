@@ -329,6 +329,18 @@ const UNREADABLE_DOCUMENT_MESSAGES: Record<string, string> = {
  * and the Submission Record policy is answered as a client error. */
 export function messageForError(error: Error): { code: string; status: number; message: string } {
   const code = /^[A-Z0-9_]+$/.test(error.message) ? error.message : "INTERNAL_ERROR";
+  if (code === "UNTRUSTED_ORIGIN")
+    return {
+      code,
+      status: 403,
+      message: "Open the configured local Nimanto workspace to make changes.",
+    };
+  if (code === "PACKET_REVIEW_REQUIRED")
+    return {
+      code,
+      status: 409,
+      message: "Review the current Assurance Run and exact packet hashes before approving.",
+    };
   if (code === "AUTHENTICATION_REQUIRED")
     return { code, status: 401, message: "Start or resume a local Nimanto session." };
   if (code === "INVALID_BOOTSTRAP_SECRET")
@@ -950,6 +962,13 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
   });
 
   app.addHook("preHandler", async (request, reply) => {
+    const mutation = !["GET", "HEAD", "OPTIONS"].includes(request.method.toUpperCase());
+    const origin = request.headers.origin;
+    // CORS restricts response reads; a browser Origin must also authorize writes.
+    // No-Origin local CLI requests retain their existing authentication contract.
+    if (mutation && origin !== undefined && origin !== options.webOrigin) {
+      throw new Error("UNTRUSTED_ORIGIN");
+    }
     if (
       !request.url.startsWith("/v1/") ||
       request.url.startsWith("/v1/auth/demo") ||
@@ -979,17 +998,15 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
         },
       });
     request.identity = session;
-    const method = request.method.toUpperCase();
     const expected = request.headers["x-nimanto-expected-session-id"];
-    const browserMutation =
-      !["GET", "HEAD", "OPTIONS"].includes(method) && request.headers.origin === options.webOrigin;
+    const browserMutation = mutation && origin !== undefined;
     /* Browser tabs share the session cookie. The UI's tab-local session id is
      * the server-authoritative fence that prevents a stale tab from writing a
      * previous candidate's draft into a replacement workspace. Direct local
      * API clients have no browser tab state; if they opt into the header, it is
      * still validated. */
     if (
-      !["GET", "HEAD", "OPTIONS"].includes(method) &&
+      mutation &&
       (browserMutation || expected !== undefined) &&
       (typeof expected !== "string" || expected !== session.sessionId)
     ) {
@@ -1703,7 +1720,23 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
   app.post("/v1/packets/:id/approve", async (request) => {
     const person = identity(request);
     const packetId = (request.params as { id: string }).id;
-    return packetLifecycle.approve(person.tenantId, packetId);
+    const body = object(request.body ?? {});
+    if (
+      typeof body.reviewedAssuranceId !== "string" ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
+        body.reviewedAssuranceId,
+      ) ||
+      typeof body.reviewedArtifactHash !== "string" ||
+      !/^[0-9a-f]{64}$/u.test(body.reviewedArtifactHash) ||
+      typeof body.reviewedManifestHash !== "string" ||
+      !/^[0-9a-f]{64}$/u.test(body.reviewedManifestHash)
+    )
+      throw new Error("PACKET_REVIEW_REQUIRED");
+    return packetLifecycle.approve(person.tenantId, packetId, {
+      reviewedAssuranceId: body.reviewedAssuranceId,
+      reviewedArtifactHash: body.reviewedArtifactHash,
+      reviewedManifestHash: body.reviewedManifestHash,
+    });
   });
   app.get("/v1/packets/:id/artifacts/:format", async (request, reply) => {
     const person = identity(request);
@@ -1775,6 +1808,11 @@ export async function buildServer(options: NimantoApiOptions): Promise<FastifyIn
 
   app.get("/v1/export", async (request, reply) => {
     const person = identity(request);
+    const expected = request.headers["x-nimanto-expected-session-id"];
+    // Browser export intent is bound to the displayed session. Authenticated
+    // CLI clients omitting this header retain the existing cookie contract.
+    if (expected !== undefined && (typeof expected !== "string" || expected !== person.sessionId))
+      throw new Error("IDENTITY_CHANGED");
     const workspace = await store.exportTenant(person.tenantId);
     return reply.header("content-disposition", 'attachment; filename="nimanto-export.json"').send({
       exportVersion: "nimanto-local-beta-v10",

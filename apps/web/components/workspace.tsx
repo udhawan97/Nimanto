@@ -47,6 +47,7 @@ import {
   useDeferredValue,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useReducer,
   useRef,
@@ -337,6 +338,7 @@ type Packet = {
   createdAt: string;
   updatedAt: string;
   artifactHash: string;
+  manifestHash: string;
   canonicalContent: {
     schemaVersion?: string;
     candidateName?: string;
@@ -2058,6 +2060,7 @@ function ConfirmAction({
   className = "button mini",
   triggerLabel,
   descriptionId,
+  resetIdentity,
 }: {
   label: ReactNode;
   question: string;
@@ -2069,10 +2072,23 @@ function ConfirmAction({
   className?: string;
   triggerLabel?: string;
   descriptionId?: string;
+  resetIdentity?: string;
 }) {
   const [armed, setArmed] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
   const returnFocus = useRef(false);
+  const confirmation = useRef<HTMLDivElement>(null);
+  const reviewedIdentity = useRef(resetIdentity);
+
+  // Close a superseded review before paint, restoring keyboard focus only
+  // when it belonged to that confirmation.
+  useLayoutEffect(() => {
+    if (reviewedIdentity.current === resetIdentity) return;
+    reviewedIdentity.current = resetIdentity;
+    if (!armed) return;
+    returnFocus.current = confirmation.current?.contains(document.activeElement) ?? false;
+    setArmed(false);
+  }, [resetIdentity, armed]);
 
   /* Cancelling puts focus back on the control the candidate pressed. The
    * trigger is unmounted while armed, so this waits for it to come back. */
@@ -2105,6 +2121,7 @@ function ConfirmAction({
 
   return (
     <ConfirmationStrip
+      groupRef={confirmation}
       question={question}
       supportingContent={supportingContent}
       confirmLabel={confirmLabel}
@@ -2120,6 +2137,7 @@ function ConfirmAction({
 }
 
 function ConfirmationStrip({
+  groupRef,
   question,
   supportingContent,
   confirmLabel,
@@ -2128,6 +2146,7 @@ function ConfirmationStrip({
   onCancel,
   disabled,
 }: {
+  groupRef?: { current: HTMLDivElement | null };
   question: string;
   supportingContent?: ReactNode;
   confirmLabel: string;
@@ -2138,6 +2157,7 @@ function ConfirmationStrip({
 }) {
   return (
     <div
+      ref={groupRef}
       className="confirm-strip"
       role="group"
       aria-label={question}
@@ -2166,6 +2186,61 @@ function ConfirmationStrip({
   );
 }
 
+export function PacketApprovalConfirmation({
+  packet,
+  onApprove,
+  disabled,
+  className,
+  descriptionId,
+}: {
+  packet: Packet;
+  onApprove: (reviewed: {
+    reviewedAssuranceId: string;
+    reviewedArtifactHash: string;
+    reviewedManifestHash: string;
+  }) => void;
+  disabled: boolean;
+  className?: string;
+  descriptionId?: string;
+}) {
+  const assuranceId = packet.latestAssurance?.id;
+  return (
+    <ConfirmAction
+      resetIdentity={JSON.stringify([
+        packet.id,
+        assuranceId,
+        packet.artifactHash,
+        packet.manifestHash,
+      ])}
+      {...(className ? { className } : {})}
+      {...(descriptionId ? { descriptionId } : {})}
+      label={
+        <>
+          <Check size={15} /> Approve
+        </>
+      }
+      question={`Approve packet ${packet.id.slice(0, 8)} for export?`}
+      supportingContent={<PacketApprovalContext packet={packet} />}
+      confirmLabel="Approve this packet"
+      cancelLabel="Cancel"
+      disabled={
+        disabled ||
+        packet.status !== "assurance_passed" ||
+        packet.latestAssurance?.status !== "passed" ||
+        !packet.manifestHash
+      }
+      onConfirm={() => {
+        if (!assuranceId) return;
+        onApprove({
+          reviewedAssuranceId: assuranceId,
+          reviewedArtifactHash: packet.artifactHash,
+          reviewedManifestHash: packet.manifestHash,
+        });
+      }}
+    />
+  );
+}
+
 function PacketApprovalContext({ packet }: { packet: Packet }) {
   const artifacts = packet.artifactManifest.artifacts ?? [];
   return (
@@ -2185,6 +2260,18 @@ function PacketApprovalContext({ packet }: { packet: Packet }) {
             <dt>Frozen packet ID</dt>
             <dd>
               <code aria-label="Exact frozen packet ID">{packet.id}</code>
+            </dd>
+          </div>
+          <div>
+            <dt>Reviewed Assurance Run</dt>
+            <dd>
+              <code>{packet.latestAssurance?.id}</code>
+            </dd>
+          </div>
+          <div>
+            <dt>Manifest SHA-256</dt>
+            <dd>
+              <code>{packet.manifestHash}</code>
             </dd>
           </div>
           <div>
@@ -7801,27 +7888,22 @@ function Packets({
                     >
                       <ShieldCheck size={15} /> Assure
                     </button>
-                    <ConfirmAction
+                    <PacketApprovalConfirmation
+                      packet={packet}
                       className={`button mini ${packet.status === "assurance_passed" ? "primary" : "quiet"}`}
-                      label={
-                        <>
-                          <Check size={15} /> Approve
-                        </>
-                      }
-                      question={`Approve packet ${packet.id.slice(0, 8)} for export?`}
-                      supportingContent={<PacketApprovalContext packet={packet} />}
-                      confirmLabel="Approve this packet"
-                      cancelLabel="Cancel"
                       disabled={busy || packetProfileStale || packet.status !== "assurance_passed"}
                       {...(packetProfileStale
                         ? { descriptionId: `packet-stale-profile-${packet.id}` }
                         : approvalNeedsAssurance
                           ? { descriptionId: `approve-gate-${packet.id}` }
                           : {})}
-                      onConfirm={() => {
+                      onApprove={(reviewed) => {
                         void onAct.run({
                           request: () =>
-                            api(`/v1/packets/${packet.id}/approve`, { method: "POST" }),
+                            api(`/v1/packets/${packet.id}/approve`, {
+                              method: "POST",
+                              body: JSON.stringify(reviewed),
+                            }),
                           success: "Packet approved for export.",
                         });
                       }}
@@ -8704,13 +8786,13 @@ function ActivityLedger({ dashboard }: { dashboard: Dashboard }) {
   );
 }
 
-function DataControls({
+export function DataControls({
   dashboard,
   onAct,
   busy,
   onDeleted,
 }: {
-  dashboard: Dashboard;
+  dashboard: Pick<Dashboard, "identity" | "evidence" | "applications">;
   onAct: ActionRunner;
   busy: boolean;
   onDeleted: (receipt: DeletionReceipt) => void;
@@ -8718,8 +8800,20 @@ function DataControls({
   const [confirmation, setConfirmation] = useState("");
   const [exportConfirmed, setExportConfirmed] = useState(false);
   const download = async () => {
-    const response = await fetch(`${API}/v1/export`, { credentials: "include" });
-    if (!response.ok) throw new Error("Export failed.");
+    const expectedSessionId = dashboard.identity.sessionId;
+    const response = await fetch(`${API}/v1/export`, {
+      credentials: "include",
+      headers: { "x-nimanto-expected-session-id": expectedSessionId },
+    });
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: { code?: string; message?: string };
+      };
+      throw new ApiError(
+        payload.error?.code ?? `HTTP_${response.status}`,
+        payload.error?.message ?? "Nimanto could not export that workspace.",
+      );
+    }
     const url = URL.createObjectURL(await response.blob());
     const anchor = document.createElement("a");
     anchor.href = url;

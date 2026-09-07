@@ -964,52 +964,73 @@ export function AnswerHistoryDetails({
     nextCursor: string | null;
   };
   const [history, setHistory] = useState<{
+    answerId: string;
     revision: number;
-    state: "loading" | "loaded" | "failed";
+    state: "loading" | "loaded" | "failed" | "outdated";
     revisions: AnswerRevision[];
     nextCursor: string | null;
   } | null>(null);
   const details = useRef<HTMLDetailsElement>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadMoreFailed, setLoadMoreFailed] = useState(false);
-  const currentHistory = history?.revision === answer.currentRevision ? history : null;
+  const generation = useRef(0);
+  const pendingGeneration = useRef<number | null>(null);
+  const currentHistory =
+    history?.answerId === answer.id && history.revision === answer.currentRevision ? history : null;
 
   const loadHistory = () => {
-    if (currentHistory?.state === "loading" || currentHistory?.state === "loaded") return;
+    if (pendingGeneration.current !== null || currentHistory?.state === "loaded") return;
+    const requestGeneration = ++generation.current;
+    pendingGeneration.current = requestGeneration;
     setLoadingMore(false);
     setLoadMoreFailed(false);
     setHistory({
+      answerId: answer.id,
       revision: answer.currentRevision,
       state: "loading",
       revisions: [],
       nextCursor: null,
     });
     void api<AnswerRevisionHistoryResponse>(`/v1/answer-blocks/${answer.id}/revisions`)
-      .then((record) =>
+      .then((record) => {
+        if (generation.current !== requestGeneration) return;
+        const matchesRevision = record.currentRevision === answer.currentRevision;
         setHistory({
-          revision: record.currentRevision,
-          state: "loaded",
-          revisions: record.revisions,
-          nextCursor: record.nextCursor ?? null,
-        }),
-      )
-      .catch(() =>
+          answerId: answer.id,
+          revision: answer.currentRevision,
+          state: matchesRevision ? "loaded" : "outdated",
+          revisions: matchesRevision ? record.revisions : [],
+          nextCursor: matchesRevision ? (record.nextCursor ?? null) : null,
+        });
+      })
+      .catch(() => {
+        if (generation.current !== requestGeneration) return;
         setHistory({
+          answerId: answer.id,
           revision: answer.currentRevision,
           state: "failed",
           revisions: [],
           nextCursor: null,
-        }),
-      );
+        });
+      })
+      .finally(() => {
+        if (generation.current === requestGeneration) pendingGeneration.current = null;
+      });
   };
 
   // A revision saved while the panel is open advances currentRevision, which
   // discards currentHistory. Reload so the open panel does not go blank.
   useEffect(() => {
     if (details.current?.open) loadHistory();
-  }, [answer.currentRevision]);
+    return () => {
+      generation.current += 1;
+      pendingGeneration.current = null;
+    };
+  }, [answer.id, answer.currentRevision]);
   const loadMoreHistory = () => {
-    if (!currentHistory?.nextCursor || loadingMore) return;
+    if (!currentHistory?.nextCursor || pendingGeneration.current !== null) return;
+    const requestGeneration = ++generation.current;
+    pendingGeneration.current = requestGeneration;
     const cursor = currentHistory.nextCursor;
     setLoadingMore(true);
     setLoadMoreFailed(false);
@@ -1018,10 +1039,24 @@ export function AnswerHistoryDetails({
       `/v1/answer-blocks/${answer.id}/revisions?${search.toString()}`,
     )
       .then((record) => {
-        if (record.currentRevision !== answer.currentRevision) return;
+        if (generation.current !== requestGeneration) return;
+        if (record.currentRevision !== answer.currentRevision) {
+          setHistory({
+            answerId: answer.id,
+            revision: answer.currentRevision,
+            state: "outdated",
+            revisions: [],
+            nextCursor: null,
+          });
+          return;
+        }
         setHistory((previous) =>
-          previous?.revision === answer.currentRevision && previous.state === "loaded"
+          previous?.answerId === answer.id &&
+          previous.revision === answer.currentRevision &&
+          previous.state === "loaded" &&
+          previous.nextCursor === cursor
             ? {
+                answerId: answer.id,
                 revision: record.currentRevision,
                 state: "loaded",
                 revisions: [...previous.revisions, ...record.revisions],
@@ -1030,8 +1065,14 @@ export function AnswerHistoryDetails({
             : previous,
         );
       })
-      .catch(() => setLoadMoreFailed(true))
-      .finally(() => setLoadingMore(false));
+      .catch(() => {
+        if (generation.current === requestGeneration) setLoadMoreFailed(true);
+      })
+      .finally(() => {
+        if (generation.current !== requestGeneration) return;
+        pendingGeneration.current = null;
+        setLoadingMore(false);
+      });
   };
 
   return (
@@ -1046,9 +1087,13 @@ export function AnswerHistoryDetails({
         {answer.currentRevision} retained revision{answer.currentRevision === 1 ? "" : "s"}
       </summary>
       {currentHistory?.state === "loading" && <p role="status">Loading revision history…</p>}
-      {currentHistory?.state === "failed" && (
+      {(currentHistory?.state === "failed" || currentHistory?.state === "outdated") && (
         <div>
-          <p role="alert">Revision history could not be loaded. The saved answer is unchanged.</p>
+          <p role="alert">
+            {currentHistory.state === "outdated"
+              ? "Revision history differs from the visible Answer. Refresh the workspace if a newer revision was saved, then try again."
+              : "Revision history could not be loaded. The saved answer is unchanged."}
+          </p>
           <button className="button mini quiet" type="button" onClick={loadHistory}>
             Try again
           </button>
