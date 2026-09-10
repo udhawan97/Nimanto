@@ -139,6 +139,28 @@ On POSIX systems Nimanto tightens runtime directories to `0700` and content file
 
 Stop the API before copying `.nimanto-data/`. Restore by replacing the entire directory while the API is stopped. The beta does not claim online backups, point-in-time recovery, or schema downgrade support.
 
+Stop the worker and every other process using that directory too. Keep the
+database, packet artifacts, outbox, and launch secret together. A copy taken
+before a tenant deletion can resurrect that tenant: the local beta does not
+implement an external deletion-suppression ledger. Discard older copies
+containing erased data; do not restore them.
+
+Rehearse the current stopped-copy procedure with synthetic data:
+
+```bash
+pnpm recovery:drill
+```
+
+This command builds the API dependencies, creates a temporary workspace, renders
+six packet artifacts, and verifies byte and record parity after restore. It
+checks database ownership, tenant isolation, runtime approval reset, interrupted
+action quarantine, and recovery of deletion requests already stored in the
+backup. It accepts no arguments, ignores runtime data-directory settings, opens
+no listening server, and cleans up its own temporary workspace. Success prints
+a versioned JSON report; failure exits nonzero. It does not back up or restore
+your workspace. See the [recovery plan](../planning/local-recovery-readiness.md)
+for acceptance criteria and the separate older-backup suppression phase.
+
 ## Reset the synthetic workspace
 
 Use **Data controls → Delete all data** and type the exact confirmation phrase. The deletion transaction first fences later tenant writes and captures the exact outbox cleanup inventory, then removes database tenant rows, packet artifacts, local outbox files, and the session. An authenticated write or provider effect either finishes before that fence or fails; it cannot create an untracked file afterward.

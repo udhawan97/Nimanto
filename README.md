@@ -87,6 +87,12 @@ today.
 
 ## Unreleased on main
 
+- **Local recovery rehearsal.** `pnpm recovery:drill` checks a stopped synthetic
+  database copy, all six packet artifacts, tenant isolation, approval reset,
+  interrupted actions, and deletion recovery. It uses temporary data and prints
+  a versioned result. Restoring backups from before a deletion still requires
+  external suppression, which is not implemented. See the
+  [recovery plan](docs/planning/local-recovery-readiness.md).
 - **Match Evidence Lens.** New Match Publications store the exact supported,
   source-linked, and candidate-attested-only requirement counts behind their
   Evidence Strength ordinal plus `evidence_strength_unweighted_v1`. Role

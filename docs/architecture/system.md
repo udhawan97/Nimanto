@@ -398,3 +398,10 @@ The next production seam is not another feature. It is a hosted trust layer:
 - counsel-reviewed product language and provider terms.
 
 Those gates remain visible so the local beta is not mistaken for a hosted production service.
+
+The first local operational rehearsal is available as `pnpm recovery:drill`.
+It verifies stopped synthetic directory copies against file hashes and tenant
+exports, packet integrity, ownership locks, action recovery, and deletion state
+already present in the backup. It does not implement suppression for backups
+taken before deletion. The [local recovery plan](../planning/local-recovery-readiness.md)
+separates this implemented rehearsal from external suppression and hosted recovery.
