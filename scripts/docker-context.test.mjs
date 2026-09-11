@@ -1,7 +1,7 @@
 // cspell:words mktemp
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -123,12 +123,10 @@ test("the runtime image installs production dependencies only and can still run 
   // Everything the container's CMD reaches must survive a production-only install.
   const cmd = /^CMD \[(?<arguments>[^\]]+)\]$/mu.exec(dockerfile)?.groups?.arguments;
   assert.ok(cmd, "the Dockerfile must declare a JSON-form CMD");
-  const [runner, rootScript] = JSON.parse(`[${cmd}]`);
-  assert.equal(runner, "pnpm");
-
+  const [runner, supervisor, ...commands] = JSON.parse(`[${cmd}]`);
+  assert.equal(runner, "node");
+  assert.equal(supervisor, "node_modules/concurrently/dist/bin/index.js");
   const root = await readJson("package.json");
-  const rootCommand = root.scripts[rootScript];
-  assert.ok(rootCommand, `root package.json must define the ${rootScript} script`);
 
   const requireProductionDependency = (manifest, name, binary) => {
     assert.ok(
@@ -142,7 +140,17 @@ test("the runtime image installs production dependencies only and can still run 
     assert.ok(name);
   };
 
-  requireProductionDependency(root, "root", rootCommand.trim().split(/\s+/u)[0]);
+  requireProductionDependency(root, "root", "concurrently");
+  requireProductionDependency(await readJson("apps/web/package.json"), "web", "serve");
+  assert.ok(commands.includes("--kill-others"));
+  assert.ok(commands.includes("node apps/api/dist/main.js"));
+  assert.ok(commands.includes("node apps/worker/dist/main.js"));
+  assert.ok(
+    commands.includes(
+      "node apps/web/node_modules/serve/build/main.js apps/web/out -l ${NIMANTO_WEB_PORT:-4300} --no-clipboard",
+    ),
+  );
+  assert.match(dockerfile, /^ENV NO_UPDATE_CHECK=1$/mu);
 
   // The static checks above cannot see inside the image; CI proves the claim at runtime.
   assert.match(
@@ -150,21 +158,60 @@ test("the runtime image installs production dependencies only and can still run 
     /test ! -d \/app\/node_modules\/vitest && test ! -d \/app\/node_modules\/@playwright/u,
   );
   assert.match(ci, /curl --fail --silent --show-error http:\/\/127\.0\.0\.1:4310\/health/u);
+});
 
-  const children = [
-    ...rootCommand.matchAll(/--filter (?<workspace>@nimanto\/[a-z]+) (?<script>\w+)/gu),
-  ];
-  assert.equal(children.length, 3, "start:all must run the api, worker, and web start scripts");
-  for (const child of children) {
-    const { workspace, script } = child.groups;
-    const directory = workspace.replace("@nimanto/", "apps/");
-    const manifest = await readJson(path.join(directory, "package.json"));
-    const command = manifest.scripts[script];
-    assert.ok(command, `${workspace} must define the ${script} script`);
-    const binary = command.trim().split(/\s+/u)[0];
-    if (binary === "node") {
-      continue;
+test("the runtime CMD starts without a package manager and stops peers when a service fails", async () => {
+  const dockerfile = await readFile(path.join(repository, "Dockerfile"), "utf8");
+  const command = JSON.parse(/^CMD (\[.*\])$/mu.exec(dockerfile)[1]);
+  const scratch = await mkdtemp(path.join(tmpdir(), "nimanto-runtime-start-"));
+  try {
+    await mkdir(path.join(scratch, "node_modules"));
+    await symlink(
+      path.join(repository, "node_modules/concurrently"),
+      path.join(scratch, "node_modules/concurrently"),
+      "dir",
+    );
+    const bin = path.join(scratch, "bin");
+    await mkdir(bin);
+    for (const name of ["pnpm", "corepack"]) {
+      await writeFile(
+        path.join(bin, name),
+        '#!/bin/sh\necho "unexpected-package-manager" >&2\nexit 99\n',
+        { mode: 0o755 },
+      );
     }
-    requireProductionDependency(manifest, workspace, binary);
+    for (const [name, file] of [
+      ["api", "apps/api/dist/main.js"],
+      ["worker", "apps/worker/dist/main.js"],
+      ["web", "apps/web/node_modules/serve/build/main.js"],
+    ]) {
+      await mkdir(path.dirname(path.join(scratch, file)), { recursive: true });
+      await writeFile(
+        path.join(scratch, file),
+        `console.log('${name}-started');\nprocess.on('SIGTERM',()=>{console.log('${name}-stopped');process.exit(0)});\n${name === "api" ? "setTimeout(()=>process.exit(1),1000);" : "setInterval(()=>{},1000);"}\n`,
+      );
+    }
+    await chmod(scratch, 0o555);
+    const result = await promisify(execFile)(command[0], command.slice(1), {
+      cwd: scratch,
+      env: {
+        ...process.env,
+        PATH: `${bin}${path.delimiter}${process.env.PATH}`,
+        pnpm_config_verify_deps_before_run: "install",
+      },
+      timeout: 10000,
+    }).then(
+      (value) => ({ ...value, code: 0 }),
+      (error) => error,
+    );
+    assert.equal(result.code, 1, result.stderr || result.stdout);
+    for (const name of ["api", "worker", "web"])
+      assert.match(result.stdout, new RegExp(`${name}-started`, "u"));
+    for (const name of ["worker", "web"])
+      assert.match(result.stdout, new RegExp(`${name}-stopped`, "u"));
+    assert.doesNotMatch(`${result.stdout}${result.stderr}`, /unexpected-package-manager/u);
+  } finally {
+    await chmod(scratch, 0o755);
+    await rm(scratch, { recursive: true, force: true });
   }
 });

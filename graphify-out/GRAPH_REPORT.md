@@ -1,6 +1,6 @@
 # Graph Report - Nimanto  (2026-09-10)
 
-Scoped incremental update for selected review fixes: AST extraction of changed source plus imported-symbol context; only changed-source records merged. Existing semantic records, hyperedges and unaffected records preserved. Existing communities retained; new test files receive their own groups. No private notes or generated inventory content extracted. CLI update could not traverse the sandboxed Git worktree boundary; the skill incremental merge flow was used. Screenshot JSON produced zero AST nodes; Dockerfile, lockfile and workspace YAML have no supported AST extraction. Their validation remains source/test evidence, not graph coverage. Token cost: 0 input and 0 output.
+Scoped incremental update for the Docker runtime follow-up: AST extraction of changed source plus imported-symbol context; only changed-source records merged. Existing semantic records, hyperedges and unaffected records preserved. Existing communities retained; new test files receive their own groups. No private notes or generated inventory content extracted. CLI update could not traverse the sandboxed Git worktree boundary; the skill incremental merge flow was used. Inherited coverage limit: screenshot JSON has no AST nodes; Dockerfile, lockfile and workspace YAML have no supported AST extraction. Their validation remains source/test evidence, not graph coverage. Token cost: 0 input and 0 output.
 
 ## Corpus Check
 - 308 manifest entries; full-corpus word count not recomputed for this scoped update.
