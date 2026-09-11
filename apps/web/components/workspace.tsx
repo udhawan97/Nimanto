@@ -1049,6 +1049,9 @@ export function Workspace() {
    * workspace while this one still has candidate-authored drafts in memory, so
    * dashboard replacement needs a stable identity fence of its own. */
   const dashboardIdentity = useRef<string | null>(null);
+  // Every refresh phase belongs to one read generation. Identity transitions
+  // invalidate pending reads before they can restore an old signed-in surface.
+  const refreshGeneration = useRef(0);
   const [identityEpoch, setIdentityEpoch] = useState(0);
   // Held here, not in Data controls: deleting the workspace clears the session,
   // so that panel unmounts before the candidate could copy the token.
@@ -1154,6 +1157,7 @@ export function Workspace() {
   }, [navigationTransitions, readHash, routeReady]);
 
   const applyIdentityTransition = useCallback((event: IdentityTransitionEvent) => {
+    refreshGeneration.current += 1;
     const plan = workspaceIdentityTransitions.plan(event);
     if (plan.clearCredentials) {
       window.sessionStorage.removeItem("nimanto_bootstrap");
@@ -1299,8 +1303,12 @@ export function Workspace() {
   }, [applyIdentityTransition]);
 
   const refresh = useCallback(async (): Promise<RefreshOutcome> => {
+    const generation = ++refreshGeneration.current;
+    const current = () => generation === refreshGeneration.current;
     try {
       const status = await api<{ authenticated: boolean }>("/v1/auth/status");
+      // A superseded read has no UI outcome, including no reconciliation notice.
+      if (!current()) return "failed";
       setApiReachable(true);
       if (!status.authenticated) {
         requireAuthentication();
@@ -1310,6 +1318,7 @@ export function Workspace() {
         api<Dashboard>("/v1/dashboard"),
         api<RuntimeMeta>("/v1/meta"),
       ]);
+      if (!current()) return "failed";
       const incomingIdentity = value.identity.sessionId;
       if (dashboardIdentity.current && dashboardIdentity.current !== incomingIdentity) {
         // A sibling tab rotated the shared authenticated cookie. Clear every
@@ -1323,6 +1332,7 @@ export function Workspace() {
       setAuthRequired(false);
       return "ready";
     } catch (error) {
+      if (!current()) return "failed";
       if (error instanceof ApiError && error.code === "AUTHENTICATION_REQUIRED") {
         // The API answered, it just refused. That is a reachable service.
         setApiReachable(true);
@@ -1340,6 +1350,9 @@ export function Workspace() {
 
   useEffect(() => {
     void refresh();
+    return () => {
+      refreshGeneration.current += 1;
+    };
   }, [refresh]);
 
   /* `apiReachable` used to change only when the candidate did something, so the
@@ -5375,9 +5388,20 @@ function StoredHistory() {
   const [matchAfter, setMatchAfter] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [loadingOlder, setLoadingOlder] = useState({
+    profiles: false,
+    overview: false,
+    runs: false,
+  });
+  const [pageErrors, setPageErrors] = useState({ profiles: "", overview: "", runs: "" });
+  const profileRequests = useRef(createScopedRequestGate<string>()).current;
+  const overviewRequests = useRef(createScopedRequestGate<string>()).current;
+  const runRequests = useRef(createScopedRequestGate<string>()).current;
 
   useEffect(() => {
     let cancelled = false;
+    profileRequests.select("profiles");
+    overviewRequests.select("overview");
     void Promise.all([
       api<HistoryPage<ProfileVersion>>("/v1/history/profile-versions?limit=20"),
       api<HistoryPage<MatchHistoryRun>>("/v1/history/match-runs?limit=20"),
@@ -5398,10 +5422,15 @@ function StoredHistory() {
       });
     return () => {
       cancelled = true;
+      profileRequests.select(null);
+      overviewRequests.select(null);
     };
-  }, []);
+  }, [overviewRequests, profileRequests]);
 
   useEffect(() => {
+    runRequests.select(selectedJobId || null);
+    setLoadingOlder((current) => ({ ...current, runs: false }));
+    setPageErrors((current) => ({ ...current, runs: "" }));
     if (!selectedJobId) {
       setJobRuns(null);
       return;
@@ -5422,8 +5451,9 @@ function StoredHistory() {
       });
     return () => {
       cancelled = true;
+      runRequests.select(null);
     };
-  }, [selectedJobId]);
+  }, [runRequests, selectedJobId]);
 
   const profileVersions = profiles?.items ?? [];
   const beforeProfile = profileVersions.find((item) => item.id === profileBefore);
@@ -5442,27 +5472,91 @@ function StoredHistory() {
 
   const appendProfiles = async () => {
     if (!profiles?.nextCursor) return;
-    const page = await api<HistoryPage<ProfileVersion>>(
-      `/v1/history/profile-versions?limit=20&cursor=${encodeURIComponent(profiles.nextCursor)}`,
-    );
-    setProfiles({ items: [...profiles.items, ...page.items], nextCursor: page.nextCursor });
+    const cursor = profiles.nextCursor;
+    const request = profileRequests.begin("profiles");
+    if (!request) return;
+    setLoadingOlder((current) => ({ ...current, profiles: true }));
+    setPageErrors((current) => ({ ...current, profiles: "" }));
+    try {
+      const page = await api<HistoryPage<ProfileVersion>>(
+        `/v1/history/profile-versions?limit=20&cursor=${encodeURIComponent(cursor)}`,
+      );
+      if (!profileRequests.isCurrent(request)) return;
+      setProfiles((current) =>
+        current?.nextCursor === cursor
+          ? { items: [...current.items, ...page.items], nextCursor: page.nextCursor }
+          : current,
+      );
+    } catch {
+      if (profileRequests.isCurrent(request)) {
+        setPageErrors((current) => ({
+          ...current,
+          profiles:
+            "Older profile versions could not be loaded. Use Load older profile versions to try again.",
+        }));
+      }
+    } finally {
+      if (profileRequests.finish(request))
+        setLoadingOlder((current) => ({ ...current, profiles: false }));
+    }
   };
   const appendMatchOverview = async () => {
     if (!matchOverview?.nextCursor) return;
-    const page = await api<HistoryPage<MatchHistoryRun>>(
-      `/v1/history/match-runs?limit=20&cursor=${encodeURIComponent(matchOverview.nextCursor)}`,
-    );
-    setMatchOverview({
-      items: [...matchOverview.items, ...page.items],
-      nextCursor: page.nextCursor,
-    });
+    const cursor = matchOverview.nextCursor;
+    const request = overviewRequests.begin("overview");
+    if (!request) return;
+    setLoadingOlder((current) => ({ ...current, overview: true }));
+    setPageErrors((current) => ({ ...current, overview: "" }));
+    try {
+      const page = await api<HistoryPage<MatchHistoryRun>>(
+        `/v1/history/match-runs?limit=20&cursor=${encodeURIComponent(cursor)}`,
+      );
+      if (!overviewRequests.isCurrent(request)) return;
+      setMatchOverview((current) =>
+        current?.nextCursor === cursor
+          ? { items: [...current.items, ...page.items], nextCursor: page.nextCursor }
+          : current,
+      );
+    } catch {
+      if (overviewRequests.isCurrent(request)) {
+        setPageErrors((current) => ({
+          ...current,
+          overview:
+            "Older roles and runs could not be loaded. Use Load older roles and runs to try again.",
+        }));
+      }
+    } finally {
+      if (overviewRequests.finish(request))
+        setLoadingOlder((current) => ({ ...current, overview: false }));
+    }
   };
   const appendJobRuns = async () => {
     if (!jobRuns?.nextCursor || !selectedJobId) return;
-    const page = await api<HistoryPage<MatchHistoryRun>>(
-      `/v1/history/match-runs?jobId=${encodeURIComponent(selectedJobId)}&limit=20&cursor=${encodeURIComponent(jobRuns.nextCursor)}`,
-    );
-    setJobRuns({ items: [...jobRuns.items, ...page.items], nextCursor: page.nextCursor });
+    const cursor = jobRuns.nextCursor;
+    const request = runRequests.begin(selectedJobId);
+    if (!request) return;
+    setLoadingOlder((current) => ({ ...current, runs: true }));
+    setPageErrors((current) => ({ ...current, runs: "" }));
+    try {
+      const page = await api<HistoryPage<MatchHistoryRun>>(
+        `/v1/history/match-runs?jobId=${encodeURIComponent(selectedJobId)}&limit=20&cursor=${encodeURIComponent(cursor)}`,
+      );
+      if (!runRequests.isCurrent(request)) return;
+      setJobRuns((current) =>
+        current?.nextCursor === cursor
+          ? { items: [...current.items, ...page.items], nextCursor: page.nextCursor }
+          : current,
+      );
+    } catch {
+      if (runRequests.isCurrent(request)) {
+        setPageErrors((current) => ({
+          ...current,
+          runs: "Older runs could not be loaded. Use Load older runs for this role to try again.",
+        }));
+      }
+    } finally {
+      if (runRequests.finish(request)) setLoadingOlder((current) => ({ ...current, runs: false }));
+    }
   };
 
   return (
@@ -5562,13 +5656,20 @@ function StoredHistory() {
                 copy="Save another version to enable a literal diff."
               />
             )}
+            {pageErrors.profiles && (
+              <p className="field-note field-error" role="alert">
+                {pageErrors.profiles}
+              </p>
+            )}
             {profiles?.nextCursor && (
               <button
                 className="button mini quiet"
                 type="button"
+                disabled={loadingOlder.profiles}
+                aria-busy={loadingOlder.profiles}
                 onClick={() => void appendProfiles()}
               >
-                Load older profile versions
+                {loadingOlder.profiles ? "Loading older records…" : "Load older profile versions"}
               </button>
             )}
           </section>
@@ -5588,7 +5689,10 @@ function StoredHistory() {
                   Role with stored runs
                   <select
                     value={selectedJobId}
-                    onChange={(event) => setSelectedJobId(event.target.value)}
+                    onChange={(event) => {
+                      runRequests.select(event.target.value);
+                      setSelectedJobId(event.target.value);
+                    }}
                   >
                     {jobs.map((job) => (
                       <option key={job.id} value={job.id}>
@@ -5700,13 +5804,20 @@ function StoredHistory() {
                     copy="Run the same deterministic match again to enable comparison."
                   />
                 )}
+                {pageErrors.runs && (
+                  <p className="field-note field-error" role="alert">
+                    {pageErrors.runs}
+                  </p>
+                )}
                 {jobRuns?.nextCursor && (
                   <button
                     className="button mini quiet"
                     type="button"
+                    disabled={loadingOlder.runs}
+                    aria-busy={loadingOlder.runs}
                     onClick={() => void appendJobRuns()}
                   >
-                    Load older runs for this role
+                    {loadingOlder.runs ? "Loading older records…" : "Load older runs for this role"}
                   </button>
                 )}
               </>
@@ -5717,13 +5828,20 @@ function StoredHistory() {
                 copy="Run a role explanation to create the first stored match record."
               />
             )}
+            {pageErrors.overview && (
+              <p className="field-note field-error" role="alert">
+                {pageErrors.overview}
+              </p>
+            )}
             {matchOverview?.nextCursor && (
               <button
                 className="button mini quiet"
                 type="button"
+                disabled={loadingOlder.overview}
+                aria-busy={loadingOlder.overview}
                 onClick={() => void appendMatchOverview()}
               >
-                Load older roles and runs
+                {loadingOlder.overview ? "Loading older records…" : "Load older roles and runs"}
               </button>
             )}
           </section>

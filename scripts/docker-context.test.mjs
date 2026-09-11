@@ -1,9 +1,12 @@
 // cspell:words mktemp
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 
 const repository = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -38,6 +41,62 @@ test("Docker uses an allowlisted context and a source-free runtime stage", async
 
 const readJson = async (relativePath) =>
   JSON.parse(await readFile(path.join(repository, relativePath), "utf8"));
+
+test("Docker production reshaping succeeds without a terminal or inherited CI", async () => {
+  const dockerfile = await readFile(path.join(repository, "Dockerfile"), "utf8");
+  const command = /^RUN (.*pnpm install --prod --frozen-lockfile --offline)$/mu.exec(
+    dockerfile,
+  )?.[1];
+  assert.ok(command, "the Dockerfile must declare its production dependency install");
+  const scratch = await mkdtemp(path.join(tmpdir(), "nimanto-docker-install-"));
+  // Explicit false also neutralizes GitHub Actions' other CI detection flags.
+  const environment = { ...process.env, CI: "false" };
+  const run = promisify(execFile);
+  try {
+    await writeFile(
+      path.join(scratch, "package.json"),
+      JSON.stringify({
+        name: "synthetic-container",
+        private: true,
+        dependencies: { "runtime-tool": "file:fixtures/runtime-tool" },
+        devDependencies: { "build-tool": "file:fixtures/build-tool" },
+      }),
+    );
+    await writeFile(path.join(scratch, "pnpm-workspace.yaml"), "packages:\n  - packages/*\n");
+    for (const name of ["runtime-tool", "build-tool"]) {
+      const directory = path.join(scratch, "fixtures", name);
+      await mkdir(directory, { recursive: true });
+      await writeFile(
+        path.join(directory, "package.json"),
+        JSON.stringify({ name, version: "1.0.0" }),
+      );
+    }
+    await mkdir(path.join(scratch, "packages", "app"), { recursive: true });
+    await writeFile(
+      path.join(scratch, "packages", "app", "package.json"),
+      JSON.stringify({
+        name: "synthetic-app",
+        private: true,
+        dependencies: { "runtime-tool": "file:../../fixtures/runtime-tool" },
+        devDependencies: { "build-tool": "file:../../fixtures/build-tool" },
+      }),
+    );
+    const settings = { cwd: scratch, env: environment, timeout: 30_000 };
+    await run("pnpm", ["install", "--offline", "--ignore-scripts"], settings);
+    await run("sh", ["-c", command], settings);
+    const installed = await readFile(
+      path.join(scratch, "node_modules", "runtime-tool", "package.json"),
+      "utf8",
+    );
+    assert.equal(JSON.parse(installed).name, "runtime-tool");
+    await assert.rejects(
+      readFile(path.join(scratch, "node_modules", "build-tool", "package.json")),
+      { code: "ENOENT" },
+    );
+  } finally {
+    await rm(scratch, { recursive: true, force: true });
+  }
+});
 
 test("the runtime image installs production dependencies only and can still run its CMD", async () => {
   const [dockerfile, ci] = await Promise.all([

@@ -100,7 +100,7 @@ export function changedApplicationsForView(input: {
     createdAt?: string;
     followUpOn?: string | null;
     job?: { title: string; company: string };
-    outcomes?: Array<{ occurredAt: string }>;
+    outcomes?: Array<{ occurredAt: string; createdAt?: string }>;
     notes?: Array<{ text: string; recordedAt: string }>;
     statusEvents?: Array<{
       id: string;
@@ -128,7 +128,7 @@ export function changedApplicationsForView(input: {
       updatedAt: string;
     }>;
     contacts: ReadonlyArray<{
-      applicationLinks: ReadonlyArray<{ applicationId: string }>;
+      applicationLinks: ReadonlyArray<{ applicationId: string; createdAt?: string }>;
       createdAt: string;
       updatedAt: string;
     }>;
@@ -173,7 +173,8 @@ export function changedApplicationsForView(input: {
       application.updatedAt,
       application.createdAt,
       job?.updatedAt,
-      ...(application.outcomes ?? []).map((outcome) => outcome.occurredAt),
+      // Recording an earlier event is still new information after review.
+      ...(application.outcomes ?? []).flatMap((outcome) => [outcome.createdAt, outcome.occurredAt]),
       ...(application.notes ?? []).map((note) => note.recordedAt),
       ...(application.statusEvents ?? []).map((event) => event.occurredAt),
       ...(application.activities ?? []).map((activity) => activity.occurredAt),
@@ -188,7 +189,13 @@ export function changedApplicationsForView(input: {
         .filter((contact) =>
           contact.applicationLinks.some((link) => link.applicationId === application.id),
         )
-        .flatMap((contact) => [contact.createdAt, contact.updatedAt]),
+        .flatMap((contact) => [
+          contact.createdAt,
+          contact.updatedAt,
+          ...contact.applicationLinks
+            .filter((link) => link.applicationId === application.id)
+            .map((link) => link.createdAt),
+        ]),
       ...(operations?.interviews ?? [])
         .filter((interview) => interview.applicationId === application.id)
         .flatMap((interview) => [interview.createdAt, interview.updatedAt]),

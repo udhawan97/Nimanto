@@ -6,6 +6,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { after, test } from "node:test";
 import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
 import { verifyChecksumManifest } from "./verify-sbom-checksums.mjs";
 
 const repository = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -95,4 +96,73 @@ test("the checksum verifier rejects stale bytes and an incomplete manifest", asy
   const failures = await verifyChecksumManifest(manifest, [first, second]);
   assert.ok(failures.some((failure) => failure.includes("expected exactly")));
   assert.ok(failures.some((failure) => failure.includes("checksum mismatch")));
+});
+
+test("historical inventories require real versioned critical package identities", async () => {
+  for (const format of ["cdx", "spdx"]) {
+    const original = JSON.parse(
+      await readFile(path.join(repository, `docs/releases/nimanto-v0.9.0.${format}.json`), "utf8"),
+    );
+    for (const name of ["next", "react-dom", "serve", "%40fastify/cookie"]) {
+      for (const replacement of ["pkg:npm/removed@1.0.0", `pkg:npm/${name}@latest`]) {
+        const document = structuredClone(original);
+        const entries = format === "cdx" ? document.components : document["@graph"];
+        const field = format === "cdx" ? "purl" : "software_packageUrl";
+        let changed = false;
+        for (const entry of entries) {
+          if (entry[field]?.startsWith(`pkg:npm/${name}@`)) {
+            entry[field] = replacement;
+            changed = true;
+          }
+        }
+        assert.ok(changed, `${format} contains ${name}`);
+        const target = path.join(fixture, `critical-${format}.json`);
+        await writeFile(target, JSON.stringify(document));
+        const result = spawnSync(
+          process.execPath,
+          ["scripts/validate-sbom.mjs", "--version", "0.9.0", target],
+          { cwd: repository, encoding: "utf8" },
+        );
+        assert.notEqual(result.status, 0);
+        assert.match(result.stderr, /missing required versioned component/u);
+      }
+    }
+  }
+});
+
+test("current inventories still require installed dependency versions", async () => {
+  const workspaceRequire = createRequire(path.join(repository, "apps/web/package.json"));
+  const installedNext = workspaceRequire("next/package.json").version;
+  const manifest = JSON.parse(await readFile(path.join(repository, "package.json"), "utf8"));
+  const original = await readFile(
+    path.join(repository, "docs/releases/nimanto-v0.9.0.cdx.json"),
+    "utf8",
+  );
+  const target = path.join(fixture, "old-dependencies.cdx.json");
+  await writeFile(target, original.replaceAll("nimanto@0.9.0", `nimanto@${manifest.version}`));
+  for (const versionArgs of [[], ["--version", manifest.version]]) {
+    const result = spawnSync(
+      process.execPath,
+      ["scripts/validate-sbom.mjs", ...versionArgs, target],
+      { cwd: repository, encoding: "utf8" },
+    );
+    assert.notEqual(result.status, 0);
+    assert.ok(result.stderr.includes(`missing required component pkg:npm/next@${installedNext}`));
+  }
+});
+
+test("historical inventories reject an incorrect root release identity", async () => {
+  const original = await readFile(
+    path.join(repository, "docs/releases/nimanto-v0.9.0.cdx.json"),
+    "utf8",
+  );
+  const target = path.join(fixture, "wrong-root.cdx.json");
+  await writeFile(target, original.replaceAll("pkg:npm/nimanto@0.9.0", "pkg:npm/nimanto@0.0.0"));
+  const result = spawnSync(
+    process.execPath,
+    ["scripts/validate-sbom.mjs", "--version", "0.9.0", target],
+    { cwd: repository, encoding: "utf8" },
+  );
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /does not identify the root release/u);
 });
