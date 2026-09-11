@@ -1067,6 +1067,7 @@ describe("Nimanto beta API", () => {
       type: string;
       note: string;
       occurredAt: string;
+      createdAt: string;
     }> = [];
     for (const type of ["reply", "screen"]) {
       const recorded = await app.inject({
@@ -1103,12 +1104,14 @@ describe("Nimanto beta API", () => {
     );
     expect(returnedApplication.outcomes).toHaveLength(2);
     for (const recorded of recordedOutcomes) {
+      expect(new Date(recorded.createdAt).toISOString()).toBe(recorded.createdAt);
       expect(returnedApplication.outcomes).toContainEqual({
         id: recorded.id,
         applicationId: recorded.applicationId,
         type: recorded.type,
         note: recorded.note,
         occurredAt: recorded.occurredAt,
+        createdAt: recorded.createdAt,
       });
     }
   });

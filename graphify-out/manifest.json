@@ -55,8 +55,8 @@
     "semantic_hash": ""
   },
   "apps/api/test/server.test.ts": {
-    "mtime": 1788767563.0454,
-    "ast_hash": "16c1e115ed3dcc4b363e69784a072dfd",
+    "mtime": 1789088158.9534402,
+    "ast_hash": "afe822f36888b0f5bb6d5361b7e42748",
     "semantic_hash": ""
   },
   "apps/api/tsconfig.build.json": {
@@ -100,8 +100,8 @@
     "semantic_hash": "f8d493b6c925f9d3d7a6fc53bac435db"
   },
   "apps/web/components/workspace.tsx": {
-    "mtime": 1788767563.0454829,
-    "ast_hash": "5b93865f27f2c4ac8e3fb6c11e8245b4",
+    "mtime": 1789086983.746453,
+    "ast_hash": "5e2a6dfc976df22761716db3b3e20d47",
     "semantic_hash": ""
   },
   "apps/web/next-env.d.ts": {
@@ -115,8 +115,8 @@
     "semantic_hash": "a1b08f82af5dc21fa7b13f6e229aef2b"
   },
   "apps/web/package.json": {
-    "mtime": 1788766318.2580109,
-    "ast_hash": "97ce953e95473f6c75774641ea1b4bc0",
+    "mtime": 1789086701.2075384,
+    "ast_hash": "3c1b04a6ee04ccb4f30d42fbf7dd1509",
     "semantic_hash": ""
   },
   "apps/web/public/sw.js": {
@@ -165,8 +165,8 @@
     "semantic_hash": "7efe22b8a5e35beacd47979efa608497"
   },
   "package.json": {
-    "mtime": 1789083882.096063,
-    "ast_hash": "f56a66c105007a9c49725bac4c8ad1db",
+    "mtime": 1789086701.2079735,
+    "ast_hash": "893dc7a74f856e7712bfa6b6824c5e2e",
     "semantic_hash": ""
   },
   "packages/database/package.json": {
@@ -185,8 +185,8 @@
     "semantic_hash": ""
   },
   "packages/database/src/store.ts": {
-    "mtime": 1788768149.068088,
-    "ast_hash": "01fe43334bc468da91a0112b1ad7ca2e",
+    "mtime": 1789086343.4188504,
+    "ast_hash": "a8de9c9478949e5a2bf0ee6db28f9f62",
     "semantic_hash": ""
   },
   "packages/database/test/store.test.ts": {
@@ -455,9 +455,9 @@
     "semantic_hash": "5c20aad5c88e4e8574b0a0430e4b9c03"
   },
   "pnpm-workspace.yaml": {
-    "mtime": 1788766318.4218595,
-    "ast_hash": "0fe7d0065154990464b060bcbfb8da5d",
-    "semantic_hash": "0fe7d0065154990464b060bcbfb8da5d"
+    "mtime": 1789086701.2090464,
+    "ast_hash": "e38a037a8eb655c6532512d829f424eb",
+    "semantic_hash": ""
   },
   "apps/web/public/assets/icon.svg": {
     "mtime": 1788766318.258502,
@@ -475,8 +475,8 @@
     "semantic_hash": ""
   },
   "docs/assets/nimanto-workbench.png": {
-    "mtime": 1788769118.5241294,
-    "ast_hash": "666cfe90c7cebe70fb280d84496e8557",
+    "mtime": 1789087717.8667848,
+    "ast_hash": "90e6ac29775fad494e8e44691ff45db1",
     "semantic_hash": ""
   },
   "packages/domain/src/sponsorship.ts": {
@@ -495,8 +495,8 @@
     "semantic_hash": ""
   },
   "tests/e2e/local-beta.spec.ts": {
-    "mtime": 1788766318.4243753,
-    "ast_hash": "c20c71c436c5a051898c20da38b8f2a2",
+    "mtime": 1789086983.7467446,
+    "ast_hash": "95f2b2f519944fe63f08f794bc45c745",
     "semantic_hash": ""
   },
   "docs/releases/v0.1.0-slice-matrix.md": {
@@ -540,8 +540,8 @@
     "semantic_hash": "ffdaf381189c4b4ad3b3ead62c8f77d8"
   },
   "scripts/validate-sbom.mjs": {
-    "mtime": 1788766318.423168,
-    "ast_hash": "fbb5fb426855fd43c620038970a485f4",
+    "mtime": 1789088124.2188165,
+    "ast_hash": "b041d12bf6761972f81e5467beaf6b8c",
     "semantic_hash": ""
   },
   "packages/domain/src/schedules.ts": {
@@ -725,8 +725,8 @@
     "semantic_hash": "e5f2ac0cf10c8d49148fa9aa49c37897"
   },
   "apps/web/public/assets/nimanto-workbench.png": {
-    "mtime": 1788769118.520225,
-    "ast_hash": "666cfe90c7cebe70fb280d84496e8557",
+    "mtime": 1789087717.8679404,
+    "ast_hash": "90e6ac29775fad494e8e44691ff45db1",
     "semantic_hash": ""
   },
   "apps/api/src/deletion-coordinator.ts": {
@@ -950,8 +950,8 @@
     "semantic_hash": "c62006e6d668facd0e1e76e62e664d04"
   },
   "scripts/release-assets.test.mjs": {
-    "mtime": 1788766318.4224424,
-    "ast_hash": "869eea0f8b514f7c3792b77b22f478e8",
+    "mtime": 1789088124.218746,
+    "ast_hash": "e60616095c10f0b1e489130d77e3d1af",
     "semantic_hash": ""
   },
   "scripts/validate-version-sync.mjs": {
@@ -995,8 +995,8 @@
     "semantic_hash": ""
   },
   "docs/assets/nimanto-screenshots.json": {
-    "mtime": 1788769118.5240135,
-    "ast_hash": "cc9671e849ed654a2d6aa94da524dc22",
+    "mtime": 1789087717.914645,
+    "ast_hash": "d30435aeaae47b6ea34c6c729d0ae43a",
     "semantic_hash": ""
   },
   "scripts/screenshot-evidence.mjs": {
@@ -1310,8 +1310,8 @@
     "semantic_hash": ""
   },
   "apps/web/lib/career-ledger.ts": {
-    "mtime": 1788766318.2562916,
-    "ast_hash": "4b13024aff60f861af7f910e537d7fd7",
+    "mtime": 1789086343.41823,
+    "ast_hash": "068bf0ec0c8e953a13df7fe0ab6e89c9",
     "semantic_hash": ""
   },
   "apps/web/test/career-ledger.test.ts": {
@@ -1400,23 +1400,23 @@
     "semantic_hash": ""
   },
   "docs/releases/nimanto-v0.10.0-dev.0.cdx.json": {
-    "mtime": 1788766318.283273,
-    "ast_hash": "03a640dd156429830f681b5d7924aed7",
+    "mtime": 1789087837.2661226,
+    "ast_hash": "d1ec52ebb380cde3dc962744e194a422",
     "semantic_hash": ""
   },
   "docs/releases/nimanto-v0.10.0-dev.0.spdx.json": {
-    "mtime": 1788766318.2885523,
-    "ast_hash": "6047d4dd3afc253aca717378941f4429",
+    "mtime": 1789087838.0812106,
+    "ast_hash": "d588e3bbbc34610ad37ce463b8abbfc9",
     "semantic_hash": ""
   },
   "scripts/docker-context.test.mjs": {
-    "mtime": 1788766318.4223416,
-    "ast_hash": "d65e281bd4f57c3b1774726d48743f38",
+    "mtime": 1789099828.1839638,
+    "ast_hash": "670324d448bbc642fc42015374de49b8",
     "semantic_hash": ""
   },
   "docs/releases/nimanto-v0.10.0-dev.0-SHA256SUMS.txt": {
-    "mtime": 1788766318.2802007,
-    "ast_hash": "fbaab5a7c7790cf6e03546a7a0b93025",
+    "mtime": 1789087838.3006098,
+    "ast_hash": "812bcc6dc1d3fde83e43b390a18b75a3",
     "semantic_hash": ""
   },
   "apps/web/lib/external-action-runtime.ts": {
@@ -1527,6 +1527,16 @@
   "scripts/recovery-drill.test.mjs": {
     "mtime": 1789084274.3717794,
     "ast_hash": "12091d37f7da9b9a351fdce5b9033050",
+    "semantic_hash": ""
+  },
+  "packages/database/test/saved-review.test.ts": {
+    "mtime": 1789086343.4196203,
+    "ast_hash": "bd7a5fb995c31be1ea06fa13c5bcf79d",
+    "semantic_hash": ""
+  },
+  "apps/web/test/workspace-read-currentness.test.tsx": {
+    "mtime": 1789086983.7468758,
+    "ast_hash": "b401d635ba40f184518512a41e2ec407",
     "semantic_hash": ""
   }
 }

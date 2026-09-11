@@ -42,7 +42,8 @@ RUN pnpm build
 # Reshape node_modules to the production dependency set before it is copied into
 # /runtime, so the runtime image carries no build or test tooling. The lockfile
 # stays frozen and the packages come from the store this stage already populated.
-RUN pnpm install --prod --frozen-lockfile --offline
+# Docker has no terminal for pnpm's dependency-set replacement confirmation.
+RUN CI=true pnpm install --prod --frozen-lockfile --offline
 RUN mkdir -p /runtime/apps/api /runtime/apps/web /runtime/apps/worker \
       /runtime/packages/database /runtime/packages/documents /runtime/packages/domain \
       /runtime/packages/parsers /runtime/packages/providers \
@@ -67,6 +68,7 @@ RUN mkdir -p /runtime/apps/api /runtime/apps/web /runtime/apps/worker \
 
 FROM base AS runtime
 ENV NODE_ENV=production
+ENV NO_UPDATE_CHECK=1
 ENV NIMANTO_API_HOST=0.0.0.0
 ENV NIMANTO_API_PORT=4310
 ENV NIMANTO_WEB_ORIGIN=http://127.0.0.1:4300
@@ -79,4 +81,6 @@ USER node
 VOLUME ["/data"]
 EXPOSE 4300 4310
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 CMD ["node", "-e", "fetch('http://127.0.0.1:4310/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
-CMD ["pnpm", "start:all"]
+# Run installed entrypoints directly: pnpm's startup verification can reinstall
+# dependencies after the production tree is relocated into this immutable image.
+CMD ["node", "node_modules/concurrently/dist/bin/index.js", "--kill-others", "--names", "api,worker,web", "--prefix-colors", "blue,cyan,magenta", "node apps/api/dist/main.js", "node apps/worker/dist/main.js", "node apps/web/node_modules/serve/build/main.js apps/web/out -l ${NIMANTO_WEB_PORT:-4300} --no-clipboard"]

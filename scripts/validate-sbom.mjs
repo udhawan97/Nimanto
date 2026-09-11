@@ -16,6 +16,7 @@ const releaseManifest = JSON.parse(
   await readFile(new URL("../package.json", import.meta.url), "utf8"),
 );
 const releaseVersion = explicitVersion ?? releaseManifest.version;
+const historicalRelease = explicitVersion && explicitVersion !== releaseManifest.version;
 const releaseWorkspaces = [
   "api",
   "web",
@@ -34,15 +35,29 @@ const requiredPackages = [
   ["../apps/api/package.json", "@fastify/cookie"],
 ];
 
-const requiredPurls = await Promise.all(
-  requiredPackages.map(async ([workspaceManifest, packageName]) => {
-    const workspaceRequire = createRequire(new URL(workspaceManifest, import.meta.url));
-    const installedManifestPath = workspaceRequire.resolve(`${packageName}/package.json`);
-    const installedManifest = JSON.parse(await readFile(installedManifestPath, "utf8"));
-    const purlName = packageName.startsWith("@") ? `%40${packageName.slice(1)}` : packageName;
-    return `pkg:npm/${purlName}@${installedManifest.version}`;
-  }),
-);
+const requiredPurls = historicalRelease
+  ? []
+  : await Promise.all(
+      requiredPackages.map(async ([workspaceManifest, packageName]) => {
+        const workspaceRequire = createRequire(new URL(workspaceManifest, import.meta.url));
+        const installedManifestPath = workspaceRequire.resolve(`${packageName}/package.json`);
+        const installedManifest = JSON.parse(await readFile(installedManifestPath, "utf8"));
+        const purlName = packageName.startsWith("@") ? `%40${packageName.slice(1)}` : packageName;
+        return `pkg:npm/${purlName}@${installedManifest.version}`;
+      }),
+    );
+
+const exactVersion =
+  /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/u;
+
+function packageIdentities(document) {
+  if (document.bomFormat === "CycloneDX") {
+    return (document.components ?? []).map((component) => component.purl);
+  }
+  return (document["@graph"] ?? [])
+    .filter((entry) => entry.type === "software_Package")
+    .map((entry) => entry.software_packageUrl);
+}
 
 function containsAbsoluteFilesystemPath(value) {
   if (typeof value === "string") {
@@ -65,8 +80,26 @@ for (const path of paths) {
   if (containsAbsoluteFilesystemPath(document)) {
     throw new Error(`${path} contains a machine-local absolute path`);
   }
+  const identities = packageIdentities(document);
+  if (historicalRelease) {
+    // Published inventories describe their own dependency versions; release:check
+    // verifies their immutable checksums after this structural validation.
+    for (const [, packageName] of requiredPackages) {
+      const names = [packageName, packageName.replace(/^@/u, "%40")];
+      const present = identities.some(
+        (identity) =>
+          typeof identity === "string" &&
+          names.some((name) => {
+            const prefix = `pkg:npm/${name}@`;
+            return identity.startsWith(prefix) && exactVersion.test(identity.slice(prefix.length));
+          }),
+      );
+      if (!present)
+        throw new Error(`${path} is missing required versioned component ${packageName}`);
+    }
+  }
   for (const purl of requiredPurls) {
-    if (!serialized.includes(purl))
+    if (!identities.includes(purl))
       throw new Error(`${path} is missing required component ${purl}`);
   }
   if (!serialized.includes(`pkg:npm/nimanto@${releaseVersion}`)) {

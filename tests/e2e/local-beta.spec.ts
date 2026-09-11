@@ -2977,3 +2977,101 @@ test("a superseded Profile Version is recoverable without abandoning the Applica
   await approveExactPacket(packet);
   await expect(page.getByText("Packet approved for export.")).toBeVisible();
 });
+
+/* DR-bba9711a-001: the real session is revoked while an earlier dashboard
+ * response is in transit. The response must not restore the signed-out view. */
+test("a late refresh cannot reopen a signed-out workspace", async ({ page }) => {
+  await page.goto(`/workspace/#bootstrap=${bootstrapSecret}`);
+  await page.getByLabel("Your name").fill("Refresh lifecycle check");
+  await page.getByLabel("Your email").fill("refresh-lifecycle@example.test");
+  await page.getByRole("button", { name: "Start private workspace" }).click();
+  await expect(page.locator(".notice.ok")).toContainText("Your private beta workspace is ready.");
+  let release!: () => void;
+  let captured = false;
+  let delivered = false;
+  const delivery = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/v1/dashboard", async (route) => {
+    const response = await route.fetch();
+    captured = true;
+    await delivery;
+    await route.fulfill({ response });
+    delivered = true;
+  });
+  await page.getByRole("button", { name: "Refresh", exact: true }).click();
+  await expect.poll(() => captured).toBe(true);
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Start private workspace" })).toBeVisible();
+  release();
+  await expect.poll(() => delivered).toBe(true);
+  await settleControlledForm(page);
+  await expect(page.locator(".workspace-shell")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Start private workspace" })).toBeVisible();
+  await expect(page.getByText("Signed out.", { exact: true })).toBeVisible();
+  const status = await page.request.get(`${TEST_API_ORIGIN}/v1/auth/status`);
+  expect(await status.json()).toMatchObject({ authenticated: false });
+});
+
+/* DR-bba9711a-002: stored records stay literal when the candidate changes
+ * the Role while an older history page is returning. */
+test("late pagination keeps the selected Role's actual comparison", async ({ page }) => {
+  await page.goto(`/workspace/#bootstrap=${bootstrapSecret}`);
+  await page.getByLabel("Your name").fill("History currentness check");
+  await page.getByLabel("Your email").fill("history-currentness@example.test");
+  await page.getByRole("button", { name: "Start private workspace" }).click();
+  await expect(page.locator(".notice.ok")).toContainText("Your private beta workspace is ready.");
+  const run = (role: string, id: string) => ({
+    id,
+    jobId: role,
+    profileVersionId: "synthetic-profile",
+    inputHash: `input-${id}`,
+    artifactHash: `artifact-${id}`,
+    ruleVersion: "scoring_rules_v1",
+    createdAt: "2026-09-10T12:00:00Z",
+    currentJob: { id: role, title: `Synthetic Role ${role}`, company: "Synthetic Company" },
+    result: { band: "weak_evidence", blockers: [] },
+  });
+  let release!: () => void;
+  let captured = false;
+  let delivered = false;
+  const delivery = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/v1/history/match-runs?**", async (route) => {
+    const url = new URL(route.request().url());
+    const role = url.searchParams.get("jobId");
+    if (role === "A" && url.searchParams.has("cursor")) {
+      captured = true;
+      await delivery;
+      await route.fulfill({ json: { items: [run("A", "a0")], nextCursor: null } });
+      delivered = true;
+      return;
+    }
+    await route.fulfill({
+      json: !role
+        ? { items: [run("A", "a2"), run("B", "b2")], nextCursor: null }
+        : {
+            items: [run(role, `${role.toLowerCase()}2`), run(role, `${role.toLowerCase()}1`)],
+            nextCursor: role === "A" ? "a1" : null,
+          },
+    });
+  });
+  await page.getByRole("button", { name: "Stored history", exact: true }).click();
+  await page.getByRole("button", { name: "Load older runs for this role" }).click();
+  await expect.poll(() => captured).toBe(true);
+  await page.getByLabel("Role with stored runs").selectOption("B");
+  await expect(page.locator(".run-comparison")).toContainText("artifact-b2");
+  release();
+  await expect.poll(() => delivered).toBe(true);
+  await settleControlledForm(page);
+  await expect(page.getByLabel("Role with stored runs")).toHaveValue("B");
+  expect(
+    await page
+      .getByLabel("Stored match run A")
+      .locator("option")
+      .evaluateAll((options) => options.map((option) => (option as HTMLOptionElement).value)),
+  ).toEqual(["b2", "b1"]);
+  await expect(page.locator(".run-comparison")).toContainText("artifact-b2");
+  await expect(page.locator(".run-comparison")).not.toContainText("artifact-a");
+});

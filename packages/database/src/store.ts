@@ -399,6 +399,7 @@ export interface OutcomeRecord {
   type: OutcomeType;
   note: string;
   occurredAt: string;
+  createdAt: string;
 }
 
 export interface ApplicationNoteRecord {
@@ -431,7 +432,7 @@ export interface ContactRecord {
   phone: string;
   kind: ContactKind;
   notes: string;
-  applicationLinks: Array<{ applicationId: string; role: ContactKind }>;
+  applicationLinks: Array<{ applicationId: string; role: ContactKind; createdAt: string }>;
   createdAt: string;
   updatedAt: string;
 }
@@ -3597,7 +3598,7 @@ export class NimantoStore {
       `INSERT INTO outcomes(id, tenant_id, application_id, type, note, occurred_at)
        SELECT $1,$2,$3,$4,$5,$6
        WHERE EXISTS (SELECT 1 FROM applications WHERE id = $3 AND tenant_id = $2)
-       RETURNING id, application_id, type, note, occurred_at`,
+       RETURNING id, application_id, type, note, occurred_at, created_at`,
       [
         id,
         tenantId,
@@ -3615,6 +3616,7 @@ export class NimantoStore {
       type: row.type,
       note: row.note,
       occurredAt: iso(row.occurred_at)!,
+      createdAt: isoRequired(row.created_at),
     };
   }
 
@@ -3653,7 +3655,7 @@ export class NimantoStore {
         [tenantId],
       ),
       this.#db.query<any>(
-        `SELECT id, application_id, type, note, occurred_at
+        `SELECT id, application_id, type, note, occurred_at, created_at
          FROM outcomes WHERE tenant_id = $1 ORDER BY occurred_at DESC, id`,
         [tenantId],
       ),
@@ -3701,6 +3703,7 @@ export class NimantoStore {
           type: outcome.type,
           note: outcome.note,
           occurredAt: iso(outcome.occurred_at)!,
+          createdAt: isoRequired(outcome.created_at),
         })),
         notes: (notesByApplication.get(record.id) ?? []).map((note) => ({
           id: note.id,
@@ -3893,7 +3896,7 @@ export class NimantoStore {
         [tenantId],
       ),
       this.#db.query<any>(
-        `SELECT application_id, contact_id, role FROM application_contacts
+        `SELECT application_id, contact_id, role, created_at FROM application_contacts
          WHERE tenant_id = $1 ORDER BY created_at, application_id`,
         [tenantId],
       ),
@@ -3909,7 +3912,11 @@ export class NimantoStore {
       notes: row.notes,
       applicationLinks: links.rows
         .filter((link) => link.contact_id === row.id)
-        .map((link) => ({ applicationId: link.application_id, role: link.role })),
+        .map((link) => ({
+          applicationId: link.application_id,
+          role: link.role,
+          createdAt: isoRequired(link.created_at),
+        })),
       createdAt: iso(row.created_at)!,
       updatedAt: iso(row.updated_at)!,
     }));

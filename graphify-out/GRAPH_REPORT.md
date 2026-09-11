@@ -1,13 +1,12 @@
 # Graph Report - Nimanto  (2026-09-10)
 
-Scoped incremental update: code extraction plus the new recovery plan; private working notes excluded.
+Scoped incremental update for the Docker runtime follow-up: AST extraction of changed source plus imported-symbol context; only changed-source records merged. Existing semantic records, hyperedges and unaffected records preserved. Existing communities retained; new test files receive their own groups. No private notes or generated inventory content extracted. CLI update could not traverse the sandboxed Git worktree boundary; the skill incremental merge flow was used. Inherited coverage limit: screenshot JSON has no AST nodes; Dockerfile, lockfile and workspace YAML have no supported AST extraction. Their validation remains source/test evidence, not graph coverage. Token cost: 0 input and 0 output.
 
 ## Corpus Check
-- 306 manifest entries; full-corpus word count not recomputed for this scoped update.
-- Verdict: corpus is large enough that graph structure adds value.
+- 308 manifest entries; full-corpus word count not recomputed for this scoped update.
 
 ## Summary
-- 2325 nodes · 4240 edges · 184 communities (146 shown, 38 thin omitted)
+- 2349 nodes · 4296 edges · 186 communities (148 shown, 38 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 49 edges (avg confidence: 0.77)
 - Token cost: 0 input · 0 output
 
@@ -191,18 +190,20 @@ Scoped incremental update: code extraction plus the new recovery plan; private w
 - local-recovery-readiness.md
 - recovery-drill.ts
 - recovery-drill.test.ts
+- workspace-read-currentness.test.tsx
+- saved-review.test.ts
 
 ## God Nodes (most connected - your core abstractions)
-1. `NimantoStore` - 184 edges
+1. `NimantoStore` - 185 edges
 2. `buildServer()` - 109 edges
 3. `Run and operate the local beta` - 73 edges
 4. `canonicalHash()` - 57 edges
 5. `iso()` - 32 edges
-6. `scripts` - 25 edges
-7. `Workspace()` - 24 edges
+6. `Workspace()` - 25 edges
+7. `scripts` - 25 edges
 8. `Applications()` - 24 edges
-9. `NimantoEmblem` - 23 edges
-10. `api()` - 22 edges
+9. `api()` - 24 edges
+10. `NimantoEmblem` - 23 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `Discovery Profile replay` --semantically_similar_to--> `Candidate-approved Discovery Profile`  [INFERRED] [semantically similar]
@@ -227,7 +228,7 @@ Scoped incremental update: code extraction plus the new recovery plan; private w
 - **Tenant Isolation Defense in Depth** — docs_planning_architecture_postgresql_rls_defense, docs_planning_architecture_single_candidate_tenancy, docs_planning_trust_and_security_tenant_authorization, docs_planning_backend_plan_slice_1_evidence_to_match [INFERRED 0.85]
 - **Review Before External Action** — docs_planning_architecture_no_external_effects_through_slice_3, docs_planning_product_contract_source_action_contract, docs_planning_product_contract_frozen_artifact_approval, docs_planning_backend_plan_slice_3_grounded_packet [INFERRED 0.95]
 
-## Communities (183 total, 37 thin omitted)
+## Communities (186 total, 38 thin omitted)
 
 ### Community 36 - "api/package.json"
 Cohesion: 0.11
@@ -626,7 +627,7 @@ Cohesion: 0.34
 Nodes (12): volatileRegistryProperties, registryPropertyName(), stableRegistryMetadata(), stableOccurrenceMetadata(), sortedPurls(), cyclonedxPurls(), spdxPurls(), comparePurlSets() (+4 more)
 
 ### Community 127 - "validate-sbom.mjs"
-Cohesion: 0.33
+Cohesion: 0.29
 Nodes (4): args, releaseManifest, releaseWorkspaces, requiredPackages
 
 ### Community 53 - "version-sync.test.mjs"
@@ -797,22 +798,26 @@ Nodes (5): Decision and scope, Local recovery readiness, Phase R1: synthetic sto
 Cohesion: 0.70
 Nodes (4): assertOwnership(), recoveryTreeDigest(), runRecoveryDrill(), stableExport()
 
+### Community 184 - "workspace-read-currentness.test.tsx"
+Cohesion: 0.21
+Nodes (17): Pending, dashboard(), meta, respond(), button(), click(), change(), load() (+9 more)
+
 ## Knowledge Gaps
-- **830 isolated node(s):** `name`, `version`, `private`, `type`, `build` (+825 more)
+- **832 isolated node(s):** `name`, `version`, `private`, `type`, `build` (+827 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **37 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **38 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `NimantoStore` connect `NimantoStore` to `government-dataset.ts`, `store.ts`, `buildServer`, `answer-history.test.ts`, `parsers/src/index.ts`, `canonicalHash`, `.transaction`, `domain/src/index.ts`, `server.ts`, `.approve`, `dashboard-read.ts`, `EvidenceClaim`, `discovery-cycle.ts`, `roles.ts`, `DeletionCoordinator`, `recovery-drill.ts`, `packet-lifecycle.ts`, `ats-verification.ts`, `schedules.ts`, `acquireDataDirectoryLock`, `store-lock.test.ts`?**
-  _High betweenness centrality (0.076) - this node is a cross-community bridge._
+- **Why does `NimantoStore` connect `NimantoStore` to `government-dataset.ts`, `store.ts`, `buildServer`, `answer-history.test.ts`, `parsers/src/index.ts`, `canonicalHash`, `.transaction`, `domain/src/index.ts`, `server.ts`, `.approve`, `dashboard-read.ts`, `EvidenceClaim`, `discovery-cycle.ts`, `roles.ts`, `DeletionCoordinator`, `recovery-drill.ts`, `saved-review.test.ts`, `packet-lifecycle.ts`, `ats-verification.ts`, `schedules.ts`, `acquireDataDirectoryLock`, `store-lock.test.ts`?**
+  _High betweenness centrality (0.077) - this node is a cross-community bridge._
 - **Why does `buildServer()` connect `buildServer` to `government-dataset.ts`, `NimantoStore`, `providers.test.ts`, `dashboard-read.ts`, `EvidenceClaim`, `parsers/src/index.ts`, `discovery-cycle.ts`, `ats-verification.ts`, `DeletionCoordinator`, `canonicalHash`, `.transaction`, `roles.ts`, `jobs.ts`, `server.ts`, `.approve`?**
   _High betweenness centrality (0.023) - this node is a cross-community bridge._
 - **Why does `ApplicationStatus` connect `.transaction` to `applications.ts`, `workspace.tsx`, `application-csv-export.ts`, `career-ledger.tsx`, `packet-lifecycle.ts`, `derive.ts`, `store.ts`, `matching.ts`, `calendar-export.ts`, `career-operations.ts`, `server.ts`?**
-  _High betweenness centrality (0.021) - this node is a cross-community bridge._
+  _High betweenness centrality (0.020) - this node is a cross-community bridge._
 - **What connects `name`, `version`, `private` to the rest of the system?**
-  _830 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _832 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `api/package.json` be split into smaller, more focused modules?**
   _Cohesion score 0.1111111111111111 - nodes in this community are weakly interconnected._
 - **Should `dependencies` be split into smaller, more focused modules?**
