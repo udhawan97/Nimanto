@@ -13,7 +13,7 @@
   "dependencies": {
     "@fastify/cookie": "^11.1.2",
     "@fastify/cors": "^11.3.0",
-    "@fastify/helmet": "^13.1.0",
+    "@fastify/helmet": "^13.1.1",
     "@fastify/rate-limit": "^11.2.0",
     "@fastify/swagger": "^9.8.1",
     "@fastify/swagger-ui": "^6.1.1",
@@ -22,10 +22,10 @@
     "@nimanto/domain": "workspace:*",
     "@nimanto/parsers": "workspace:*",
     "@nimanto/providers": "workspace:*",
-    "fastify": "^5.12.1"
+    "fastify": "^5.12.3"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "0.5.5",
+    "@electric-sql/pglite": "0.5.8",
     "@types/node": "^26.2.0",
     "tsx": "^4.23.12",
     "typescript": "^7.0.2",
