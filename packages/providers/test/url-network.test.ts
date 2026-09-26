@@ -2,6 +2,7 @@ import { EventEmitter } from "node:events";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 type FakeRequest = EventEmitter & {
+  destroyed: boolean;
   destroy(error: Error): void;
   end(): void;
 };
@@ -14,6 +15,7 @@ type FakeResponse = EventEmitter & {
 
 const transport = vi.hoisted(() => ({
   calls: 0,
+  requestDestroyed: false,
   plan: undefined as
     ((respond: (response: FakeResponse) => void, request: FakeRequest) => void) | undefined,
 }));
@@ -25,7 +27,12 @@ vi.mock("node:https", async () => {
       (_url: URL, _options: object, respond: (response: FakeResponse) => void): FakeRequest => {
         transport.calls += 1;
         const request = new MockEventEmitter() as FakeRequest;
-        request.destroy = (error) => request.emit("error", error);
+        request.destroyed = false;
+        request.destroy = (error) => {
+          request.destroyed = true;
+          transport.requestDestroyed = true;
+          request.emit("error", error);
+        };
         request.end = () => transport.plan?.(respond, request);
         return request;
       },
@@ -51,6 +58,7 @@ const publicAddress = async () => [{ address: "93.184.216.34", family: 4 }];
 
 afterEach(() => {
   transport.calls = 0;
+  transport.requestDestroyed = false;
   transport.plan = undefined;
   vi.useRealTimers();
 });
@@ -100,11 +108,13 @@ describe("allowlisted URL network completion", () => {
       });
 
     let observed = "still-pending";
+    let requestDestroyedWhenSettled = false;
     void fetchAllowlistedJobPage(input, { resolve: resolveAfterThreeSeconds }).then(
       () => {
         observed = "resolved";
       },
       (error: unknown) => {
+        requestDestroyedWhenSettled = transport.requestDestroyed;
         observed = error instanceof Error ? error.message : "unknown";
       },
     );
@@ -113,6 +123,7 @@ describe("allowlisted URL network completion", () => {
     expect(observed).toBe("still-pending");
     await vi.advanceTimersByTimeAsync(1);
     expect(observed).toBe("URL_FETCH_TIMEOUT");
+    expect(requestDestroyedWhenSettled).toBe(true);
   });
 
   it("keeps normal exact-host HTTPS intake working without relaxing policy", async () => {

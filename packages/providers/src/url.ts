@@ -163,8 +163,8 @@ async function requestPinned(url: URL, target: Address, deadlineAt: number): Pro
           size += chunk.byteLength;
           if (size > 1_000_000) {
             const error = new Error("URL_BODY_TOO_LARGE");
-            rejectTransport(error);
             request.destroy(error);
+            rejectTransport(error);
             return;
           }
           chunks.push(chunk);
@@ -192,8 +192,8 @@ async function requestPinned(url: URL, target: Address, deadlineAt: number): Pro
     deadlineTimer = setTimeout(
       () => {
         const error = new Error("URL_FETCH_TIMEOUT");
-        rejectTransport(error);
         request.destroy(error);
+        rejectTransport(error);
       },
       Math.max(0, deadlineAt - Date.now()),
     );
@@ -252,10 +252,9 @@ export async function fetchAllowlistedJobPage(
   if (addresses.length === 0 || addresses.some((address) => isPrivateAddress(address.address))) {
     throw new Error("SOURCE_URL_UNSAFE_ADDRESS");
   }
-  const responseOperation = dependencies.request
-    ? dependencies.request(url, addresses[0]!)
-    : requestPinned(url, addresses[0]!, deadlineAt);
-  const response = await beforeDeadline(responseOperation, deadlineAt);
+  const response = dependencies.request
+    ? await beforeDeadline(dependencies.request(url, addresses[0]!), deadlineAt)
+    : await requestPinned(url, addresses[0]!, deadlineAt);
   if (response.status >= 300 && response.status < 400)
     throw new Error("SOURCE_URL_REDIRECT_BLOCKED");
   if (response.status !== 200) throw new Error(`SOURCE_URL_HTTP_${response.status}`);
