@@ -1872,9 +1872,10 @@ function WorkspaceStart({
   const receiptHeading = useRef<HTMLHeadingElement>(null);
   const launchKeyNoteId = useId();
   const needsLaunchKey = !unavailable && !inviteMode && !bootstrapSecret;
-  const [manualLaunchKeyEntry, setManualLaunchKeyEntry] = useState(false);
-  const showLaunchKeyEditor =
-    !unavailable && !inviteMode && (needsLaunchKey || manualLaunchKeyEntry);
+  // A remembered or fragment-supplied key can be stale. Keep the masked editor
+  // available on every reachable local-key entry screen so the candidate can
+  // recover in place; invitations remain a separate credential path.
+  const showLaunchKeyEditor = !unavailable && !inviteMode;
   useEffect(() => {
     if (deletionReceipt) receiptHeading.current?.focus();
   }, [deletionReceipt]);
@@ -1949,10 +1950,7 @@ function WorkspaceStart({
               type="password"
               autoComplete="off"
               value={bootstrapSecret}
-              onChange={(event) => {
-                setManualLaunchKeyEntry(true);
-                onBootstrapSecret(event.target.value);
-              }}
+              onChange={(event) => onBootstrapSecret(event.target.value)}
               placeholder="Paste the key shown by the local launcher"
               aria-describedby={launchKeyNoteId}
             />

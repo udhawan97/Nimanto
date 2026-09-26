@@ -328,59 +328,77 @@ describe("Workspace refresh lifecycle", () => {
 });
 
 describe("Workspace recovery guidance", () => {
-  it("recovers from a wrong launch key in the same focused editor without a reload", async () => {
-    await mountSignedOut();
-    const launchKey = host.querySelector<HTMLInputElement>('input[type="password"]')!;
-    await change(host.querySelector<HTMLInputElement>('[name="displayName"]')!, "Key Recovery");
-    await change(
-      host.querySelector<HTMLInputElement>('[name="email"]')!,
-      "key-recovery@example.test",
-    );
+  it.each(["manual", "restored", "fragment"] as const)(
+    "recovers from a wrong $source launch key in the same focused editor without a reload",
+    async (source) => {
+      if (source === "restored") {
+        window.sessionStorage.setItem("nimanto_bootstrap", "wrong-private-key");
+      }
+      if (source === "fragment") window.location.hash = "#bootstrap=wrong-private-key";
+      await mountSignedOut();
+      const launchKey = host.querySelector<HTMLInputElement>('input[type="password"]')!;
+      await change(host.querySelector<HTMLInputElement>('[name="displayName"]')!, "Key Recovery");
+      await change(
+        host.querySelector<HTMLInputElement>('[name="email"]')!,
+        "key-recovery@example.test",
+      );
 
-    launchKey.focus();
-    await change(launchKey, "wrong-private-key");
+      launchKey.focus();
+      if (source === "manual") await change(launchKey, "wrong-private-key");
 
-    expect(host.querySelector('input[type="password"]')).toBe(launchKey);
-    expect(launchKey.value).toBe("wrong-private-key");
-    expect(document.activeElement).toBe(launchKey);
-    expect(button("Start private workspace").disabled).toBe(false);
-    expect(window.sessionStorage.getItem("nimanto_bootstrap")).toBeNull();
+      expect(host.querySelector('input[type="password"]')).toBe(launchKey);
+      expect(launchKey.type).toBe("password");
+      expect(launchKey.autocomplete).toBe("off");
+      expect(launchKey.value).toBe("wrong-private-key");
+      expect(document.activeElement).toBe(launchKey);
+      expect(button("Start private workspace").disabled).toBe(false);
+      expect(window.sessionStorage.getItem("nimanto_bootstrap")).toBe(
+        source === "manual" ? null : "wrong-private-key",
+      );
+      if (source === "fragment") expect(window.location.hash).toBe("");
 
-    await act(async () => launchKey.form!.requestSubmit());
-    const rejected = pending("/v1/auth/local");
-    expect(new Headers(rejected.init?.headers).get("x-nimanto-bootstrap-secret")).toBe(
-      "wrong-private-key",
-    );
-    await respondError(
-      rejected,
-      401,
-      "INVALID_BOOTSTRAP_SECRET",
-      "Use the private workspace link from the local launcher.",
-    );
+      await act(async () => launchKey.form!.requestSubmit());
+      const rejected = pending("/v1/auth/local");
+      expect(new Headers(rejected.init?.headers).get("x-nimanto-bootstrap-secret")).toBe(
+        "wrong-private-key",
+      );
+      await respondError(
+        rejected,
+        401,
+        "INVALID_BOOTSTRAP_SECRET",
+        "Use the private workspace link from the local launcher.",
+      );
 
-    expect(host.querySelector('input[type="password"]')).toBe(launchKey);
-    expect(launchKey.value).toBe("wrong-private-key");
-    expect(document.activeElement).toBe(launchKey);
-    expect(host.querySelector('[role="alert"]')?.textContent).toContain("private workspace link");
+      expect(host.querySelector('input[type="password"]')).toBe(launchKey);
+      expect(launchKey.value).toBe("wrong-private-key");
+      expect(document.activeElement).toBe(launchKey);
+      expect(host.querySelector('[role="alert"]')?.textContent).toContain("private workspace link");
 
-    await change(launchKey, "valid-private-key");
-    expect(host.querySelector('input[type="password"]')).toBe(launchKey);
-    expect(document.activeElement).toBe(launchKey);
-    await act(async () => launchKey.form!.requestSubmit());
-    const accepted = pending("/v1/auth/local");
-    expect(new Headers(accepted.init?.headers).get("x-nimanto-bootstrap-secret")).toBe(
-      "valid-private-key",
-    );
-    await respond(accepted, {});
-    await respond(pending("/v1/auth/status"), { authenticated: true });
-    await respond(pending("/v1/dashboard"), dashboard("session-key-recovered"));
-    await respond(pending("/v1/meta"), meta);
+      await change(launchKey, "valid-private-key");
+      expect(host.querySelector('input[type="password"]')).toBe(launchKey);
+      expect(document.activeElement).toBe(launchKey);
+      // Editing a restored value changes only React state. It does not persist
+      // a replacement credential before the server accepts it.
+      expect(window.sessionStorage.getItem("nimanto_bootstrap")).toBe(
+        source === "manual" ? null : "wrong-private-key",
+      );
+      await act(async () => launchKey.form!.requestSubmit());
+      const accepted = pending("/v1/auth/local");
+      expect(new Headers(accepted.init?.headers).get("x-nimanto-bootstrap-secret")).toBe(
+        "valid-private-key",
+      );
+      await respond(accepted, {});
+      await respond(pending("/v1/auth/status"), { authenticated: true });
+      await respond(pending("/v1/dashboard"), dashboard(`session-${source}-recovered`));
+      await respond(pending("/v1/meta"), meta);
 
-    expect(host.querySelector(".workspace-header")?.textContent).toContain(
-      "session-key-recovered@example.test",
-    );
-    expect(host.querySelector('input[type="password"]')).toBeNull();
-  });
+      expect(host.querySelector(".workspace-header")?.textContent).toContain(
+        `session-${source}-recovered@example.test`,
+      );
+      expect(host.querySelector('input[type="password"]')).toBeNull();
+      expect(window.sessionStorage.getItem("nimanto_bootstrap")).toBeNull();
+    },
+  );
 
   it("keeps invitation fragments ahead of an engaged manual launch-key editor", async () => {
     await mountSignedOut();
