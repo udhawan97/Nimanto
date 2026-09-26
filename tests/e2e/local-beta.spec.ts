@@ -236,17 +236,17 @@ test("the public site reflows, links, and identifies itself in WebKit", async ({
     "href",
     "https://github.com/udhawan97/Nimanto/issues",
   );
-  await expect(page.getByRole("link", { name: "Open the v0.9.0 source release" })).toHaveAttribute(
+  await expect(page.getByRole("link", { name: "Open the v0.10.0 source release" })).toHaveAttribute(
     "href",
-    "https://github.com/udhawan97/Nimanto/releases/tag/v0.9.0",
+    "https://github.com/udhawan97/Nimanto/releases/tag/v0.10.0",
   );
-  await expect(page.getByRole("link", { name: "Read the v0.9.0 notes" })).toHaveAttribute(
+  await expect(page.getByRole("link", { name: "Read the v0.10.0 notes" })).toHaveAttribute(
     "href",
-    "https://github.com/udhawan97/Nimanto/blob/v0.9.0/docs/releases/v0.9.0.md",
+    "https://github.com/udhawan97/Nimanto/blob/v0.10.0/docs/releases/v0.10.0.md",
   );
   await expect(page.getByRole("link", { name: "Check hashes and inventories" })).toHaveAttribute(
     "href",
-    "https://github.com/udhawan97/Nimanto/blob/v0.9.0/README.md#verify-a-source-release",
+    "https://github.com/udhawan97/Nimanto/blob/v0.10.0/README.md#verify-a-source-release",
   );
   const releaseLinkTops = await page
     .locator(".release-proof .text-link")
@@ -254,9 +254,9 @@ test("the public site reflows, links, and identifies itself in WebKit", async ({
   expect(new Set(releaseLinkTops).size, "release verification links occupy separate rows").toBe(
     releaseLinkTops.length,
   );
-  await expect(page.getByRole("link", { name: "v0.9.0 notes" }).first()).toHaveAttribute(
+  await expect(page.getByRole("link", { name: "v0.10.0 notes" }).first()).toHaveAttribute(
     "href",
-    "https://github.com/udhawan97/Nimanto/blob/v0.9.0/docs/releases/v0.9.0.md",
+    "https://github.com/udhawan97/Nimanto/blob/v0.10.0/docs/releases/v0.10.0.md",
   );
   await expect(page.getByAltText(/Synthetic Nimanto Applications workbench/)).toHaveAttribute(
     "src",
@@ -2218,6 +2218,88 @@ test("long action references keep their Copy control clear at 320px", async ({ p
   await expect
     .poll(() => page.evaluate(() => sessionStorage.getItem("nimanto-test-copied")))
     .toBe(fullReference);
+});
+
+test("an exact ambiguous outbox action ID stays contained and keyboard-copyable at 320px", async ({
+  page,
+}) => {
+  await installClipboardRecorder(page);
+  await page.goto(`/workspace/#bootstrap=${bootstrapSecret}`);
+  await page.getByLabel("Your name").fill("Ambiguous Action Check");
+  await page.getByLabel("Your email").fill("ambiguous-action@example.test");
+  await page.getByRole("button", { name: "Start private workspace" }).click();
+  await expect(page.getByRole("heading", { name: "Good to see you, Ambiguous." })).toBeVisible();
+
+  const actionId = "action-ambiguous-" + "0123456789abcdef".repeat(8);
+  let dashboardInjected = false;
+  await page.route("**/v1/dashboard", async (route) => {
+    const response = await route.fetch();
+    const value = (await response.json()) as { externalActions: unknown[] };
+    await route.fulfill({
+      response,
+      json: {
+        ...value,
+        externalActions: [
+          {
+            id: actionId,
+            packetId: "packet-current-for-ambiguous-action",
+            provider: "test_outbox",
+            state: "ambiguous",
+            target: { to: "candidate@example.test" },
+            payload: {
+              subject: "Candidate-reviewed ambiguous action",
+              body: "Candidate-controlled body.",
+            },
+            result: { errorCode: "ACTION_OUTCOME_PERSIST_FAILED" },
+          },
+          ...value.externalActions,
+        ],
+      },
+    });
+    dashboardInjected = true;
+  });
+  await page.getByRole("button", { name: "Refresh", exact: true }).click();
+  await expect.poll(() => dashboardInjected).toBe(true);
+  await page.getByRole("button", { name: "Approved actions" }).click();
+  await page.setViewportSize({ width: 320, height: 900 });
+
+  const action = page.locator(".action-row").filter({ hasText: actionId });
+  await expect(action).toBeVisible();
+  await expect(action).toContainText("Do not retry");
+  await expect(action.locator(".field-note code")).toHaveText(
+    `.nimanto-data/outbox/${actionId}.json`,
+  );
+  await expect(action.getByRole("button", { name: "Execute", exact: true })).toHaveCount(0);
+  await expect(action.getByRole("button", { name: /retry/i })).toHaveCount(0);
+
+  const geometry = await action.evaluate((row) => {
+    const rect = row.getBoundingClientRect();
+    return {
+      left: rect.left,
+      right: rect.right,
+      viewportWidth: innerWidth,
+      clientWidth: row.clientWidth,
+      scrollWidth: row.scrollWidth,
+      documentClientWidth: document.documentElement.clientWidth,
+      documentScrollWidth: document.documentElement.scrollWidth,
+    };
+  });
+  expect(geometry.left).toBeGreaterThanOrEqual(0);
+  expect(geometry.right).toBeLessThanOrEqual(geometry.viewportWidth);
+  expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth);
+  expect(geometry.documentScrollWidth).toBeLessThanOrEqual(geometry.documentClientWidth);
+
+  const copyLine = action.locator(".copy-line");
+  await expectCopyLineContained(copyLine);
+  await expect(copyLine.locator("code")).toHaveText(actionId);
+  const copy = copyLine.getByRole("button", { name: "Copy" });
+  await copy.focus();
+  await expect(copy).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(copyLine.getByRole("button", { name: "Copied" })).toBeVisible();
+  await expect
+    .poll(() => page.evaluate(() => sessionStorage.getItem("nimanto-test-copied")))
+    .toBe(actionId);
 });
 
 test("deletion hands back a receipt that outlives the session, and does not outlive the next one", async ({
