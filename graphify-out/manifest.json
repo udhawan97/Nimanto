@@ -470,12 +470,12 @@
     "semantic_hash": ""
   },
   "docs/assets/nimanto-landing.png": {
-    "mtime": 1790402542.17019,
+    "mtime": 1790403250.4057672,
     "ast_hash": "25613903538b415dab3327d19cc9265e",
     "semantic_hash": ""
   },
   "docs/assets/nimanto-workbench.png": {
-    "mtime": 1790402542.1708224,
+    "mtime": 1790403250.4077542,
     "ast_hash": "037ab462c451a9863c5f6979bd34b6f0",
     "semantic_hash": ""
   },
@@ -725,7 +725,7 @@
     "semantic_hash": "e5f2ac0cf10c8d49148fa9aa49c37897"
   },
   "apps/web/public/assets/nimanto-workbench.png": {
-    "mtime": 1790402542.1713314,
+    "mtime": 1790403250.4084768,
     "ast_hash": "037ab462c451a9863c5f6979bd34b6f0",
     "semantic_hash": ""
   },
@@ -995,8 +995,8 @@
     "semantic_hash": ""
   },
   "docs/assets/nimanto-screenshots.json": {
-    "mtime": 1790402542.1832063,
-    "ast_hash": "ad3d09bd454dcffb221619b7e334fc03",
+    "mtime": 1790403250.4472325,
+    "ast_hash": "b8c6286526c95eb70e7692a179efca76",
     "semantic_hash": ""
   },
   "scripts/screenshot-evidence.mjs": {
