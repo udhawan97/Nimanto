@@ -69,6 +69,17 @@ async function respond(request: Pending, value: unknown) {
     ),
   );
 }
+async function respondError(request: Pending, status: number, code: string, message: string) {
+  request.done = true;
+  await act(async () =>
+    request.resolve(
+      new Response(JSON.stringify({ error: { code, message } }), {
+        status,
+        headers: { "content-type": "application/json" },
+      }),
+    ),
+  );
+}
 async function reject(request: Pending) {
   request.done = true;
   await act(async () => request.reject(new TypeError("Synthetic transport failure")));
@@ -103,6 +114,10 @@ async function load(sessionId = "session-a") {
 async function mount() {
   await act(async () => root.render(<Workspace />));
   await load();
+}
+async function mountSignedOut() {
+  await act(async () => root.render(<Workspace />));
+  await respond(pending("/v1/auth/status"), { authenticated: false });
 }
 async function holdRefresh(phase: "status" | "dashboard" | "meta") {
   await click("Refresh");
@@ -309,6 +324,171 @@ describe("Workspace refresh lifecycle", () => {
     );
     expect(host.textContent).toContain("The synthetic Priya Shah workspace is ready.");
     await assertSessionFence("session-new");
+  });
+});
+
+describe("Workspace recovery guidance", () => {
+  it("recovers from a wrong launch key in the same focused editor without a reload", async () => {
+    await mountSignedOut();
+    const launchKey = host.querySelector<HTMLInputElement>('input[type="password"]')!;
+    await change(host.querySelector<HTMLInputElement>('[name="displayName"]')!, "Key Recovery");
+    await change(
+      host.querySelector<HTMLInputElement>('[name="email"]')!,
+      "key-recovery@example.test",
+    );
+
+    launchKey.focus();
+    await change(launchKey, "wrong-private-key");
+
+    expect(host.querySelector('input[type="password"]')).toBe(launchKey);
+    expect(launchKey.value).toBe("wrong-private-key");
+    expect(document.activeElement).toBe(launchKey);
+    expect(button("Start private workspace").disabled).toBe(false);
+    expect(window.sessionStorage.getItem("nimanto_bootstrap")).toBeNull();
+
+    await act(async () => launchKey.form!.requestSubmit());
+    const rejected = pending("/v1/auth/local");
+    expect(new Headers(rejected.init?.headers).get("x-nimanto-bootstrap-secret")).toBe(
+      "wrong-private-key",
+    );
+    await respondError(
+      rejected,
+      401,
+      "INVALID_BOOTSTRAP_SECRET",
+      "Use the private workspace link from the local launcher.",
+    );
+
+    expect(host.querySelector('input[type="password"]')).toBe(launchKey);
+    expect(launchKey.value).toBe("wrong-private-key");
+    expect(document.activeElement).toBe(launchKey);
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain("private workspace link");
+
+    await change(launchKey, "valid-private-key");
+    expect(host.querySelector('input[type="password"]')).toBe(launchKey);
+    expect(document.activeElement).toBe(launchKey);
+    await act(async () => launchKey.form!.requestSubmit());
+    const accepted = pending("/v1/auth/local");
+    expect(new Headers(accepted.init?.headers).get("x-nimanto-bootstrap-secret")).toBe(
+      "valid-private-key",
+    );
+    await respond(accepted, {});
+    await respond(pending("/v1/auth/status"), { authenticated: true });
+    await respond(pending("/v1/dashboard"), dashboard("session-key-recovered"));
+    await respond(pending("/v1/meta"), meta);
+
+    expect(host.querySelector(".workspace-header")?.textContent).toContain(
+      "session-key-recovered@example.test",
+    );
+    expect(host.querySelector('input[type="password"]')).toBeNull();
+  });
+
+  it("keeps invitation fragments ahead of an engaged manual launch-key editor", async () => {
+    await mountSignedOut();
+    const launchKey = host.querySelector<HTMLInputElement>('input[type="password"]')!;
+    launchKey.focus();
+    await change(launchKey, "manual-private-key");
+
+    await act(async () => {
+      window.location.hash = "#invite=invitation-takes-precedence";
+      window.dispatchEvent(new HashChangeEvent("hashchange"));
+    });
+    expect(host.querySelector('input[type="password"]')).toBeNull();
+    expect(host.textContent).toContain("Private invitation");
+  });
+
+  it.each([
+    {
+      provider: "test_outbox",
+      actionId: "action-outbox-ambiguous-1234567890",
+      expected: ".nimanto-data/outbox/action-outbox-ambiguous-1234567890.json",
+      absent: ["mail-client state"],
+    },
+    {
+      provider: "deep_link",
+      actionId: "action-deep-link-ambiguous-1234567890",
+      expected: "mail-client state",
+      absent: [".nimanto-data/outbox/", "local outbox"],
+    },
+  ])(
+    "shows exact $provider reconciliation without offering execution or retry",
+    async ({ provider, actionId, expected, absent }) => {
+      await act(async () => root.render(<Workspace />));
+      await respond(pending("/v1/auth/status"), { authenticated: true });
+      await respond(pending("/v1/dashboard"), {
+        ...dashboard(),
+        externalActions: [
+          {
+            id: actionId,
+            packetId: "packet-current",
+            provider,
+            state: "ambiguous",
+            target: { to: "candidate@example.test" },
+            payload: { subject: "Reviewed application", body: "Candidate-controlled body." },
+            result: { errorCode: "ACTION_OUTCOME_PERSIST_FAILED" },
+          },
+        ],
+      });
+      await respond(pending("/v1/meta"), meta);
+
+      await click("Approved actions");
+      const action = host.querySelector<HTMLElement>(".action-row")!;
+      expect(action.textContent).toContain("Do not retry");
+      expect(action.textContent).toContain("Action ID");
+      expect(action.textContent).toContain(expected);
+      for (const text of absent) expect(action.textContent).not.toContain(text);
+      expect(action.querySelector(".copy-line code")?.textContent).toBe(actionId);
+      expect(
+        [...action.querySelectorAll("button")].map((item) => item.textContent?.trim()),
+      ).toEqual(["Copy"]);
+      expect(action.textContent).not.toContain("has been sent");
+      expect(action.textContent).not.toContain("was delivered");
+    },
+  );
+
+  it("describes the packet_v2 hash and generation-time boundary accurately", async () => {
+    const packet = {
+      id: "packet-current",
+      applicationId: "application-current",
+      profileVersionId: "profile-current",
+      status: "approved",
+      approvedAt: "2026-09-26T00:01:00.000Z",
+      createdAt: "2026-09-26T00:00:00.000Z",
+      updatedAt: "2026-09-26T00:01:00.000Z",
+      artifactHash: "canonical-hash",
+      manifestHash: "manifest-hash",
+      canonicalContent: { schemaVersion: "packet_v2" },
+      artifactManifest: { artifacts: [] },
+      latestAssurance: null,
+    };
+    await act(async () => root.render(<Workspace />));
+    await respond(pending("/v1/auth/status"), { authenticated: true });
+    await respond(pending("/v1/dashboard"), {
+      ...dashboard(),
+      applications: [
+        {
+          id: "application-current",
+          jobId: "job-current",
+          profileVersionId: "profile-current",
+          status: "approved_for_export",
+          job: { title: "Software Engineer", company: "Synthetic Co" },
+        },
+      ],
+      packets: [packet],
+    });
+    await respond(pending("/v1/meta"), meta);
+
+    await click("Review packets");
+    await click("History");
+    await respond(pending("/v1/applications/application-current/packets?limit=20"), {
+      items: [{ ...packet, latestAssurance: undefined }],
+      nextCursor: null,
+    });
+
+    const boundary = host.querySelector<HTMLElement>(".packet-history .boundary-note")!;
+    expect(boundary.textContent).toContain("For packet_v2 records");
+    expect(boundary.textContent).toContain("generation time is packet record metadata");
+    expect(boundary.textContent).toContain("manifest SHA-256 hashes");
+    expect(boundary.textContent).not.toContain("including its generated timestamp");
   });
 });
 const run = (job: string, id: string) => ({

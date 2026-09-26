@@ -1872,6 +1872,9 @@ function WorkspaceStart({
   const receiptHeading = useRef<HTMLHeadingElement>(null);
   const launchKeyNoteId = useId();
   const needsLaunchKey = !unavailable && !inviteMode && !bootstrapSecret;
+  const [manualLaunchKeyEntry, setManualLaunchKeyEntry] = useState(false);
+  const showLaunchKeyEditor =
+    !unavailable && !inviteMode && (needsLaunchKey || manualLaunchKeyEntry);
   useEffect(() => {
     if (deletionReceipt) receiptHeading.current?.focus();
   }, [deletionReceipt]);
@@ -1939,14 +1942,17 @@ function WorkspaceStart({
             "Open the synthetic starter workspace, inspect every source link, and replace examples with your own confirmed evidence."
           )}
         </p>
-        {needsLaunchKey && (
+        {showLaunchKeyEditor && (
           <label className="launch-secret-field">
             Private launch key
             <input
               type="password"
               autoComplete="off"
               value={bootstrapSecret}
-              onChange={(event) => onBootstrapSecret(event.target.value)}
+              onChange={(event) => {
+                setManualLaunchKeyEntry(true);
+                onBootstrapSecret(event.target.value);
+              }}
               placeholder="Paste the key shown by the local launcher"
               aria-describedby={launchKeyNoteId}
             />
@@ -8464,9 +8470,10 @@ function PacketHistoryPanel({ applicationId }: { applicationId: string }) {
         </div>
       )}
       <p className="boundary-note">
-        Packet status and artifact manifests are current mutable fields. The canonical hash covers
-        stored canonical content, including its generated timestamp; it is not a hash of generated
-        files.
+        Packet status and artifact manifests are current mutable fields. For packet_v2 records, the
+        canonical hash covers the exact stored canonical content; generation time is packet record
+        metadata outside that content. Generated files are covered separately by their manifest
+        SHA-256 hashes.
       </p>
     </section>
   );
@@ -8798,6 +8805,30 @@ function Actions({
                     Copy this into your own mail client. Nimanto prepared it; it has not been sent.
                   </small>
                 )}
+              </div>
+            )}
+            {action.state === "ambiguous" && (
+              <div
+                className="action-reference"
+                role="note"
+                aria-label="Ambiguous action reconciliation"
+              >
+                <small className="field-note">
+                  {action.provider === "test_outbox" ? (
+                    <>
+                      Do not retry. Inspect{" "}
+                      <code>{".nimanto-data/outbox/" + action.id + ".json"}</code> before creating a
+                      separately reviewed action.
+                    </>
+                  ) : (
+                    <>
+                      Do not retry. Inspect your mail-client state before deciding what happened;
+                      Nimanto only prepared a deep link and cannot determine the outcome.
+                    </>
+                  )}
+                </small>
+                <span>Action ID</span>
+                <CopyLine command={action.id} />
               </div>
             )}
           </article>
