@@ -1,7 +1,7 @@
 # Graph Report - integration  (2026-09-26)
 
 ## Corpus Check
-- 283 files · ~8,005,399 words
+- 283 files · ~8,005,423 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `159c2c0f`
+- Built from commit: `d7a48483`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -233,8 +233,8 @@ Cohesion: 0.04
 Nodes (45): Connection, ConnectionBanner(), ConnectionIndicator(), useConnection(), Action, ActionDraft, Application, ApplicationNote (+37 more)
 
 ### Community 3 - "derive.ts"
-Cohesion: 0.06
-Nodes (53): Applications(), downloadTextFile(), emptyEvidenceFilters(), EvidenceVault(), fileBase64(), localDayInstant(), ActionLike, APPLICATION_MATCH_BUCKET_LABELS (+45 more)
+Cohesion: 0.07
+Nodes (51): Applications(), downloadTextFile(), emptyEvidenceFilters(), EvidenceVault(), fileBase64(), localDayInstant(), ActionLike, APPLICATION_MATCH_BUCKET_LABELS (+43 more)
 
 ### Community 4 - "career-ledger.tsx"
 Cohesion: 0.07
@@ -285,8 +285,8 @@ Cohesion: 0.06
 Nodes (27): A UI-only Workbench mutation coordinator, Consistent current-Role normalization, Dependency and verification maintenance, Nimanto v0.5.0 — Clear Intent, Current Truth, One candidate Application transition policy, Separate Identity and navigation/focus transitions, Surface inventory, v0.5.0 public-surface ledger (+19 more)
 
 ### Community 16 - "api"
-Cohesion: 0.15
-Nodes (26): ActionRunner, Actions(), ActivityLedger(), ApplicationDossier(), ApplicationFilterDisclosure(), ApplicationNoteEditor(), atsRouteGateLabel(), cadenceLabel() (+18 more)
+Cohesion: 0.13
+Nodes (29): ActionRunner, Actions(), ActivityLedger(), ApplicationDossier(), ApplicationFilterDisclosure(), ApplicationNoteEditor(), atsRouteGateLabel(), cadenceLabel() (+21 more)
 
 ### Community 17 - "dependencies"
 Cohesion: 0.04
@@ -333,8 +333,8 @@ Cohesion: 0.12
 Nodes (23): discoveryProfileInput(), fastify, H1B_LABELS, historyOptions(), identity(), JsonObject, manualOperationId(), manualRoleInput() (+15 more)
 
 ### Community 31 - "Workspace"
-Cohesion: 0.15
-Nodes (17): emptyManualRoleDraft(), emptyReviewedUrlDraft(), manualRoleDraftForReview(), sameActionDraft(), sameManualRoleDraft(), sameReviewedUrlDraft(), withApplicationActivities(), Workspace() (+9 more)
+Cohesion: 0.16
+Nodes (16): emptyManualRoleDraft(), emptyReviewedUrlDraft(), manualRoleDraftForReview(), sameActionDraft(), sameManualRoleDraft(), sameReviewedUrlDraft(), withApplicationActivities(), Workspace() (+8 more)
 
 ### Community 32 - "packet-lifecycle.ts"
 Cohesion: 0.13

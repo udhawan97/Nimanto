@@ -100,8 +100,8 @@
     "semantic_hash": "f8d493b6c925f9d3d7a6fc53bac435db"
   },
   "apps/web/components/workspace.tsx": {
-    "mtime": 1790403151.8107228,
-    "ast_hash": "e51fc7a51d33a889eb9e856c6f4700b1",
+    "mtime": 1790404608.3935652,
+    "ast_hash": "8ad389108366713b4747316bb46e1345",
     "semantic_hash": ""
   },
   "apps/web/next-env.d.ts": {
@@ -470,12 +470,12 @@
     "semantic_hash": ""
   },
   "docs/assets/nimanto-landing.png": {
-    "mtime": 1790403250.4057672,
+    "mtime": 1790404646.3110394,
     "ast_hash": "25613903538b415dab3327d19cc9265e",
     "semantic_hash": ""
   },
   "docs/assets/nimanto-workbench.png": {
-    "mtime": 1790403250.4077542,
+    "mtime": 1790404646.312921,
     "ast_hash": "037ab462c451a9863c5f6979bd34b6f0",
     "semantic_hash": ""
   },
@@ -725,7 +725,7 @@
     "semantic_hash": "e5f2ac0cf10c8d49148fa9aa49c37897"
   },
   "apps/web/public/assets/nimanto-workbench.png": {
-    "mtime": 1790403250.4084768,
+    "mtime": 1790404646.3144665,
     "ast_hash": "037ab462c451a9863c5f6979bd34b6f0",
     "semantic_hash": ""
   },
@@ -995,8 +995,8 @@
     "semantic_hash": ""
   },
   "docs/assets/nimanto-screenshots.json": {
-    "mtime": 1790403250.4472325,
-    "ast_hash": "b8c6286526c95eb70e7692a179efca76",
+    "mtime": 1790404646.5269718,
+    "ast_hash": "550cce6207a67b93da17b81f3a869a43",
     "semantic_hash": ""
   },
   "scripts/screenshot-evidence.mjs": {
@@ -1520,8 +1520,8 @@
     "semantic_hash": ""
   },
   "apps/web/test/workspace-read-currentness.test.tsx": {
-    "mtime": 1790403151.8111145,
-    "ast_hash": "4dc94d49dd041d2a8b674168e25add74",
+    "mtime": 1790404608.3942816,
+    "ast_hash": "c52a7946d1498e6b72c31602bfd1d461",
     "semantic_hash": ""
   },
   "docs/releases/nimanto-v0.10.0.cdx.json": {
@@ -1555,8 +1555,8 @@
     "semantic_hash": ""
   },
   "docs/releases/v0.10.0.md": {
-    "mtime": 1790402276.8558269,
-    "ast_hash": "cfb868187b40296a087510f99f5e9135",
+    "mtime": 1790404608.3952467,
+    "ast_hash": "9d1b3b4fd5a58f6b80e97ce6093a5fa8",
     "semantic_hash": ""
   }
 }
