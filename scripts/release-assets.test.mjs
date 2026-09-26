@@ -13,12 +13,12 @@ const repository = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".
 const fixture = await mkdtemp(path.join(tmpdir(), "nimanto-release-assets-"));
 after(() => rm(fixture, { recursive: true, force: true }));
 
-test("the committed v0.9.0 inventories and checksums pass the release preflight", () => {
+test("the committed v0.10.0 inventories and checksums pass the release preflight", () => {
   const result = spawnSync("pnpm", ["release:check"], { cwd: repository, encoding: "utf8" });
   assert.equal(result.status, 0, result.stderr || result.stdout);
 });
 
-test("the published v0.9.0 provenance bytes remain identical to the tag", async () => {
+test("the published release provenance bytes remain identical to their tags", async () => {
   const expected = new Map([
     ["nimanto-v0.9.0.cdx.json", "ee7e0e5bf9ef0e4d9a023ebe38682aa9f551ceffe72b107d52622facc9555cab"],
     [
@@ -28,6 +28,18 @@ test("the published v0.9.0 provenance bytes remain identical to the tag", async 
     [
       "nimanto-v0.9.0-SHA256SUMS.txt",
       "7d66d617b35542d06235ed71c43a654f0b0e19de5ff7a8ed4c295a44338e8bf9",
+    ],
+    [
+      "nimanto-v0.10.0.cdx.json",
+      "30e61dd733a742085b4c1433c3ef7d7db33aeb7294da145502c2404296ddb74d",
+    ],
+    [
+      "nimanto-v0.10.0.spdx.json",
+      "44c1ef81d41263bbfbea1583d2619809cc477fa17572a109ca84c787317217d3",
+    ],
+    [
+      "nimanto-v0.10.0-SHA256SUMS.txt",
+      "e88fab10dce763c1751ad9bdaf7e576e42ae6548f281e7b7bdae76026798f23f",
     ],
   ]);
   for (const [name, digest] of expected) {

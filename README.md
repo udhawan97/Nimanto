@@ -4,8 +4,8 @@
 
 <h1 align="center">Nimanto</h1>
 
-<p align="center"><strong>Current source identity: 0.10.0-dev.0 (unreleased).</strong><br>
-The latest published source release remains v0.9.0; current-tree inventories are separate from that immutable release provenance.</p>
+<p align="center"><strong>Nimanto v0.10.0 is source-distributed.</strong><br>
+Use the exact tag and published inventories to verify this local-beta release.</p>
 
 <p align="center"><strong>Evidence first. Applications second.</strong></p>
 
@@ -34,7 +34,7 @@ The latest published source release remains v0.9.0; current-tree inventories are
   ·
   <a href="#what-it-actually-does"><strong>What it does</strong></a>
   ·
-  <a href="docs/releases/v0.9.0.md"><strong>v0.9.0 notes</strong></a>
+  <a href="docs/releases/v0.10.0.md"><strong>v0.10.0 notes</strong></a>
   ·
   <a href="docs/planning/product-contract.md"><strong>Product contract</strong></a>
 </p>
@@ -85,7 +85,7 @@ Nimanto is a **candidate tool**. It does not screen you for employers, estimate
 your hiring odds, give legal advice, or promise that a company sponsors transfers
 today.
 
-## Unreleased on main
+## New in v0.10.0
 
 - **Local recovery rehearsal.** `pnpm recovery:drill` checks a stopped synthetic
   database copy, all six packet artifacts, tenant isolation, approval reset,
@@ -140,9 +140,12 @@ today.
   Schema version 14 adds tenant-owned immutable Submission Records. Inspection
   export v10 includes the full answer revision history, every new record, and
   the inspectable Evidence Strength basis for new Match Publications;
-  workspace deletion cascades through the same tenant boundary.
+  workspace deletion cascades through the same tenant boundary. Schema version
+  15 adds idempotent manual-role operation records, answer-block prompt/topic
+  provenance, legacy manual-role identity review, and corrected migration-marker
+  observation times.
 
-## New in v0.9.0
+## Previously in v0.9.0
 
 - **One candidate-approved discovery contract.** Choose role families, titles,
   literal seniority/industry/skill terms, physical and remote-eligible areas,
@@ -395,7 +398,7 @@ something that opens because you opened it.
 
 ## Run it
 
-Nimanto v0.9.0 is source-distributed. It does **not** ship a signed installer or
+Nimanto v0.10.0 is source-distributed. It does **not** ship a signed installer or
 desktop binary.
 
 | Runtime path       | Best for                          | Start here                                                      |
@@ -405,7 +408,7 @@ desktop binary.
 | Docker on loopback | Invite-only local/self-hosted QA  | `docker compose up --build`; keep ports bound to `127.0.0.1`    |
 
 Acquire the exact source from the pinned
-[v0.9.0 release](https://github.com/udhawan97/Nimanto/releases/tag/v0.9.0); GitHub
+[v0.10.0 release](https://github.com/udhawan97/Nimanto/releases/tag/v0.10.0); GitHub
 generates its ZIP and tar archive from that tag.
 
 ### One double-click on macOS
@@ -420,7 +423,7 @@ Requirements: Node.js 24–26, pnpm 11, and macOS, Linux or Windows.
 ```bash
 git clone https://github.com/udhawan97/Nimanto.git
 cd Nimanto
-git checkout v0.9.0
+git checkout v0.10.0
 corepack enable
 pnpm install --frozen-lockfile
 pnpm dev
@@ -441,11 +444,11 @@ issue a hashed, expiring, single-use invitation.
 ### Verify a source release
 
 Every release publishes the two dependency inventories beside one checksum
-manifest. After downloading the three `v0.9.0` assets into an empty directory,
+manifest. After downloading the three `v0.10.0` assets into an empty directory,
 verify both inventories before inspecting or building the source archive:
 
 ```bash
-shasum -a 256 --check nimanto-v0.9.0-SHA256SUMS.txt
+shasum -a 256 --check nimanto-v0.10.0-SHA256SUMS.txt
 ```
 
 The manifest covers the CycloneDX and SPDX files. GitHub generates the source
@@ -734,7 +737,7 @@ journey.
 
 ## Beta boundaries
 
-Version `0.9.0` is a **local beta**:
+Version `0.10.0` is a **local beta**:
 
 - The local candidate workflow is implemented and tested.
 - Public website hosting carries product information and the static workbench
@@ -794,5 +797,5 @@ of scope.
 Apache License 2.0. See [LICENSE](LICENSE), [NOTICE](NOTICE),
 [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md),
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), and the release
-[CycloneDX](docs/releases/nimanto-v0.9.0.cdx.json) /
-[SPDX](docs/releases/nimanto-v0.9.0.spdx.json) inventories.
+[CycloneDX](docs/releases/nimanto-v0.10.0.cdx.json) /
+[SPDX](docs/releases/nimanto-v0.10.0.spdx.json) inventories.
