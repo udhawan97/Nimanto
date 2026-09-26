@@ -5,6 +5,25 @@ import { NIMANTO_PROVIDER_VERSION } from "./version.js";
 
 type Address = { address: string; family: number };
 type Response = { status: number; contentType: string; body: Uint8Array; location?: string };
+const URL_FETCH_DEADLINE_MS = 10_000;
+
+async function beforeDeadline<T>(operation: Promise<T>, deadlineAt: number): Promise<T> {
+  const remaining = deadlineAt - Date.now();
+  if (remaining <= 0) throw new Error("URL_FETCH_TIMEOUT");
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("URL_FETCH_TIMEOUT")), remaining);
+    operation.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
 
 /** Expand an IPv6 literal to its eight 16-bit groups, decoding an embedded
  * dotted-quad tail. Returns null for anything it cannot parse, so the caller
@@ -100,8 +119,32 @@ function isPrivateAddress(address: string): boolean {
   return true;
 }
 
-async function requestPinned(url: URL, target: Address): Promise<Response> {
+async function requestPinned(url: URL, target: Address, deadlineAt: number): Promise<Response> {
   return new Promise((resolve, reject) => {
+    let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
+    let settled = false;
+    const clearDeadline = () => {
+      if (deadlineTimer) clearTimeout(deadlineTimer);
+    };
+    const resolveOnce = (value: Response) => {
+      if (settled) return;
+      settled = true;
+      clearDeadline();
+      resolve(value);
+    };
+    const rejectTransport = (error?: unknown) => {
+      if (settled) return;
+      settled = true;
+      clearDeadline();
+      if (
+        error instanceof Error &&
+        (error.message === "URL_BODY_TOO_LARGE" || error.message === "URL_FETCH_TIMEOUT")
+      ) {
+        reject(error);
+        return;
+      }
+      reject(new Error("URL_FETCH_FAILED"));
+    };
     const request = httpsRequest(
       url,
       {
@@ -112,7 +155,6 @@ async function requestPinned(url: URL, target: Address): Promise<Response> {
         },
         lookup: (_hostname, _options, callback) => callback(null, target.address, target.family),
         servername: url.hostname,
-        timeout: 10_000,
       },
       (response) => {
         const chunks: Buffer[] = [];
@@ -120,23 +162,41 @@ async function requestPinned(url: URL, target: Address): Promise<Response> {
         response.on("data", (chunk: Buffer) => {
           size += chunk.byteLength;
           if (size > 1_000_000) {
-            request.destroy(new Error("URL_BODY_TOO_LARGE"));
+            const error = new Error("URL_BODY_TOO_LARGE");
+            rejectTransport(error);
+            request.destroy(error);
             return;
           }
           chunks.push(chunk);
         });
         response.on("end", () => {
-          resolve({
+          if (!response.complete) {
+            rejectTransport();
+            return;
+          }
+          resolveOnce({
             status: response.statusCode ?? 0,
             contentType: String(response.headers["content-type"] ?? ""),
             body: Buffer.concat(chunks),
             ...(response.headers.location ? { location: response.headers.location } : {}),
           });
         });
+        response.on("aborted", rejectTransport);
+        response.on("error", rejectTransport);
+        response.on("close", () => {
+          if (!response.complete) rejectTransport();
+        });
       },
     );
-    request.on("timeout", () => request.destroy(new Error("URL_FETCH_TIMEOUT")));
-    request.on("error", reject);
+    request.on("error", rejectTransport);
+    deadlineTimer = setTimeout(
+      () => {
+        const error = new Error("URL_FETCH_TIMEOUT");
+        rejectTransport(error);
+        request.destroy(error);
+      },
+      Math.max(0, deadlineAt - Date.now()),
+    );
     request.end();
   });
 }
@@ -187,11 +247,15 @@ export async function fetchAllowlistedJobPage(
     throw new Error("SOURCE_URL_NOT_ALLOWED");
   }
   const resolver = dependencies.resolve ?? ((hostname) => dnsLookup(hostname, { all: true }));
-  const addresses = await resolver(url.hostname);
+  const deadlineAt = Date.now() + URL_FETCH_DEADLINE_MS;
+  const addresses = await beforeDeadline(resolver(url.hostname), deadlineAt);
   if (addresses.length === 0 || addresses.some((address) => isPrivateAddress(address.address))) {
     throw new Error("SOURCE_URL_UNSAFE_ADDRESS");
   }
-  const response = await (dependencies.request ?? requestPinned)(url, addresses[0]!);
+  const responseOperation = dependencies.request
+    ? dependencies.request(url, addresses[0]!)
+    : requestPinned(url, addresses[0]!, deadlineAt);
+  const response = await beforeDeadline(responseOperation, deadlineAt);
   if (response.status >= 300 && response.status < 400)
     throw new Error("SOURCE_URL_REDIRECT_BLOCKED");
   if (response.status !== 200) throw new Error(`SOURCE_URL_HTTP_${response.status}`);
