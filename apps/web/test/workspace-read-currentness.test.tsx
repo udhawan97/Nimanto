@@ -503,10 +503,14 @@ describe("Workspace recovery guidance", () => {
     });
 
     const boundary = host.querySelector<HTMLElement>(".packet-history .boundary-note")!;
-    expect(boundary.textContent).toContain("For packet_v2 records");
+    expect(boundary.textContent).toContain(
+      "Legacy packet_v1 canonical content retains its stored generated timestamp",
+    );
+    expect(boundary.textContent).toContain(
+      "Packet_v2 excludes generation time from canonical content",
+    );
     expect(boundary.textContent).toContain("generation time is packet record metadata");
     expect(boundary.textContent).toContain("manifest SHA-256 hashes");
-    expect(boundary.textContent).not.toContain("including its generated timestamp");
   });
 });
 const run = (job: string, id: string) => ({

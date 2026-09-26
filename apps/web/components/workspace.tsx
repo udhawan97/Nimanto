@@ -8468,10 +8468,10 @@ function PacketHistoryPanel({ applicationId }: { applicationId: string }) {
         </div>
       )}
       <p className="boundary-note">
-        Packet status and artifact manifests are current mutable fields. For packet_v2 records, the
-        canonical hash covers the exact stored canonical content; generation time is packet record
-        metadata outside that content. Generated files are covered separately by their manifest
-        SHA-256 hashes.
+        Packet status and artifact manifests are current mutable fields. Legacy packet_v1 canonical
+        content retains its stored generated timestamp. Packet_v2 excludes generation time from
+        canonical content; generation time is packet record metadata. Generated files are covered
+        separately by their manifest SHA-256 hashes.
       </p>
     </section>
   );
