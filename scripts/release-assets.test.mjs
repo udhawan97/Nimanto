@@ -13,7 +13,7 @@ const repository = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".
 const fixture = await mkdtemp(path.join(tmpdir(), "nimanto-release-assets-"));
 after(() => rm(fixture, { recursive: true, force: true }));
 
-test("the committed v0.10.0 inventories and checksums pass the release preflight", () => {
+test("the current source inventories and checksums pass the release preflight", () => {
   const result = spawnSync("pnpm", ["release:check"], { cwd: repository, encoding: "utf8" });
   assert.equal(result.status, 0, result.stderr || result.stdout);
 });

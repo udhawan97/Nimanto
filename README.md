@@ -4,6 +4,8 @@
 
 <h1 align="center">Nimanto</h1>
 
+<p align="center"><strong>Current source identity: 0.10.1-dev.0 (unreleased)</strong></p>
+
 <p align="center"><strong>Nimanto v0.10.0 is source-distributed.</strong><br>
 Use the exact tag and published inventories to verify this local-beta release.</p>
 

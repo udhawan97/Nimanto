@@ -5,11 +5,13 @@ packages:
   - packages/*
 
 overrides:
-  "@cyclonedx/cdxgen>undici": 7.29.0
+  "undici@>=7.0.0 <7.29.1": 7.29.1
   "nanoid@<3.3.18": 3.3.18
-  "next>sharp": 0.35.4
-  "fast-uri@>=3.0.0 <3.1.6": 3.1.6
-  "fast-uri@>=4.0.0 <4.1.3": 4.1.3
+  "next>sharp": 0.35.5
+  "fast-uri@>=3.0.0 <3.1.7": 3.1.7
+  "fast-uri@>=4.0.0 <4.1.4": 4.1.4
+  "shell-quote@>=1.8.4 <1.11.0": 1.11.0
+  "compression@<1.8.2": 1.8.2
 
 allowBuilds:
   "@next/swc-darwin-arm64": true

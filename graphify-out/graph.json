@@ -652,8 +652,8 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "apps_api_src_ats_verification_providerjobverifier",
-      "community": 0,
-      "community_name": "government-dataset.ts",
+      "community": 26,
+      "community_name": "config.ts",
       "norm_label": "providerjobverifier"
     },
     {
@@ -729,8 +729,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_api_src_config",
-      "community": 0,
-      "community_name": "government-dataset.ts",
+      "community": 26,
+      "community_name": "config.ts",
       "norm_label": "config.ts"
     },
     {
@@ -740,8 +740,8 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "apps_api_src_config_localmodeladapter",
-      "community": 0,
-      "community_name": "government-dataset.ts",
+      "community": 26,
+      "community_name": "config.ts",
       "norm_label": "localmodeladapter"
     },
     {
@@ -751,8 +751,8 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "apps_api_src_config_allowlistedjobpagefetcher",
-      "community": 0,
-      "community_name": "government-dataset.ts",
+      "community": 26,
+      "community_name": "config.ts",
       "norm_label": "allowlistedjobpagefetcher"
     },
     {
@@ -784,8 +784,8 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "apps_api_src_config_nimantoapioptions",
-      "community": 0,
-      "community_name": "government-dataset.ts",
+      "community": 26,
+      "community_name": "config.ts",
       "norm_label": "nimantoapioptions"
     },
     {
@@ -795,8 +795,8 @@
       "source_location": "L69",
       "_origin": "ast",
       "id": "apps_api_src_config_booleanenvironment",
-      "community": 0,
-      "community_name": "government-dataset.ts",
+      "community": 26,
+      "community_name": "config.ts",
       "norm_label": "booleanenvironment()"
     },
     {
@@ -806,8 +806,8 @@
       "source_location": "L77",
       "_origin": "ast",
       "id": "apps_api_src_config_portenvironment",
-      "community": 0,
-      "community_name": "government-dataset.ts",
+      "community": 26,
+      "community_name": "config.ts",
       "norm_label": "portenvironment()"
     },
     {
@@ -817,8 +817,8 @@
       "source_location": "L88",
       "_origin": "ast",
       "id": "apps_api_src_config_revieweddate",
-      "community": 0,
-      "community_name": "government-dataset.ts",
+      "community": 26,
+      "community_name": "config.ts",
       "norm_label": "revieweddate()"
     },
     {
@@ -828,8 +828,8 @@
       "source_location": "L101",
       "_origin": "ast",
       "id": "apps_api_src_config_weboriginenvironment",
-      "community": 0,
-      "community_name": "government-dataset.ts",
+      "community": 26,
+      "community_name": "config.ts",
       "norm_label": "weboriginenvironment()"
     },
     {
@@ -839,8 +839,8 @@
       "source_location": "L122",
       "_origin": "ast",
       "id": "apps_api_src_config_localbootstrapsecret",
-      "community": 0,
-      "community_name": "government-dataset.ts",
+      "community": 26,
+      "community_name": "config.ts",
       "norm_label": "localbootstrapsecret()"
     },
     {
@@ -850,8 +850,8 @@
       "source_location": "L152",
       "_origin": "ast",
       "id": "apps_api_src_config_loadoptions",
-      "community": 0,
-      "community_name": "government-dataset.ts",
+      "community": 26,
+      "community_name": "config.ts",
       "norm_label": "loadoptions()"
     },
     {
@@ -862,7 +862,7 @@
       "_origin": "ast",
       "id": "apps_api_src_dashboard_read",
       "community": 37,
-      "community_name": "providers/src/index.ts",
+      "community_name": "domain/src/index.ts",
       "norm_label": "dashboard-read.ts"
     },
     {
@@ -873,7 +873,7 @@
       "_origin": "ast",
       "id": "apps_api_src_dashboard_read_dashboardread",
       "community": 37,
-      "community_name": "providers/src/index.ts",
+      "community_name": "domain/src/index.ts",
       "norm_label": "dashboardread"
     },
     {
@@ -884,7 +884,7 @@
       "_origin": "ast",
       "id": "apps_api_src_dashboard_read_dashboardread_constructor",
       "community": 37,
-      "community_name": "providers/src/index.ts",
+      "community_name": "domain/src/index.ts",
       "norm_label": ".constructor()"
     },
     {
@@ -895,7 +895,7 @@
       "_origin": "ast",
       "id": "apps_api_src_dashboard_read_dashboardread_read",
       "community": 37,
-      "community_name": "providers/src/index.ts",
+      "community_name": "domain/src/index.ts",
       "norm_label": ".read()"
     },
     {
@@ -905,8 +905,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_api_src_deletion_coordinator",
-      "community": 26,
-      "community_name": "database/src/index.ts",
+      "community": 48,
+      "community_name": "deletion-coordinator.ts",
       "norm_label": "deletion-coordinator.ts"
     },
     {
@@ -916,8 +916,8 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "apps_api_src_deletion_coordinator_removepath",
-      "community": 26,
-      "community_name": "database/src/index.ts",
+      "community": 48,
+      "community_name": "deletion-coordinator.ts",
       "norm_label": "removepath"
     },
     {
@@ -927,8 +927,8 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "apps_api_src_deletion_coordinator_deletionrun",
-      "community": 26,
-      "community_name": "database/src/index.ts",
+      "community": 48,
+      "community_name": "deletion-coordinator.ts",
       "norm_label": "deletionrun"
     },
     {
@@ -939,7 +939,7 @@
       "_origin": "ast",
       "id": "apps_api_src_deletion_coordinator_warncleanuppending",
       "community": 48,
-      "community_name": ".finish",
+      "community_name": "deletion-coordinator.ts",
       "norm_label": "warncleanuppending()"
     },
     {
@@ -949,8 +949,8 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "apps_api_src_deletion_coordinator_deletioncoordinator",
-      "community": 26,
-      "community_name": "database/src/index.ts",
+      "community": 48,
+      "community_name": "deletion-coordinator.ts",
       "norm_label": "deletioncoordinator"
     },
     {
@@ -960,8 +960,8 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "apps_api_src_deletion_coordinator_deletioncoordinator_constructor",
-      "community": 26,
-      "community_name": "database/src/index.ts",
+      "community": 48,
+      "community_name": "deletion-coordinator.ts",
       "norm_label": ".constructor()"
     },
     {
@@ -972,7 +972,7 @@
       "_origin": "ast",
       "id": "apps_api_src_deletion_coordinator_deletioncoordinator_start",
       "community": 48,
-      "community_name": ".finish",
+      "community_name": "deletion-coordinator.ts",
       "norm_label": ".start()"
     },
     {
@@ -983,7 +983,7 @@
       "_origin": "ast",
       "id": "apps_api_src_deletion_coordinator_deletioncoordinator_resume",
       "community": 48,
-      "community_name": ".finish",
+      "community_name": "deletion-coordinator.ts",
       "norm_label": ".resume()"
     },
     {
@@ -994,7 +994,7 @@
       "_origin": "ast",
       "id": "apps_api_src_deletion_coordinator_deletioncoordinator_recoverpending",
       "community": 48,
-      "community_name": ".finish",
+      "community_name": "deletion-coordinator.ts",
       "norm_label": ".recoverpending()"
     },
     {
@@ -1005,7 +1005,7 @@
       "_origin": "ast",
       "id": "apps_api_src_deletion_coordinator_deletioncoordinator_finish",
       "community": 48,
-      "community_name": ".finish",
+      "community_name": "deletion-coordinator.ts",
       "norm_label": ".finish()"
     },
     {
@@ -1059,8 +1059,8 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "apps_api_src_discovery_cycle_providerjobsfetcher",
-      "community": 0,
-      "community_name": "government-dataset.ts",
+      "community": 26,
+      "community_name": "config.ts",
       "norm_label": "providerjobsfetcher"
     },
     {
@@ -1279,8 +1279,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_api_src_external_action_lifecycle",
-      "community": 28,
-      "community_name": "external-action-lifecycle.ts",
+      "community": 37,
+      "community_name": "domain/src/index.ts",
       "norm_label": "external-action-lifecycle.ts"
     },
     {
@@ -1290,8 +1290,8 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "apps_api_src_external_action_lifecycle_provideractionexecutor",
-      "community": 28,
-      "community_name": "external-action-lifecycle.ts",
+      "community": 37,
+      "community_name": "domain/src/index.ts",
       "norm_label": "provideractionexecutor"
     },
     {
@@ -1302,7 +1302,7 @@
       "_origin": "ast",
       "id": "apps_api_src_external_action_lifecycle_externalactioncapability",
       "community": 37,
-      "community_name": "providers/src/index.ts",
+      "community_name": "domain/src/index.ts",
       "norm_label": "externalactioncapability"
     },
     {
@@ -1313,7 +1313,7 @@
       "_origin": "ast",
       "id": "apps_api_src_external_action_lifecycle_externalactionlifecycle",
       "community": 14,
-      "community_name": "canonicalHash",
+      "community_name": "recovery-drill.ts",
       "norm_label": "externalactionlifecycle"
     },
     {
@@ -1324,7 +1324,7 @@
       "_origin": "ast",
       "id": "apps_api_src_external_action_lifecycle_externalactionlifecycle_constructor",
       "community": 14,
-      "community_name": "canonicalHash",
+      "community_name": "recovery-drill.ts",
       "norm_label": ".constructor()"
     },
     {
@@ -1335,7 +1335,7 @@
       "_origin": "ast",
       "id": "apps_api_src_external_action_lifecycle_externalactionlifecycle_operatorcapability",
       "community": 14,
-      "community_name": "canonicalHash",
+      "community_name": "recovery-drill.ts",
       "norm_label": ".operatorcapability()"
     },
     {
@@ -1346,7 +1346,7 @@
       "_origin": "ast",
       "id": "apps_api_src_external_action_lifecycle_externalactionlifecycle_capability",
       "community": 14,
-      "community_name": "canonicalHash",
+      "community_name": "recovery-drill.ts",
       "norm_label": ".capability()"
     },
     {
@@ -1357,7 +1357,7 @@
       "_origin": "ast",
       "id": "apps_api_src_external_action_lifecycle_externalactionlifecycle_settenantoptin",
       "community": 14,
-      "community_name": "canonicalHash",
+      "community_name": "recovery-drill.ts",
       "norm_label": ".settenantoptin()"
     },
     {
@@ -1368,7 +1368,7 @@
       "_origin": "ast",
       "id": "apps_api_src_external_action_lifecycle_externalactionlifecycle_cleartenantreadiness",
       "community": 14,
-      "community_name": "canonicalHash",
+      "community_name": "recovery-drill.ts",
       "norm_label": ".cleartenantreadiness()"
     },
     {
@@ -1379,7 +1379,7 @@
       "_origin": "ast",
       "id": "apps_api_src_external_action_lifecycle_externalactionlifecycle_recoverinterrupted",
       "community": 14,
-      "community_name": "canonicalHash",
+      "community_name": "recovery-drill.ts",
       "norm_label": ".recoverinterrupted()"
     },
     {
@@ -1389,8 +1389,8 @@
       "source_location": "L58",
       "_origin": "ast",
       "id": "apps_api_src_external_action_lifecycle_externalactionlifecycle_request",
-      "community": 28,
-      "community_name": "external-action-lifecycle.ts",
+      "community": 14,
+      "community_name": "recovery-drill.ts",
       "norm_label": ".request()"
     },
     {
@@ -1400,8 +1400,8 @@
       "source_location": "L98",
       "_origin": "ast",
       "id": "apps_api_src_external_action_lifecycle_externalactionlifecycle_approve",
-      "community": 18,
-      "community_name": ".transaction",
+      "community": 14,
+      "community_name": "recovery-drill.ts",
       "norm_label": ".approve()"
     },
     {
@@ -1411,8 +1411,8 @@
       "source_location": "L112",
       "_origin": "ast",
       "id": "apps_api_src_external_action_lifecycle_externalactionlifecycle_cancel",
-      "community": 87,
-      "community_name": ".#mapAction",
+      "community": 14,
+      "community_name": "recovery-drill.ts",
       "norm_label": ".cancel()"
     },
     {
@@ -1423,7 +1423,7 @@
       "_origin": "ast",
       "id": "apps_api_src_external_action_lifecycle_externalactionlifecycle_execute",
       "community": 14,
-      "community_name": "canonicalHash",
+      "community_name": "recovery-drill.ts",
       "norm_label": ".execute()"
     },
     {
@@ -1653,8 +1653,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_api_src_main",
-      "community": 0,
-      "community_name": "government-dataset.ts",
+      "community": 26,
+      "community_name": "config.ts",
       "norm_label": "api/src/main.ts"
     },
     {
@@ -1664,8 +1664,8 @@
       "source_location": "L4",
       "_origin": "ast",
       "id": "apps_api_src_main_options",
-      "community": 0,
-      "community_name": "government-dataset.ts",
+      "community": 26,
+      "community_name": "config.ts",
       "norm_label": "options"
     },
     {
@@ -1675,8 +1675,8 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "apps_api_src_main_shutdown",
-      "community": 0,
-      "community_name": "government-dataset.ts",
+      "community": 26,
+      "community_name": "config.ts",
       "norm_label": "shutdown()"
     },
     {
@@ -1686,7 +1686,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_api_src_match_publication",
-      "community": 14,
+      "community": 28,
       "community_name": "canonicalHash",
       "norm_label": "match-publication.ts"
     },
@@ -1697,7 +1697,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "apps_api_src_match_publication_uniqueevidenceids",
-      "community": 14,
+      "community": 28,
       "community_name": "canonicalHash",
       "norm_label": "uniqueevidenceids()"
     },
@@ -1708,7 +1708,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "apps_api_src_match_publication_publishmatch",
-      "community": 14,
+      "community": 28,
       "community_name": "canonicalHash",
       "norm_label": "publishmatch()"
     },
@@ -1741,8 +1741,8 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "apps_api_src_packet_lifecycle_packetartifactrenderer",
-      "community": 26,
-      "community_name": "database/src/index.ts",
+      "community": 32,
+      "community_name": "packet-lifecycle.ts",
       "norm_label": "packetartifactrenderer"
     },
     {
@@ -1796,8 +1796,8 @@
       "source_location": "L68",
       "_origin": "ast",
       "id": "apps_api_src_packet_lifecycle_packetlifecycle_constructor",
-      "community": 22,
-      "community_name": "NimantoStore",
+      "community": 18,
+      "community_name": ".transaction",
       "norm_label": ".constructor()"
     },
     {
@@ -1829,8 +1829,8 @@
       "source_location": "L123",
       "_origin": "ast",
       "id": "apps_api_src_packet_lifecycle_packetlifecycle_inputs",
-      "community": 1,
-      "community_name": "iso",
+      "community": 18,
+      "community_name": ".transaction",
       "norm_label": ".inputs()"
     },
     {
@@ -1874,7 +1874,7 @@
       "_origin": "ast",
       "id": "apps_api_src_recovery_drill",
       "community": 14,
-      "community_name": "canonicalHash",
+      "community_name": "recovery-drill.ts",
       "norm_label": "recovery-drill.ts"
     },
     {
@@ -1885,7 +1885,7 @@
       "_origin": "ast",
       "id": "apps_api_src_recovery_drill_recoverytreedigest",
       "community": 14,
-      "community_name": "canonicalHash",
+      "community_name": "recovery-drill.ts",
       "norm_label": "recoverytreedigest()"
     },
     {
@@ -1896,7 +1896,7 @@
       "_origin": "ast",
       "id": "apps_api_src_recovery_drill_stableexport",
       "community": 14,
-      "community_name": "canonicalHash",
+      "community_name": "recovery-drill.ts",
       "norm_label": "stableexport()"
     },
     {
@@ -1907,7 +1907,7 @@
       "_origin": "ast",
       "id": "apps_api_src_recovery_drill_assertownership",
       "community": 14,
-      "community_name": "canonicalHash",
+      "community_name": "recovery-drill.ts",
       "norm_label": "assertownership()"
     },
     {
@@ -1918,7 +1918,7 @@
       "_origin": "ast",
       "id": "apps_api_src_recovery_drill_runrecoverydrill",
       "community": 14,
-      "community_name": "canonicalHash",
+      "community_name": "recovery-drill.ts",
       "norm_label": "runrecoverydrill()"
     },
     {
@@ -1962,7 +1962,7 @@
       "_origin": "ast",
       "id": "apps_api_src_server_fastifyrequest",
       "community": 37,
-      "community_name": "providers/src/index.ts",
+      "community_name": "domain/src/index.ts",
       "norm_label": "fastifyrequest"
     },
     {
@@ -2148,8 +2148,8 @@
       "source_location": "L330",
       "_origin": "ast",
       "id": "apps_api_src_server_messageforerror",
-      "community": 29,
-      "community_name": "server.ts",
+      "community": 30,
+      "community_name": "server.test.ts",
       "norm_label": "messageforerror()"
     },
     {
@@ -2181,8 +2181,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_api_src_version",
-      "community": 29,
-      "community_name": "server.ts",
+      "community": 14,
+      "community_name": "recovery-drill.ts",
       "norm_label": "api/src/version.ts"
     },
     {
@@ -2192,8 +2192,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_api_test_config_test",
-      "community": 0,
-      "community_name": "government-dataset.ts",
+      "community": 26,
+      "community_name": "config.ts",
       "norm_label": "config.test.ts"
     },
     {
@@ -2203,8 +2203,8 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "apps_api_test_config_test_roots",
-      "community": 0,
-      "community_name": "government-dataset.ts",
+      "community": 26,
+      "community_name": "config.ts",
       "norm_label": "roots"
     },
     {
@@ -2214,8 +2214,8 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "apps_api_test_config_test_environment",
-      "community": 0,
-      "community_name": "government-dataset.ts",
+      "community": 26,
+      "community_name": "config.ts",
       "norm_label": "environment()"
     },
     {
@@ -2226,7 +2226,7 @@
       "_origin": "ast",
       "id": "apps_api_test_dashboard_read_test",
       "community": 37,
-      "community_name": "providers/src/index.ts",
+      "community_name": "domain/src/index.ts",
       "norm_label": "dashboard-read.test.ts"
     },
     {
@@ -2237,7 +2237,7 @@
       "_origin": "ast",
       "id": "apps_api_test_dashboard_read_test_stores",
       "community": 37,
-      "community_name": "providers/src/index.ts",
+      "community_name": "domain/src/index.ts",
       "norm_label": "stores"
     },
     {
@@ -2248,7 +2248,7 @@
       "_origin": "ast",
       "id": "apps_api_test_dashboard_read_test_disabledruntime",
       "community": 37,
-      "community_name": "providers/src/index.ts",
+      "community_name": "domain/src/index.ts",
       "norm_label": "disabledruntime()"
     },
     {
@@ -2259,7 +2259,7 @@
       "_origin": "ast",
       "id": "apps_api_test_dashboard_read_test_get",
       "community": 37,
-      "community_name": "providers/src/index.ts",
+      "community_name": "domain/src/index.ts",
       "norm_label": "get()"
     },
     {
@@ -2270,7 +2270,7 @@
       "_origin": "ast",
       "id": "apps_api_test_dashboard_scale_test",
       "community": 37,
-      "community_name": "providers/src/index.ts",
+      "community_name": "domain/src/index.ts",
       "norm_label": "dashboard-scale.test.ts"
     },
     {
@@ -2281,7 +2281,7 @@
       "_origin": "ast",
       "id": "apps_api_test_dashboard_scale_test_stores",
       "community": 37,
-      "community_name": "providers/src/index.ts",
+      "community_name": "domain/src/index.ts",
       "norm_label": "stores"
     },
     {
@@ -2292,7 +2292,7 @@
       "_origin": "ast",
       "id": "apps_api_test_dashboard_scale_test_rawdatabases",
       "community": 37,
-      "community_name": "providers/src/index.ts",
+      "community_name": "domain/src/index.ts",
       "norm_label": "rawdatabases"
     },
     {
@@ -2303,7 +2303,7 @@
       "_origin": "ast",
       "id": "apps_api_test_dashboard_scale_test_temporaryroots",
       "community": 37,
-      "community_name": "providers/src/index.ts",
+      "community_name": "domain/src/index.ts",
       "norm_label": "temporaryroots"
     },
     {
@@ -2314,7 +2314,7 @@
       "_origin": "ast",
       "id": "apps_api_test_dashboard_scale_test_disabledruntime",
       "community": 37,
-      "community_name": "providers/src/index.ts",
+      "community_name": "domain/src/index.ts",
       "norm_label": "disabledruntime()"
     },
     {
@@ -2379,8 +2379,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_api_test_external_action_lifecycle_test",
-      "community": 26,
-      "community_name": "database/src/index.ts",
+      "community": 12,
+      "community_name": "matching.ts",
       "norm_label": "external-action-lifecycle.test.ts"
     },
     {
@@ -2390,8 +2390,8 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "apps_api_test_external_action_lifecycle_test_stores",
-      "community": 26,
-      "community_name": "database/src/index.ts",
+      "community": 12,
+      "community_name": "matching.ts",
       "norm_label": "stores"
     },
     {
@@ -2401,8 +2401,8 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "apps_api_test_external_action_lifecycle_test_temporaryroots",
-      "community": 26,
-      "community_name": "database/src/index.ts",
+      "community": 12,
+      "community_name": "matching.ts",
       "norm_label": "temporaryroots"
     },
     {
@@ -2412,8 +2412,8 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "apps_api_test_external_action_lifecycle_test_mkdtemptracked",
-      "community": 26,
-      "community_name": "database/src/index.ts",
+      "community": 12,
+      "community_name": "matching.ts",
       "norm_label": "mkdtemptracked()"
     },
     {
@@ -2423,8 +2423,8 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "apps_api_test_external_action_lifecycle_test_cleantemporaryroots",
-      "community": 26,
-      "community_name": "database/src/index.ts",
+      "community": 12,
+      "community_name": "matching.ts",
       "norm_label": "cleantemporaryroots()"
     },
     {
@@ -2434,8 +2434,8 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "apps_api_test_external_action_lifecycle_test_approvedactionfixture",
-      "community": 26,
-      "community_name": "database/src/index.ts",
+      "community": 12,
+      "community_name": "matching.ts",
       "norm_label": "approvedactionfixture()"
     },
     {
@@ -2445,8 +2445,8 @@
       "source_location": "L542",
       "_origin": "ast",
       "id": "apps_api_test_external_action_lifecycle_test_get",
-      "community": 26,
-      "community_name": "database/src/index.ts",
+      "community": 12,
+      "community_name": "matching.ts",
       "norm_label": "get()"
     },
     {
@@ -2500,7 +2500,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_api_test_match_publication_test",
-      "community": 14,
+      "community": 28,
       "community_name": "canonicalHash",
       "norm_label": "match-publication.test.ts"
     },
@@ -2511,7 +2511,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "apps_api_test_match_publication_test_stores",
-      "community": 14,
+      "community": 28,
       "community_name": "canonicalHash",
       "norm_label": "stores"
     },
@@ -2522,7 +2522,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "apps_api_test_match_publication_test_temporaryroots",
-      "community": 14,
+      "community": 28,
       "community_name": "canonicalHash",
       "norm_label": "temporaryroots"
     },
@@ -2533,7 +2533,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "apps_api_test_match_publication_test_mkdtemptracked",
-      "community": 14,
+      "community": 28,
       "community_name": "canonicalHash",
       "norm_label": "mkdtemptracked()"
     },
@@ -2544,7 +2544,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "apps_api_test_match_publication_test_cleantemporaryroots",
-      "community": 14,
+      "community": 28,
       "community_name": "canonicalHash",
       "norm_label": "cleantemporaryroots()"
     },
@@ -2555,7 +2555,7 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "apps_api_test_match_publication_test_fixture",
-      "community": 14,
+      "community": 28,
       "community_name": "canonicalHash",
       "norm_label": "fixture()"
     },
@@ -2566,8 +2566,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_api_test_packet_lifecycle_test",
-      "community": 26,
-      "community_name": "database/src/index.ts",
+      "community": 32,
+      "community_name": "packet-lifecycle.ts",
       "norm_label": "packet-lifecycle.test.ts"
     },
     {
@@ -2577,8 +2577,8 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "apps_api_test_packet_lifecycle_test_stores",
-      "community": 26,
-      "community_name": "database/src/index.ts",
+      "community": 32,
+      "community_name": "packet-lifecycle.ts",
       "norm_label": "stores"
     },
     {
@@ -2588,8 +2588,8 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "apps_api_test_packet_lifecycle_test_temporaryroots",
-      "community": 26,
-      "community_name": "database/src/index.ts",
+      "community": 32,
+      "community_name": "packet-lifecycle.ts",
       "norm_label": "temporaryroots"
     },
     {
@@ -2599,8 +2599,8 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "apps_api_test_packet_lifecycle_test_mkdtemptracked",
-      "community": 26,
-      "community_name": "database/src/index.ts",
+      "community": 32,
+      "community_name": "packet-lifecycle.ts",
       "norm_label": "mkdtemptracked()"
     },
     {
@@ -2610,8 +2610,8 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "apps_api_test_packet_lifecycle_test_cleantemporaryroots",
-      "community": 26,
-      "community_name": "database/src/index.ts",
+      "community": 32,
+      "community_name": "packet-lifecycle.ts",
       "norm_label": "cleantemporaryroots()"
     },
     {
@@ -2632,8 +2632,8 @@
       "source_location": "L78",
       "_origin": "ast",
       "id": "apps_api_test_packet_lifecycle_test_reviewedpacket",
-      "community": 30,
-      "community_name": ".#mapAssurance",
+      "community": 22,
+      "community_name": "NimantoStore",
       "norm_label": "reviewedpacket()"
     },
     {
@@ -2643,8 +2643,8 @@
       "source_location": "L276",
       "_origin": "ast",
       "id": "apps_api_test_packet_lifecycle_test_get",
-      "community": 26,
-      "community_name": "database/src/index.ts",
+      "community": 32,
+      "community_name": "packet-lifecycle.ts",
       "norm_label": "get()"
     },
     {
@@ -2655,7 +2655,7 @@
       "_origin": "ast",
       "id": "apps_api_test_recovery_drill_test",
       "community": 14,
-      "community_name": "canonicalHash",
+      "community_name": "recovery-drill.ts",
       "norm_label": "recovery-drill.test.ts"
     },
     {
@@ -2666,7 +2666,7 @@
       "_origin": "ast",
       "id": "apps_api_test_recovery_drill_test_roots",
       "community": 14,
-      "community_name": "canonicalHash",
+      "community_name": "recovery-drill.ts",
       "norm_label": "roots"
     },
     {
@@ -2676,8 +2676,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_api_test_server_test",
-      "community": 29,
-      "community_name": "server.ts",
+      "community": 30,
+      "community_name": "server.test.ts",
       "norm_label": "server.test.ts"
     },
     {
@@ -2687,8 +2687,8 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "apps_api_test_server_test_apps",
-      "community": 29,
-      "community_name": "server.ts",
+      "community": 30,
+      "community_name": "server.test.ts",
       "norm_label": "apps"
     },
     {
@@ -2698,8 +2698,8 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "apps_api_test_server_test_temporaryroots",
-      "community": 29,
-      "community_name": "server.ts",
+      "community": 30,
+      "community_name": "server.test.ts",
       "norm_label": "temporaryroots"
     },
     {
@@ -2709,8 +2709,8 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "apps_api_test_server_test_mkdtemptracked",
-      "community": 29,
-      "community_name": "server.ts",
+      "community": 30,
+      "community_name": "server.test.ts",
       "norm_label": "mkdtemptracked()"
     },
     {
@@ -2720,8 +2720,8 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "apps_api_test_server_test_cleantemporaryroots",
-      "community": 29,
-      "community_name": "server.ts",
+      "community": 30,
+      "community_name": "server.test.ts",
       "norm_label": "cleantemporaryroots()"
     },
     {
@@ -2731,8 +2731,8 @@
       "source_location": "L44",
       "_origin": "ast",
       "id": "apps_api_test_server_test_setup",
-      "community": 29,
-      "community_name": "server.ts",
+      "community": 30,
+      "community_name": "server.test.ts",
       "norm_label": "setup()"
     },
     {
@@ -2742,8 +2742,8 @@
       "source_location": "L145",
       "_origin": "ast",
       "id": "apps_api_test_server_test_reviewedpacket",
-      "community": 29,
-      "community_name": "server.ts",
+      "community": 30,
+      "community_name": "server.test.ts",
       "norm_label": "reviewedpacket()"
     },
     {
@@ -3017,8 +3017,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_app_page",
-      "community": 23,
-      "community_name": "app/page.tsx",
+      "community": 10,
+      "community_name": "NimantoEmblem",
       "norm_label": "app/page.tsx"
     },
     {
@@ -3028,8 +3028,8 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "apps_web_app_page_method",
-      "community": 23,
-      "community_name": "app/page.tsx",
+      "community": 10,
+      "community_name": "NimantoEmblem",
       "norm_label": "method"
     },
     {
@@ -3039,8 +3039,8 @@
       "source_location": "L46",
       "_origin": "ast",
       "id": "apps_web_app_page_boundary",
-      "community": 23,
-      "community_name": "app/page.tsx",
+      "community": 10,
+      "community_name": "NimantoEmblem",
       "norm_label": "boundary"
     },
     {
@@ -3050,8 +3050,8 @@
       "source_location": "L69",
       "_origin": "ast",
       "id": "apps_web_app_page_home",
-      "community": 23,
-      "community_name": "app/page.tsx",
+      "community": 10,
+      "community_name": "NimantoEmblem",
       "norm_label": "home()"
     },
     {
@@ -3149,8 +3149,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_components_brand",
-      "community": 23,
-      "community_name": "app/page.tsx",
+      "community": 10,
+      "community_name": "NimantoEmblem",
       "norm_label": "brand.tsx"
     },
     {
@@ -3160,8 +3160,8 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "apps_web_components_brand_hub",
-      "community": 23,
-      "community_name": "app/page.tsx",
+      "community": 10,
+      "community_name": "NimantoEmblem",
       "norm_label": "hub"
     },
     {
@@ -3171,8 +3171,8 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "apps_web_components_brand_petals",
-      "community": 23,
-      "community_name": "app/page.tsx",
+      "community": 10,
+      "community_name": "NimantoEmblem",
       "norm_label": "petals"
     },
     {
@@ -3182,8 +3182,8 @@
       "source_location": "L55",
       "_origin": "ast",
       "id": "apps_web_components_brand_mark",
-      "community": 23,
-      "community_name": "app/page.tsx",
+      "community": 10,
+      "community_name": "NimantoEmblem",
       "norm_label": "mark()"
     },
     {
@@ -3193,8 +3193,8 @@
       "source_location": "L91",
       "_origin": "ast",
       "id": "apps_web_components_brand_brand",
-      "community": 23,
-      "community_name": "app/page.tsx",
+      "community": 10,
+      "community_name": "NimantoEmblem",
       "norm_label": "brand()"
     },
     {
@@ -3413,8 +3413,8 @@
       "source_location": "L1303",
       "_origin": "ast",
       "id": "apps_web_components_career_ledger_reviewspanel",
-      "community": 4,
-      "community_name": "career-ledger.tsx",
+      "community": 185,
+      "community_name": "career-ledger.ts",
       "norm_label": "reviewspanel()"
     },
     {
@@ -3424,8 +3424,8 @@
       "source_location": "L1442",
       "_origin": "ast",
       "id": "apps_web_components_career_ledger_insightspanel",
-      "community": 185,
-      "community_name": "career-ledger.ts",
+      "community": 4,
+      "community_name": "career-ledger.tsx",
       "norm_label": "insightspanel()"
     },
     {
@@ -3446,8 +3446,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_components_command_palette",
-      "community": 23,
-      "community_name": "app/page.tsx",
+      "community": 2,
+      "community_name": "workspace.tsx",
       "norm_label": "command-palette.tsx"
     },
     {
@@ -3457,8 +3457,8 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "apps_web_components_command_palette_paletteentry",
-      "community": 23,
-      "community_name": "app/page.tsx",
+      "community": 2,
+      "community_name": "workspace.tsx",
       "norm_label": "paletteentry"
     },
     {
@@ -3468,8 +3468,8 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "apps_web_components_command_palette_sitecommands",
-      "community": 23,
-      "community_name": "app/page.tsx",
+      "community": 2,
+      "community_name": "workspace.tsx",
       "norm_label": "sitecommands"
     },
     {
@@ -3479,8 +3479,8 @@
       "source_location": "L34",
       "_origin": "ast",
       "id": "apps_web_components_command_palette_commandpalette",
-      "community": 23,
-      "community_name": "app/page.tsx",
+      "community": 2,
+      "community_name": "workspace.tsx",
       "norm_label": "commandpalette()"
     },
     {
@@ -3864,8 +3864,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_components_emblem",
-      "community": 23,
-      "community_name": "app/page.tsx",
+      "community": 10,
+      "community_name": "NimantoEmblem",
       "norm_label": "emblem.tsx"
     },
     {
@@ -3875,8 +3875,8 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "apps_web_components_emblem_stage",
-      "community": 23,
-      "community_name": "app/page.tsx",
+      "community": 10,
+      "community_name": "NimantoEmblem",
       "norm_label": "stage"
     },
     {
@@ -3886,8 +3886,8 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "apps_web_components_emblem_emblem",
-      "community": 23,
-      "community_name": "app/page.tsx",
+      "community": 10,
+      "community_name": "NimantoEmblem",
       "norm_label": "emblem()"
     },
     {
@@ -4150,8 +4150,8 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "apps_web_components_packet_composer_rebindprofileversionbutton",
-      "community": 63,
-      "community_name": "createSubmissionDraft",
+      "community": 27,
+      "community_name": "packet-composer.ts",
       "norm_label": "rebindprofileversionbutton()"
     },
     {
@@ -5349,8 +5349,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_lib_api_client",
-      "community": 184,
-      "community_name": "workspace-read-currentness.test.tsx",
+      "community": 23,
+      "community_name": "export-session.test.tsx",
       "norm_label": "api-client.ts"
     },
     {
@@ -5360,8 +5360,8 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "apps_web_lib_api_client_apierror",
-      "community": 184,
-      "community_name": "workspace-read-currentness.test.tsx",
+      "community": 23,
+      "community_name": "export-session.test.tsx",
       "norm_label": "apierror"
     },
     {
@@ -5371,8 +5371,8 @@
       "source_location": "L4",
       "_origin": "ast",
       "id": "apps_web_lib_api_client_apierror_constructor",
-      "community": 184,
-      "community_name": "workspace-read-currentness.test.tsx",
+      "community": 23,
+      "community_name": "export-session.test.tsx",
       "norm_label": ".constructor()"
     },
     {
@@ -5382,8 +5382,8 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "apps_web_lib_api_client_fenceapiwritestosession",
-      "community": 184,
-      "community_name": "workspace-read-currentness.test.tsx",
+      "community": 23,
+      "community_name": "export-session.test.tsx",
       "norm_label": "fenceapiwritestosession()"
     },
     {
@@ -6053,8 +6053,8 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "apps_web_lib_career_ledger_filtersfromsavedview",
-      "community": 4,
-      "community_name": "career-ledger.tsx",
+      "community": 185,
+      "community_name": "career-ledger.ts",
       "norm_label": "filtersfromsavedview()"
     },
     {
@@ -6064,8 +6064,8 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "apps_web_lib_career_ledger_careerledgerinsightcounts",
-      "community": 185,
-      "community_name": "career-ledger.ts",
+      "community": 4,
+      "community_name": "career-ledger.tsx",
       "norm_label": "careerledgerinsightcounts()"
     },
     {
@@ -6328,8 +6328,8 @@
       "source_location": "L197",
       "_origin": "ast",
       "id": "apps_web_lib_derive_nextsteps",
-      "community": 16,
-      "community_name": "api",
+      "community": 3,
+      "community_name": "derive.ts",
       "norm_label": "nextsteps()"
     },
     {
@@ -6504,8 +6504,8 @@
       "source_location": "L565",
       "_origin": "ast",
       "id": "apps_web_lib_derive_profileversiondiff",
-      "community": 16,
-      "community_name": "api",
+      "community": 3,
+      "community_name": "derive.ts",
       "norm_label": "profileversiondiff()"
     },
     {
@@ -6691,8 +6691,8 @@
       "source_location": "L847",
       "_origin": "ast",
       "id": "apps_web_lib_derive_failuremessage",
-      "community": 16,
-      "community_name": "api",
+      "community": 31,
+      "community_name": "Workspace",
       "norm_label": "failuremessage()"
     },
     {
@@ -6713,8 +6713,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_lib_external_action_runtime",
-      "community": 129,
-      "community_name": "external-action-runtime.ts",
+      "community": 16,
+      "community_name": "api",
       "norm_label": "external-action-runtime.ts"
     },
     {
@@ -6724,8 +6724,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_lib_external_action_runtime_externalactionruntime",
-      "community": 129,
-      "community_name": "external-action-runtime.ts",
+      "community": 16,
+      "community_name": "api",
       "norm_label": "externalactionruntime"
     },
     {
@@ -6735,8 +6735,8 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "apps_web_lib_external_action_runtime_externalactionruntimeview",
-      "community": 129,
-      "community_name": "external-action-runtime.ts",
+      "community": 16,
+      "community_name": "api",
       "norm_label": "externalactionruntimeview"
     },
     {
@@ -6746,8 +6746,8 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "apps_web_lib_external_action_runtime_deriveexternalactionruntimeview",
-      "community": 129,
-      "community_name": "external-action-runtime.ts",
+      "community": 16,
+      "community_name": "api",
       "norm_label": "deriveexternalactionruntimeview()"
     },
     {
@@ -7461,8 +7461,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_lib_workbench_mutations",
-      "community": 184,
-      "community_name": "workspace-read-currentness.test.tsx",
+      "community": 23,
+      "community_name": "export-session.test.tsx",
       "norm_label": "workbench-mutations.ts"
     },
     {
@@ -7472,8 +7472,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_lib_workbench_mutations_workbenchmutation",
-      "community": 184,
-      "community_name": "workspace-read-currentness.test.tsx",
+      "community": 23,
+      "community_name": "export-session.test.tsx",
       "norm_label": "workbenchmutation"
     },
     {
@@ -7483,8 +7483,8 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "apps_web_lib_workbench_mutations_workbenchmutationoutcome",
-      "community": 184,
-      "community_name": "workspace-read-currentness.test.tsx",
+      "community": 23,
+      "community_name": "export-session.test.tsx",
       "norm_label": "workbenchmutationoutcome"
     },
     {
@@ -7494,8 +7494,8 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "apps_web_lib_workbench_mutations_refreshoutcome",
-      "community": 184,
-      "community_name": "workspace-read-currentness.test.tsx",
+      "community": 23,
+      "community_name": "export-session.test.tsx",
       "norm_label": "refreshoutcome"
     },
     {
@@ -7505,8 +7505,8 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "apps_web_lib_workbench_mutations_workbenchmutations",
-      "community": 184,
-      "community_name": "workspace-read-currentness.test.tsx",
+      "community": 23,
+      "community_name": "export-session.test.tsx",
       "norm_label": "workbenchmutations"
     },
     {
@@ -7516,8 +7516,8 @@
       "source_location": "L29",
       "_origin": "ast",
       "id": "apps_web_lib_workbench_mutations_mutationadapters",
-      "community": 184,
-      "community_name": "workspace-read-currentness.test.tsx",
+      "community": 23,
+      "community_name": "export-session.test.tsx",
       "norm_label": "mutationadapters"
     },
     {
@@ -7527,8 +7527,8 @@
       "source_location": "L48",
       "_origin": "ast",
       "id": "apps_web_lib_workbench_mutations_errorcode",
-      "community": 184,
-      "community_name": "workspace-read-currentness.test.tsx",
+      "community": 23,
+      "community_name": "export-session.test.tsx",
       "norm_label": "errorcode()"
     },
     {
@@ -7538,8 +7538,8 @@
       "source_location": "L55",
       "_origin": "ast",
       "id": "apps_web_lib_workbench_mutations_createworkbenchmutations",
-      "community": 184,
-      "community_name": "workspace-read-currentness.test.tsx",
+      "community": 23,
+      "community_name": "export-session.test.tsx",
       "norm_label": "createworkbenchmutations()"
     },
     {
@@ -8528,8 +8528,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_test_export_session_test",
-      "community": 184,
-      "community_name": "workspace-read-currentness.test.tsx",
+      "community": 23,
+      "community_name": "export-session.test.tsx",
       "norm_label": "export-session.test.tsx"
     },
     {
@@ -8539,8 +8539,8 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "apps_web_test_export_session_test_exportdashboard",
-      "community": 184,
-      "community_name": "workspace-read-currentness.test.tsx",
+      "community": 23,
+      "community_name": "export-session.test.tsx",
       "norm_label": "exportdashboard"
     },
     {
@@ -8550,8 +8550,8 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "apps_web_test_export_session_test_dashboard",
-      "community": 184,
-      "community_name": "workspace-read-currentness.test.tsx",
+      "community": 23,
+      "community_name": "export-session.test.tsx",
       "norm_label": "dashboard()"
     },
     {
@@ -8561,8 +8561,8 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "apps_web_test_export_session_test_clickdownload",
-      "community": 184,
-      "community_name": "workspace-read-currentness.test.tsx",
+      "community": 23,
+      "community_name": "export-session.test.tsx",
       "norm_label": "clickdownload()"
     },
     {
@@ -8572,8 +8572,8 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "apps_web_test_export_session_test_mount",
-      "community": 184,
-      "community_name": "workspace-read-currentness.test.tsx",
+      "community": 23,
+      "community_name": "export-session.test.tsx",
       "norm_label": "mount()"
     },
     {
@@ -8583,8 +8583,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_test_external_action_runtime_test",
-      "community": 129,
-      "community_name": "external-action-runtime.ts",
+      "community": 16,
+      "community_name": "api",
       "norm_label": "external-action-runtime.test.ts"
     },
     {
@@ -8836,8 +8836,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_test_tokens_test",
-      "community": 79,
-      "community_name": "tokens.test.ts",
+      "community": 12,
+      "community_name": "matching.ts",
       "norm_label": "tokens.test.ts"
     },
     {
@@ -8847,8 +8847,8 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "apps_web_test_tokens_test_css",
-      "community": 79,
-      "community_name": "tokens.test.ts",
+      "community": 12,
+      "community_name": "matching.ts",
       "norm_label": "css"
     },
     {
@@ -8858,8 +8858,8 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "apps_web_test_tokens_test_token",
-      "community": 79,
-      "community_name": "tokens.test.ts",
+      "community": 12,
+      "community_name": "matching.ts",
       "norm_label": "token()"
     },
     {
@@ -8869,8 +8869,8 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "apps_web_test_tokens_test_channel",
-      "community": 79,
-      "community_name": "tokens.test.ts",
+      "community": 12,
+      "community_name": "matching.ts",
       "norm_label": "channel()"
     },
     {
@@ -8880,8 +8880,8 @@
       "source_location": "L32",
       "_origin": "ast",
       "id": "apps_web_test_tokens_test_luminance",
-      "community": 79,
-      "community_name": "tokens.test.ts",
+      "community": 12,
+      "community_name": "matching.ts",
       "norm_label": "luminance()"
     },
     {
@@ -8891,8 +8891,8 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "apps_web_test_tokens_test_ratio",
-      "community": 79,
-      "community_name": "tokens.test.ts",
+      "community": 12,
+      "community_name": "matching.ts",
       "norm_label": "ratio()"
     },
     {
@@ -8902,8 +8902,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_test_workbench_mutations_test",
-      "community": 184,
-      "community_name": "workspace-read-currentness.test.tsx",
+      "community": 23,
+      "community_name": "export-session.test.tsx",
       "norm_label": "workbench-mutations.test.ts"
     },
     {
@@ -8913,8 +8913,8 @@
       "source_location": "L4",
       "_origin": "ast",
       "id": "apps_web_test_workbench_mutations_test_harness",
-      "community": 184,
-      "community_name": "workspace-read-currentness.test.tsx",
+      "community": 23,
+      "community_name": "export-session.test.tsx",
       "norm_label": "harness()"
     },
     {
@@ -11377,8 +11377,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "packages_database_src_index",
-      "community": 26,
-      "community_name": "database/src/index.ts",
+      "community": 37,
+      "community_name": "domain/src/index.ts",
       "norm_label": "database/src/index.ts"
     },
     {
@@ -11399,8 +11399,8 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "packages_database_src_migrations_backfillintegrityhashes",
-      "community": 14,
-      "community_name": "canonicalHash",
+      "community": 39,
+      "community_name": "migrations.ts",
       "norm_label": "backfillintegrityhashes()"
     },
     {
@@ -11642,7 +11642,7 @@
       "_origin": "ast",
       "id": "packages_database_src_store_sessionidentity",
       "community": 37,
-      "community_name": "providers/src/index.ts",
+      "community_name": "domain/src/index.ts",
       "norm_label": "sessionidentity"
     },
     {
@@ -11883,8 +11883,8 @@
       "source_location": "L318",
       "_origin": "ast",
       "id": "packages_database_src_store_h1bsignalrecord",
-      "community": 0,
-      "community_name": "government-dataset.ts",
+      "community": 7,
+      "community_name": "store.ts",
       "norm_label": "h1bsignalrecord"
     },
     {
@@ -11927,8 +11927,8 @@
       "source_location": "L366",
       "_origin": "ast",
       "id": "packages_database_src_store_applicationrecord",
-      "community": 58,
-      "community_name": "career-operations.ts",
+      "community": 18,
+      "community_name": ".transaction",
       "norm_label": "applicationrecord"
     },
     {
@@ -11949,8 +11949,8 @@
       "source_location": "L396",
       "_origin": "ast",
       "id": "packages_database_src_store_outcomerecord",
-      "community": 7,
-      "community_name": "store.ts",
+      "community": 58,
+      "community_name": "career-operations.ts",
       "norm_label": "outcomerecord"
     },
     {
@@ -11982,8 +11982,8 @@
       "source_location": "L426",
       "_origin": "ast",
       "id": "packages_database_src_store_contactrecord",
-      "community": 7,
-      "community_name": "store.ts",
+      "community": 58,
+      "community_name": "career-operations.ts",
       "norm_label": "contactrecord"
     },
     {
@@ -12059,8 +12059,8 @@
       "source_location": "L513",
       "_origin": "ast",
       "id": "packages_database_src_store_packetrecord",
-      "community": 7,
-      "community_name": "store.ts",
+      "community": 32,
+      "community_name": "packet-lifecycle.ts",
       "norm_label": "packetrecord"
     },
     {
@@ -12136,8 +12136,8 @@
       "source_location": "L585",
       "_origin": "ast",
       "id": "packages_database_src_store_sha256",
-      "community": 22,
-      "community_name": "NimantoStore",
+      "community": 8,
+      "community_name": "buildServer",
       "norm_label": "sha256()"
     },
     {
@@ -12224,8 +12224,8 @@
       "source_location": "L700",
       "_origin": "ast",
       "id": "packages_database_src_store_recordtext",
-      "community": 8,
-      "community_name": "buildServer",
+      "community": 18,
+      "community_name": ".transaction",
       "norm_label": "recordtext()"
     },
     {
@@ -12312,8 +12312,8 @@
       "source_location": "L793",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_close",
-      "community": 8,
-      "community_name": "buildServer",
+      "community": 14,
+      "community_name": "recovery-drill.ts",
       "norm_label": ".close()"
     },
     {
@@ -12345,8 +12345,8 @@
       "source_location": "L814",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_asserttenantactive",
-      "community": 42,
-      "community_name": "EvidenceClaim",
+      "community": 22,
+      "community_name": "NimantoStore",
       "norm_label": ".asserttenantactive()"
     },
     {
@@ -12389,8 +12389,8 @@
       "source_location": "L887",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_issueinvitation",
-      "community": 22,
-      "community_name": "NimantoStore",
+      "community": 8,
+      "community_name": "buildServer",
       "norm_label": ".issueinvitation()"
     },
     {
@@ -12411,8 +12411,8 @@
       "source_location": "L910",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_acceptinvitation",
-      "community": 22,
-      "community_name": "NimantoStore",
+      "community": 8,
+      "community_name": "buildServer",
       "norm_label": ".acceptinvitation()"
     },
     {
@@ -12444,8 +12444,8 @@
       "source_location": "L1005",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_createsession",
-      "community": 22,
-      "community_name": "NimantoStore",
+      "community": 8,
+      "community_name": "buildServer",
       "norm_label": ".createsession()"
     },
     {
@@ -12455,8 +12455,8 @@
       "source_location": "L1024",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_resolvesession",
-      "community": 22,
-      "community_name": "NimantoStore",
+      "community": 8,
+      "community_name": "buildServer",
       "norm_label": ".resolvesession()"
     },
     {
@@ -12466,8 +12466,8 @@
       "source_location": "L1049",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_revokesession",
-      "community": 22,
-      "community_name": "NimantoStore",
+      "community": 8,
+      "community_name": "buildServer",
       "norm_label": ".revokesession()"
     },
     {
@@ -12719,8 +12719,8 @@
       "source_location": "L1573",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_getprofileversion",
-      "community": 1,
-      "community_name": "iso",
+      "community": 18,
+      "community_name": ".transaction",
       "norm_label": ".getprofileversion()"
     },
     {
@@ -13005,8 +13005,8 @@
       "source_location": "L2750",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_setrolewordingreviewed",
-      "community": 1,
-      "community_name": "iso",
+      "community": 18,
+      "community_name": ".transaction",
       "norm_label": ".setrolewordingreviewed()"
     },
     {
@@ -13038,8 +13038,8 @@
       "source_location": "L2856",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_setemployeraliasreviewed",
-      "community": 1,
-      "community_name": "iso",
+      "community": 18,
+      "community_name": ".transaction",
       "norm_label": ".setemployeraliasreviewed()"
     },
     {
@@ -13082,8 +13082,8 @@
       "source_location": "L3028",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_importh1bdatasetedition",
-      "community": 22,
-      "community_name": "NimantoStore",
+      "community": 18,
+      "community_name": ".transaction",
       "norm_label": ".importh1bdatasetedition()"
     },
     {
@@ -13093,8 +13093,8 @@
       "source_location": "L3138",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_mapdatasetedition",
-      "community": 22,
-      "community_name": "NimantoStore",
+      "community": 1,
+      "community_name": "iso",
       "norm_label": ".#mapdatasetedition()"
     },
     {
@@ -13104,8 +13104,8 @@
       "source_location": "L3171",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_listdataseteditions",
-      "community": 22,
-      "community_name": "NimantoStore",
+      "community": 1,
+      "community_name": "iso",
       "norm_label": ".listdataseteditions()"
     },
     {
@@ -13280,8 +13280,8 @@
       "source_location": "L3768",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_mapapplicationactivity",
-      "community": 8,
-      "community_name": "buildServer",
+      "community": 22,
+      "community_name": "NimantoStore",
       "norm_label": ".#mapapplicationactivity()"
     },
     {
@@ -13302,8 +13302,8 @@
       "source_location": "L3805",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_listapplicationactivities",
-      "community": 8,
-      "community_name": "buildServer",
+      "community": 22,
+      "community_name": "NimantoStore",
       "norm_label": ".listapplicationactivities()"
     },
     {
@@ -13313,8 +13313,8 @@
       "source_location": "L3816",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_createcontact",
-      "community": 8,
-      "community_name": "buildServer",
+      "community": 18,
+      "community_name": ".transaction",
       "norm_label": ".createcontact()"
     },
     {
@@ -13335,8 +13335,8 @@
       "source_location": "L3892",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_listcontacts",
-      "community": 8,
-      "community_name": "buildServer",
+      "community": 22,
+      "community_name": "NimantoStore",
       "norm_label": ".listcontacts()"
     },
     {
@@ -13357,8 +13357,8 @@
       "source_location": "L3971",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_mapinterviewround",
-      "community": 8,
-      "community_name": "buildServer",
+      "community": 22,
+      "community_name": "NimantoStore",
       "norm_label": ".#mapinterviewround()"
     },
     {
@@ -13379,8 +13379,8 @@
       "source_location": "L4003",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_listinterviewrounds",
-      "community": 8,
-      "community_name": "buildServer",
+      "community": 22,
+      "community_name": "NimantoStore",
       "norm_label": ".listinterviewrounds()"
     },
     {
@@ -13390,8 +13390,8 @@
       "source_location": "L4012",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_saveanswerblock",
-      "community": 8,
-      "community_name": "buildServer",
+      "community": 18,
+      "community_name": ".transaction",
       "norm_label": ".saveanswerblock()"
     },
     {
@@ -13445,8 +13445,8 @@
       "source_location": "L4217",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_saveapplicationview",
-      "community": 8,
-      "community_name": "buildServer",
+      "community": 22,
+      "community_name": "NimantoStore",
       "norm_label": ".saveapplicationview()"
     },
     {
@@ -13456,8 +13456,8 @@
       "source_location": "L4237",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_mapsavedview",
-      "community": 8,
-      "community_name": "buildServer",
+      "community": 22,
+      "community_name": "NimantoStore",
       "norm_label": ".#mapsavedview()"
     },
     {
@@ -13467,8 +13467,8 @@
       "source_location": "L4248",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_markapplicationviewreviewed",
-      "community": 8,
-      "community_name": "buildServer",
+      "community": 22,
+      "community_name": "NimantoStore",
       "norm_label": ".markapplicationviewreviewed()"
     },
     {
@@ -13478,8 +13478,8 @@
       "source_location": "L4261",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_listapplicationviews",
-      "community": 8,
-      "community_name": "buildServer",
+      "community": 22,
+      "community_name": "NimantoStore",
       "norm_label": ".listapplicationviews()"
     },
     {
@@ -13489,8 +13489,8 @@
       "source_location": "L4270",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_saveoffer",
-      "community": 8,
-      "community_name": "buildServer",
+      "community": 22,
+      "community_name": "NimantoStore",
       "norm_label": ".saveoffer()"
     },
     {
@@ -13500,8 +13500,8 @@
       "source_location": "L4336",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_mapoffer",
-      "community": 8,
-      "community_name": "buildServer",
+      "community": 22,
+      "community_name": "NimantoStore",
       "norm_label": ".#mapoffer()"
     },
     {
@@ -13522,8 +13522,8 @@
       "source_location": "L4369",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_listoffers",
-      "community": 8,
-      "community_name": "buildServer",
+      "community": 22,
+      "community_name": "NimantoStore",
       "norm_label": ".listoffers()"
     },
     {
@@ -13533,8 +13533,8 @@
       "source_location": "L4377",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_readcareeroperations",
-      "community": 8,
-      "community_name": "buildServer",
+      "community": 22,
+      "community_name": "NimantoStore",
       "norm_label": ".readcareeroperations()"
     },
     {
@@ -13566,8 +13566,8 @@
       "source_location": "L4449",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_getpacket",
-      "community": 18,
-      "community_name": ".transaction",
+      "community": 22,
+      "community_name": "NimantoStore",
       "norm_label": ".getpacket()"
     },
     {
@@ -13577,8 +13577,8 @@
       "source_location": "L4457",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_getlatestpacketforapplication",
-      "community": 18,
-      "community_name": ".transaction",
+      "community": 22,
+      "community_name": "NimantoStore",
       "norm_label": ".getlatestpacketforapplication()"
     },
     {
@@ -13588,8 +13588,8 @@
       "source_location": "L4471",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_ispacketcurrent",
-      "community": 18,
-      "community_name": ".transaction",
+      "community": 14,
+      "community_name": "recovery-drill.ts",
       "norm_label": ".ispacketcurrent()"
     },
     {
@@ -13643,8 +13643,8 @@
       "source_location": "L4590",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_saveassurance",
-      "community": 18,
-      "community_name": ".transaction",
+      "community": 22,
+      "community_name": "NimantoStore",
       "norm_label": ".saveassurance()"
     },
     {
@@ -13654,8 +13654,8 @@
       "source_location": "L4639",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_mapassurance",
-      "community": 30,
-      "community_name": ".#mapAssurance",
+      "community": 22,
+      "community_name": "NimantoStore",
       "norm_label": ".#mapassurance()"
     },
     {
@@ -13665,8 +13665,8 @@
       "source_location": "L4652",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_latestassurance",
-      "community": 30,
-      "community_name": ".#mapAssurance",
+      "community": 22,
+      "community_name": "NimantoStore",
       "norm_label": ".latestassurance()"
     },
     {
@@ -13676,8 +13676,8 @@
       "source_location": "L4664",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_listlatestassurances",
-      "community": 30,
-      "community_name": ".#mapAssurance",
+      "community": 22,
+      "community_name": "NimantoStore",
       "norm_label": ".listlatestassurances()"
     },
     {
@@ -13687,8 +13687,8 @@
       "source_location": "L4682",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_listlatestassurancesforpackets",
-      "community": 30,
-      "community_name": ".#mapAssurance",
+      "community": 22,
+      "community_name": "NimantoStore",
       "norm_label": ".listlatestassurancesforpackets()"
     },
     {
@@ -13698,8 +13698,8 @@
       "source_location": "L4704",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_listassuranceruns",
-      "community": 30,
-      "community_name": ".#mapAssurance",
+      "community": 22,
+      "community_name": "NimantoStore",
       "norm_label": ".listassuranceruns()"
     },
     {
@@ -13709,8 +13709,8 @@
       "source_location": "L4745",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_listassurancehistory",
-      "community": 30,
-      "community_name": ".#mapAssurance",
+      "community": 22,
+      "community_name": "NimantoStore",
       "norm_label": ".listassurancehistory()"
     },
     {
@@ -13742,8 +13742,8 @@
       "source_location": "L4803",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_createexternalaction",
-      "community": 28,
-      "community_name": "external-action-lifecycle.ts",
+      "community": 14,
+      "community_name": "recovery-drill.ts",
       "norm_label": ".createexternalaction()"
     },
     {
@@ -13753,8 +13753,8 @@
       "source_location": "L4840",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_mapaction",
-      "community": 87,
-      "community_name": ".#mapAction",
+      "community": 14,
+      "community_name": "recovery-drill.ts",
       "norm_label": ".#mapaction()"
     },
     {
@@ -13764,8 +13764,8 @@
       "source_location": "L4867",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_getexternalaction",
-      "community": 87,
-      "community_name": ".#mapAction",
+      "community": 14,
+      "community_name": "recovery-drill.ts",
       "norm_label": ".getexternalaction()"
     },
     {
@@ -13775,8 +13775,8 @@
       "source_location": "L4875",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_listexternalactions",
-      "community": 87,
-      "community_name": ".#mapAction",
+      "community": 14,
+      "community_name": "recovery-drill.ts",
       "norm_label": ".listexternalactions()"
     },
     {
@@ -13786,8 +13786,8 @@
       "source_location": "L4883",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_transitionexternalaction",
-      "community": 87,
-      "community_name": ".#mapAction",
+      "community": 14,
+      "community_name": "recovery-drill.ts",
       "norm_label": ".transitionexternalaction()"
     },
     {
@@ -13797,8 +13797,8 @@
       "source_location": "L4901",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_approveexternalactionexact",
-      "community": 18,
-      "community_name": ".transaction",
+      "community": 14,
+      "community_name": "recovery-drill.ts",
       "norm_label": ".approveexternalactionexact()"
     },
     {
@@ -13809,7 +13809,7 @@
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_markinterruptedactionsambiguous",
       "community": 14,
-      "community_name": "canonicalHash",
+      "community_name": "recovery-drill.ts",
       "norm_label": ".markinterruptedactionsambiguous()"
     },
     {
@@ -13853,7 +13853,7 @@
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_begintenantdeletion",
       "community": 48,
-      "community_name": ".finish",
+      "community_name": "deletion-coordinator.ts",
       "norm_label": ".begintenantdeletion()"
     },
     {
@@ -13864,7 +13864,7 @@
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_purgetenantfordeletion",
       "community": 48,
-      "community_name": ".finish",
+      "community_name": "deletion-coordinator.ts",
       "norm_label": ".purgetenantfordeletion()"
     },
     {
@@ -13875,7 +13875,7 @@
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_markdeletioncleanuppending",
       "community": 48,
-      "community_name": ".finish",
+      "community_name": "deletion-coordinator.ts",
       "norm_label": ".markdeletioncleanuppending()"
     },
     {
@@ -13886,7 +13886,7 @@
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_completedeletion",
       "community": 48,
-      "community_name": ".finish",
+      "community_name": "deletion-coordinator.ts",
       "norm_label": ".completedeletion()"
     },
     {
@@ -13897,7 +13897,7 @@
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_deletionrunbytoken",
       "community": 48,
-      "community_name": ".finish",
+      "community_name": "deletion-coordinator.ts",
       "norm_label": ".deletionrunbytoken()"
     },
     {
@@ -13908,7 +13908,7 @@
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_recoverabledeletionruns",
       "community": 48,
-      "community_name": ".finish",
+      "community_name": "deletion-coordinator.ts",
       "norm_label": ".recoverabledeletionruns()"
     },
     {
@@ -13919,7 +13919,7 @@
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_prunecompleteddeletionruns",
       "community": 48,
-      "community_name": ".finish",
+      "community_name": "deletion-coordinator.ts",
       "norm_label": ".prunecompleteddeletionruns()"
     },
     {
@@ -13929,8 +13929,8 @@
       "source_location": "L5256",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_deletionstatus",
-      "community": 22,
-      "community_name": "NimantoStore",
+      "community": 8,
+      "community_name": "buildServer",
       "norm_label": ".deletionstatus()"
     },
     {
@@ -15436,8 +15436,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "packages_domain_src_applications",
-      "community": 65,
-      "community_name": "applications.ts",
+      "community": 32,
+      "community_name": "packet-lifecycle.ts",
       "norm_label": "applications.ts"
     },
     {
@@ -15447,8 +15447,8 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "packages_domain_src_applications_application_statuses",
-      "community": 65,
-      "community_name": "applications.ts",
+      "community": 32,
+      "community_name": "packet-lifecycle.ts",
       "norm_label": "application_statuses"
     },
     {
@@ -15458,8 +15458,8 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "packages_domain_src_applications_legalcandidatetargets",
-      "community": 65,
-      "community_name": "applications.ts",
+      "community": 32,
+      "community_name": "packet-lifecycle.ts",
       "norm_label": "legalcandidatetargets"
     },
     {
@@ -15469,8 +15469,8 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "packages_domain_src_applications_consequentialtargets",
-      "community": 65,
-      "community_name": "applications.ts",
+      "community": 32,
+      "community_name": "packet-lifecycle.ts",
       "norm_label": "consequentialtargets"
     },
     {
@@ -15480,8 +15480,8 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "packages_domain_src_applications_candidateapplicationoption",
-      "community": 65,
-      "community_name": "applications.ts",
+      "community": 32,
+      "community_name": "packet-lifecycle.ts",
       "norm_label": "candidateapplicationoption"
     },
     {
@@ -15491,8 +15491,8 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "packages_domain_src_applications_candidateapplicationdecision",
-      "community": 65,
-      "community_name": "applications.ts",
+      "community": 32,
+      "community_name": "packet-lifecycle.ts",
       "norm_label": "candidateapplicationdecision"
     },
     {
@@ -15502,8 +15502,8 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "packages_domain_src_applications_packetapplicationeffect",
-      "community": 65,
-      "community_name": "applications.ts",
+      "community": 32,
+      "community_name": "packet-lifecycle.ts",
       "norm_label": "packetapplicationeffect"
     },
     {
@@ -15513,8 +15513,8 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "packages_domain_src_applications_packetapplicationdecision",
-      "community": 65,
-      "community_name": "applications.ts",
+      "community": 32,
+      "community_name": "packet-lifecycle.ts",
       "norm_label": "packetapplicationdecision"
     },
     {
@@ -15524,8 +15524,8 @@
       "source_location": "L46",
       "_origin": "ast",
       "id": "packages_domain_src_applications_isstatus",
-      "community": 65,
-      "community_name": "applications.ts",
+      "community": 32,
+      "community_name": "packet-lifecycle.ts",
       "norm_label": "isstatus()"
     },
     {
@@ -15535,8 +15535,8 @@
       "source_location": "L50",
       "_origin": "ast",
       "id": "packages_domain_src_applications_confirmationfor",
-      "community": 65,
-      "community_name": "applications.ts",
+      "community": 32,
+      "community_name": "packet-lifecycle.ts",
       "norm_label": "confirmationfor()"
     },
     {
@@ -15546,8 +15546,8 @@
       "source_location": "L63",
       "_origin": "ast",
       "id": "packages_domain_src_applications_applicationtransitions",
-      "community": 65,
-      "community_name": "applications.ts",
+      "community": 32,
+      "community_name": "packet-lifecycle.ts",
       "norm_label": "applicationtransitions"
     },
     {
@@ -15557,8 +15557,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "packages_domain_src_assurance",
-      "community": 75,
-      "community_name": "domain/src/index.ts",
+      "community": 12,
+      "community_name": "matching.ts",
       "norm_label": "assurance.ts"
     },
     {
@@ -15568,8 +15568,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "packages_domain_src_assurance_assurancefindingcode",
-      "community": 75,
-      "community_name": "domain/src/index.ts",
+      "community": 12,
+      "community_name": "matching.ts",
       "norm_label": "assurancefindingcode"
     },
     {
@@ -15579,8 +15579,8 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "packages_domain_src_assurance_assurancefinding",
-      "community": 75,
-      "community_name": "domain/src/index.ts",
+      "community": 12,
+      "community_name": "matching.ts",
       "norm_label": "assurancefinding"
     },
     {
@@ -15590,8 +15590,8 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "packages_domain_src_assurance_packetassuranceresult",
-      "community": 75,
-      "community_name": "domain/src/index.ts",
+      "community": 12,
+      "community_name": "matching.ts",
       "norm_label": "packetassuranceresult"
     },
     {
@@ -15601,8 +15601,8 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "packages_domain_src_assurance_assurepacket",
-      "community": 75,
-      "community_name": "domain/src/index.ts",
+      "community": 12,
+      "community_name": "matching.ts",
       "norm_label": "assurepacket()"
     },
     {
@@ -15678,8 +15678,8 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "packages_domain_src_career_operations_contactkind",
-      "community": 7,
-      "community_name": "store.ts",
+      "community": 58,
+      "community_name": "career-operations.ts",
       "norm_label": "contactkind"
     },
     {
@@ -15843,8 +15843,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "packages_domain_src_external_actions",
-      "community": 75,
-      "community_name": "domain/src/index.ts",
+      "community": 12,
+      "community_name": "matching.ts",
       "norm_label": "external-actions.ts"
     },
     {
@@ -15854,8 +15854,8 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "packages_domain_src_external_actions_externalactionevent",
-      "community": 75,
-      "community_name": "domain/src/index.ts",
+      "community": 12,
+      "community_name": "matching.ts",
       "norm_label": "externalactionevent"
     },
     {
@@ -15865,8 +15865,8 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "packages_domain_src_external_actions_transitions",
-      "community": 75,
-      "community_name": "domain/src/index.ts",
+      "community": 12,
+      "community_name": "matching.ts",
       "norm_label": "transitions"
     },
     {
@@ -15876,8 +15876,8 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "packages_domain_src_external_actions_transitionexternalaction",
-      "community": 75,
-      "community_name": "domain/src/index.ts",
+      "community": 14,
+      "community_name": "recovery-drill.ts",
       "norm_label": "transitionexternalaction()"
     },
     {
@@ -15887,7 +15887,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "packages_domain_src_index",
-      "community": 75,
+      "community": 37,
       "community_name": "domain/src/index.ts",
       "norm_label": "domain/src/index.ts"
     },
@@ -16052,8 +16052,8 @@
       "source_location": "L94",
       "_origin": "ast",
       "id": "packages_domain_src_marketplace_classifyrolefamily",
-      "community": 47,
-      "community_name": "roles.ts",
+      "community": 40,
+      "community_name": "marketplace.ts",
       "norm_label": "classifyrolefamily()"
     },
     {
@@ -16239,7 +16239,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "packages_domain_src_receipts",
-      "community": 14,
+      "community": 28,
       "community_name": "canonicalHash",
       "norm_label": "receipts.ts"
     },
@@ -16283,7 +16283,7 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "packages_domain_src_receipts_canonicalhash",
-      "community": 14,
+      "community": 28,
       "community_name": "canonicalHash",
       "norm_label": "canonicalhash()"
     },
@@ -16294,7 +16294,7 @@
       "source_location": "L42",
       "_origin": "ast",
       "id": "packages_domain_src_receipts_createreceipt",
-      "community": 14,
+      "community": 28,
       "community_name": "canonicalHash",
       "norm_label": "createreceipt()"
     },
@@ -16305,7 +16305,7 @@
       "source_location": "L60",
       "_origin": "ast",
       "id": "packages_domain_src_receipts_verifyreceipt",
-      "community": 14,
+      "community": 28,
       "community_name": "canonicalHash",
       "norm_label": "verifyreceipt()"
     },
@@ -16349,8 +16349,8 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "packages_domain_src_roles_currentrole",
-      "community": 45,
-      "community_name": "discovery-cycle.ts",
+      "community": 47,
+      "community_name": "roles.ts",
       "norm_label": "currentrole"
     },
     {
@@ -16702,7 +16702,7 @@
       "_origin": "ast",
       "id": "packages_domain_src_sponsorship_freshh1blabel",
       "community": 37,
-      "community_name": "providers/src/index.ts",
+      "community_name": "domain/src/index.ts",
       "norm_label": "freshh1blabel()"
     },
     {
@@ -16954,8 +16954,8 @@
       "source_location": "L99",
       "_origin": "ast",
       "id": "packages_domain_src_types_applicationstatus",
-      "community": 58,
-      "community_name": "career-operations.ts",
+      "community": 18,
+      "community_name": ".transaction",
       "norm_label": "applicationstatus"
     },
     {
@@ -16965,8 +16965,8 @@
       "source_location": "L102",
       "_origin": "ast",
       "id": "packages_domain_src_types_outcometype",
-      "community": 7,
-      "community_name": "store.ts",
+      "community": 58,
+      "community_name": "career-operations.ts",
       "norm_label": "outcometype"
     },
     {
@@ -16976,8 +16976,8 @@
       "source_location": "L104",
       "_origin": "ast",
       "id": "packages_domain_src_types_h1bsignallabel",
-      "community": 0,
-      "community_name": "government-dataset.ts",
+      "community": 7,
+      "community_name": "store.ts",
       "norm_label": "h1bsignallabel"
     },
     {
@@ -16987,8 +16987,8 @@
       "source_location": "L115",
       "_origin": "ast",
       "id": "packages_domain_src_types_externalactionprovider",
-      "community": 28,
-      "community_name": "external-action-lifecycle.ts",
+      "community": 39,
+      "community_name": "migrations.ts",
       "norm_label": "externalactionprovider"
     },
     {
@@ -17020,8 +17020,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "packages_domain_test_applications_test",
-      "community": 65,
-      "community_name": "applications.ts",
+      "community": 32,
+      "community_name": "packet-lifecycle.ts",
       "norm_label": "applications.test.ts"
     },
     {
@@ -17031,8 +17031,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "packages_domain_test_assurance_actions_test",
-      "community": 75,
-      "community_name": "domain/src/index.ts",
+      "community": 12,
+      "community_name": "matching.ts",
       "norm_label": "assurance-actions.test.ts"
     },
     {
@@ -17086,7 +17086,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "packages_domain_test_receipts_test",
-      "community": 14,
+      "community": 28,
       "community_name": "canonicalHash",
       "norm_label": "receipts.test.ts"
     },
@@ -18373,8 +18373,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "packages_providers_src_actions",
-      "community": 28,
-      "community_name": "external-action-lifecycle.ts",
+      "community": 39,
+      "community_name": "migrations.ts",
       "norm_label": "actions.ts"
     },
     {
@@ -18384,8 +18384,8 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "packages_providers_src_actions_actionpayload",
-      "community": 28,
-      "community_name": "external-action-lifecycle.ts",
+      "community": 39,
+      "community_name": "migrations.ts",
       "norm_label": "actionpayload"
     },
     {
@@ -18395,8 +18395,8 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "packages_providers_src_actions_actionresult",
-      "community": 28,
-      "community_name": "external-action-lifecycle.ts",
+      "community": 39,
+      "community_name": "migrations.ts",
       "norm_label": "actionresult"
     },
     {
@@ -18406,8 +18406,8 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "packages_providers_src_actions_validateactionpayload",
-      "community": 28,
-      "community_name": "external-action-lifecycle.ts",
+      "community": 39,
+      "community_name": "migrations.ts",
       "norm_label": "validateactionpayload()"
     },
     {
@@ -18417,8 +18417,8 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "packages_providers_src_actions_builddeeplink",
-      "community": 28,
-      "community_name": "external-action-lifecycle.ts",
+      "community": 39,
+      "community_name": "migrations.ts",
       "norm_label": "builddeeplink()"
     },
     {
@@ -18428,8 +18428,8 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "packages_providers_src_actions_executeprovideraction",
-      "community": 28,
-      "community_name": "external-action-lifecycle.ts",
+      "community": 39,
+      "community_name": "migrations.ts",
       "norm_label": "executeprovideraction()"
     },
     {
@@ -18626,8 +18626,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "packages_providers_src_index",
-      "community": 37,
-      "community_name": "providers/src/index.ts",
+      "community": 20,
+      "community_name": "jobs.ts",
       "norm_label": "providers/src/index.ts"
     },
     {
@@ -18648,8 +18648,8 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "packages_providers_src_jobs_jobprovider",
-      "community": 20,
-      "community_name": "jobs.ts",
+      "community": 45,
+      "community_name": "discovery-cycle.ts",
       "norm_label": "jobprovider"
     },
     {
@@ -18692,8 +18692,8 @@
       "source_location": "L54",
       "_origin": "ast",
       "id": "packages_providers_src_jobs_providerfetchresult",
-      "community": 20,
-      "community_name": "jobs.ts",
+      "community": 45,
+      "community_name": "discovery-cycle.ts",
       "norm_label": "providerfetchresult"
     },
     {
@@ -19044,8 +19044,8 @@
       "source_location": "L100",
       "_origin": "ast",
       "id": "packages_providers_src_source_registry_job_source_registry",
-      "community": 37,
-      "community_name": "providers/src/index.ts",
+      "community": 20,
+      "community_name": "jobs.ts",
       "norm_label": "job_source_registry"
     },
     {
@@ -19682,8 +19682,8 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "scripts_check_screenshots_run",
-      "community": 48,
-      "community_name": ".finish",
+      "community": 25,
+      "community_name": "screenshot-evidence.mjs",
       "norm_label": "run()"
     },
     {
@@ -20996,6 +20996,17 @@
       "norm_label": "acknowledgments"
     },
     {
+      "label": "Unreleased source inventory",
+      "file_type": "document",
+      "source_file": "ACKNOWLEDGMENTS.md",
+      "source_location": "L17",
+      "_origin": "ast",
+      "id": "acknowledgments_unreleased_source_inventory",
+      "community": 132,
+      "community_name": "ACKNOWLEDGMENTS.md",
+      "norm_label": "unreleased source inventory"
+    },
+    {
       "label": "CODE_OF_CONDUCT.md",
       "file_type": "document",
       "source_file": "CODE_OF_CONDUCT.md",
@@ -21170,6 +21181,17 @@
       "community": 132,
       "community_name": "ACKNOWLEDGMENTS.md",
       "norm_label": "third-party notices"
+    },
+    {
+      "label": "Unreleased source inventory",
+      "file_type": "document",
+      "source_file": "THIRD_PARTY_NOTICES.md",
+      "source_location": "L26",
+      "_origin": "ast",
+      "id": "third_party_notices_unreleased_source_inventory",
+      "community": 132,
+      "community_name": "ACKNOWLEDGMENTS.md",
+      "norm_label": "unreleased source inventory"
     },
     {
       "label": "AGENTS.md",
@@ -25657,9 +25679,9 @@
       "source_file": "docs/architecture/system.md",
       "source_location": null,
       "source_url": null,
-      "community": 33,
+      "community": 6,
       "norm_label": "discovery profile replay",
-      "community_name": "Discovery Profile replay",
+      "community_name": "Fastify API",
       "id": "docs_architecture_system_discovery_profile_replay"
     },
     {
@@ -25699,9 +25721,9 @@
       "source_file": "docs/planning/job-marketplace-expansion-plan-2026-08-26.md",
       "source_location": null,
       "source_url": null,
-      "community": 33,
+      "community": 6,
       "norm_label": "discovery profile",
-      "community_name": "Discovery Profile replay",
+      "community_name": "Fastify API",
       "id": "docs_planning_job_marketplace_expansion_plan_2026_08_26_discovery_profile"
     },
     {
@@ -25727,9 +25749,9 @@
       "source_file": "docs/planning/job-marketplace-expansion-plan-2026-08-26.md",
       "source_location": null,
       "source_url": null,
-      "community": 33,
+      "community": 6,
       "norm_label": "work-mode normalization",
-      "community_name": "Discovery Profile replay",
+      "community_name": "Fastify API",
       "id": "docs_planning_job_marketplace_expansion_plan_2026_08_26_work_mode_normalization"
     },
     {
@@ -25741,9 +25763,9 @@
       "source_file": "README.md",
       "source_location": null,
       "source_url": null,
-      "community": 33,
+      "community": 6,
       "norm_label": "candidate-approved discovery profile",
-      "community_name": "Discovery Profile replay",
+      "community_name": "Fastify API",
       "id": "readme_candidate_approved_discovery_profile"
     },
     {
@@ -25755,9 +25777,9 @@
       "source_file": "README.md",
       "source_location": null,
       "source_url": null,
-      "community": 36,
+      "community": 6,
       "norm_label": "source-qualified posting freshness",
-      "community_name": "Nimanto",
+      "community_name": "Fastify API",
       "id": "readme_source_qualified_posting_freshness"
     },
     {
@@ -25839,9 +25861,9 @@
       "source_file": "docs/planning/job-marketplace-expansion-plan-2026-08-26.md",
       "source_location": null,
       "source_url": null,
-      "community": 33,
+      "community": 6,
       "norm_label": "h-1b evidence layers",
-      "community_name": "Discovery Profile replay",
+      "community_name": "Fastify API",
       "id": "docs_planning_job_marketplace_expansion_plan_2026_08_26_h_1b_evidence_layers"
     },
     {
@@ -25881,9 +25903,9 @@
       "source_file": "docs/planning/job-marketplace-expansion-plan-2026-08-26.md",
       "source_location": null,
       "source_url": "https://www.dol.gov/agencies/eta/foreign-labor/performance",
-      "community": 33,
+      "community": 6,
       "norm_label": "dol oflc performance disclosure data",
-      "community_name": "Discovery Profile replay",
+      "community_name": "Fastify API",
       "id": "docs_planning_job_marketplace_expansion_plan_2026_08_26_dol_oflc_performance_disclosure_data"
     },
     {
@@ -25895,9 +25917,9 @@
       "source_file": "docs/planning/job-marketplace-expansion-plan-2026-08-26.md",
       "source_location": null,
       "source_url": "https://www.uscis.gov/tools/reports-and-studies/h-1-b-employer-data-hub",
-      "community": 33,
+      "community": 6,
       "norm_label": "uscis h-1b employer data hub",
-      "community_name": "Discovery Profile replay",
+      "community_name": "Fastify API",
       "id": "docs_planning_job_marketplace_expansion_plan_2026_08_26_uscis_h_1b_employer_data_hub"
     },
     {
@@ -25909,9 +25931,9 @@
       "source_file": "docs/planning/job-marketplace-expansion-plan-2026-08-26.md",
       "source_location": null,
       "source_url": null,
-      "community": 33,
+      "community": 6,
       "norm_label": "candidate-controlled metasearch workbench",
-      "community_name": "Discovery Profile replay",
+      "community_name": "Fastify API",
       "id": "docs_planning_job_marketplace_expansion_plan_2026_08_26_candidate_controlled_metasearch_workbench"
     },
     {
@@ -25923,9 +25945,9 @@
       "source_file": "docs/planning/job-marketplace-expansion-plan-2026-08-26.md",
       "source_location": null,
       "source_url": null,
-      "community": 33,
+      "community": 6,
       "norm_label": "warning-only sponsorship boundary",
-      "community_name": "Discovery Profile replay",
+      "community_name": "Fastify API",
       "id": "docs_planning_job_marketplace_expansion_plan_2026_08_26_warning_only_sponsorship_boundary"
     },
     {
@@ -25937,9 +25959,9 @@
       "source_file": "README.md",
       "source_location": null,
       "source_url": null,
-      "community": 33,
+      "community": 6,
       "norm_label": "h-1b evidence separation",
-      "community_name": "Discovery Profile replay",
+      "community_name": "Fastify API",
       "id": "readme_h_1b_evidence_separation"
     },
     {
@@ -25951,9 +25973,9 @@
       "source_file": "docs/architecture/system.md",
       "source_location": null,
       "source_url": null,
-      "community": 36,
+      "community": 6,
       "norm_label": "staged packet lifecycle",
-      "community_name": "Nimanto",
+      "community_name": "Fastify API",
       "id": "docs_architecture_system_staged_packet_lifecycle"
     },
     {
@@ -25965,9 +25987,9 @@
       "source_file": "docs/planning/job-marketplace-expansion-plan-2026-08-26.md",
       "source_location": null,
       "source_url": null,
-      "community": 36,
+      "community": 6,
       "norm_label": "first marketplace mvp",
-      "community_name": "Nimanto",
+      "community_name": "Fastify API",
       "id": "docs_planning_job_marketplace_expansion_plan_2026_08_26_first_marketplace_mvp"
     },
     {
@@ -25979,9 +26001,9 @@
       "source_file": "docs/planning/job-marketplace-expansion-plan-2026-08-26.md",
       "source_location": null,
       "source_url": null,
-      "community": 36,
+      "community": 6,
       "norm_label": "rights-approved broad-feed bake-off",
-      "community_name": "Nimanto",
+      "community_name": "Fastify API",
       "id": "docs_planning_job_marketplace_expansion_plan_2026_08_26_rights_approved_broad_feed_bake_off"
     },
     {
@@ -25993,9 +26015,9 @@
       "source_file": "docs/planning/job-marketplace-expansion-plan-2026-08-26.md",
       "source_location": null,
       "source_url": null,
-      "community": 36,
+      "community": 6,
       "norm_label": "rolecluster",
-      "community_name": "Nimanto",
+      "community_name": "Fastify API",
       "id": "docs_planning_job_marketplace_expansion_plan_2026_08_26_rolecluster"
     },
     {
@@ -26007,9 +26029,9 @@
       "source_file": "README.md",
       "source_location": null,
       "source_url": null,
-      "community": 36,
+      "community": 6,
       "norm_label": "deterministic evidence matching",
-      "community_name": "Nimanto",
+      "community_name": "Fastify API",
       "id": "readme_deterministic_evidence_matching"
     },
     {
@@ -26021,9 +26043,9 @@
       "source_file": "README.md",
       "source_location": null,
       "source_url": null,
-      "community": 36,
+      "community": 6,
       "norm_label": "grounded packet lifecycle",
-      "community_name": "Nimanto",
+      "community_name": "Fastify API",
       "id": "readme_grounded_packet_lifecycle"
     },
     {
@@ -26035,9 +26057,9 @@
       "source_file": "README.md",
       "source_location": null,
       "source_url": null,
-      "community": 36,
+      "community": 6,
       "norm_label": "source-preserving role grouping",
-      "community_name": "Nimanto",
+      "community_name": "Fastify API",
       "id": "readme_source_preserving_role_grouping"
     },
     {
@@ -26049,9 +26071,9 @@
       "source_file": "README.md",
       "source_location": null,
       "source_url": null,
-      "community": 36,
+      "community": 6,
       "norm_label": "nimanto",
-      "community_name": "Nimanto",
+      "community_name": "Fastify API",
       "id": "readme_nimanto"
     },
     {
@@ -26063,9 +26085,9 @@
       "source_file": "docs/planning/job-marketplace-expansion-plan-2026-08-26.md",
       "source_location": null,
       "source_url": null,
-      "community": 36,
+      "community": 6,
       "norm_label": "source-preserving grouping",
-      "community_name": "Nimanto",
+      "community_name": "Fastify API",
       "id": "docs_planning_job_marketplace_expansion_plan_2026_08_26_source_preserving_grouping"
     },
     {
@@ -26077,9 +26099,9 @@
       "source_file": "README.md",
       "source_location": null,
       "source_url": null,
-      "community": 36,
+      "community": 6,
       "norm_label": "evidence-first candidate workflow",
-      "community_name": "Nimanto",
+      "community_name": "Fastify API",
       "id": "readme_evidence_first_candidate_workflow"
     },
     {
@@ -26119,9 +26141,9 @@
       "source_file": "README.md",
       "source_location": null,
       "source_url": null,
-      "community": 33,
+      "community": 6,
       "norm_label": "candidate tool boundary",
-      "community_name": "Discovery Profile replay",
+      "community_name": "Fastify API",
       "id": "readme_candidate_tool_boundary"
     },
     {
@@ -26179,9 +26201,9 @@
       "author": null,
       "contributor": null,
       "rationale": "The launcher supplies the key and pnpm dev prints the private URL; bare workbench entry and return after sign-out remain disabled until the launch-secret key is supplied.",
-      "community": 5,
+      "community": 36,
       "norm_label": "private launch key",
-      "community_name": "Run and operate the local beta",
+      "community_name": "Private email-bound invitations",
       "id": "docs_operations_local_beta_private_launch_key"
     },
     {
@@ -26269,9 +26291,9 @@
       "author": null,
       "contributor": null,
       "rationale": "Current main schema15 includes legacy Packet/Action hashes at6, role dispositions/notes at7, discovery/government trust at8-12, Career Ledger/status migration markers at13, append-only Submission Records at14, and manual-role idempotency, legacy role identity review, Answer topic/prompt revisions and corrected migration observation time at15. Manual-role operation ledger is excluded from exportv10.",
-      "community": 5,
+      "community": 128,
       "norm_label": "schema version 15",
-      "community_name": "Run and operate the local beta",
+      "community_name": "Schema version 15",
       "id": "docs_operations_local_beta_schema_version_15"
     },
     {
@@ -26284,9 +26306,9 @@
       "author": null,
       "contributor": null,
       "rationale": "Record migration version only after commit; resume from last completed step. Refuse newer-schema databases, replay idempotent base/tenant triggers on open, and run one-time mutations only for missing versions. No downgrade guarantee: restore stopped backup or fix forward.",
-      "community": 5,
+      "community": 128,
       "norm_label": "transactional migration recovery",
-      "community_name": "Run and operate the local beta",
+      "community_name": "Schema version 15",
       "id": "docs_operations_local_beta_transactional_migration_recovery"
     },
     {
@@ -26299,9 +26321,9 @@
       "author": null,
       "contributor": null,
       "rationale": "Public signup is disabled. Administrator issues72-hour single-use email-bound invitation via bootstrap-secret header; acceptance requires exact email and creates an empty tenant-isolated workspace. URL token is immediately scrubbed; unused invitations can be revoked.",
-      "community": 5,
+      "community": 36,
       "norm_label": "private email-bound invitations",
-      "community_name": "Run and operate the local beta",
+      "community_name": "Private email-bound invitations",
       "id": "docs_operations_local_beta_private_email_bound_invitations"
     },
     {
@@ -26314,9 +26336,9 @@
       "author": null,
       "contributor": null,
       "rationale": "Acceptance removes stored token hash and intended email. Accepted, revoked and expired tombstones are retained at most30days and pruned at API startup; live unused invitations remain until expiry.",
-      "community": 5,
+      "community": 36,
       "norm_label": "invitation tombstone retention",
-      "community_name": "Run and operate the local beta",
+      "community_name": "Private email-bound invitations",
       "id": "docs_operations_local_beta_invitation_tombstone_retention"
     },
     {
@@ -26389,9 +26411,9 @@
       "author": null,
       "contributor": null,
       "rationale": "Deletion first fences tenant writes and captures exact outbox inventory, then removes tenant rows, packet/outbox files and session. Writes/provider effects must complete before the fence or fail, preventing untracked files afterward.",
-      "community": 5,
+      "community": 75,
       "norm_label": "tenant deletion write fence",
-      "community_name": "Run and operate the local beta",
+      "community_name": "Deletion completion versus pending cleanup",
       "id": "docs_operations_local_beta_tenant_deletion_write_fence"
     },
     {
@@ -26404,9 +26426,9 @@
       "author": null,
       "contributor": null,
       "rationale": "Post-deletion sign-in receipt exposes a seven-day bearer token, the only candidate-facing public status/resume capability. Token is page-only, lost on reload/close, works without a session and must be kept private/out of shell history.",
-      "community": 5,
+      "community": 65,
       "norm_label": "seven-day deletion status token",
-      "community_name": "Run and operate the local beta",
+      "community_name": "Autonomous deletion recovery",
       "id": "docs_operations_local_beta_seven_day_deletion_status_token"
     },
     {
@@ -26419,9 +26441,9 @@
       "author": null,
       "contributor": null,
       "rationale": "Workspace deleted means rows and local files gone; cleanup-pending means tenant/session removed but files remain. Public status GET and resume POST use the candidate token.",
-      "community": 5,
+      "community": 75,
       "norm_label": "deletion completion versus pending cleanup",
-      "community_name": "Run and operate the local beta",
+      "community_name": "Deletion completion versus pending cleanup",
       "id": "docs_operations_local_beta_deletion_completion_versus_pending_cleanup"
     },
     {
@@ -26434,9 +26456,9 @@
       "author": null,
       "contributor": null,
       "rationale": "API startup and authenticated worker reconcile unfinished cleanup without candidate bearer token, without exposing public status/resume. Completed tombstones prune after seven days; unfinished work is never age-pruned. New local session creates a fresh labeled synthetic workspace.",
-      "community": 5,
+      "community": 65,
       "norm_label": "autonomous deletion recovery",
-      "community_name": "Run and operate the local beta",
+      "community_name": "Autonomous deletion recovery",
       "id": "docs_operations_local_beta_autonomous_deletion_recovery"
     },
     {
@@ -26449,9 +26471,9 @@
       "author": null,
       "contributor": null,
       "rationale": "Greenhouse, Lever or Ashby board identifiers run hourly, six-hour, daily or weekly; candidates can run now, pause, resume or cancel. Cycle claims at most3due schedules and500roles/source, deduplicates provider job IDs and publishes deterministic explanations; fifth consecutive failure dead-letters, Resume resets budget.",
-      "community": 5,
+      "community": 79,
       "norm_label": "public-board discovery schedule",
-      "community_name": "Run and operate the local beta",
+      "community_name": "Discovery-only worker boundary",
       "id": "docs_operations_local_beta_public_board_discovery_schedule"
     },
     {
@@ -26464,9 +26486,9 @@
       "author": null,
       "contributor": null,
       "rationale": "Queue contains provider/board IDs only; scheduled work cannot prepare/approve packets, email, submit or open Slice4 actions. pnpm dev/macOS launcher include worker; dev:core/start omit it for deterministic testing; start:all includes it.",
-      "community": 5,
+      "community": 79,
       "norm_label": "discovery-only worker boundary",
-      "community_name": "Run and operate the local beta",
+      "community_name": "Discovery-only worker boundary",
       "id": "docs_operations_local_beta_discovery_only_worker_boundary"
     },
     {
@@ -26629,9 +26651,9 @@
       "author": null,
       "contributor": null,
       "rationale": "One strict date-only value drives Review due; future dates suppress336-hour fallback. No contact/status change/background job/inferred response. Withdrawn Applications retain date visibly but inactive; clear allowed, date setting/changing blocked until Tracked.",
-      "community": 5,
+      "community": 33,
       "norm_label": "candidate follow-up date",
-      "community_name": "Run and operate the local beta",
+      "community_name": "Candidate follow-up date",
       "id": "docs_operations_local_beta_candidate_follow_up_date"
     },
     {
@@ -26644,9 +26666,9 @@
       "author": null,
       "contributor": null,
       "rationale": "ICS export includes active candidate-set dates as local all-day events without creating Nimanto notifications/jobs.",
-      "community": 5,
+      "community": 33,
       "norm_label": "local calendar reminder export",
-      "community_name": "Run and operate the local beta",
+      "community_name": "Candidate follow-up date",
       "id": "docs_operations_local_beta_local_calendar_reminder_export"
     },
     {
@@ -26689,9 +26711,9 @@
       "author": null,
       "contributor": null,
       "rationale": "Signed-in tab retains unfinished fields and application view controls across sections. Successful save clears only its exact submitted snapshot, preserving newer typing. Discard clears relevant draft; reload/identity boundaries clear all. View/filter/cohort state is not candidate fact.",
-      "community": 5,
+      "community": 87,
       "norm_label": "exact draft snapshot preservation",
-      "community_name": "Run and operate the local beta",
+      "community_name": "Exact draft snapshot preservation",
       "id": "docs_operations_local_beta_exact_draft_snapshot_preservation"
     },
     {
@@ -26704,9 +26726,9 @@
       "author": null,
       "contributor": null,
       "rationale": "Prefer candidate-set date; otherwise Review due after336elapsed hours from latest literal creation/status/completed activity/outcome. Label basis, exclude withdrawn records, and infer/contact nothing.",
-      "community": 5,
+      "community": 33,
       "norm_label": "record-review queue",
-      "community_name": "Run and operate the local beta",
+      "community_name": "Candidate follow-up date",
       "id": "docs_operations_local_beta_record_review_queue"
     },
     {
@@ -26959,9 +26981,9 @@
       "author": null,
       "contributor": null,
       "rationale": "A replaced/revoked loaded session causes mutation rejection before route handler and clearing old workspace before refresh. Reopen intended workspace and review current stored state before retry; do not assume rejected write committed.",
-      "community": 5,
+      "community": 87,
       "norm_label": "replaced-session mutation recovery",
-      "community_name": "Run and operate the local beta",
+      "community_name": "Exact draft snapshot preservation",
       "id": "docs_operations_local_beta_replaced_session_mutation_recovery"
     },
     {
@@ -71149,6 +71171,17 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
+      "source_file": "ACKNOWLEDGMENTS.md",
+      "source_location": "L17",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "acknowledgments_acknowledgments",
+      "target": "acknowledgments_unreleased_source_inventory",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
       "source_file": "CODE_OF_CONDUCT.md",
       "source_location": "L1",
       "weight": 1.0,
@@ -71254,6 +71287,17 @@
       "_origin": "ast",
       "source": "third_party_notices",
       "target": "third_party_notices_third_party_notices",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "THIRD_PARTY_NOTICES.md",
+      "source_location": "L26",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "third_party_notices_third_party_notices",
+      "target": "third_party_notices_unreleased_source_inventory",
       "confidence_score": 1.0
     },
     {
@@ -76418,5 +76462,5 @@
       "source_file": "docs/planning/product-contract.md"
     }
   ],
-  "built_at_commit": "d7a484836e3d4857c84146e540cb2e11b3b968cf"
+  "built_at_commit": "e077999856a3db9288c73bfe05cae73482e4b427"
 }

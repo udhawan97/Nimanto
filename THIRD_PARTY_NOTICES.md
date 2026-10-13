@@ -22,3 +22,12 @@ it was adapted from are first-party Nimanto work; three.js is consumed as an
 ordinary npm dependency and is not vendored.
 
 The Apache-2.0 license covers Nimanto's original source only; it does not replace third-party licenses. See [sources and licenses](docs/planning/sources-and-licenses.md) for reviewed data-source and provider boundaries.
+
+## Unreleased source inventory
+
+The current source identity is 0.10.1-dev.0 (unreleased). Its locked dependency
+inventories are separate from the published v0.10.0 provenance:
+
+- [CycloneDX](docs/releases/nimanto-v0.10.1-dev.0.cdx.json)
+- [SPDX](docs/releases/nimanto-v0.10.1-dev.0.spdx.json)
+- [SHA-256 checksums](docs/releases/nimanto-v0.10.1-dev.0-SHA256SUMS.txt)

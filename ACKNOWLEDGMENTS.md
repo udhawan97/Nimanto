@@ -13,3 +13,12 @@ The exact machine-readable dependency inventories for v0.10.0 are published as:
 - [`docs/releases/nimanto-v0.10.0-SHA256SUMS.txt`](docs/releases/nimanto-v0.10.0-SHA256SUMS.txt) — release-asset SHA-256 checksums.
 
 See [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) for license boundaries and [`docs/planning/sources-and-licenses.md`](docs/planning/sources-and-licenses.md) for the reviewed source and data-rights ledger.
+
+## Unreleased source inventory
+
+The current source identity is 0.10.1-dev.0 (unreleased). Its locked dependency
+inventories are separate from the published v0.10.0 provenance:
+
+- [CycloneDX](docs/releases/nimanto-v0.10.1-dev.0.cdx.json)
+- [SPDX](docs/releases/nimanto-v0.10.1-dev.0.spdx.json)
+- [SHA-256 checksums](docs/releases/nimanto-v0.10.1-dev.0-SHA256SUMS.txt)
