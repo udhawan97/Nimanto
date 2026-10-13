@@ -1,4 +1,4 @@
-# Graph Report - nimanto-main-cleanup-5qcl2_m4  (2026-10-13)
+# Graph Report - Nimanto  (2026-10-13)
 
 ## Corpus Check
 - 283 files · ~8,005,353 words
