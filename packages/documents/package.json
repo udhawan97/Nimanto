@@ -17,10 +17,10 @@
   },
   "dependencies": {
     "@nimanto/domain": "workspace:*",
-    "docx": "^9.8.0",
+    "docx": "^9.11.0",
     "fflate": "0.8.3",
     "pdf-lib": "^1.17.1",
-    "pdfjs-dist": "6.3.289"
+    "pdfjs-dist": "6.4.299"
   },
   "devDependencies": {
     "@types/node": "^26.6.4",
