@@ -1,16 +1,16 @@
-# Graph Report - Nimanto  (2026-10-13)
+# Graph Report - Nimanto  (2026-10-18)
 
 ## Corpus Check
-- 283 files · ~8,005,353 words
+- 286 files · ~8,448,416 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2388 nodes · 4294 edges · 174 communities (137 shown, 37 thin omitted)
+- 2389 nodes · 4294 edges · 175 communities (138 shown, 37 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 49 edges (avg confidence: 0.77)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `e0779998`
+- Built from commit: `0b81b76e`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -219,7 +219,7 @@
 - **Tenant Isolation Defense in Depth** — docs_planning_architecture_postgresql_rls_defense, docs_planning_architecture_single_candidate_tenancy, docs_planning_trust_and_security_tenant_authorization, docs_planning_backend_plan_slice_1_evidence_to_match [INFERRED 0.85]
 - **Review Before External Action** — docs_planning_architecture_no_external_effects_through_slice_3, docs_planning_product_contract_source_action_contract, docs_planning_product_contract_frozen_artifact_approval, docs_planning_backend_plan_slice_3_grounded_packet [INFERRED 0.95]
 
-## Communities (174 total, 37 thin omitted)
+## Communities (175 total, 37 thin omitted)
 
 ### Community 0 - "government-dataset.ts"
 Cohesion: 0.11
@@ -254,7 +254,7 @@ Cohesion: 0.06
 Nodes (41): AnswerBlockRecord, AnswerRevisionPage, AnswerRevisionRecord, ApplicationNoteRecord, AssuranceHistoryRecord, AssuranceRecord, CareerOperationsSnapshot, ClaimedSourceSchedule (+33 more)
 
 ### Community 8 - "buildServer"
-Cohesion: 0.11
+Cohesion: 0.08
 Nodes (10): buildServer(), recordInstant(), sha256(), ACTIVITY_KINDS, ACTIVITY_STATES, ANSWER_TOPICS, CONTACT_KINDS, INTERVIEW_ROUND_KINDS (+2 more)
 
 ### Community 9 - "NimantoEmblem"

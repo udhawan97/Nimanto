@@ -375,9 +375,9 @@
     "semantic_hash": "d79dbe11acdc16dc99b22c590f4e51be"
   },
   ".github/dependabot.yml": {
-    "mtime": 1791867059.5989447,
-    "ast_hash": "783fc4af8e3bca5b9225f0ef6ef714f6",
-    "semantic_hash": "783fc4af8e3bca5b9225f0ef6ef714f6"
+    "mtime": 1792343322.95396,
+    "ast_hash": "0ff5337595a51fc44922eebbbcb158d7",
+    "semantic_hash": ""
   },
   ".github/workflows/ci.yml": {
     "mtime": 1791867071.8767064,
@@ -385,8 +385,8 @@
     "semantic_hash": ""
   },
   ".github/workflows/codeql.yml": {
-    "mtime": 1791867071.952174,
-    "ast_hash": "07c80524910a1c952a369eb6313479ea",
+    "mtime": 1792343322.9535887,
+    "ast_hash": "80cb310516f09240a11c52f28d7e5e9b",
     "semantic_hash": ""
   },
   ".github/workflows/pages.yml": {
@@ -1572,6 +1572,11 @@
   "docs/releases/nimanto-v0.10.1-dev.0-SHA256SUMS.txt": {
     "mtime": 1791868322.7045646,
     "ast_hash": "e53db66ea971ad348a4b4601884a331e",
+    "semantic_hash": ""
+  },
+  "scripts/codeql-versions.test.mjs": {
+    "mtime": 1792343324.1185868,
+    "ast_hash": "e40ed7e5554b8c3c954b05096b08415f",
     "semantic_hash": ""
   }
 }

@@ -13280,8 +13280,8 @@
       "source_location": "L3768",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_mapapplicationactivity",
-      "community": 22,
-      "community_name": "NimantoStore",
+      "community": 8,
+      "community_name": "buildServer",
       "norm_label": ".#mapapplicationactivity()"
     },
     {
@@ -13302,8 +13302,8 @@
       "source_location": "L3805",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_listapplicationactivities",
-      "community": 22,
-      "community_name": "NimantoStore",
+      "community": 8,
+      "community_name": "buildServer",
       "norm_label": ".listapplicationactivities()"
     },
     {
@@ -13335,8 +13335,8 @@
       "source_location": "L3892",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_listcontacts",
-      "community": 22,
-      "community_name": "NimantoStore",
+      "community": 8,
+      "community_name": "buildServer",
       "norm_label": ".listcontacts()"
     },
     {
@@ -13357,8 +13357,8 @@
       "source_location": "L3971",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_mapinterviewround",
-      "community": 22,
-      "community_name": "NimantoStore",
+      "community": 8,
+      "community_name": "buildServer",
       "norm_label": ".#mapinterviewround()"
     },
     {
@@ -13379,8 +13379,8 @@
       "source_location": "L4003",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_listinterviewrounds",
-      "community": 22,
-      "community_name": "NimantoStore",
+      "community": 8,
+      "community_name": "buildServer",
       "norm_label": ".listinterviewrounds()"
     },
     {
@@ -13489,8 +13489,8 @@
       "source_location": "L4270",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_saveoffer",
-      "community": 22,
-      "community_name": "NimantoStore",
+      "community": 8,
+      "community_name": "buildServer",
       "norm_label": ".saveoffer()"
     },
     {
@@ -13500,8 +13500,8 @@
       "source_location": "L4336",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_mapoffer",
-      "community": 22,
-      "community_name": "NimantoStore",
+      "community": 8,
+      "community_name": "buildServer",
       "norm_label": ".#mapoffer()"
     },
     {
@@ -13522,8 +13522,8 @@
       "source_location": "L4369",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_listoffers",
-      "community": 22,
-      "community_name": "NimantoStore",
+      "community": 8,
+      "community_name": "buildServer",
       "norm_label": ".listoffers()"
     },
     {
@@ -13533,8 +13533,8 @@
       "source_location": "L4377",
       "_origin": "ast",
       "id": "packages_database_src_store_nimantostore_readcareeroperations",
-      "community": 22,
-      "community_name": "NimantoStore",
+      "community": 8,
+      "community_name": "buildServer",
       "norm_label": ".readcareeroperations()"
     },
     {
@@ -19707,6 +19707,17 @@
       "community": 25,
       "community_name": "screenshot-evidence.mjs",
       "norm_label": "waitforapi()"
+    },
+    {
+      "label": "codeql-versions.test.mjs",
+      "file_type": "code",
+      "source_file": "scripts/codeql-versions.test.mjs",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "scripts_codeql_versions_test",
+      "community": 129,
+      "community_name": "codeql-versions.test.mjs",
+      "norm_label": "codeql-versions.test.mjs"
     },
     {
       "label": "docker-context.test.mjs",
@@ -76462,5 +76473,5 @@
       "source_file": "docs/planning/product-contract.md"
     }
   ],
-  "built_at_commit": "e077999856a3db9288c73bfe05cae73482e4b427"
+  "built_at_commit": "0b81b76e28f17e54eee79e5c4aed9a2d21346a6f"
 }
