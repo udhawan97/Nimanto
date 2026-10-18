@@ -79,7 +79,15 @@ export function stableCycloneDx(document) {
   const normalized = structuredClone(document);
   delete normalized.serialNumber;
   if (normalized.metadata) delete normalized.metadata.timestamp;
-  for (const annotation of normalized.annotations ?? []) delete annotation.timestamp;
+  for (const annotation of normalized.annotations ?? []) {
+    delete annotation.timestamp;
+    if (typeof annotation.text === "string") {
+      annotation.text = annotation.text.replace(
+        /^(This Software Bill-of-Materials \(SBOM\) document was created on )\w+, \w+ \d{1,2}, \d{4}( with cdxgen\.)/u,
+        "$1CURRENT-CAPTURE$2",
+      );
+    }
+  }
   return stableOccurrenceMetadata(stableRegistryMetadata(normalized));
 }
 
