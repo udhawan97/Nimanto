@@ -18,7 +18,7 @@
   "dependencies": {
     "@nimanto/domain": "workspace:*",
     "fflate": "0.8.3",
-    "pdfjs-dist": "6.3.289",
+    "pdfjs-dist": "6.4.299",
     "saxes": "6.0.0"
   },
   "devDependencies": {

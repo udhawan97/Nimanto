@@ -52,7 +52,7 @@
     "version:check": "node scripts/validate-version-sync.mjs"
   },
   "dependencies": {
-    "concurrently": "10.0.5"
+    "concurrently": "10.0.6"
   },
   "devDependencies": {
     "@cyclonedx/cdxgen": "12.8.5",
