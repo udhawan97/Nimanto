@@ -1,7 +1,7 @@
 # Graph Report - Nimanto  (2026-10-18)
 
 ## Corpus Check
-- 286 files · ~8,448,416 words
+- 286 files · ~8,448,540 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `0b81b76e`
+- Built from commit: `842cda3c`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -254,7 +254,7 @@ Cohesion: 0.06
 Nodes (41): AnswerBlockRecord, AnswerRevisionPage, AnswerRevisionRecord, ApplicationNoteRecord, AssuranceHistoryRecord, AssuranceRecord, CareerOperationsSnapshot, ClaimedSourceSchedule (+33 more)
 
 ### Community 8 - "buildServer"
-Cohesion: 0.08
+Cohesion: 0.10
 Nodes (10): buildServer(), recordInstant(), sha256(), ACTIVITY_KINDS, ACTIVITY_STATES, ANSWER_TOPICS, CONTACT_KINDS, INTERVIEW_ROUND_KINDS (+2 more)
 
 ### Community 9 - "NimantoEmblem"

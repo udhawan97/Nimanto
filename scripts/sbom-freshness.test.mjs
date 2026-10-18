@@ -123,3 +123,19 @@ test("source occurrence churn does not make an immutable release inventory stale
   });
   assert.deepEqual(stableSpdx(firstSpdx), stableSpdx(secondSpdx));
 });
+
+test("capture dates in generated annotations do not hide substantive inventory drift", () => {
+  const annotation =
+    "This Software Bill-of-Materials (SBOM) document was created on Tuesday, October 13, 2026 with cdxgen. The application version is 0.10.1-dev.0.";
+  const first = { annotations: [{ text: annotation }] };
+  const later = {
+    annotations: [{ text: annotation.replace("Tuesday, October 13", "Sunday, October 18") }],
+  };
+  assert.deepEqual(stableCycloneDx(first), stableCycloneDx(later));
+  later.annotations[0].text = later.annotations[0].text.replace("0.10.1-dev.0", "0.0.0");
+  assert.notDeepEqual(stableCycloneDx(first), stableCycloneDx(later));
+  assert.notDeepEqual(
+    stableCycloneDx({ annotations: [{ text: "Reviewed on Tuesday, October 13, 2026" }] }),
+    stableCycloneDx({ annotations: [{ text: "Reviewed on Sunday, October 18, 2026" }] }),
+  );
+});
