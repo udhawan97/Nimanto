@@ -55,13 +55,13 @@
     "concurrently": "10.0.6"
   },
   "devDependencies": {
-    "@cyclonedx/cdxgen": "12.8.5",
-    "@playwright/test": "1.63.0",
-    "@types/node": "26.6.4",
-    "cspell": "10.3.6",
-    "prettier": "3.9.9",
+    "@cyclonedx/cdxgen": "12.8.6",
+    "@playwright/test": "1.64.1",
+    "@types/node": "26.6.5",
+    "cspell": "10.4.0",
+    "prettier": "3.9.10",
     "sharp": "0.35.5",
     "typescript": "7.0.2",
-    "vitest": "5.0.3"
+    "vitest": "5.0.5"
   }
 }
