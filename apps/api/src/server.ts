@@ -329,6 +329,13 @@ const UNREADABLE_DOCUMENT_MESSAGES: Record<string, string> = {
  * and the Submission Record policy is answered as a client error. */
 export function messageForError(error: Error): { code: string; status: number; message: string } {
   const code = /^[A-Z0-9_]+$/.test(error.message) ? error.message : "INTERNAL_ERROR";
+  if (code === "PACKET_TEXT_UNSUPPORTED")
+    return {
+      code,
+      status: 422,
+      message:
+        "The packet fonts cannot render some of this text. Your saved evidence is unchanged; review the supported scripts before generating a packet.",
+    };
   if (code === "UNTRUSTED_ORIGIN")
     return {
       code,

@@ -92,4 +92,34 @@ describe("application dossier projection", () => {
     expect(dossier.match).toBeNull();
     expect(dossier.matchHistory.map((match) => match.id)).toEqual(["old-role", "old-profile"]);
   });
+
+  it("keeps retained runs separate from the exact current selection and scoped to the Role", () => {
+    const exact = {
+      id: "exact-current",
+      jobId: "j1",
+      profileVersionId: "p1",
+      jobContentHash: "role-current",
+    };
+    const dossier = projectApplicationDossier({
+      application: { id: "a1", jobId: "j1", profileVersionId: "p1" },
+      jobs: [{ id: "j1", contentHash: "role-current" }],
+      matches: [exact],
+      matchHistory: [
+        { ...exact, id: "newer-profile-run", profileVersionId: "p2" },
+        exact,
+        { ...exact, id: "same-role-older-run" },
+        { ...exact, id: "other-role-run", jobId: "j2" },
+      ],
+      packets: [],
+      actionPackets: [],
+      actions: [],
+      receipts: [],
+      careerOperations: { activities: [], contacts: [], interviews: [], offers: [] },
+    });
+    expect(dossier.match?.id).toBe("exact-current");
+    expect(dossier.matchHistory.map((match) => match.id)).toEqual([
+      "newer-profile-run",
+      "same-role-older-run",
+    ]);
+  });
 });

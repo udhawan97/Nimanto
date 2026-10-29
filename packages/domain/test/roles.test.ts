@@ -3,8 +3,10 @@ import {
   normalizeRoleObservation,
   normalizeRoleSnapshot,
   roleSnapshotHash,
+  type RoleObservation,
   type RoleSource,
 } from "../src/roles.js";
+import type { WorkplaceEvidence } from "../src/marketplace.js";
 
 describe("current role intake normalization", () => {
   it("normalizes one observation into the mutable persistence shape", () => {
@@ -130,6 +132,85 @@ describe("current role intake normalization", () => {
       }).contentHash,
     ).not.toBe(first.contentHash);
   });
+
+  it.each(["greenhouse", "lever", "ashby"] as const)(
+    "keeps %s workplace observation times outside decision content",
+    (source) => {
+      const evidence: WorkplaceEvidence = {
+        mode: source === "greenhouse" ? "unknown" : "remote",
+        method: source === "greenhouse" ? "unknown" : "source_structured",
+        sourceText: source === "greenhouse" ? "unknown" : "Remote",
+        sourceFieldOrLocator: source === "greenhouse" ? "location.name" : "workplaceType",
+        observedAt: "2026-10-01T12:00:00.000Z",
+        normalizerVersion: "workplace_normalizer_v1",
+        confidence: source === "greenhouse" ? "low" : "high",
+        eligibleRemoteAreas: [],
+        physicalLocations: [],
+      };
+      const observation: Omit<RoleObservation, "contentHash"> = {
+        source,
+        sourceRoleId: "synthetic-role",
+        title: "Engineer",
+        company: "Synthetic Works",
+        description: "Build systems",
+        location: "Chicago",
+        workMode: evidence.mode,
+        observedAt: evidence.observedAt,
+        workplaceEvidence: [evidence],
+        sourceMeta: { board: "synthetic", workplaceEvidence: [evidence] },
+      };
+      const first = normalizeRoleSnapshot(observation);
+      const recheck = normalizeRoleSnapshot({
+        ...observation,
+        observedAt: "2026-10-02T12:00:00.000Z",
+        workplaceEvidence: [{ ...evidence, observedAt: "2026-10-02T12:00:00.000Z" }],
+      });
+      expect(recheck.contentHash).toBe(first.contentHash);
+      expect(recheck.workplaceEvidence?.[0]?.observedAt).not.toBe(evidence.observedAt);
+      expect(first.workplaceEvidence?.[0]?.observedAt).toBe(evidence.observedAt);
+
+      const substantiveChanges = [
+        { mode: "hybrid" },
+        { method: "candidate_reviewed" },
+        { sourceText: "Hybrid in Chicago" },
+        { sourceFieldOrLocator: "updated-location" },
+        { confidence: "medium" },
+        { normalizerVersion: "workplace_normalizer_v2" },
+        {
+          eligibleRemoteAreas: [
+            {
+              displayLabel: "United States",
+              countryCode: "US",
+              subdivisionCode: null,
+              metroId: null,
+              timeZone: null,
+              resolution: "confirmed",
+            },
+          ],
+        },
+        {
+          physicalLocations: [
+            {
+              displayLabel: "Chicago",
+              countryCode: "US",
+              subdivisionCode: "IL",
+              metroId: "chicago",
+              timeZone: "America/Chicago",
+              resolution: "confirmed",
+            },
+          ],
+        },
+      ];
+      for (const change of substantiveChanges) {
+        // Reflect applies a future normalizer version before its domain union is extended.
+        const changed = { ...evidence };
+        for (const [key, value] of Object.entries(change)) Reflect.set(changed, key, value);
+        expect(roleSnapshotHash({ ...first, workplaceEvidence: [changed] })).not.toBe(
+          first.contentHash,
+        );
+      }
+    },
+  );
 
   it.each<RoleSource>([
     "manual",

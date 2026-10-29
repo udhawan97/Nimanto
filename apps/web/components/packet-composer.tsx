@@ -1,5 +1,5 @@
 import { ArrowDown, ArrowUp, Check, FileOutput, RefreshCw } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { movePacketEvidence, projectPacketComposer } from "../lib/packet-composer.js";
 
 type Evidence = {
@@ -73,6 +73,27 @@ export function PacketComposer({
   );
   const optionKey = projection.options.map((option) => option.id).join("\u0000");
   const [selected, setSelected] = useState<string[]>([]);
+  const composer = useRef<HTMLDetailsElement>(null);
+  const returnFocus = useRef<{ id: string; control: string } | null>(null);
+
+  useLayoutEffect(() => {
+    const target = returnFocus.current;
+    returnFocus.current = null;
+    if (!target) return;
+    const controls = [
+      ...(composer.current?.querySelectorAll<HTMLButtonElement>("[data-evidence-id]") ?? []),
+    ].filter((button) => button.dataset.evidenceId === target.id);
+    // A toggle changes parents; a move can disable its own edge control.
+    const next =
+      controls.find(
+        (button) => button.dataset.evidenceControl === target.control && !button.disabled,
+      ) ?? controls.find((button) => button.dataset.evidenceControl === "toggle");
+    next?.focus();
+  }, [selected]);
+
+  const retainFocus = (button: HTMLButtonElement, id: string, control: string) => {
+    if (document.activeElement === button) returnFocus.current = { id, control };
+  };
 
   useEffect(() => {
     setSelected((current) => {
@@ -108,7 +129,7 @@ export function PacketComposer({
   };
 
   return (
-    <details className={`packet-composer ${compact ? "compact" : ""}`}>
+    <details ref={composer} className={`packet-composer ${compact ? "compact" : ""}`}>
       <summary>
         <FileOutput size={15} aria-hidden="true" /> Compose packet
         <span>{selected.length}/8 selected</span>
@@ -128,7 +149,12 @@ export function PacketComposer({
                 type="button"
                 className="packet-evidence-toggle selected"
                 aria-pressed="true"
-                onClick={() => toggle(option.id)}
+                data-evidence-id={option.id}
+                data-evidence-control="toggle"
+                onClick={(event) => {
+                  retainFocus(event.currentTarget, option.id, "toggle");
+                  toggle(option.id);
+                }}
               >
                 <Check size={14} aria-hidden="true" />
                 <span>
@@ -143,9 +169,12 @@ export function PacketComposer({
                   type="button"
                   aria-label={`Move ${option.value} up`}
                   disabled={index === 0}
-                  onClick={() =>
-                    setSelected((current) => movePacketEvidence(current, option.id, -1))
-                  }
+                  data-evidence-id={option.id}
+                  data-evidence-control="up"
+                  onClick={(event) => {
+                    retainFocus(event.currentTarget, option.id, "up");
+                    setSelected((current) => movePacketEvidence(current, option.id, -1));
+                  }}
                 >
                   <ArrowUp size={14} />
                 </button>
@@ -153,9 +182,12 @@ export function PacketComposer({
                   type="button"
                   aria-label={`Move ${option.value} down`}
                   disabled={index === selectedOptions.length - 1}
-                  onClick={() =>
-                    setSelected((current) => movePacketEvidence(current, option.id, 1))
-                  }
+                  data-evidence-id={option.id}
+                  data-evidence-control="down"
+                  onClick={(event) => {
+                    retainFocus(event.currentTarget, option.id, "down");
+                    setSelected((current) => movePacketEvidence(current, option.id, 1));
+                  }}
                 >
                   <ArrowDown size={14} />
                 </button>
@@ -184,7 +216,12 @@ export function PacketComposer({
                 className="packet-evidence-toggle"
                 aria-pressed="false"
                 disabled={selected.length >= 8}
-                onClick={() => toggle(option.id)}
+                data-evidence-id={option.id}
+                data-evidence-control="toggle"
+                onClick={(event) => {
+                  retainFocus(event.currentTarget, option.id, "toggle");
+                  toggle(option.id);
+                }}
               >
                 <span>
                   <strong>{option.value}</strong>
@@ -203,7 +240,13 @@ export function PacketComposer({
             type="button"
             className={`button mini ${primary ? "primary" : "quiet"}`}
             disabled={busy || selected.length === 0}
-            onClick={() => onGenerate(selected)}
+            onClick={(event) => {
+              // The enabled summary survives while generation disables this control.
+              if (document.activeElement === event.currentTarget) {
+                composer.current?.querySelector("summary")?.focus();
+              }
+              onGenerate(selected);
+            }}
           >
             <FileOutput size={15} /> Generate selected packet
           </button>

@@ -4,6 +4,10 @@ Nimanto exists because maintainers make reliable open-source building blocks ava
 
 We are especially grateful to the communities behind Node.js, TypeScript, Next.js, React, Fastify, PGlite, Vitest, Playwright, PDF.js, pdf-lib, docx, Lucide, Fontsource, three.js, and the CycloneDX tooling used to build, test, document, and inspect this beta.
 
+Packet rendering also uses fontkit, regenerator-runtime, and the Noto font
+families. Their licenses and reproducible font provenance are listed in the
+[third-party notices](THIRD_PARTY_NOTICES.md).
+
 The interface follows Colour & Material 002, a palette and emblem sampled from the project's own fold-lotus mark. The mark, the palette and the type system are original project work, not copied third-party assets.
 
 The exact machine-readable dependency inventories for v0.10.0 are published as:

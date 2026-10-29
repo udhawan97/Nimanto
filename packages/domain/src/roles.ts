@@ -107,7 +107,9 @@ export function roleSnapshotHash(role: {
     location: role.location,
     workMode: role.workMode,
     roleFamily: role.roleFamily ?? null,
-    workplaceEvidence: role.workplaceEvidence ?? [],
+    workplaceEvidence: (role.workplaceEvidence ?? []).map(
+      ({ observedAt: _evidenceObservedAt, ...decisionEvidence }) => decisionEvidence,
+    ),
     url: role.url,
     requirements: role.requirements,
     sourcePostedAt: role.sourcePostedAt ?? role.availability?.sourcePostedAt ?? null,
