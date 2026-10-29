@@ -121,6 +121,20 @@
     "wordmark",
     "wordprocessingml",
     "worktree",
-    "worktrees"
+    "worktrees",
+    "Noto",
+    "fontkit",
+    "flate",
+    "notdef",
+    "reph",
+    "wdth",
+    "recalc",
+    "inplace",
+    "glyf",
+    "subsetter",
+    "notosans",
+    "notosansdevanagari",
+    "notosanssc",
+    "Poppler"
   ]
 }

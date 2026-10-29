@@ -31,6 +31,7 @@ COPY apps/worker/tsconfig.json apps/worker/tsconfig.build.json apps/worker/
 COPY packages/database/src packages/database/src
 COPY packages/database/tsconfig.json packages/database/tsconfig.build.json packages/database/
 COPY packages/documents/src packages/documents/src
+COPY packages/documents/fonts packages/documents/fonts
 COPY packages/documents/tsconfig.json packages/documents/tsconfig.build.json packages/documents/
 COPY packages/domain/src packages/domain/src
 COPY packages/domain/tsconfig.json packages/domain/tsconfig.build.json packages/domain/
@@ -64,7 +65,8 @@ RUN mkdir -p /runtime/apps/api /runtime/apps/web /runtime/apps/worker \
          if [ -d "packages/$package/node_modules" ]; then \
            cp -a "packages/$package/node_modules" "/runtime/packages/$package/"; \
          fi; \
-       done
+       done \
+    && cp -a packages/documents/fonts /runtime/packages/documents/fonts
 
 FROM base AS runtime
 ENV NODE_ENV=production
