@@ -35,8 +35,8 @@
     "semantic_hash": "ea08eb50863d42e074bd3e254654d7b5"
   },
   "apps/api/package.json": {
-    "mtime": 1793308467.691642,
-    "ast_hash": "14f5923dc98d59e53568f5de35220cea",
+    "mtime": 1793308760.9354005,
+    "ast_hash": "c892c14600f70ae9de55dde4386c2ae7",
     "semantic_hash": ""
   },
   "apps/api/src/config.ts": {
@@ -115,8 +115,8 @@
     "semantic_hash": "a1b08f82af5dc21fa7b13f6e229aef2b"
   },
   "apps/web/package.json": {
-    "mtime": 1793308467.7064488,
-    "ast_hash": "7f98f89a2a96c1137e483925e8ce69a4",
+    "mtime": 1793308833.4481463,
+    "ast_hash": "9bf18f663b1f63b0dd2e5f94a79d56a8",
     "semantic_hash": ""
   },
   "apps/web/public/sw.js": {
@@ -130,8 +130,8 @@
     "semantic_hash": "ccc17b856ac5cc3f6101f2db31bdc0dd"
   },
   "apps/worker/package.json": {
-    "mtime": 1793308467.7195947,
-    "ast_hash": "fbe26a2a9f16c4903ceda64a04028765",
+    "mtime": 1793308732.0660796,
+    "ast_hash": "b902483543f5032e40a949a11cede83f",
     "semantic_hash": ""
   },
   "apps/worker/src/main.ts": {
@@ -165,13 +165,13 @@
     "semantic_hash": ""
   },
   "package.json": {
-    "mtime": 1793308468.008882,
-    "ast_hash": "e13745e574cb62ca4a74a4294b832bcf",
+    "mtime": 1793308732.066558,
+    "ast_hash": "1402e2a02364b0b62ffa03a0793a7f53",
     "semantic_hash": ""
   },
   "packages/database/package.json": {
-    "mtime": 1793308468.0092533,
-    "ast_hash": "e34dde538352a74c8d4202636dd39391",
+    "mtime": 1793308732.0671089,
+    "ast_hash": "1c8144c0ea4af4ced8e9c5771f567c79",
     "semantic_hash": ""
   },
   "packages/database/src/index.ts": {
@@ -205,8 +205,8 @@
     "semantic_hash": "9003bb6cd52280b2f1548a2f2fecf51b"
   },
   "packages/documents/package.json": {
-    "mtime": 1793308506.4443767,
-    "ast_hash": "43be2ae764a2f9500882bd505c17b24d",
+    "mtime": 1793308732.0676596,
+    "ast_hash": "f56ac52abe2529204485fa30339b4678",
     "semantic_hash": ""
   },
   "packages/documents/src/index.ts": {
@@ -230,8 +230,8 @@
     "semantic_hash": "d3b8432b8860c9e53f65210a86b4d02e"
   },
   "packages/domain/package.json": {
-    "mtime": 1793308468.0124872,
-    "ast_hash": "595e11f4dbfefc36ace26b2548fb8952",
+    "mtime": 1793308732.0683413,
+    "ast_hash": "ff12cd04ebecd41caa1bb30f418643fb",
     "semantic_hash": ""
   },
   "packages/domain/src/assurance.ts": {
@@ -290,8 +290,8 @@
     "semantic_hash": "9003bb6cd52280b2f1548a2f2fecf51b"
   },
   "packages/parsers/package.json": {
-    "mtime": 1793308468.0169003,
-    "ast_hash": "ef2b7c0a3169c11ad2ae00d9d7a371c6",
+    "mtime": 1793308732.0686977,
+    "ast_hash": "aaadf24de8386c3bc4cc93a97de4b618",
     "semantic_hash": ""
   },
   "packages/parsers/src/index.ts": {
@@ -315,8 +315,8 @@
     "semantic_hash": "d3b8432b8860c9e53f65210a86b4d02e"
   },
   "packages/providers/package.json": {
-    "mtime": 1793308468.0181348,
-    "ast_hash": "7d5ceab5394619d5ed40000fe22f79b7",
+    "mtime": 1793308732.0690236,
+    "ast_hash": "1bf532c71fb39d9e672b7983a914429c",
     "semantic_hash": ""
   },
   "packages/providers/src/actions.ts": {
@@ -380,18 +380,18 @@
     "semantic_hash": ""
   },
   ".github/workflows/ci.yml": {
-    "mtime": 1793308467.686484,
-    "ast_hash": "26d118f55eeb6c9c6b04442b64a4dcea",
+    "mtime": 1793308572.0508378,
+    "ast_hash": "56789b165fa6b31a76cd5cc2d9584d11",
     "semantic_hash": ""
   },
   ".github/workflows/codeql.yml": {
-    "mtime": 1793308467.6867752,
-    "ast_hash": "80cb310516f09240a11c52f28d7e5e9b",
+    "mtime": 1793308572.3238568,
+    "ast_hash": "f721b0a6e947a71534dd58adb5cc264b",
     "semantic_hash": ""
   },
   ".github/workflows/pages.yml": {
-    "mtime": 1793308467.6870873,
-    "ast_hash": "a10c452bf6a66e368b9299c1cbdaaa13",
+    "mtime": 1793308572.0512,
+    "ast_hash": "c3d3d989a997630438389d773086e745",
     "semantic_hash": ""
   },
   "CODE_OF_CONDUCT.md": {
@@ -455,8 +455,8 @@
     "semantic_hash": "5c20aad5c88e4e8574b0a0430e4b9c03"
   },
   "pnpm-workspace.yaml": {
-    "mtime": 1793308468.0219564,
-    "ast_hash": "2e97cc850ae0bc0af318819886dc72ad",
+    "mtime": 1793308833.448335,
+    "ast_hash": "92f13fd88d6b7f1e2fa2b44b8d19f7f8",
     "semantic_hash": ""
   },
   "apps/web/public/assets/icon.svg": {
@@ -470,13 +470,13 @@
     "semantic_hash": ""
   },
   "docs/assets/nimanto-landing.png": {
-    "mtime": 1793308467.7284973,
+    "mtime": 1793309431.8589098,
     "ast_hash": "068c428d5cd11dee76f1039004c2b6c6",
     "semantic_hash": ""
   },
   "docs/assets/nimanto-workbench.png": {
-    "mtime": 1793308506.3458884,
-    "ast_hash": "6b79e37c15246ba30115e4faf3be8ad6",
+    "mtime": 1793309431.8606226,
+    "ast_hash": "0b98fd687217d0f70fd708e75096d367",
     "semantic_hash": ""
   },
   "packages/domain/src/sponsorship.ts": {
@@ -725,8 +725,8 @@
     "semantic_hash": "e5f2ac0cf10c8d49148fa9aa49c37897"
   },
   "apps/web/public/assets/nimanto-workbench.png": {
-    "mtime": 1793308506.3393772,
-    "ast_hash": "6b79e37c15246ba30115e4faf3be8ad6",
+    "mtime": 1793309431.8622231,
+    "ast_hash": "0b98fd687217d0f70fd708e75096d367",
     "semantic_hash": ""
   },
   "apps/api/src/deletion-coordinator.ts": {
@@ -995,8 +995,8 @@
     "semantic_hash": ""
   },
   "docs/assets/nimanto-screenshots.json": {
-    "mtime": 1793308506.3423512,
-    "ast_hash": "a990b29260d0ab6e0ee5e81512afecff",
+    "mtime": 1793309431.931542,
+    "ast_hash": "d2d8961462367a289a6034c2777fde31",
     "semantic_hash": ""
   },
   "scripts/screenshot-evidence.mjs": {
@@ -1560,18 +1560,18 @@
     "semantic_hash": ""
   },
   "docs/releases/nimanto-v0.10.1-dev.0.cdx.json": {
-    "mtime": 1793308506.353854,
-    "ast_hash": "296967bee7c73b9c81e0e50d3f785ce2",
+    "mtime": 1793308976.0428185,
+    "ast_hash": "db5275d0e670b591a18909dc031b33d0",
     "semantic_hash": ""
   },
   "docs/releases/nimanto-v0.10.1-dev.0.spdx.json": {
-    "mtime": 1793308506.3648121,
-    "ast_hash": "364a85a57f541ac664950b3c43de5238",
+    "mtime": 1793308977.1461923,
+    "ast_hash": "795d7ab78f6fdd01f9249c2c57feddd9",
     "semantic_hash": ""
   },
   "docs/releases/nimanto-v0.10.1-dev.0-SHA256SUMS.txt": {
-    "mtime": 1793308506.3465478,
-    "ast_hash": "ea15882221339e8b157b96512863d63d",
+    "mtime": 1793308977.5886493,
+    "ast_hash": "f579ca0cb5e556bbd6fa0fc45af768cf",
     "semantic_hash": ""
   },
   "apps/api/test/upgrade-deletion-recovery.test.ts": {

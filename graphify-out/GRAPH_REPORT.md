@@ -7,12 +7,14 @@
 ## Summary
 - 2472 nodes · 4424 edges · 175 communities (142 shown, 33 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 44 edges (avg confidence: 0.75)
-- Token cost: 0 input · 0 output
+- Incremental AST token cost: 0 input · 0 output. Earlier semantic extraction usage is unavailable.
 
 ## Graph Freshness
-- Built from commit: `7d2ba693`
-- Run `git rev-parse HEAD` and compare to check if the graph is stale.
-- Run `graphify update .` after code changes (no API cost).
+- Validated against source commit: `024fcdb61038f480c2bda4aadcc05eb9202d0a8a`.
+- Incremental AST refresh completed; dependency and generated-asset updates did not change graph topology.
+- The manifest records refreshed source input hashes; documentation semantics are unchanged from the reviewed six-fix source.
+- Five metadata-only JSON inputs produce no AST nodes. The v14 SQL fixture has no AST nodes because the optional SQL parser is absent; its behavior is covered by executable recovery tests.
+- Run `graphify update .` after source changes.
 
 ## Community Hubs (Navigation)
 - jobs.ts
