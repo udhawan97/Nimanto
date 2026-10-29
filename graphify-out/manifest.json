@@ -380,8 +380,8 @@
     "semantic_hash": ""
   },
   ".github/workflows/ci.yml": {
-    "mtime": 1793308572.0508378,
-    "ast_hash": "56789b165fa6b31a76cd5cc2d9584d11",
+    "mtime": 1793311164.0422657,
+    "ast_hash": "e6d9a2921cf10a99952c2cd1e290757b",
     "semantic_hash": ""
   },
   ".github/workflows/codeql.yml": {
