@@ -35,6 +35,9 @@ jobs:
         run: pnpm build
       - name: Install WebKit browser
         run: pnpm exec playwright install webkit
+      - name: Enable WebKit keyboard navigation
+        # https://github.com/microsoft/playwright/issues/41808
+        run: defaults write org.webkit.Playwright AppleKeyboardUIMode -int 2
       - name: Run WebKit candidate journey
         run: pnpm exec playwright test --project=webkit
       - name: Smoke-test synthetic screenshot capture
