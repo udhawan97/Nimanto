@@ -10,7 +10,7 @@
 - Incremental AST token cost: 0 input · 0 output. Earlier semantic extraction usage is unavailable.
 
 ## Graph Freshness
-- Validated against source commit: `024fcdb61038f480c2bda4aadcc05eb9202d0a8a`.
+- Validated against source commit: `f309cdf9beb1e163be981bc09269dacb87da33b4`.
 - Incremental AST refresh completed; dependency and generated-asset updates did not change graph topology.
 - The manifest records refreshed source input hashes; documentation semantics are unchanged from the reviewed six-fix source.
 - Five metadata-only JSON inputs produce no AST nodes. The v14 SQL fixture has no AST nodes because the optional SQL parser is absent; its behavior is covered by executable recovery tests.
