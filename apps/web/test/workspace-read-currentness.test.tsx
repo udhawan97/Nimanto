@@ -639,3 +639,182 @@ describe("Stored history pagination", () => {
     });
   }
 });
+
+const dossierPath = (jobId = "role-a", cursor?: string) =>
+  `/v1/history/match-runs?jobId=${jobId}&limit=20${cursor ? `&cursor=${cursor}` : ""}`;
+function dossierDashboard(sessionId = "session-a") {
+  return {
+    ...dashboard(sessionId),
+    jobs: ["a", "b"].map((id) => ({
+      id: `role-${id}`,
+      title: `Role ${id}`,
+      company: "Synthetic",
+      source: "manual",
+      contentHash: `current-role-${id}`,
+      candidateDisposition: { state: "active", archivedAt: null },
+    })),
+    applications: ["a", "b"].map((id) => ({
+      id: `application-${id}`,
+      jobId: `role-${id}`,
+      profileVersionId: "profile-old",
+      status: "tracked",
+      job: { title: `Role ${id}`, company: "Synthetic" },
+    })),
+    matches: [
+      {
+        ...dossierRun("latest-new-profile"),
+        profileVersionId: "profile-new",
+        job: { id: "role-a", title: "Role a", company: "Synthetic" },
+      },
+    ],
+  };
+}
+function dossierRun(id: string, jobId = "role-a") {
+  return {
+    ...run(jobId, id),
+    profileVersionId: "profile-old",
+    jobContentHash: `current-${jobId}`,
+    result: {
+      ruleVersion: "scoring_rules_v1",
+      band: "weak_evidence",
+      coverage: "low",
+      requirements: [],
+      blockers: [],
+    },
+  };
+}
+async function openDossier() {
+  await act(async () => root.render(<Workspace />));
+  await respond(pending("/v1/auth/status"), { authenticated: true });
+  await respond(pending("/v1/dashboard"), dossierDashboard());
+  await respond(pending("/v1/meta"), meta);
+  await click("Applications");
+  await act(async () =>
+    host.querySelector<HTMLButtonElement>("#dossier-trigger-board-application-a")!.click(),
+  );
+}
+describe("Application Dossier retained match reads", () => {
+  it("loads scoped history in pages without treating another profile as earlier or current", async () => {
+    await openDossier();
+    await respond(pending(dossierPath()), {
+      items: [
+        { ...dossierRun("latest-new-profile"), profileVersionId: "profile-new" },
+        { ...dossierRun("same-role-old-content"), jobContentHash: "old-content" },
+      ],
+      nextCursor: "page-2",
+    });
+    const dossier = host.querySelector<HTMLElement>("#application-dossier")!;
+    expect(dossier.textContent).toContain("No current Match Publication");
+    expect(dossier.querySelector(".dossier-match-history summary")?.textContent).toContain(
+      "2 retained immutable publications",
+    );
+    expect(dossier.textContent).not.toContain("earlier immutable");
+    await click("Load more retained publications");
+    const page = pending(dossierPath("role-a", "page-2"));
+    await respond(page, { items: [dossierRun("another-same-role-run")], nextCursor: null });
+    expect(dossier.querySelectorAll(".dossier-match-history li")).toHaveLength(3);
+    expect(dossier.textContent).toContain("another-same-role-run");
+    expect(dossier.textContent).toContain("No current Match Publication");
+  });
+
+  it.each(["success", "failure"])(
+    "ignores a closed dossier's late page %s when it is reopened",
+    async (outcome) => {
+      await openDossier();
+      await respond(pending(dossierPath()), {
+        items: [dossierRun("first-page")],
+        nextCursor: "old-page",
+      });
+      await click("Load more retained publications");
+      const old = pending(dossierPath("role-a", "old-page"));
+      await click("Close dossier");
+      await click("Open dossier");
+      await respond(pending(dossierPath()), {
+        items: [dossierRun("reopened-page")],
+        nextCursor: null,
+      });
+      if (outcome === "success")
+        await respond(old, { items: [dossierRun("closed-dossier-run")], nextCursor: null });
+      else await reject(old);
+      const dossier = host.querySelector<HTMLElement>("#application-dossier")!;
+      expect(dossier.textContent).toContain("reopened-page");
+      expect(dossier.textContent).not.toContain("closed-dossier-run");
+      expect(dossier.querySelector('[role="alert"]')).toBeNull();
+    },
+  );
+
+  it("isolates late initial history after opening another dossier", async () => {
+    await openDossier();
+    const old = pending(dossierPath());
+    await act(async () =>
+      host.querySelector<HTMLButtonElement>("#dossier-trigger-board-application-b")!.click(),
+    );
+    await respond(pending(dossierPath("role-b")), {
+      items: [dossierRun("role-b-run", "role-b")],
+      nextCursor: null,
+    });
+    await respond(old, { items: [dossierRun("late-role-a-run")], nextCursor: null });
+    const dossier = host.querySelector<HTMLElement>("#application-dossier")!;
+    expect(dossier.textContent).toContain("role-b-run");
+    expect(dossier.textContent).not.toContain("late-role-a-run");
+  });
+
+  it("isolates pending history across an identity replacement", async () => {
+    await openDossier();
+    const old = pending(dossierPath());
+    await click("Refresh");
+    await respond(pending("/v1/auth/status"), { authenticated: true });
+    await respond(pending("/v1/dashboard"), dossierDashboard("session-b"));
+    await respond(pending("/v1/meta"), meta);
+    await click("Applications");
+    await click("Open dossier");
+    const current = requests
+      .filter((request) => !request.done && request.path === dossierPath())
+      .at(-1)!;
+    await respond(current, { items: [dossierRun("identity-b-run")], nextCursor: null });
+    await respond(old, { items: [dossierRun("identity-a-private-run")], nextCursor: null });
+    const dossier = host.querySelector<HTMLElement>("#application-dossier")!;
+    expect(dossier.textContent).toContain("identity-b-run");
+    expect(dossier.textContent).not.toContain("identity-a-private-run");
+  });
+
+  it("preserves loaded publications through duplicate activation, a failed page and retry", async () => {
+    await openDossier();
+    await respond(pending(dossierPath()), {
+      items: [dossierRun("retained-first")],
+      nextCursor: "next-page",
+    });
+    const more = button("Load more retained publications");
+    await act(async () => {
+      more.click();
+      more.click();
+    });
+    expect(
+      requests.filter((request) => request.path === dossierPath("role-a", "next-page")),
+    ).toHaveLength(1);
+    expect(more.disabled).toBe(true);
+    await reject(pending(dossierPath("role-a", "next-page")));
+    const dossier = host.querySelector<HTMLElement>("#application-dossier")!;
+    expect(dossier.textContent).toContain("retained-first");
+    expect(dossier.querySelector('[role="alert"]')?.textContent).toContain("could not be loaded");
+    await click("Retry retained publications");
+    await respond(pending(dossierPath("role-a", "next-page")), {
+      items: [dossierRun("retained-next")],
+      nextCursor: null,
+    });
+    expect(dossier.querySelectorAll(".dossier-match-history li")).toHaveLength(2);
+    expect(dossier.querySelector('[role="alert"]')).toBeNull();
+  });
+
+  it("offers a retry when the initial scoped read fails", async () => {
+    await openDossier();
+    await reject(pending(dossierPath()));
+    await click("Retry retained publications");
+    await respond(pending(dossierPath()), {
+      items: [dossierRun("retried-initial")],
+      nextCursor: null,
+    });
+    expect(host.querySelector("#application-dossier")?.textContent).toContain("retried-initial");
+    expect(host.querySelector('#application-dossier [role="alert"]')).toBeNull();
+  });
+});

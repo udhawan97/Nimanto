@@ -1239,12 +1239,17 @@ ALTER TABLE jobs ADD COLUMN IF NOT EXISTS identity_review_reason text;
 -- content hash as source identity. Preserve the durable role/application IDs,
 -- but make that legacy ambiguity explicit for candidate review. New manual
 -- identities are opaque UUIDs and therefore do not match this bounded shape.
+-- Deletion recovery runs after migration; leave revoked tenants' rows for erasure.
 UPDATE jobs
 SET identity_review_required = true,
   identity_review_reason = 'legacy_partial_derived_identity'
 WHERE source = 'manual'
   AND source_job_id ~ '^[0-9a-f]{24}$'
-  AND identity_review_required = false;
+  AND identity_review_required = false
+  AND EXISTS (
+    SELECT 1 FROM tenants AS tenant
+    WHERE tenant.id = jobs.tenant_id AND tenant.deletion_state = 'active'
+  );
 
 CREATE TABLE IF NOT EXISTS manual_role_operations (
   tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
@@ -1266,5 +1271,9 @@ ALTER TABLE answer_revisions ADD COLUMN IF NOT EXISTS prompt text;
 -- creation time was an invented chronology.
 UPDATE application_status_events AS event
 SET occurred_at = event.created_at
-WHERE event.source = 'migration' AND event.id LIKE 'initial:%';
+WHERE event.source = 'migration' AND event.id LIKE 'initial:%'
+  AND EXISTS (
+    SELECT 1 FROM tenants AS tenant
+    WHERE tenant.id = event.tenant_id AND tenant.deletion_state = 'active'
+  );
 `;

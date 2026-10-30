@@ -489,10 +489,15 @@ artifacts.
   locator — and the claim it creates is pending and user-attested like any other.
 - Match anatomy exposes the four weighted dimensions, requirement states,
   evidence-link counts, coverage, rule version, exclusions and explicit
-  blockers. Evidence Strength remains an API-level ordinal intentionally
-  excluded from that view; the workbench does not turn it into a score or hiring
-  probability. Manually entered claims are always attested, so a workspace built
-  from them reports `source_limited`, including the synthetic starter data.
+  blockers. The visible Evidence lens shows fit coverage separately from the
+  Evidence Strength source-mix ordinal, with stored counts and calculation
+  version. Source linkage uses an unweighted count of supported requirements;
+  it does not change the fit band or establish evidence truth, candidate
+  credibility, or hiring probability. Historical publications without a stored
+  calculation basis keep their recorded ordinal and explicitly identify the
+  missing source-linkage counts. Manually entered claims are always attested,
+  so a workspace built from them reports `source_limited`, including the
+  synthetic starter data.
 - The free-text scoring projection removes pronouns, standalone year cues and a
   conventional name prefix. It is **not** comprehensive de-identification —
   sensitive identity details should not be imported as scoring evidence.

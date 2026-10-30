@@ -13,16 +13,16 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "clean": "rm -rf dist coverage",
-    "test": "vitest run --coverage.enabled=false --testTimeout=15000",
+    "test": "vitest run --coverage.enabled=false --testTimeout=15000 --no-file-parallelism",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@electric-sql/pglite": "0.5.8",
+    "@electric-sql/pglite": "0.5.10",
     "@nimanto/domain": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "26.6.4",
+    "@types/node": "26.6.5",
     "typescript": "7.0.2",
-    "vitest": "5.0.3"
+    "vitest": "5.0.5"
   }
 }

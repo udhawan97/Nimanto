@@ -23,22 +23,25 @@ type ApplicationOwned = { applicationId: string };
 type PacketLike = ApplicationOwned & { id: string };
 type ActionLike = { packetId: string | null };
 type ContactLike = { applicationLinks: Array<{ applicationId: string }> };
+type DossierMatch = {
+  id: string;
+  jobId: string;
+  profileVersionId: string | null;
+  jobContentHash: string;
+};
 
 export function projectApplicationDossier<
   TJob extends { id: string; contentHash: string },
-  TMatch extends {
-    id: string;
-    jobId: string;
-    profileVersionId: string | null;
-    jobContentHash: string;
-  },
+  TMatch extends DossierMatch,
   TPacket extends PacketLike,
   TAction extends ActionLike,
   TReceipt extends { material?: unknown },
+  THistoryMatch extends DossierMatch = TMatch,
 >(input: {
   application: DossierApplication;
   jobs: TJob[];
   matches: TMatch[];
+  matchHistory?: THistoryMatch[];
   packets: TPacket[];
   actionPackets: TPacket[];
   actions: TAction[];
@@ -71,7 +74,9 @@ export function projectApplicationDossier<
     application: input.application,
     job,
     match,
-    matchHistory: roleMatches.filter((candidate) => candidate.id !== match?.id),
+    matchHistory: (input.matchHistory ?? roleMatches).filter(
+      (candidate) => candidate.jobId === input.application.jobId && candidate.id !== match?.id,
+    ),
     packets: [...packetMap.values()],
     actions: input.actions.filter((action) => action.packetId && packetIds.has(action.packetId)),
     receipts: input.receipts.filter((receipt) => {

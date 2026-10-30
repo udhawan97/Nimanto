@@ -1,0 +1,34 @@
+[
+  {
+    "source": "notosans-NotoSans[wdth,wght].ttf",
+    "output": "NotoSans-Regular.ttf",
+    "axes": {
+      "wght": 400,
+      "wdth": 100
+    },
+    "sha256": "cb4f23c5c60ac5bbc0774c67f0c59d9f8864aa5b1c7c02dbdbdf1e88b8002ce9",
+    "tool": "fontTools4.63.0",
+    "glyfPadding": 2
+  },
+  {
+    "source": "notosansdevanagari-NotoSansDevanagari[wdth,wght].ttf",
+    "output": "NotoSansDevanagari-Regular.ttf",
+    "axes": {
+      "wght": 400,
+      "wdth": 100
+    },
+    "sha256": "c08b31cb15937175a62a2ad3a2659b78a0330395213f0e9c424b3b0c3635336a",
+    "tool": "fontTools4.63.0",
+    "glyfPadding": 2
+  },
+  {
+    "source": "notosanssc-NotoSansSC[wght].ttf",
+    "output": "NotoSansSC-Regular.ttf",
+    "axes": {
+      "wght": 400
+    },
+    "sha256": "dd15601b724d8a63689fbc21b23b996f9525d99500e3207f2bf2b3d01548b1ce",
+    "tool": "fontTools4.63.0",
+    "glyfPadding": 2
+  }
+]

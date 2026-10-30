@@ -4,7 +4,8 @@ import path from "node:path";
 import { canonicalJson } from "@nimanto/domain";
 import { Document, HeadingLevel, Packer, Paragraph, TextRun } from "docx";
 import { unzipSync } from "fflate";
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { PDFDocument, rgb, setFillingRgbColor } from "pdf-lib";
+import { PacketPdfFonts } from "./pdf-fonts.js";
 
 export interface PacketClaim {
   text: string;
@@ -114,52 +115,67 @@ async function createDocx(packet: CanonicalPacket, variant: "modern" | "ats"): P
   return Packer.toBuffer(document);
 }
 
-function wrap(text: string, max = 88): string[] {
-  const lines: string[] = [];
-  for (const paragraph of text.split("\n")) {
-    const words = paragraph.split(/\s+/).filter(Boolean);
-    let line = "";
-    for (const word of words) {
-      if (`${line} ${word}`.trim().length > max && line) {
-        lines.push(line);
-        line = word;
-      } else line = `${line} ${word}`.trim();
-    }
-    lines.push(line);
-  }
-  return lines;
-}
-
 async function createPdf(packet: CanonicalPacket, variant: "modern" | "ats"): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
-  const font = await pdf.embedFont(StandardFonts.Helvetica);
-  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const fonts = await PacketPdfFonts.load(pdf, packetText(packet));
   let page = pdf.addPage([612, 792]);
   let y = 742;
   if (variant === "modern") {
     page.drawRectangle({ x: 48, y: 760, width: 516, height: 4, color: rgb(0.12, 0.24, 0.55) });
   }
-  const draw = (line: string, emphasized = false) => {
-    if (y < 52) {
-      page = pdf.addPage([612, 792]);
-      y = 742;
+  const segmenter = new Intl.Segmenter("en", { granularity: "grapheme" });
+  for (const paragraph of packetText(packet).split("\n")) {
+    const emphasized = paragraph === paragraph.toUpperCase() && paragraph.length > 2;
+    const size = emphasized ? 13 : 10.5;
+    const lineHeight = emphasized ? 22 : 15;
+    let x = 56;
+    const nextLine = () => {
+      x = 56;
+      y -= lineHeight;
+    };
+    const draw = (text: string, mappings: string[]) => {
+      if (y < 52) {
+        page = pdf.addPage([612, 792]);
+        y = 742;
+      }
+      page.pushOperators(
+        emphasized && variant === "modern"
+          ? setFillingRgbColor(0.12, 0.24, 0.55)
+          : setFillingRgbColor(0.08, 0.11, 0.16),
+      );
+      fonts.draw(page, text, mappings, x, y, size);
+      x += fonts.width(text, size);
+    };
+    for (const word of paragraph.split(/\s+/u).filter(Boolean)) {
+      const width = fonts.width(word, size);
+      const mappings = fonts.textMappings(word);
+      const space = fonts.width(" ", size);
+      if (x > 56 && x + space + width > 556) nextLine();
+      if (x > 56) draw(" ", [" "]);
+      if (width <= 500) {
+        draw(word, mappings);
+        if (mappings.length) throw new Error("PACKET_TEXT_UNSUPPORTED");
+        continue;
+      }
+      let chunk = "";
+      for (const { segment } of segmenter.segment(word)) {
+        if (chunk && fonts.width(chunk + segment, size) > 500) {
+          draw(chunk, mappings);
+          nextLine();
+          chunk = "";
+        }
+        chunk += segment;
+      }
+      if (chunk) draw(chunk, mappings);
+      if (mappings.length) throw new Error("PACKET_TEXT_UNSUPPORTED");
     }
-    page.drawText(line || " ", {
-      x: 56,
-      y,
-      size: emphasized ? 13 : 10.5,
-      font: emphasized ? bold : font,
-      color: emphasized && variant === "modern" ? rgb(0.12, 0.24, 0.55) : rgb(0.08, 0.11, 0.16),
-    });
-    y -= emphasized ? 22 : 15;
-  };
-  for (const line of wrap(packetText(packet))) {
-    draw(line, line === line.toUpperCase() && line.length > 2);
+    nextLine();
   }
   pdf.setTitle(
     `${packet.destination.role} ${variant === "modern" ? "modern" : "ATS-safe"} application packet`,
   );
   pdf.setAuthor("Nimanto");
+  await fonts.embed();
   return pdf.save();
 }
 
@@ -249,8 +265,8 @@ async function pdfInspection(bytes: Uint8Array): Promise<{
     letterSized &&= Math.abs(viewport.width - 612) <= 1 && Math.abs(viewport.height - 792) <= 1;
     const content = await page.getTextContent();
     const pageText = content.items
-      .map((item) => ("str" in item ? item.str : ""))
-      .join(" ")
+      .map((item) => ("str" in item ? `${item.str}${item.hasEOL ? "\n" : ""}` : ""))
+      .join("")
       .trim();
     noBlankPages &&= pageText.length > 0;
     text.push(pageText);

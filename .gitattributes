@@ -3,3 +3,7 @@
 *.jpg binary
 *.pdf binary
 *.docx binary
+*.ttf binary
+
+# Keep vendored licenses byte-identical to upstream.
+packages/documents/fonts/*-OFL.txt -whitespace

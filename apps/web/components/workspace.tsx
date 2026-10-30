@@ -6827,6 +6827,7 @@ function Applications({
       )}
       {dossierApplication && (
         <ApplicationDossier
+          key={`${dashboard.identity.sessionId}:${dossierApplication.id}`}
           dashboard={dashboard}
           application={dossierApplication}
           onClose={() => {
@@ -7392,10 +7393,48 @@ function ApplicationDossier({
   application: Application;
   onClose: () => void;
 }) {
+  const [matchHistory, setMatchHistory] = useState<HistoryPage<MatchHistoryRun> | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyError, setHistoryError] = useState("");
+  const historyRequests = useRef(createScopedRequestGate<string>()).current;
+  const historyScope = application.id;
+  const loadMatchHistory = useCallback(
+    async (cursor?: string) => {
+      const request = historyRequests.begin(historyScope);
+      if (!request) return;
+      setHistoryLoading(true);
+      setHistoryError("");
+      try {
+        const page = await api<HistoryPage<MatchHistoryRun>>(
+          `/v1/history/match-runs?jobId=${encodeURIComponent(application.jobId)}&limit=20${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`,
+        );
+        if (!historyRequests.isCurrent(request)) return;
+        setMatchHistory((current) =>
+          cursor && current
+            ? { items: [...current.items, ...page.items], nextCursor: page.nextCursor }
+            : page,
+        );
+      } catch {
+        if (historyRequests.isCurrent(request))
+          setHistoryError("Retained publications could not be loaded.");
+      } finally {
+        if (historyRequests.finish(request)) setHistoryLoading(false);
+      }
+    },
+    [application.jobId, historyRequests, historyScope],
+  );
+
+  useEffect(() => {
+    historyRequests.select(historyScope);
+    void loadMatchHistory();
+    return () => historyRequests.select(null);
+  }, [historyRequests, historyScope, loadMatchHistory]);
+
   const dossier = projectApplicationDossier({
     application,
     jobs: dashboard.jobs,
     matches: dashboard.matches,
+    matchHistory: matchHistory?.items ?? [],
     packets: dashboard.packets,
     actionPackets: dashboard.actionPackets,
     actions: dashboard.externalActions,
@@ -7476,35 +7515,46 @@ function ApplicationDossier({
               snapshot.
             </p>
           )}
-          {dossier.matchHistory.length > 0 && (
-            <details className="dossier-match-history">
-              <summary>
-                {dossier.matchHistory.length} earlier immutable publication
-                {dossier.matchHistory.length === 1 ? "" : "s"}
-              </summary>
-              <ol>
-                {dossier.matchHistory.map((match) => (
-                  <li key={match.id}>
-                    <strong>{bandLabel(match.result.band)} · not current</strong>
-                    <small>
-                      Publication <code>{match.id}</code>
-                    </small>
-                    <small>
-                      Profile <code>{match.profileVersionId ?? "none"}</code>
-                    </small>
-                    <small>
-                      Role snapshot <code>{match.jobContentHash}</code>
-                    </small>
-                    <time dateTime={match.createdAt}>{localDateTime(match.createdAt)}</time>
-                  </li>
-                ))}
-              </ol>
-              <p className="boundary-note">
-                Earlier publications remain inspectable history. They are not presented as the
-                current evidence decision.
-              </p>
-            </details>
-          )}
+          <details className="dossier-match-history">
+            <summary>
+              {dossier.matchHistory.length} retained immutable publication
+              {dossier.matchHistory.length === 1 ? "" : "s"} loaded
+              {historyLoading ? " · loading" : historyError ? " · load unavailable" : ""}
+            </summary>
+            <ol>
+              {dossier.matchHistory.map((match) => (
+                <li key={match.id}>
+                  <strong>{bandLabel(match.result.band)} · retained publication</strong>
+                  <small>
+                    Publication <code>{match.id}</code>
+                  </small>
+                  <small>
+                    Profile <code>{match.profileVersionId ?? "none"}</code>
+                  </small>
+                  <small>
+                    Role snapshot <code>{match.jobContentHash}</code>
+                  </small>
+                  <time dateTime={match.createdAt}>{localDateTime(match.createdAt)}</time>
+                </li>
+              ))}
+            </ol>
+            <p className="boundary-note">
+              Retained publications for this Role may use other Profile Versions or Role snapshots.
+              They are separate from the current evidence decision above.
+            </p>
+            {historyLoading && <p role="status">Loading retained publications…</p>}
+            {historyError && <p role="alert">{historyError}</p>}
+            {(historyError || matchHistory?.nextCursor) && (
+              <button
+                type="button"
+                className="button mini quiet"
+                disabled={historyLoading}
+                onClick={() => void loadMatchHistory(matchHistory?.nextCursor ?? undefined)}
+              >
+                {historyError ? "Retry retained publications" : "Load more retained publications"}
+              </button>
+            )}
+          </details>
         </section>
         <section>
           <span>03 · Frozen materials</span>
@@ -7971,32 +8021,20 @@ function Packets({
                 )}
               </div>
               <div className="packet-actions">
-                {!packet ? (
-                  <PacketComposer
-                    application={application}
-                    profile={dashboard.profile}
-                    job={job}
-                    match={match}
-                    evidence={dashboard.evidence}
-                    busy={busy}
-                    compact
-                    onGenerate={generate}
-                    onRebind={() => rebindProfileVersion(onAct, application.id)}
-                  />
-                ) : (
+                <PacketComposer
+                  application={application}
+                  profile={dashboard.profile}
+                  job={job}
+                  match={match}
+                  evidence={dashboard.evidence}
+                  busy={busy}
+                  compact
+                  primary={!packet}
+                  onGenerate={generate}
+                  onRebind={() => rebindProfileVersion(onAct, application.id)}
+                />
+                {packet && (
                   <>
-                    <PacketComposer
-                      application={application}
-                      profile={dashboard.profile}
-                      job={job}
-                      match={match}
-                      evidence={dashboard.evidence}
-                      busy={busy}
-                      compact
-                      primary={false}
-                      onGenerate={generate}
-                      onRebind={() => rebindProfileVersion(onAct, application.id)}
-                    />
                     <button
                       className={`button mini ${approvalNeedsAssurance ? "primary" : "quiet"}`}
                       type="button"

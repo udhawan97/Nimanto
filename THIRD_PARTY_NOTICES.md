@@ -8,7 +8,8 @@ Notable runtime families include:
 | ---------------------- | --------------------------------------------------------------------------- | ------------------------------ |
 | Web and API            | Next.js, React, Fastify and Fastify plugins                                 | MIT                            |
 | Local data             | PGlite                                                                      | Apache-2.0                     |
-| Evidence and documents | PDF.js, pdf-lib, docx, fflate, saxes                                        | Apache-2.0, MIT, ISC           |
+| Evidence and documents | PDF.js, pdf-lib, fontkit, regenerator-runtime, docx, fflate, saxes          | Apache-2.0, MIT, ISC           |
+| Packet fonts           | Noto Sans, Noto Sans Devanagari, Noto Sans SC                               | SIL Open Font License 1.1      |
 | Interface              | Lucide; Fontsource packages for Archivo, IBM Plex Mono and Instrument Serif | ISC; SIL Open Font License 1.1 |
 | Brand rendering        | three.js                                                                    | MIT                            |
 | Verification           | Vitest, Playwright, CSpell, CycloneDX cdxgen                                | MIT, Apache-2.0                |
@@ -22,6 +23,10 @@ it was adapted from are first-party Nimanto work; three.js is consumed as an
 ordinary npm dependency and is not vendored.
 
 The Apache-2.0 license covers Nimanto's original source only; it does not replace third-party licenses. See [sources and licenses](docs/planning/sources-and-licenses.md) for reviewed data-source and provider boundaries.
+
+The bundled Packet fonts retain their separate copyright and OFL texts. Their
+source checksums, static-font derivation, coverage policy, and reproduction steps
+are recorded in [the Packet font notes](packages/documents/fonts/README.md).
 
 ## Unreleased source inventory
 
