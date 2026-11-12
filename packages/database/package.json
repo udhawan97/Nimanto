@@ -17,7 +17,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@electric-sql/pglite": "0.5.10",
+    "@electric-sql/pglite": "0.5.15",
     "@nimanto/domain": "workspace:*"
   },
   "devDependencies": {
