@@ -15,6 +15,11 @@ jobs:
   analyze:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      # Release review needs findings for the whole candidate, including code
+      # outside changed lines. Preserve the same query suite on PRs and main.
+      CODEQL_ACTION_DIFF_INFORMED_QUERIES: "false"
+      CODEQL_ACTION_OVERLAY_ANALYSIS: "false"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
