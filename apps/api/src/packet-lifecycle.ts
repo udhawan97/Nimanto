@@ -33,7 +33,9 @@ export async function verifiedArtifactBytes(
   artifact: { filename: string; sha256: string },
 ): Promise<Buffer> {
   if (
-    path.basename(artifact.filename) !== artifact.filename ||
+    !/^[A-Za-z0-9_-]{1,120}$/u.test(tenantId) ||
+    !/^[A-Za-z0-9_-]{1,120}$/u.test(packetId) ||
+    !/^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$/u.test(artifact.filename) ||
     !/^[a-f0-9]{64}$/u.test(artifact.sha256)
   ) {
     throw new Error("ARTIFACT_INTEGRITY_FAILED");

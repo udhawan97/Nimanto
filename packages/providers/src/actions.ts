@@ -17,6 +17,9 @@ export interface ActionResult {
 }
 
 export function validateActionPayload(payload: ActionPayload): void {
+  if (!/^[A-Za-z0-9_-]{1,120}$/u.test(payload.actionId)) {
+    throw new Error("INVALID_ACTION_ID");
+  }
   if (
     payload.to.length > 254 ||
     /[\r\n\0]/u.test(payload.to) ||

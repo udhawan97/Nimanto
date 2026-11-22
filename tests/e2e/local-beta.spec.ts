@@ -236,17 +236,17 @@ test("the public site reflows, links, and identifies itself in WebKit", async ({
     "href",
     "https://github.com/udhawan97/Nimanto/issues",
   );
-  await expect(page.getByRole("link", { name: "Open the v0.10.0 source release" })).toHaveAttribute(
+  await expect(page.getByRole("link", { name: "Open the v0.10.1 source release" })).toHaveAttribute(
     "href",
-    "https://github.com/udhawan97/Nimanto/releases/tag/v0.10.0",
+    "https://github.com/udhawan97/Nimanto/releases/tag/v0.10.1",
   );
-  await expect(page.getByRole("link", { name: "Read the v0.10.0 notes" })).toHaveAttribute(
+  await expect(page.getByRole("link", { name: "Read the v0.10.1 notes" })).toHaveAttribute(
     "href",
-    "https://github.com/udhawan97/Nimanto/blob/v0.10.0/docs/releases/v0.10.0.md",
+    "https://github.com/udhawan97/Nimanto/blob/v0.10.1/docs/releases/v0.10.1.md",
   );
   await expect(page.getByRole("link", { name: "Check hashes and inventories" })).toHaveAttribute(
     "href",
-    "https://github.com/udhawan97/Nimanto/blob/v0.10.0/README.md#verify-a-source-release",
+    "https://github.com/udhawan97/Nimanto/blob/v0.10.1/README.md#verify-a-source-release",
   );
   const releaseLinkTops = await page
     .locator(".release-proof .text-link")
@@ -254,9 +254,9 @@ test("the public site reflows, links, and identifies itself in WebKit", async ({
   expect(new Set(releaseLinkTops).size, "release verification links occupy separate rows").toBe(
     releaseLinkTops.length,
   );
-  await expect(page.getByRole("link", { name: "v0.10.0 notes" }).first()).toHaveAttribute(
+  await expect(page.getByRole("link", { name: "v0.10.1 notes" }).first()).toHaveAttribute(
     "href",
-    "https://github.com/udhawan97/Nimanto/blob/v0.10.0/docs/releases/v0.10.0.md",
+    "https://github.com/udhawan97/Nimanto/blob/v0.10.1/docs/releases/v0.10.1.md",
   );
   await expect(page.getByAltText(/Synthetic Nimanto Applications workbench/)).toHaveAttribute(
     "src",
@@ -2865,13 +2865,18 @@ test("the candidate career ledger carries the P1 and P2 application workflow", a
   await now.getByLabel("Action").fill("Cancel a superseded follow-up");
   // Keyboard save: the submit control returns to disabled once the form
   // resets, so focus must land back in the form the candidate was using.
+  // The record can render before the scheduled focus-restoration frame. Wait
+  // for the required focus state; a persistent BODY fallback must still fail.
   await now.getByRole("button", { name: "Add activity" }).press("Enter");
   await expect(
     now.locator("li").filter({ hasText: "Cancel a superseded follow-up" }),
   ).toBeVisible();
-  expect(await describeFocus(page), "focus after a keyboard Add activity").toBe(
-    "career-ledger-form",
-  );
+  await expect
+    .poll(() => describeFocus(page), {
+      message: "focus after a keyboard Add activity",
+      timeout: 1_000,
+    })
+    .toBe("career-ledger-form");
   const cancelledActivity = now.locator("li").filter({ hasText: "Cancel a superseded follow-up" });
   await cancelledActivity.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(cancelledActivity).toContainText("Follow up · Cancelled");
@@ -2910,9 +2915,12 @@ test("the candidate career ledger carries the P1 and P2 application workflow", a
   await answers.getByRole("button", { name: "Save answer" }).press("Enter");
   const answer = answers.locator(".ledger-records > li").filter({ hasText: "Why this role?" });
   await expect(answer).toBeVisible();
-  expect(await describeFocus(page), "focus after a keyboard Save answer").toBe(
-    "career-ledger-form",
-  );
+  await expect
+    .poll(() => describeFocus(page), {
+      message: "focus after a keyboard Save answer",
+      timeout: 1_000,
+    })
+    .toBe("career-ledger-form");
   await answer.getByRole("button", { name: "Revise" }).click();
   await answers
     .getByLabel("Your answer")

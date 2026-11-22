@@ -4,9 +4,7 @@
 
 <h1 align="center">Nimanto</h1>
 
-<p align="center"><strong>Current source identity: 0.10.1-dev.0 (unreleased)</strong></p>
-
-<p align="center"><strong>Nimanto v0.10.0 is source-distributed.</strong><br>
+<p align="center"><strong>Nimanto v0.10.1 is source-distributed.</strong><br>
 Use the exact tag and published inventories to verify this local-beta release.</p>
 
 <p align="center"><strong>Evidence first. Applications second.</strong></p>
@@ -36,7 +34,7 @@ Use the exact tag and published inventories to verify this local-beta release.</
   ·
   <a href="#what-it-actually-does"><strong>What it does</strong></a>
   ·
-  <a href="docs/releases/v0.10.0.md"><strong>v0.10.0 notes</strong></a>
+  <a href="docs/releases/v0.10.1.md"><strong>v0.10.1 notes</strong></a>
   ·
   <a href="docs/planning/product-contract.md"><strong>Product contract</strong></a>
 </p>
@@ -87,7 +85,21 @@ Nimanto is a **candidate tool**. It does not screen you for employers, estimate
 your hiring odds, give legal advice, or promise that a company sponsors transfers
 today.
 
-## New in v0.10.0
+## New in v0.10.1
+
+- **Bounded role-text processing.** HTML-backed role imports use a parser to
+  extract text, and location-preference parsing avoids repeated scans over long
+  whitespace. Provider-declared plain text stays literal.
+- **Safer local file boundaries.** Artifact reads and local outbox writes
+  validate path components before accessing files. Reviewed URL intake also
+  rejects additional special-use addresses and preserves the reviewed DNS
+  address family through the connection.
+- **Current dependency and release evidence.** Production and development
+  dependencies are refreshed, with exact-version inventories and checksums.
+  Pull-request CodeQL now scans the complete candidate so unchanged findings
+  remain visible for review. See the [security maintenance notes](docs/releases/v0.10.1.md).
+
+### Workflow features carried forward from v0.10.0
 
 - **Local recovery rehearsal.** `pnpm recovery:drill` checks a stopped synthetic
   database copy, all six packet artifacts, tenant isolation, approval reset,
@@ -268,7 +280,7 @@ today.
 
 ### Reliability work carried forward from v0.5.5
 
-- **The local API uses [Fastify 5.12.1](https://github.com/fastify/fastify/releases/tag/v5.12.1).**
+- **The local API uses [Fastify 5.12.8](https://github.com/fastify/fastify/releases/tag/v5.12.8).**
   The locked production graph retains the upstream security-maintenance patch
   introduced in v0.5.5.
 
@@ -400,7 +412,7 @@ something that opens because you opened it.
 
 ## Run it
 
-Nimanto v0.10.0 is source-distributed. It does **not** ship a signed installer or
+Nimanto v0.10.1 is source-distributed. It does **not** ship a signed installer or
 desktop binary.
 
 | Runtime path       | Best for                          | Start here                                                      |
@@ -410,7 +422,7 @@ desktop binary.
 | Docker on loopback | Invite-only local/self-hosted QA  | `docker compose up --build`; keep ports bound to `127.0.0.1`    |
 
 Acquire the exact source from the pinned
-[v0.10.0 release](https://github.com/udhawan97/Nimanto/releases/tag/v0.10.0); GitHub
+[v0.10.1 release](https://github.com/udhawan97/Nimanto/releases/tag/v0.10.1); GitHub
 generates its ZIP and tar archive from that tag.
 
 ### One double-click on macOS
@@ -422,10 +434,15 @@ the locked dependencies, starts the local services, and opens the workbench.
 
 Requirements: Node.js 24–26, pnpm 11, and macOS, Linux or Windows.
 
+These commands require Corepack to be installed. Node.js 25 and later
+[do not bundle Corepack](https://nodejs.org/download/release/v25.8.0/docs/api/corepack.html);
+follow the [Corepack installation guide](https://github.com/nodejs/corepack#installation)
+first if `corepack --version` is unavailable. The repository pins pnpm 11.20.0.
+
 ```bash
 git clone https://github.com/udhawan97/Nimanto.git
 cd Nimanto
-git checkout v0.10.0
+git checkout v0.10.1
 corepack enable
 pnpm install --frozen-lockfile
 pnpm dev
@@ -446,11 +463,11 @@ issue a hashed, expiring, single-use invitation.
 ### Verify a source release
 
 Every release publishes the two dependency inventories beside one checksum
-manifest. After downloading the three `v0.10.0` assets into an empty directory,
+manifest. After downloading the three `v0.10.1` assets into an empty directory,
 verify both inventories before inspecting or building the source archive:
 
 ```bash
-shasum -a 256 --check nimanto-v0.10.0-SHA256SUMS.txt
+shasum -a 256 --check nimanto-v0.10.1-SHA256SUMS.txt
 ```
 
 The manifest covers the CycloneDX and SPDX files. GitHub generates the source
@@ -727,6 +744,7 @@ Read the [system architecture](docs/architecture/system.md), the
 ```bash
 pnpm check
 pnpm build
+pnpm exec playwright install webkit
 pnpm test:e2e
 pnpm release:check
 pnpm screenshots:check
@@ -744,7 +762,7 @@ journey.
 
 ## Beta boundaries
 
-Version `0.10.0` is a **local beta**:
+Version `0.10.1` is a **local beta**:
 
 - The local candidate workflow is implemented and tested.
 - Public website hosting carries product information and the static workbench
@@ -804,5 +822,5 @@ of scope.
 Apache License 2.0. See [LICENSE](LICENSE), [NOTICE](NOTICE),
 [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md),
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), and the release
-[CycloneDX](docs/releases/nimanto-v0.10.0.cdx.json) /
-[SPDX](docs/releases/nimanto-v0.10.0.spdx.json) inventories.
+[CycloneDX](docs/releases/nimanto-v0.10.1.cdx.json) /
+[SPDX](docs/releases/nimanto-v0.10.1.spdx.json) inventories.

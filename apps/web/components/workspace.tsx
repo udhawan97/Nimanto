@@ -1398,7 +1398,13 @@ export function Workspace() {
         restoreFocus: () => {
           const target = focusOrigin.current;
           focusOrigin.current = null;
-          if (document.activeElement !== document.body) return;
+          // WebKit can report a disabled submit control as active until its
+          // deferred blur. It still belongs to this mutation; leaving it alone
+          // would consume restoration just before focus falls back to BODY.
+          const active = document.activeElement;
+          if (active !== document.body && !(active === target && target?.matches(":disabled"))) {
+            return;
+          }
           if (target?.isConnected && !target.matches(":disabled")) {
             target.focus();
             return;

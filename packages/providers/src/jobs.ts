@@ -9,6 +9,7 @@ import {
 import { assertSourceExecutionEnabled } from "./source-registry.js";
 import { recognizeAtsTarget } from "./ats-routing.js";
 import { NIMANTO_PROVIDER_VERSION } from "./version.js";
+import { htmlText } from "./html-text.js";
 
 export type JobProvider = "greenhouse" | "lever" | "ashby" | "smartrecruiters";
 
@@ -104,14 +105,11 @@ function outboundUrl(value: unknown): string {
 }
 
 function stripMarkup(value: string): string {
-  return value
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&nbsp;/g, " ")
-    .replace(/\s+/g, " ")
-    .normalize("NFC")
-    .trim();
+  return htmlText(value);
+}
+
+function plainText(value: string): string {
+  return value.replace(/\s+/gu, " ").normalize("NFC").trim();
 }
 
 function digest(value: unknown): string {
@@ -276,7 +274,7 @@ function leverJobs(payload: unknown[], board: string, observedAt: string) {
       sourceJobId: text(job.id),
       title: text(job.text),
       company: board,
-      description: stripMarkup(`${text(job.descriptionPlain)} ${text(job.additionalPlain)}`),
+      description: plainText(`${text(job.descriptionPlain)} ${text(job.additionalPlain)}`),
       location: allLocations.join(" · "),
       workMode: evidence.mode,
       workplaceEvidence: [evidence],
@@ -324,7 +322,9 @@ function ashbyJobs(payload: { jobs?: unknown[] }, board: string, observedAt: str
       sourceJobId: text(job.id) || text(job.jobUrl),
       title: text(job.title),
       company: board,
-      description: stripMarkup(text(job.descriptionPlain) || text(job.descriptionHtml)),
+      description: text(job.descriptionPlain)
+        ? plainText(text(job.descriptionPlain))
+        : stripMarkup(text(job.descriptionHtml)),
       location: locations.join(" · "),
       workMode: evidence.mode,
       workplaceEvidence: [evidence],

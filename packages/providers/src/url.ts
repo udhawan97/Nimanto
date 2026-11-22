@@ -2,6 +2,7 @@ import { lookup as dnsLookup } from "node:dns/promises";
 import { request as httpsRequest } from "node:https";
 import { isIP } from "node:net";
 import { NIMANTO_PROVIDER_VERSION } from "./version.js";
+import { htmlText } from "./html-text.js";
 
 type Address = { address: string; family: number };
 type Response = { status: number; contentType: string; body: Uint8Array; location?: string };
@@ -76,6 +77,8 @@ function isPrivateAddress(address: string): boolean {
       (octets[0] === 172 && (octets[1] ?? 0) >= 16 && (octets[1] ?? 0) <= 31) ||
       (octets[0] === 192 && octets[1] === 168) ||
       (octets[0] === 192 && octets[1] === 0 && octets[2] === 0) ||
+      (octets[0] === 192 && octets[1] === 0 && octets[2] === 2) ||
+      (octets[0] === 192 && octets[1] === 88 && octets[2] === 99) ||
       (octets[0] === 198 && (octets[1] === 18 || octets[1] === 19)) ||
       (octets[0] === 198 && octets[1] === 51 && octets[2] === 100) ||
       (octets[0] === 203 && octets[1] === 0 && octets[2] === 113) ||
@@ -111,8 +114,30 @@ function isPrivateAddress(address: string): boolean {
     // client IPv4 (the last 32 bits, XOR 0xffff per word). Decode and re-check it
     // against the IPv4 rules so a Teredo-wrapped private target cannot be reached.
     if (groups[0] === 0x2001 && groups[1] === 0x0000) {
-      return embeddedIPv4(groups[6]! ^ 0xffff, groups[7]! ^ 0xffff);
+      return (
+        embeddedIPv4(groups[2]!, groups[3]!) ||
+        embeddedIPv4(groups[6]! ^ 0xffff, groups[7]! ^ 0xffff)
+      );
     }
+    // IANA marks 2001::/23 non-global except these more-specific allocations.
+    // This also excludes benchmarking and the deprecated ORCHID allocation.
+    if (groups[0] === 0x2001 && groups[1]! < 0x0200) {
+      const anycast =
+        groups[1] === 1 &&
+        groups.slice(2, 7).every((group) => group === 0) &&
+        groups[7]! >= 1 &&
+        groups[7]! <= 3;
+      const global =
+        anycast ||
+        groups[1] === 3 ||
+        (groups[1] === 4 && groups[2] === 0x0112) ||
+        (groups[1]! & 0xfff0) === 0x0020 ||
+        (groups[1]! & 0xfff0) === 0x0030;
+      return !global;
+    }
+    // Documentation ranges inside global unicast are not public destinations.
+    if (groups[0] === 0x2001 && groups[1] === 0x0db8) return true;
+    if (groups[0] === 0x3fff && (groups[1]! & 0xf000) === 0) return true;
     if ((groups[0]! & 0xe000) === 0x2000) return false; // 2000::/3 global unicast
     return true; // link-local, ULA, multicast, site-local, and all else
   }
@@ -213,16 +238,7 @@ function textFromPage(body: Uint8Array, contentType: string): string {
     throw new Error("URL_TEXT_ENCODING");
   }
   if (/text\/plain/iu.test(contentType)) return source.replace(/\s+/gu, " ").trim();
-  return source
-    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/giu, " ")
-    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/giu, " ")
-    .replace(/<[^>]+>/gu, " ")
-    .replace(/&nbsp;/giu, " ")
-    .replace(/&amp;/giu, "&")
-    .replace(/&lt;/giu, "<")
-    .replace(/&gt;/giu, ">")
-    .replace(/\s+/gu, " ")
-    .trim();
+  return htmlText(source);
 }
 
 export async function fetchAllowlistedJobPage(

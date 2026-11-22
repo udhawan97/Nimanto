@@ -3,8 +3,13 @@
 ## Requirements
 
 - Node.js 24, 25, or 26
-- pnpm 11.20.0 through Corepack
+- pnpm 11.20.0 through an installed Corepack executable
 - 1 GB of free disk space for dependencies, local data, and packet artifacts
+
+These commands require Corepack to be installed. Node.js 25 and later
+[do not bundle Corepack](https://nodejs.org/download/release/v25.8.0/docs/api/corepack.html);
+follow the [Corepack installation guide](https://github.com/nodejs/corepack#installation)
+first if `corepack --version` is unavailable. The repository pins pnpm 11.20.0.
 
 ## Start
 
@@ -54,14 +59,14 @@ The built-in API is available throughout the supported Node 24–26 range; its
 [Node 24 documentation](https://nodejs.org/download/release/latest-v24.x/docs/api/sqlite.html)
 still labels it release candidate.
 
-## Upgrade to v0.10.0
+## Upgrade to v0.10.1
 
 Stop the API, copy the complete `.nimanto-data/` directory, update to the exact
-v0.10.0 source, and reinstall the locked graph before restarting:
+v0.10.1 source, and reinstall the locked graph before restarting:
 
 ```bash
 git fetch --tags origin
-git checkout v0.10.0
+git checkout v0.10.1
 corepack enable
 pnpm install --frozen-lockfile
 pnpm dev
@@ -118,7 +123,7 @@ The digest-pinned container runs the same static web workbench and API with publ
 docker compose up --build
 ```
 
-Open `http://127.0.0.1:4300/`. Retrieve the generated admin key with `docker compose exec nimanto sh -c 'cat /data/launch-secret'`, then issue a private invitation as above. The named `nimanto-data` volume holds the database and artifacts. The image is built in CI; v0.10.0 has not been certified for internet exposure and should remain bound to loopback.
+Open `http://127.0.0.1:4300/`. Retrieve the generated admin key with `docker compose exec nimanto sh -c 'cat /data/launch-secret'`, then issue a private invitation as above. The named `nimanto-data` volume holds the database and artifacts. The image is built in CI; v0.10.1 has not been certified for internet exposure and should remain bound to loopback.
 
 ## Data locations
 
@@ -357,14 +362,15 @@ offline backup procedure above.
 ```bash
 pnpm check
 pnpm build
+pnpm exec playwright install webkit
 pnpm test:e2e
 ```
 
-For a downloaded v0.10.0 release, place the CycloneDX inventory, SPDX inventory,
+For a downloaded v0.10.1 release, place the CycloneDX inventory, SPDX inventory,
 and checksum manifest in one directory and verify the two inventories with:
 
 ```bash
-shasum -a 256 --check nimanto-v0.10.0-SHA256SUMS.txt
+shasum -a 256 --check nimanto-v0.10.1-SHA256SUMS.txt
 ```
 
 This verifies the published inventory assets. GitHub generates the source ZIP
@@ -434,9 +440,9 @@ write committed.
 Do not retry it. The provider effect may have completed before local outcome
 persistence became uncertain. Copy the action ID, inspect the local outbox file
 or mail-client state, and follow the provider-specific reconciliation procedure
-in [provider boundaries](provider-setup.md#reconcile-an-ambiguous-action). v0.10.0
+in [provider boundaries](provider-setup.md#reconcile-an-ambiguous-action). v0.10.1
 keeps the ambiguous record as a do-not-retry audit trail.
 
 ### Gmail or Outlook is unavailable
 
-Connected-account sending is not part of v0.10.0. Use the local test outbox or a user-opened deep link. See [provider boundaries](provider-setup.md).
+Connected-account sending is not part of v0.10.1. Use the local test outbox or a user-opened deep link. See [provider boundaries](provider-setup.md).
