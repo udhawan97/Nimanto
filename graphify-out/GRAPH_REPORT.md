@@ -1,7 +1,7 @@
-# Graph Report - Nimanto  (2026-10-29)
+# Graph Report - Nimanto  (2026-11-21)
 
 ## Corpus Check
-- 295 files · ~8,461,824 words
+- 295 files · ~8,461,916 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,9 +10,9 @@
 - Incremental AST token cost: 0 input · 0 output. Earlier semantic extraction usage is unavailable.
 
 ## Graph Freshness
-- Validated against source commit: `91324fd871b5013f89023b3542b416908af1d514`.
-- Incremental AST refresh completed; dependency and generated-asset updates did not change graph topology.
-- The manifest records refreshed source input hashes; documentation semantics are unchanged from the reviewed six-fix source.
+- Validated against source commit: `2ebeee2a23f64b5d4c41e6cee034c7f74acd39bb`.
+- Incremental AST refresh completed. Provider source locations and input hashes are current. Graph topology and community assignments are preserved.
+- The manifest records refreshed provider, dependency inventory and synthetic screenshot input hashes. Existing documentation semantics are preserved.
 - Five metadata-only JSON inputs produce no AST nodes. The v14 SQL fixture has no AST nodes because the optional SQL parser is absent; its behavior is covered by executable recovery tests.
 - Run `graphify update .` after source changes.
 

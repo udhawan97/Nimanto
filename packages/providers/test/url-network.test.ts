@@ -1,4 +1,5 @@
 import { EventEmitter } from "node:events";
+import { request as httpsRequest } from "node:https";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 type FakeRequest = EventEmitter & {
@@ -126,7 +127,10 @@ describe("allowlisted URL network completion", () => {
     expect(requestDestroyedWhenSettled).toBe(true);
   });
 
-  it("keeps normal exact-host HTTPS intake working without relaxing policy", async () => {
+  it.each([
+    { address: "93.184.216.34", family: 4 },
+    { address: "2606:4700:4700::1111", family: 6 },
+  ])("reads the approved hostname through its reviewed IPv$family address", async (target) => {
     transport.plan = (respond) => {
       const incoming = response();
       respond(incoming);
@@ -139,12 +143,23 @@ describe("allowlisted URL network completion", () => {
       incoming.emit("end");
     };
 
-    await expect(fetchAllowlistedJobPage(input, { resolve: publicAddress })).resolves.toMatchObject(
-      {
-        canonicalUrl: input.url,
-        text: "Platform Engineer Build candidate tools.",
-      },
-    );
+    const approved = { ...input, url: input.url + "?view=full" };
+    await expect(
+      fetchAllowlistedJobPage(approved, { resolve: async () => [target] }),
+    ).resolves.toMatchObject({
+      canonicalUrl: approved.url,
+      text: "Platform Engineer Build candidate tools.",
+    });
+    const [requestUrl, options] = vi.mocked(httpsRequest).mock.lastCall!;
+    expect(requestUrl).toEqual(new URL(approved.url));
+    expect(options).toMatchObject({
+      agent: false,
+      family: target.family,
+      servername: "careers.example.test",
+    });
+    const selected = vi.fn();
+    options.lookup!("careers.example.test", { family: target.family }, selected);
+    expect(selected).toHaveBeenCalledExactlyOnceWith(null, target.address, target.family);
     await expect(
       fetchAllowlistedJobPage(
         { ...input, url: "https://unreviewed.example.test/jobs/7" },

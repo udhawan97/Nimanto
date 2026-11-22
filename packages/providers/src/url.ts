@@ -149,6 +149,9 @@ async function requestPinned(url: URL, target: Address, deadlineAt: number): Pro
       url,
       {
         method: "GET",
+        // Open a fresh connection using the one reviewed address and its family.
+        agent: false,
+        family: target.family,
         headers: {
           accept: "text/html,text/plain;q=0.9",
           "user-agent": `Nimanto/${NIMANTO_PROVIDER_VERSION}`,

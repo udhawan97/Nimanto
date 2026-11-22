@@ -115,8 +115,8 @@
     "semantic_hash": "a1b08f82af5dc21fa7b13f6e229aef2b"
   },
   "apps/web/package.json": {
-    "mtime": 1793308833.4481463,
-    "ast_hash": "9bf18f663b1f63b0dd2e5f94a79d56a8",
+    "mtime": 1794866753.8564382,
+    "ast_hash": "1ee76686069273d5da866fddfd5fad34",
     "semantic_hash": ""
   },
   "apps/web/public/sw.js": {
@@ -475,8 +475,8 @@
     "semantic_hash": ""
   },
   "docs/assets/nimanto-workbench.png": {
-    "mtime": 1793310106.9954379,
-    "ast_hash": "0b98fd687217d0f70fd708e75096d367",
+    "mtime": 1795309384.924575,
+    "ast_hash": "d69e29c6208e1dc799bd2cb0febeaeec",
     "semantic_hash": ""
   },
   "packages/domain/src/sponsorship.ts": {
@@ -520,8 +520,8 @@
     "semantic_hash": "71f90fdb6d5cb2d5974423f7f92dc8b6"
   },
   "packages/providers/src/url.ts": {
-    "mtime": 1793308468.0191383,
-    "ast_hash": "b8c6ff96e53217e85ce56f4225e46639",
+    "mtime": 1794866010.4096255,
+    "ast_hash": "e5296e2cdbb42a74dfde160b894af4a7",
     "semantic_hash": ""
   },
   "ACKNOWLEDGMENTS.md": {
@@ -725,8 +725,8 @@
     "semantic_hash": "e5f2ac0cf10c8d49148fa9aa49c37897"
   },
   "apps/web/public/assets/nimanto-workbench.png": {
-    "mtime": 1793310106.995878,
-    "ast_hash": "0b98fd687217d0f70fd708e75096d367",
+    "mtime": 1795309384.924935,
+    "ast_hash": "d69e29c6208e1dc799bd2cb0febeaeec",
     "semantic_hash": ""
   },
   "apps/api/src/deletion-coordinator.ts": {
@@ -995,8 +995,8 @@
     "semantic_hash": ""
   },
   "docs/assets/nimanto-screenshots.json": {
-    "mtime": 1793310107.0327172,
-    "ast_hash": "463ae2104dde5ecb35fbbe25e9619bf8",
+    "mtime": 1795309384.9439695,
+    "ast_hash": "f3eeb8e9bd39f1e7dea8340c411e0f6e",
     "semantic_hash": ""
   },
   "scripts/screenshot-evidence.mjs": {
@@ -1540,8 +1540,8 @@
     "semantic_hash": ""
   },
   "packages/providers/test/url-network.test.ts": {
-    "mtime": 1793308468.020601,
-    "ast_hash": "61a4810efa7d3d071616414321a7a3a0",
+    "mtime": 1794866011.411804,
+    "ast_hash": "782733883a4c8f6d01bb125a1e353fd7",
     "semantic_hash": ""
   },
   "docs/releases/nimanto-v0.10.0-SHA256SUMS.txt": {
@@ -1560,18 +1560,18 @@
     "semantic_hash": ""
   },
   "docs/releases/nimanto-v0.10.1-dev.0.cdx.json": {
-    "mtime": 1793308976.0428185,
-    "ast_hash": "db5275d0e670b591a18909dc031b33d0",
+    "mtime": 1794866834.352187,
+    "ast_hash": "f7a414e8434200413e81c28843c32692",
     "semantic_hash": ""
   },
   "docs/releases/nimanto-v0.10.1-dev.0.spdx.json": {
-    "mtime": 1793308977.1461923,
-    "ast_hash": "795d7ab78f6fdd01f9249c2c57feddd9",
+    "mtime": 1794866834.9343898,
+    "ast_hash": "93f7aa935a935d2c0574e5747088ae25",
     "semantic_hash": ""
   },
   "docs/releases/nimanto-v0.10.1-dev.0-SHA256SUMS.txt": {
-    "mtime": 1793308977.5886493,
-    "ast_hash": "f579ca0cb5e556bbd6fa0fc45af768cf",
+    "mtime": 1794866835.163747,
+    "ast_hash": "4a2e1c8324557e093dae9b28be54b929",
     "semantic_hash": ""
   },
   "apps/api/test/upgrade-deletion-recovery.test.ts": {
