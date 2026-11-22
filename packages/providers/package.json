@@ -16,7 +16,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@nimanto/domain": "workspace:*"
+    "@nimanto/domain": "workspace:*",
+    "htmlparser2": "12.0.0"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

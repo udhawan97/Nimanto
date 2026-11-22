@@ -113,6 +113,19 @@ function blockerText(job: JobForMatching): MatchBlocker[] {
   return result;
 }
 
+function onlyLocation(value: string): string | undefined {
+  // Scan each delimiter-bounded clause once. Overlapping whitespace quantifiers
+  // made an incomplete preference expensive before the final "only" was found.
+  for (const clause of value.replace(/\s+/gu, " ").split(/[,;]/u)) {
+    const marker = /\blocation:/u.exec(clause);
+    if (!marker) continue;
+    const remainder = clause.slice(marker.index + marker[0].length);
+    const ending = / only\b/u.exec(remainder);
+    if (ending) return remainder.slice(0, ending.index).trim() || undefined;
+  }
+  return undefined;
+}
+
 function locationBlockers(job: JobForMatching, evidence: EvidenceClaim[]): MatchBlocker[] {
   const preferences = evidence.filter(
     (claim) => claim.status === "confirmed" && claim.kind === "preference",
@@ -130,7 +143,7 @@ function locationBlockers(job: JobForMatching, evidence: EvidenceClaim[]): Match
         },
       ];
     }
-    const exact = /\blocation:\s*([^,;]+?)\s+only\b/u.exec(value)?.[1]?.trim();
+    const exact = onlyLocation(value);
     if (exact && location && !location.includes(exact)) {
       return [
         {

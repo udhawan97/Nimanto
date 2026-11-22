@@ -48,7 +48,8 @@ export function claimsFromText(text: string, sourceName: string): ParsedEvidence
   for (const [index, rawLine] of text.split(/\r?\n/).entries()) {
     const line = cleanLine(rawLine);
     if (line.length < 3) continue;
-    const match = /^([A-Za-z ]{2,24}):\s*(.+)$/.exec(line);
+    // cleanLine has already collapsed whitespace to single ASCII spaces.
+    const match = /^([A-Za-z ]{2,24}): ?(.+)$/.exec(line);
     const kind = kinds.get(match?.[1]?.toLocaleLowerCase("en-US") ?? "") ?? "accomplishment";
     const value = cleanLine(match?.[2] ?? line);
     const dedupeKey = value.toLocaleLowerCase("en-US");

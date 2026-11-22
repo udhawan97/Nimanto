@@ -33,6 +33,51 @@ const confirmedEvidence: EvidenceClaim[] = [
 ];
 
 describe("evidence-to-match public seam", () => {
+  it("handles an incomplete location preference without excessive backtracking", () => {
+    const started = performance.now();
+    const result = matchJob({
+      evidence: [
+        {
+          ...confirmedEvidence[0]!,
+          kind: "preference",
+          value: `Location:${" ".repeat(2000)}Chicago`,
+        },
+      ],
+      job: {
+        id: "synthetic-location",
+        title: "Engineer",
+        company: "Synthetic",
+        description: "Build tools",
+        requirements: [],
+        location: "New York",
+      },
+    });
+    expect(result.blockers).toEqual([]);
+    expect(performance.now() - started).toBeLessThan(200);
+  });
+
+  it.each([
+    ["Location: Chicago only", true],
+    ["Location:\tChicago\t only", true],
+    ["Location: New York only", false],
+    ["Location: Chicago, remote only", false],
+    ["Location: Chicago; remote only", false],
+    ["Location: Chicago only1", false],
+  ])("retains explicit location semantics for %s", (value, conflict) => {
+    const result = matchJob({
+      evidence: [{ ...confirmedEvidence[0]!, kind: "preference", value }],
+      job: {
+        id: "synthetic-location",
+        title: "Engineer",
+        company: "Synthetic",
+        description: "Build tools",
+        requirements: [],
+        location: "New York",
+      },
+    });
+    expect(result.blockers.some((blocker) => blocker.code === "location_conflict")).toBe(conflict);
+  });
+
   it("publishes an ordinal band with source-linked requirement explanations", () => {
     const result = matchJob({
       evidence: confirmedEvidence,
