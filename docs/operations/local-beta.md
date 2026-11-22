@@ -3,8 +3,13 @@
 ## Requirements
 
 - Node.js 24, 25, or 26
-- pnpm 11.20.0 through Corepack
+- pnpm 11.20.0 through an installed Corepack executable
 - 1 GB of free disk space for dependencies, local data, and packet artifacts
+
+These commands require Corepack to be installed. Node.js 25 and later
+[do not bundle Corepack](https://nodejs.org/download/release/v25.8.0/docs/api/corepack.html);
+follow the [Corepack installation guide](https://github.com/nodejs/corepack#installation)
+first if `corepack --version` is unavailable. The repository pins pnpm 11.20.0.
 
 ## Start
 
@@ -357,6 +362,7 @@ offline backup procedure above.
 ```bash
 pnpm check
 pnpm build
+pnpm exec playwright install webkit
 pnpm test:e2e
 ```
 

@@ -328,6 +328,13 @@ export default function Home() {
             <div className="run-grid">
               <div className="run-block flow">
                 <p className="placard">Terminal start</p>
+                <p className="run-note">
+                  Corepack must be installed first; Node 25–26 does not bundle it. Follow the{" "}
+                  <a href="https://github.com/udhawan97/Nimanto/blob/v0.10.1/README.md#terminal">
+                    setup prerequisites
+                  </a>
+                  .
+                </p>
                 <CopyLine command="git clone https://github.com/udhawan97/Nimanto.git" />
                 <CopyLine command="cd Nimanto && git checkout v0.10.1" />
                 <CopyLine command="corepack enable && pnpm install --frozen-lockfile && pnpm dev" />
