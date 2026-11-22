@@ -2865,13 +2865,18 @@ test("the candidate career ledger carries the P1 and P2 application workflow", a
   await now.getByLabel("Action").fill("Cancel a superseded follow-up");
   // Keyboard save: the submit control returns to disabled once the form
   // resets, so focus must land back in the form the candidate was using.
+  // The record can render before the scheduled focus-restoration frame. Wait
+  // for the required focus state; a persistent BODY fallback must still fail.
   await now.getByRole("button", { name: "Add activity" }).press("Enter");
   await expect(
     now.locator("li").filter({ hasText: "Cancel a superseded follow-up" }),
   ).toBeVisible();
-  expect(await describeFocus(page), "focus after a keyboard Add activity").toBe(
-    "career-ledger-form",
-  );
+  await expect
+    .poll(() => describeFocus(page), {
+      message: "focus after a keyboard Add activity",
+      timeout: 1_000,
+    })
+    .toBe("career-ledger-form");
   const cancelledActivity = now.locator("li").filter({ hasText: "Cancel a superseded follow-up" });
   await cancelledActivity.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(cancelledActivity).toContainText("Follow up · Cancelled");
@@ -2910,9 +2915,12 @@ test("the candidate career ledger carries the P1 and P2 application workflow", a
   await answers.getByRole("button", { name: "Save answer" }).press("Enter");
   const answer = answers.locator(".ledger-records > li").filter({ hasText: "Why this role?" });
   await expect(answer).toBeVisible();
-  expect(await describeFocus(page), "focus after a keyboard Save answer").toBe(
-    "career-ledger-form",
-  );
+  await expect
+    .poll(() => describeFocus(page), {
+      message: "focus after a keyboard Save answer",
+      timeout: 1_000,
+    })
+    .toBe("career-ledger-form");
   await answer.getByRole("button", { name: "Revise" }).click();
   await answers
     .getByLabel("Your answer")
