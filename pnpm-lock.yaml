@@ -9,8 +9,13 @@ overrides:
   body-parser@>=2.0.0 <2.4.0: 2.4.0
   nanoid@<3.3.18: 3.3.18
   next>sharp: 0.35.5
-  fast-uri@>=3.0.0 <3.1.7: 3.1.7
-  fast-uri@>=4.0.0 <4.1.4: 4.1.4
+  fast-uri@>=3.0.0 <3.1.9: 3.1.9
+  fast-uri@>=4.0.0 <4.2.3: 4.2.3
+  '@fastify/static>glob': 14.0.2
+  '@cyclonedx/cdxgen>glob': 14.0.2
+  '@npmcli/package-json>glob': 14.0.2
+  '@npmcli/map-workspaces>glob': 14.0.2
+  '@npmcli/map-workspaces>minimatch': 11.0.1
   shell-quote@>=1.8.4 <1.11.0: 1.11.0
   compression@<1.8.2: 1.8.2
 
@@ -1083,6 +1088,9 @@ packages:
     resolution: {integrity: sha512-wgm9Ehl2jpeqP3zw/7mo3kRHFp5MEDhqAdwy1fTGkHAwnkGOVsgpvQhL8B5n1qlb01jV3n/bI0ZfZp5lWA1k4w==}
     engines: {node: '>=18.0.0'}
 
+  '@isaacs/nonrecursive-glob-match@1.1.0':
+    resolution: {integrity: sha512-GPm/Dbvk5RLmhRnxXIa7nTpK0xtl4E0wj0MslsuNiJ1FIROU+2+9lgUC/dgF7Ey4QCWhfEsgxilMRMCdHPfDfw==}
+
   '@isaacs/string-locale-compare@1.1.0':
     resolution: {integrity: sha512-SQ7Kzhh9+D+ZW9MA0zkYv3VXhIDNx+LzM6EJ+/65I3QY+enU6Itte7E5XX7EWrqLW2FN4n06GWzBnPoC3th2aQ==}
 
@@ -2009,11 +2017,11 @@ packages:
   fast-querystring@1.1.2:
     resolution: {integrity: sha512-g6KuKWmFXc0fID8WWH0jit4g0AGBoJhCkJMb1RmbsSEUNvQ+ZC8D6CUZ+GtF8nMzSPXnhiePyyqqipzNNEnHjg==}
 
-  fast-uri@3.1.7:
-    resolution: {integrity: sha512-dOvZVzjdZdz7phd9v6jCbwxrBW3fK6n8Rc0CtdmM4bumzMnxywBYhuph6J819RRw/ku+rLbelwfMunktuzVVHg==}
+  fast-uri@3.1.9:
+    resolution: {integrity: sha512-hS/0Wt3Ya043oKXs0sIxrMpKQITXhMLIrVAKKXi4gozGC9v7YRWVnXIZzjNPTO02M9BdxLCWqK1yRXgNziVyJQ==}
 
-  fast-uri@4.1.4:
-    resolution: {integrity: sha512-dODXrIxlS9JSdgAnhIUKOosKV1oMtU2VtVw87QRaHzyl5jxO290Ii5tEZfCfzfWNHi3jKWwBSdQj0qIyshdZdQ==}
+  fast-uri@4.2.3:
+    resolution: {integrity: sha512-I1PXwP5eAhlNlcdpjt9CgB59op2ZvZfxw+BkqGFVIUOgNpCVTcTqp3HhTX7brxj5vsip+nSY4nTvff+eIA76hg==}
 
   fastify-plugin@6.0.1:
     resolution: {integrity: sha512-4wW4RxSmvPXLrh5mgQEiu43qU3bw44N2ss4FTkTkQIbprUhE+/s43QX0j/ttcztdWK7PEkHqVthdc5GdEGDvjA==}
@@ -2075,8 +2083,8 @@ packages:
     resolution: {integrity: sha512-sTSfBjoXBp89JvIKIefqw7U2CCebsc74kiY6awiGogKtoSGbgjYE/G/+l9sF3MWFPNc9IcoOC4ODfKHfxFmp0g==}
     engines: {node: '>= 0.4'}
 
-  glob@13.0.6:
-    resolution: {integrity: sha512-Wjlyrolmm8uDpm/ogGyXZXb1Z+Ca2B8NbJwqBVg0axK9GbBeoS7yGV6vjXnYdGm6X53iehEuxxbyiKp8QmN4Vw==}
+  glob@14.0.2:
+    resolution: {integrity: sha512-vfMgTR2djMHPUchsJMLpZlYQvtjVL+mHpEr5wPpoCbQs2vr/FBNK+3Gnl9Ara1DSs4Aeg4eG9HiADb5/rkY/ZA==}
     engines: {node: 18 || 20 || >=22}
 
   global-directory@5.0.0:
@@ -2337,9 +2345,13 @@ packages:
     engines: {node: '>=10.0.0'}
     hasBin: true
 
-  minimatch@10.2.6:
-    resolution: {integrity: sha512-vpLQEs+VLCr1nU0BXS07maYoFwlDAH0gngQuuttxIwutDFEMHq2blX+8vpgxDdK3J1PwjCJiep77OitTZ4Ll1A==}
+  minimatch@11.0.1:
+    resolution: {integrity: sha512-t+Vn6DX4wPCxS23y03C0uhF7S1jpi1GfqPrnlEipCJaA2ykiNbMkVlDutZtmvLfRcUN6R8AYVlzTsQrT4RZoLQ==}
     engines: {node: 18 || 20 || >=22}
+
+  minimatch@11.0.8:
+    resolution: {integrity: sha512-nFQuYSTVrGvysVBps5Ih+0BdnYFN/Cj3C816r6+p7yK+FHrVLGE4O4N9AFwykrlNlvM2HYt+Rad1Uiro6h88Ig==}
+    engines: {node: 20 || >=22}
 
   minimatch@3.1.5:
     resolution: {integrity: sha512-VgjWUsnnT6n+NUk6eZq77zeFdpW2LWDzP6zFGrCbHXiYNul5Dzqk2HHQ5uFH2DNW5Xbp8+jVzaeNt94ssEEl4w==}
@@ -2477,8 +2489,8 @@ packages:
   path-is-inside@1.0.2:
     resolution: {integrity: sha512-DUWJr3+ULp4zXmol/SZkFf3JGsS9/SIv+Y3Rt93/UjPpDpklB5f1er4O3POIbUuUJ3FXgqte2Q7SrU6zAqwk8w==}
 
-  path-scurry@2.0.2:
-    resolution: {integrity: sha512-3O/iVVsJAPsOnpwWIeD+d6z/7PmqApyQePUtCndjatj/9I5LylHvt5qluFaBT3I5h3r1ejfR056c+FCv+NnNXg==}
+  path-scurry@3.0.0:
+    resolution: {integrity: sha512-1pTbQqH1wIwMi/eleQ5leFTTCkzFsPcgXNjwOA8YGGW/W4/kHT3dssE7Z6NH+zuqNLOzOB0uaD61yl7cAcVhgg==}
     engines: {node: 18 || 20 || >=22}
 
   path-to-regexp@3.3.0:
@@ -3437,7 +3449,7 @@ snapshots:
       cheerio: 1.2.0
       common-ancestor-path: 1.0.1
       edn-data: 1.2.2
-      glob: 13.0.6
+      glob: 14.0.2
       json-stringify-nice: 1.1.4
       node-stream-zip: 1.16.0
       npm-package-arg: 13.0.2
@@ -3571,7 +3583,7 @@ snapshots:
     dependencies:
       ajv: 8.20.0
       ajv-formats: 3.0.1(ajv@8.20.0)
-      fast-uri: 4.1.4
+      fast-uri: 4.2.3
 
   '@fastify/cookie@11.1.5':
     dependencies:
@@ -3630,7 +3642,7 @@ snapshots:
       content-disposition: 3.0.0
       fastify-plugin: 6.0.1
       fastq: 1.20.3
-      glob: 13.0.6
+      glob: 14.0.2
 
   '@fastify/swagger-ui@6.1.5':
     dependencies:
@@ -3770,6 +3782,8 @@ snapshots:
     dependencies:
       minipass: 7.1.3
 
+  '@isaacs/nonrecursive-glob-match@1.1.0': {}
+
   '@isaacs/string-locale-compare@1.1.0': {}
 
   '@jridgewell/gen-mapping@0.3.13':
@@ -3881,15 +3895,15 @@ snapshots:
     dependencies:
       '@npmcli/name-from-folder': 4.0.0
       '@npmcli/package-json': 7.0.5
-      glob: 13.0.6
-      minimatch: 10.2.6
+      glob: 14.0.2
+      minimatch: 11.0.1
 
   '@npmcli/name-from-folder@4.0.0': {}
 
   '@npmcli/package-json@7.0.5':
     dependencies:
       '@npmcli/git': 7.0.2
-      glob: 13.0.6
+      glob: 14.0.2
       hosted-git-info: 9.0.3
       json-parse-even-better-errors: 5.0.0
       proc-log: 6.1.0
@@ -4017,7 +4031,7 @@ snapshots:
 
   '@types/ws@8.18.2':
     dependencies:
-      '@types/node': 26.6.5
+      '@types/node': 26.6.6
 
   '@typescript/typescript-aix-ppc64@7.0.2':
     optional: true
@@ -4106,14 +4120,14 @@ snapshots:
   ajv@8.18.0:
     dependencies:
       fast-deep-equal: 3.1.3
-      fast-uri: 3.1.7
+      fast-uri: 3.1.9
       json-schema-traverse: 1.0.0
       require-from-string: 2.0.2
 
   ajv@8.20.0:
     dependencies:
       fast-deep-equal: 3.1.3
-      fast-uri: 3.1.7
+      fast-uri: 3.1.9
       json-schema-traverse: 1.0.0
       require-from-string: 2.0.2
 
@@ -4191,7 +4205,7 @@ snapshots:
 
   buffer-image-size@0.6.4:
     dependencies:
-      '@types/node': 26.6.5
+      '@types/node': 26.6.6
 
   bytes@3.0.0: {}
 
@@ -4602,7 +4616,7 @@ snapshots:
       '@fastify/merge-json-schemas': 0.2.2
       ajv: 8.20.0
       ajv-formats: 3.0.1(ajv@8.20.0)
-      fast-uri: 4.1.4
+      fast-uri: 4.2.3
       json-schema-ref-resolver: 3.0.1
       rfdc: 1.4.1
 
@@ -4610,9 +4624,9 @@ snapshots:
     dependencies:
       fast-decode-uri-component: 1.0.1
 
-  fast-uri@3.1.7: {}
+  fast-uri@3.1.9: {}
 
-  fast-uri@4.1.4: {}
+  fast-uri@4.2.3: {}
 
   fastify-plugin@6.0.1: {}
 
@@ -4697,11 +4711,11 @@ snapshots:
       es-object-atoms: 1.1.2
     optional: true
 
-  glob@13.0.6:
+  glob@14.0.2:
     dependencies:
-      minimatch: 10.2.6
+      minimatch: 11.0.8
       minipass: 7.1.3
-      path-scurry: 2.0.2
+      path-scurry: 3.0.0
 
   global-directory@5.0.0:
     dependencies:
@@ -4712,7 +4726,7 @@ snapshots:
 
   happy-dom@21.0.4:
     dependencies:
-      '@types/node': 26.6.5
+      '@types/node': 26.6.6
       '@types/whatwg-mimetype': 3.0.2
       '@types/ws': 8.18.2
       buffer-image-size: 0.6.4
@@ -4813,7 +4827,7 @@ snapshots:
   json-schema-resolver@3.0.0(supports-color@10.2.2):
     dependencies:
       debug: 4.4.3(supports-color@10.2.2)
-      fast-uri: 3.1.7
+      fast-uri: 3.1.9
       rfdc: 1.4.1
     transitivePeerDependencies:
       - supports-color
@@ -4920,8 +4934,14 @@ snapshots:
 
   mime@3.0.0: {}
 
-  minimatch@10.2.6:
+  minimatch@11.0.1:
     dependencies:
+      '@isaacs/nonrecursive-glob-match': 1.1.0
+      brace-expansion: 5.0.12
+
+  minimatch@11.0.8:
+    dependencies:
+      '@isaacs/nonrecursive-glob-match': 1.1.0
       brace-expansion: 5.0.12
 
   minimatch@3.1.5:
@@ -5049,7 +5069,7 @@ snapshots:
 
   path-is-inside@1.0.2: {}
 
-  path-scurry@2.0.2:
+  path-scurry@3.0.0:
     dependencies:
       lru-cache: 11.5.3
       minipass: 7.1.3

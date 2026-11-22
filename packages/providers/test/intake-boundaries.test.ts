@@ -11,6 +11,54 @@ afterEach(async () => {
 
 const input = { url: "https://careers.example.test/role", allowedHosts: ["careers.example.test"] };
 
+it("rejects a mixed public/private DNS result without selecting the public answer", async () => {
+  const request = vi.fn();
+  await expect(
+    fetchAllowlistedJobPage(input, {
+      resolve: async () => [
+        { address: "93.184.216.34", family: 4 },
+        { address: "127.0.0.1", family: 4 },
+      ],
+      request,
+    }),
+  ).rejects.toThrow("SOURCE_URL_UNSAFE_ADDRESS");
+  expect(request).not.toHaveBeenCalled();
+});
+
+it.each(["2001:3::1", "2001:4:112::1", "2001:20::1", "2001:1::1", "3fff:1000::1"])(
+  "preserves allowed global IPv6 allocations: %s",
+  async (address) => {
+    await expect(
+      fetchAllowlistedJobPage(input, {
+        resolve: async () => [{ address, family: 6 }],
+        request: async () => ({
+          status: 200,
+          contentType: "text/plain",
+          body: new TextEncoder().encode("Synthetic role for a candidate-controlled workspace."),
+        }),
+      }),
+    ).resolves.toHaveProperty("canonicalUrl", input.url);
+  },
+);
+
+it.each([
+  [302, "text/plain", new TextEncoder().encode("Redirect"), "SOURCE_URL_REDIRECT_BLOCKED"],
+  [500, "text/plain", new TextEncoder().encode("Error"), "SOURCE_URL_HTTP_500"],
+  [200, "application/json", new TextEncoder().encode("{}"), "URL_CONTENT_TYPE"],
+  [200, "text/html", new Uint8Array(1_000_001), "URL_BODY_TOO_LARGE"],
+  [200, "text/plain", Uint8Array.of(0xff), "URL_TEXT_ENCODING"],
+] as const)(
+  "fails closed for response status %i and type %s",
+  async (status, contentType, body, error) => {
+    await expect(
+      fetchAllowlistedJobPage(input, {
+        resolve: async () => [{ address: "93.184.216.34", family: 4 }],
+        request: async () => ({ status, contentType, body, location: "https://127.0.0.1/" }),
+      }),
+    ).rejects.toThrow(error);
+  },
+);
+
 it.each([
   "192.0.2.1",
   "192.88.99.2",
@@ -65,6 +113,30 @@ it("does not interpret provider-declared plain text as HTML", async () => {
   expect(page.text).toBe(description);
 });
 
+it.each([true, false])("uses Ashby plain text when present, otherwise HTML: %s", async (plain) => {
+  const description = "Build <tools> &amp; preserve literal candidate text.";
+  const jobs = await fetchProviderJobs(
+    { provider: "ashby", board: "synthetic" },
+    async () =>
+      new Response(
+        JSON.stringify({
+          jobs: [
+            {
+              id: "7",
+              title: "Engineer",
+              descriptionPlain: plain ? description : "",
+              descriptionHtml:
+                "<p>Build &lt;tools&gt; &amp;amp; preserve literal candidate text.</p>",
+              jobUrl: "https://careers.example.test/role",
+            },
+          ],
+        }),
+        { headers: { "content-type": "application/json" } },
+      ),
+  );
+  expect(jobs[0]?.description).toBe(description);
+});
+
 it.each([
   {
     source: '<p title="a > b">Build &amp;lt;tools&amp;gt; &amp;nbsp; carefully.</p>',
@@ -78,6 +150,11 @@ it.each([
   {
     source: "<p>Build &#x3C;tools&#x3E; &quot;carefully&quot; for candidates.</p>",
     expected: 'Build <tools> "carefully" for candidates.',
+  },
+  {
+    source:
+      "<p>Build candidate tools with care.</p><template><div><template>hidden</template>also hidden</div></template>",
+    expected: "Build candidate tools with care.",
   },
 ])("preserves visible text through both intake paths: $expected", async ({ source, expected }) => {
   const page = await fetchAllowlistedJobPage(input, {
