@@ -2,7 +2,7 @@
 
 Nimanto exists because maintainers make reliable open-source building blocks available to everyone.
 
-We are especially grateful to the communities behind Node.js, TypeScript, Next.js, React, Fastify, PGlite, Vitest, Playwright, PDF.js, pdf-lib, docx, Lucide, Fontsource, three.js, and the CycloneDX tooling used to build, test, document, and inspect this beta.
+We are especially grateful to the communities behind Node.js, TypeScript, Next.js, React, Fastify, PGlite, Vitest, Playwright, PDF.js, pdf-lib, docx, Lucide, Fontsource, three.js, htmlparser2, and the CycloneDX tooling used to build, test, document, and inspect this beta.
 
 Packet rendering also uses fontkit, regenerator-runtime, and the Noto font
 families. Their licenses and reproducible font provenance are listed in the
@@ -10,19 +10,10 @@ families. Their licenses and reproducible font provenance are listed in the
 
 The interface follows Colour & Material 002, a palette and emblem sampled from the project's own fold-lotus mark. The mark, the palette and the type system are original project work, not copied third-party assets.
 
-The exact machine-readable dependency inventories for v0.10.0 are published as:
+The exact machine-readable dependency inventories for v0.10.1 are published as:
 
-- [`docs/releases/nimanto-v0.10.0.cdx.json`](docs/releases/nimanto-v0.10.0.cdx.json) — CycloneDX 1.6 JSON;
-- [`docs/releases/nimanto-v0.10.0.spdx.json`](docs/releases/nimanto-v0.10.0.spdx.json) — SPDX JSON.
-- [`docs/releases/nimanto-v0.10.0-SHA256SUMS.txt`](docs/releases/nimanto-v0.10.0-SHA256SUMS.txt) — release-asset SHA-256 checksums.
+- [`docs/releases/nimanto-v0.10.1.cdx.json`](docs/releases/nimanto-v0.10.1.cdx.json) — CycloneDX 1.6 JSON;
+- [`docs/releases/nimanto-v0.10.1.spdx.json`](docs/releases/nimanto-v0.10.1.spdx.json) — SPDX JSON.
+- [`docs/releases/nimanto-v0.10.1-SHA256SUMS.txt`](docs/releases/nimanto-v0.10.1-SHA256SUMS.txt) — release-asset SHA-256 checksums.
 
 See [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) for license boundaries and [`docs/planning/sources-and-licenses.md`](docs/planning/sources-and-licenses.md) for the reviewed source and data-rights ledger.
-
-## Unreleased source inventory
-
-The current source identity is 0.10.1-dev.0 (unreleased). Its locked dependency
-inventories are separate from the published v0.10.0 provenance:
-
-- [CycloneDX](docs/releases/nimanto-v0.10.1-dev.0.cdx.json)
-- [SPDX](docs/releases/nimanto-v0.10.1-dev.0.spdx.json)
-- [SHA-256 checksums](docs/releases/nimanto-v0.10.1-dev.0-SHA256SUMS.txt)

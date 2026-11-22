@@ -1,12 +1,13 @@
 # Third-party notices
 
-Nimanto uses open-source packages under their own licenses. The release lockfile is the install authority; the exact v0.10.0 machine-readable inventories are the [CycloneDX SBOM](docs/releases/nimanto-v0.10.0.cdx.json) and [SPDX SBOM](docs/releases/nimanto-v0.10.0.spdx.json). Authoritative copyright and license texts remain with each package and its source distribution.
+Nimanto uses open-source packages under their own licenses. The release lockfile is the install authority; the exact v0.10.1 machine-readable inventories are the [CycloneDX SBOM](docs/releases/nimanto-v0.10.1.cdx.json) and [SPDX SBOM](docs/releases/nimanto-v0.10.1.spdx.json). Authoritative copyright and license texts remain with each package and its source distribution.
 
 Notable runtime families include:
 
 | Purpose                | Projects                                                                    | Primary license family         |
 | ---------------------- | --------------------------------------------------------------------------- | ------------------------------ |
 | Web and API            | Next.js, React, Fastify and Fastify plugins                                 | MIT                            |
+| HTML text extraction   | htmlparser2, htmlparser2 entities and supporting parser packages            | MIT                            |
 | Local data             | PGlite                                                                      | Apache-2.0                     |
 | Evidence and documents | PDF.js, pdf-lib, fontkit, regenerator-runtime, docx, fflate, saxes          | Apache-2.0, MIT, ISC           |
 | Packet fonts           | Noto Sans, Noto Sans Devanagari, Noto Sans SC                               | SIL Open Font License 1.1      |
@@ -14,7 +15,7 @@ Notable runtime families include:
 | Brand rendering        | three.js                                                                    | MIT                            |
 | Verification           | Vitest, Playwright, CSpell, CycloneDX cdxgen                                | MIT, Apache-2.0                |
 
-Some transitive optional/native packages expose alternative or weak-copyleft license choices. Consult the SBOM and the package's distributed license before redistributing a modified binary bundle. Nimanto v0.10.0 publishes source and does not redistribute a signed native binary.
+Some transitive optional/native packages expose alternative or weak-copyleft license choices. Consult the SBOM and the package's distributed license before redistributing a modified binary bundle. Nimanto v0.10.1 publishes source and does not redistribute a signed native binary.
 
 No third-party application source code, proprietary job data, personal résumé,
 model weights, Ollama runtime, or government dataset is bundled in this repository.
@@ -27,12 +28,3 @@ The Apache-2.0 license covers Nimanto's original source only; it does not replac
 The bundled Packet fonts retain their separate copyright and OFL texts. Their
 source checksums, static-font derivation, coverage policy, and reproduction steps
 are recorded in [the Packet font notes](packages/documents/fonts/README.md).
-
-## Unreleased source inventory
-
-The current source identity is 0.10.1-dev.0 (unreleased). Its locked dependency
-inventories are separate from the published v0.10.0 provenance:
-
-- [CycloneDX](docs/releases/nimanto-v0.10.1-dev.0.cdx.json)
-- [SPDX](docs/releases/nimanto-v0.10.1-dev.0.spdx.json)
-- [SHA-256 checksums](docs/releases/nimanto-v0.10.1-dev.0-SHA256SUMS.txt)
