@@ -55,7 +55,7 @@
     "concurrently": "10.0.7"
   },
   "devDependencies": {
-    "@cyclonedx/cdxgen": "12.9.2",
+    "@cyclonedx/cdxgen": "12.9.3",
     "@playwright/test": "1.65.1",
     "@types/node": "26.6.6",
     "cspell": "10.5.2",
